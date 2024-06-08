@@ -10,9 +10,10 @@
 
 ---
 
-<p align="left">
+<p align="center">
     <a><strong>The Naming of Kalibr »</strong></a>
 </p>
+
 
 The `Kalibr` calibration toolbox is an open-source project developed by the *ETH Zurich Visual Computing Group*. It addresses visual-inertial-related calibration problems. The name `Kalibr` is indeed inspired by the Swedish word “*Kalibrering*”, which translates to “*calibration*”. It’s a fitting choice for a toolbox that focuses on camera and sensor calibration.
 
@@ -20,9 +21,10 @@ The most notable feature of `Kalibr` is the introduction of an artificial calibr
 
 As a well-known calibration toolbox, `Kalibr` has made great contributions in both academia and industry. 
 
-<p align="left">
+<p align="center">
     <a><strong>The Naming of iKalibr (Ours) »</strong></a>
 </p>
+
 
 As a calibrator, `iKalibr` focuses on continuous-time-based multi-sensor spatiotemporal determination. More specifically, `iKalibr` addresses calibration problems for resilient integrated inertial systems, which generally integrate several exteroceptive (such as cameras, LiDARs, and radars) and proprioceptive (IMU, here) sensors, see the following figure. 
 

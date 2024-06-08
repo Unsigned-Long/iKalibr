@@ -9,13 +9,14 @@
 
 ---
 
-<p align="left">
+<p align="center">
     <a><strong>Install Required Third Libraries »</strong></a>
 </p> 
 
+
 The following libraries need to be installed to support `iKalibr`. If you have already installed some of them, just skip corresponding installation. Some libraries may have some details that need to be paid attention to.
 
-+ install `ROS1` (Ubuntu **20.04** is suggested, Ubuntu **18.04** (ros melodic) is also available):
++ install `ROS1` (Ubuntu **20.04** is suggested, Ubuntu **18.04** (ros melodic) is also available), requirements: **ROS1** & **C++17** support.
 
   ```bash
   sudo apt install ros-noetic-desktop-full
@@ -23,9 +24,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   source ~/.bashrc
   ```
 
-  **Requirements: ROS1 & C++17 Support**
-
-+ install `Ceres`: see the `GitHub` Profile of **[Ceres](https://github.com/ceres-solver/ceres-solver.git)** library, clone it, compile it, and install it. Make sure that the version of `Ceres` contains the `Manifold` module. **`Ceres` version equals to 2.2.0 or higher than that.**
++ install `Ceres`: see the `GitHub` Profile of **[Ceres](https://github.com/ceres-solver/ceres-solver.git)** library, clone it, compile it, and install it. Make sure that the version of `Ceres` contains the `Manifold` module. **`Ceres` version equals to 2.2.0 or higher.**
 
 + install `Sophus`: see the `GitHub` Profile of **[Sophus](https://github.com/strasdat/Sophus.git)** library, clone it, compile it, and install it.
 
@@ -43,9 +42,10 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
 **Key point**: both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`.
 
-<p align="left">
+<p align="center">
     <a><strong>Clone iKalibr and Its Modules »</strong></a>
 </p> 
+
 
 + create a ros workspace if needed and clone `iKalibr` to `src` directory as `ikalibr`:
 
@@ -68,9 +68,10 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
   this would build sub module libraries, namely `tiny-viewer`, `ctraj`, `ufomap`, `veta`, and `opengv`.
 
-<p align="left">
+<p align="center">
     <a><strong>Compile iKalibr »</strong></a>
 </p> 
+
 
 + generate the ros self-defined messages in `ikalibr`:
 
