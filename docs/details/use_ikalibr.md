@@ -20,6 +20,7 @@ Sufficiently excited motion is required for accurate spatiotemporal calibration 
 <p align="left">
     <a><strong>Write An Adaptable Configure File »</strong></a>
 </p> 
+
 A template of configure file has been provided [here](config_template_note.md). The detailed notes are also provided. We highly recommend you to read it before performing configuring and further solving, if it's your first time.
 
 <p align="left">
