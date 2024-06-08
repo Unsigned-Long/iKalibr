@@ -40,7 +40,6 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/opencv.hpp"
 #include "opencv2/features2d.hpp"
-#include "spdlog/stopwatch.h"
 
 #include "opengv/sac_problems/relative_pose/RotationOnlySacProblem.hpp"
 #include "opengv/sac_problems/relative_pose/TranslationOnlySacProblem.hpp"
@@ -108,7 +107,6 @@ namespace ns_ikalibr {
         // ------------------
         spdlog::info("start extracting features for each image, this would cost some time...");
         std::map<ns_veta::IndexT, FeaturePack> featMap;
-        std::unique_ptr<spdlog::stopwatch> sw(new spdlog::stopwatch);
 #pragma omp parallel for num_threads(omp_get_max_threads()) default(none) shared(featMap, _intri)
         for (int i = 0; i < static_cast<int>(_frames.size()); ++i) {
             // use detector to detect features
@@ -125,14 +123,12 @@ namespace ns_ikalibr {
 #pragma omp critical
             { featMap.insert({_frames.at(i)->GetId(), {index, kps, descriptor, kpsUndisto}}); }
         }
-        spdlog::info("total time cost in feature extraction: '{:.3f}' (s)", *sw);
-        sw.reset(nullptr);
+        spdlog::info("feature extraction finished.");
 
         // ----------------
         // feature matching
         // ----------------
         spdlog::info("start matching exhaustive features, this would cost some time...");
-        std::unique_ptr<spdlog::stopwatch> sw2(new spdlog::stopwatch);
         std::set<IndexPair> hasDone;
         for (int j = 0; j < static_cast<int>(_frames.size()); ++j) {
             const auto &refFrame = _frames.at(j);
@@ -227,8 +223,7 @@ namespace ns_ikalibr {
             }
         }
         std::cout << std::endl;
-        spdlog::info("total time cost in feature matching: '{:.3f}' (s)", *sw2);
-        sw2.reset(nullptr);
+        spdlog::info("feature matching finished.");
         hasDone.clear();
         featMap.clear();
         _viewer->ClearViewer(Viewer::VIEW_ASSOCIATION).AddEntityLocal(_viewCubes, Viewer::VIEW_ASSOCIATION);
