@@ -9,10 +9,9 @@
 
 ---
 
-<p align="center">
+<p align="left">
     <a><strong>Install Required Third Libraries »</strong></a>
 </p> 
-
 
 The following libraries need to be installed to support `iKalibr`. If you have already installed some of them, just skip corresponding installation. Some libraries may have some details that need to be paid attention to.
 
@@ -42,10 +41,9 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
 **Key point**: both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`.
 
-<p align="center">
+<p align="left">
     <a><strong>Clone iKalibr and Its Modules »</strong></a>
 </p> 
-
 
 + create a ros workspace if needed and clone `iKalibr` to `src` directory as `ikalibr`:
 
@@ -68,10 +66,9 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
   this would build sub module libraries, namely `tiny-viewer`, `ctraj`, `ufomap`, `veta`, and `opengv`.
 
-<p align="center">
+<p align="left">
     <a><strong>Compile iKalibr »</strong></a>
 </p> 
-
 
 + generate the ros self-defined messages in `ikalibr`:
 

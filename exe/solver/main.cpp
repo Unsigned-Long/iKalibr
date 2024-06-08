@@ -52,6 +52,9 @@ int main(int argc, char **argv) {
         // load settings
         auto configPath = ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_prog/config_path");
         spdlog::info("loading configure from yaml file '{}'...", configPath);
+        if (!std::filesystem::exists(configPath)) {
+            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL, "configure file dose not exist: '{}'", configPath);
+        }
 
         if (!ns_ikalibr::Configor::LoadConfigure(configPath)) {
             throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL, "load configure file from '{}' failed!", configPath);
