@@ -1,0 +1,12 @@
+[submodule "thirdparty/ctraj"]
+	path = thirdparty/ctraj
+	url = https://github.com/Unsigned-Long/CTraj.git
+[submodule "thirdparty/ufomap"]
+	path = thirdparty/ufomap
+	url = https://github.com/UnknownFreeOccupied/ufomap.git
+[submodule "thirdparty/veta"]
+	path = thirdparty/veta
+	url = https://github.com/Unsigned-Long/veta.git
+[submodule "thirdparty/opengv"]
+	path = thirdparty/opengv
+	url = https://github.com/laurentkneip/opengv.git

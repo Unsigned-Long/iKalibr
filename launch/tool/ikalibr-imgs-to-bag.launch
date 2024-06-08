@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<launch>
+    <!-- this program pack images in a folder into a rosbag -->
+    <!-- if images are named by their measurement timestamp, they would be stamped in rosbag by the same time system -->
+    <node pkg="ikalibr" type="ikalibr_imgs_to_bag" name="ikalibr_imgs_to_bag" output="screen">
+        <!-- image path  -->
+        <param name="imgs_path" value="/home/csl/dataset/tum/rolling-shutter/dataset-seq10/dso/cam0/images" type="string"/>
+        <!-- image topic (what message topic for images in the generated rosbag you want) -->
+        <param name="imgs_topic" value="/cam0/frame" type="string"/>
+        <!-- output bag path  -->
+        <param name="bag_path" value="/home/csl/dataset/tum/rolling-shutter/dataset-seq10/cam0.bag" type="string"/>
+        <!-- whether use image name as its timestamp  -->
+        <param name="name_as_stamp" value="true" type="bool"/>
+        <!-- if ${name_as_stamp} is true, then timestamp = std::stod(img_name) * ${name_to_stamp_scale}  -->
+        <param name="name_to_stamp_scale" value="1E-9" type="double"/>
+        <!-- if ${name_as_stamp} is false, then timestamp = ros::Time::now() + ros::Duration(idx * 1.0 / ${img_frequency})  -->
+        <param name="img_frequency" value="10" type="int"/>
+        <!-- whether to convert color image (if it is) to gray image  -->
+        <param name="to_gray" value="false" type="bool"/>
+        <!-- downsample images: grab an image per {downsample_num} images to rosbag -->
+        <!-- {downsample_num} equals to 1 means do not perform downsample -->
+        <param name="downsample_num" value="2" type="int"/>
+    </node>
+
+    <!--
+         iKalibr: Unified Targetless Spatiotemporal Calibration Framework
+         Copyright 2024, the School of Geodesy and Geomatics (SGG), Wuhan University, China
+         https://github.com/Unsigned-Long/iKalibr.git
+
+         Author: Shuolong Chen (shlchen@whu.edu.cn)
+         GitHub: https://github.com/Unsigned-Long
+          ORCID: 0000-0002-5283-9057
+
+         Purpose: See .h/.hpp file.
+
+         Redistribution and use in source and binary forms, with or without
+         modification, are permitted provided that the following conditions are met:
+
+         * Redistributions of source code must retain the above copyright notice,
+           this list of conditions and the following disclaimer.
+         * Redistributions in binary form must reproduce the above copyright notice,
+           this list of conditions and the following disclaimer in the documentation
+           and/or other materials provided with the distribution.
+         * The names of its contributors can not be
+           used to endorse or promote products derived from this software without
+           specific prior written permission.
+
+         THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+         AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+         IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+         ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+         LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+         CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+         SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+         INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+         CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+         ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+         POSSIBILITY OF SUCH DAMAGE.
+    -->
+</launch>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<launch>
+    <!-- this program perform static intrinsic calibration for a single IMU -->
+    <!--
+         the following parameters would be considered in the calibration:
+         (1) the scale and non-orthogonal factor (matrix) of accelerator;
+         (2) biases of accelerator and gyroscope;
+         attention: for static intrinsic calibration, the scale and non-orthogonal factor (matrix) of gyroscope
+         are lacking observability (for low-cost MEMS IMUs, which almost can not aware the earth rotation)
+    -->
+    <!-- multiple data pieces are required, they are collected stationary using different placement patterns -->
+    <!-- for example, collect data using the same pattern  as the six-position calibration -->
+    <!-- more details, please see the configure file at $(find ikalibr)/config/tool/config-imu-intri-calib.yaml -->
+    <node pkg="ikalibr" type="ikalibr_imu_intri_calib" name="ikalibr_imu_intri_calib" output="screen">
+        <param name="config_path" value="$(find ikalibr)/config/tool/config-imu-intri-calib.yaml"
+               type="string"/>
+    </node>
+
+    <!--
+         iKalibr: Unified Targetless Spatiotemporal Calibration Framework
+         Copyright 2024, the School of Geodesy and Geomatics (SGG), Wuhan University, China
+         https://github.com/Unsigned-Long/iKalibr.git
+
+         Author: Shuolong Chen (shlchen@whu.edu.cn)
+         GitHub: https://github.com/Unsigned-Long
+          ORCID: 0000-0002-5283-9057
+
+         Purpose: See .h/.hpp file.
+
+         Redistribution and use in source and binary forms, with or without
+         modification, are permitted provided that the following conditions are met:
+
+         * Redistributions of source code must retain the above copyright notice,
+           this list of conditions and the following disclaimer.
+         * Redistributions in binary form must reproduce the above copyright notice,
+           this list of conditions and the following disclaimer in the documentation
+           and/or other materials provided with the distribution.
+         * The names of its contributors can not be
+           used to endorse or promote products derived from this software without
+           specific prior written permission.
+
+         THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+         AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+         IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+         ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+         LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+         CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+         SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+         INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+         CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+         ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+         POSSIBILITY OF SUCH DAMAGE.
+    -->
+</launch>

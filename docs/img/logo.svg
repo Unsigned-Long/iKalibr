@@ -1,0 +1,155 @@
+<svg width="252" height="52" xmlns="http://www.w3.org/2000/svg">
+<rect x="1" y="1" width="10" height="10" stroke="black" stroke-width="0.5" fill="red" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.7834601;0.30224213;0.65261513" dur="1.0000079s" repeatCount="indefinite" />
+</rect>
+<rect x="21" y="1" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.8715459;0.018817848;0.6875837" dur="1.5327673s" repeatCount="indefinite" />
+</rect>
+<rect x="51" y="1" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.80776656;0.15340082;0.9738772" dur="1.6792965s" repeatCount="indefinite" />
+</rect>
+<rect x="121" y="1" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.8118801;0.021384655;0.61382884" dur="1.8309653s" repeatCount="indefinite" />
+</rect>
+<rect x="141" y="1" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.62673694;0.15336625;0.6030793" dur="1.6711494s" repeatCount="indefinite" />
+</rect>
+<rect x="161" y="1" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.9721746;0.23559065;0.87470907" dur="1.417486s" repeatCount="indefinite" />
+</rect>
+<rect x="21" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.8615676;0.036785956;0.8107715" dur="1.8461668s" repeatCount="indefinite" />
+</rect>
+<rect x="41" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.9048792;0.36412832;0.88047624" dur="1.4159994s" repeatCount="indefinite" />
+</rect>
+<rect x="81" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.7312937;0.29443276;0.61898583" dur="1.262453s" repeatCount="indefinite" />
+</rect>
+<rect x="91" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.7461355;0.39641497;0.90256417" dur="1.6326386s" repeatCount="indefinite" />
+</rect>
+<rect x="101" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.90134233;0.28906417;0.9930201" dur="1.2470388s" repeatCount="indefinite" />
+</rect>
+<rect x="121" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.9538829;0.2526539;0.6290744" dur="1.6515186s" repeatCount="indefinite" />
+</rect>
+<rect x="161" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.7910927;0.30659792;0.77456456" dur="1.27271s" repeatCount="indefinite" />
+</rect>
+<rect x="171" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.6666029;0.143706;0.7099627" dur="1.2377744s" repeatCount="indefinite" />
+</rect>
+<rect x="181" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.62422574;0.36368325;0.9590625" dur="1.4865174s" repeatCount="indefinite" />
+</rect>
+<rect x="211" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.7276132;0.20651679;0.8018092" dur="1.9046531s" repeatCount="indefinite" />
+</rect>
+<rect x="231" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.6362932;0.10645781;0.7975907" dur="1.9866421s" repeatCount="indefinite" />
+</rect>
+<rect x="241" y="11" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.75365686;0.20028284;0.6294997" dur="1.9477643s" repeatCount="indefinite" />
+</rect>
+<rect x="1" y="21" width="10" height="10" stroke="black" stroke-width="0.5" fill="red" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.78577834;0.21189895;0.965527" dur="1.2770817s" repeatCount="indefinite" />
+</rect>
+<rect x="21" y="21" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.9080818;0.3046057;0.6200336" dur="1.94098s" repeatCount="indefinite" />
+</rect>
+<rect x="31" y="21" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.8753821;0.00634708;0.6501462" dur="1.8278173s" repeatCount="indefinite" />
+</rect>
+<rect x="71" y="21" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.8901648;0.29448983;0.85181737" dur="1.8682472s" repeatCount="indefinite" />
+</rect>
+<rect x="101" y="21" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.72252876;0.09327795;0.9554289" dur="1.9994578s" repeatCount="indefinite" />
+</rect>
+<rect x="121" y="21" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.93839264;0.23644543;0.8053095" dur="1.3510152s" repeatCount="indefinite" />
+</rect>
+<rect x="141" y="21" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.76615787;0.10772691;0.93660426" dur="1.4120808s" repeatCount="indefinite" />
+</rect>
+<rect x="161" y="21" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.6713311;0.11488495;0.78716695" dur="1.5373039s" repeatCount="indefinite" />
+</rect>
+<rect x="191" y="21" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.6132215;0.32096228;0.8286619" dur="1.15372s" repeatCount="indefinite" />
+</rect>
+<rect x="211" y="21" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.8993171;0.3821443;0.79939204" dur="1.5344498s" repeatCount="indefinite" />
+</rect>
+<rect x="221" y="21" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.93681586;0.24993972;0.956295" dur="1.5545838s" repeatCount="indefinite" />
+</rect>
+<rect x="1" y="31" width="10" height="10" stroke="black" stroke-width="0.5" fill="red" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.6521709;0.285884;0.6851006" dur="1.1597675s" repeatCount="indefinite" />
+</rect>
+<rect x="21" y="31" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.7657173;0.0011998402;0.7098353" dur="1.0909903s" repeatCount="indefinite" />
+</rect>
+<rect x="41" y="31" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.69596434;0.37515894;0.8839279" dur="1.0268763s" repeatCount="indefinite" />
+</rect>
+<rect x="71" y="31" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.86082345;0.35479626;0.72701585" dur="1.1808959s" repeatCount="indefinite" />
+</rect>
+<rect x="101" y="31" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.7550901;0.15432589;0.8725385" dur="1.1503351s" repeatCount="indefinite" />
+</rect>
+<rect x="121" y="31" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.9382303;0.23487465;0.6590132" dur="1.4997411s" repeatCount="indefinite" />
+</rect>
+<rect x="141" y="31" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.65926063;0.22245847;0.98216355" dur="1.5901086s" repeatCount="indefinite" />
+</rect>
+<rect x="161" y="31" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.8259595;0.056727912;0.7635067" dur="1.9833051s" repeatCount="indefinite" />
+</rect>
+<rect x="191" y="31" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.98443806;0.18561222;0.7954058" dur="1.2521265s" repeatCount="indefinite" />
+</rect>
+<rect x="211" y="31" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.8517077;0.12769987;0.6799029" dur="1.1260308s" repeatCount="indefinite" />
+</rect>
+<rect x="1" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="red" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.9212292;0.2486536;0.8605015" dur="1.1267122s" repeatCount="indefinite" />
+</rect>
+<rect x="21" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.68130016;0.15572567;0.79057276" dur="1.2478417s" repeatCount="indefinite" />
+</rect>
+<rect x="51" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.65680844;0.17059897;0.9606694" dur="1.0283751s" repeatCount="indefinite" />
+</rect>
+<rect x="81" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.95425934;0.05247541;0.7641252" dur="1.9474868s" repeatCount="indefinite" />
+</rect>
+<rect x="91" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.74613565;0.028425425;0.66487944" dur="1.0921736s" repeatCount="indefinite" />
+</rect>
+<rect x="101" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.7821229;0.31326127;0.6540438" dur="1.2530574s" repeatCount="indefinite" />
+</rect>
+<rect x="121" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.9726698;0.32357785;0.7809201" dur="1.3495241s" repeatCount="indefinite" />
+</rect>
+<rect x="141" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.96356875;0.27183697;0.68609935" dur="1.6516461s" repeatCount="indefinite" />
+</rect>
+<rect x="161" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.80238235;0.18850493;0.9443439" dur="1.2501256s" repeatCount="indefinite" />
+</rect>
+<rect x="171" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.784898;0.3023374;0.9270246" dur="1.6003938s" repeatCount="indefinite" />
+</rect>
+<rect x="181" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.92987895;0.17573212;0.8530955" dur="1.9513674s" repeatCount="indefinite" />
+</rect>
+<rect x="211" y="41" width="10" height="10" stroke="black" stroke-width="0.5" fill="green" rx="3" ry="3">
+    <animate attributeName="opacity" values="0.981766;0.3948582;0.8808827" dur="1.6889809s" repeatCount="indefinite" />
+</rect>
+</svg>

@@ -1,0 +1,94 @@
+<launch>
+    <node pkg="ikalibr" type="ikalibr_lidar_map_viewer" name="ikalibr_lidar_map_viewer"
+        output="screen">
+        <!-- this pre path would be added to the head of each elem in {ws_dir_vec} -->
+        <param name="pre_dir" value="$(find ikalibr)" type="string" />
+        <!-- 0: aligned map only, 1: surfel map only, 2: aligned + surfel -->
+        <param name="mode" value="2" type="int" />
+        <!-- output the data from viewer (e.g., screen shot) -->
+        <param name="output_dir" value="$(find ikalibr)/../../img" type="string" />
+
+        <!-- leaf size when down sample the map using 'pcl::VoxelGrid' filter -->
+        <!-- negative value means do not perform down sample -->
+        <param name="down_sample_leaf_size" value="0.5" type="double" />
+        <!-- point whose z value smaller than this would be filtered -->
+        <param name="min_z" value="-2.2" type="double" />
+        <!-- point whose z value larger than this would be filtered -->
+        <param name="max_z" value="3.0" type="double" />
+
+        <!-- viewer camera poses -->
+        <param name="cam_radius" value="0.0" type="double" />
+        <param name="cam_height" value="80.0" type="double" />
+        <!-- in each camera view update -->
+        <!-- negative value means do not perform rotation -->
+        <param name="rot_rate" value="0.001" type="double" />
+
+        <!-- win width : win height -->
+        <param name="win_scale" value="16:9" type="string" />
+        <param name="win_grid_size" value="250" type="int" />
+
+        <!-- the ${ws_dir_vec} would be appended after the ${pre_dir} -->
+        <!-- multiple workspaces are supported, you just need to add them in the below list -->
+        <rosparam param="ws_dir_vec">
+            [
+            "data/li-calib/Court-01",
+            "data/li-calib/Court-02",
+            "data/li-calib/Court-03",
+            "data/li-calib/Court-04",
+            "data/li-calib/Court-05",
+            "data/li-calib/Garage-01",
+            "data/li-calib/Garage-02",
+            "data/li-calib/Garage-03",
+            "data/li-calib/Garage-04",
+            "data/li-calib/Garage-05",
+            "data/li-init/Hesai-apartment",
+            "data/li-init/velodyne16",
+            "data/li-init/mid360-50ms-delay",
+            "data/real-world/data_202392616822",
+            "data/real-world/data_2023325152926",
+            "data/real-world/data_2023327154847",
+            "data/real-world/data_2023926145954",
+            "data/real-world/data_2023926155612",
+            "data/real-world/data_20221113143612",
+            "data/real-world/data_20221113151919",
+            "data/yxt/2023-10-22-12-55-24"
+            ]
+        </rosparam>
+    </node>
+
+    <!--
+         iKalibr: Unified Targetless Spatiotemporal Calibration Framework
+         Copyright 2024, the School of Geodesy and Geomatics (SGG), Wuhan University, China
+         https://github.com/Unsigned-Long/iKalibr.git
+
+         Author: Shuolong Chen (shlchen@whu.edu.cn)
+         GitHub: https://github.com/Unsigned-Long
+          ORCID: 0000-0002-5283-9057
+
+         Purpose: See .h/.hpp file.
+
+         Redistribution and use in source and binary forms, with or without
+         modification, are permitted provided that the following conditions are met:
+
+         * Redistributions of source code must retain the above copyright notice,
+           this list of conditions and the following disclaimer.
+         * Redistributions in binary form must reproduce the above copyright notice,
+           this list of conditions and the following disclaimer in the documentation
+           and/or other materials provided with the distribution.
+         * The names of its contributors can not be
+           used to endorse or promote products derived from this software without
+           specific prior written permission.
+
+         THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+         AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+         IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+         ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+         LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+         CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+         SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+         INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+         CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+         ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+         POSSIBILITY OF SUCH DAMAGE.
+    -->
+</launch>

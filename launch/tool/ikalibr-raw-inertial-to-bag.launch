@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<launch>
+
+    <node pkg="ikalibr" type="ikalibr_raw_inertial_to_bag" name="ikalibr_raw_inertial_to_bag" output="screen">
+        <!-- raw inertial path  -->
+        <param name="raw_inertial_path" value="/home/csl/dataset/tum/rolling-shutter/dataset-seq10/dso/imu.txt" type="string"/>
+        <!-- image topic (what message topic for images in the generated rosbag you want) -->
+        <param name="imu_topic" value="/imu/frame" type="string"/>
+        <!-- output bag path  -->
+        <param name="bag_path" value="/home/csl/dataset/tum/rolling-shutter/dataset-seq10/imu.bag" type="string"/>
+        <!-- timestamp (second) = stamp * ${stamp_to_sed_scale}  -->
+        <param name="stamp_to_sed_scale" value="1E-9" type="double"/>
+        <!-- how many lines to jump at head (invalid lines, which are only notes) -->
+        <param name="head_line_count" value="1" type="int"/>
+        <!-- the split character (only one character), pass it in the middle of the big parentheses -->
+        <param name="split_character" value="{ }" type="string"/>
+        <!-- the order of inertial measurements, split by a semicolon -->
+        <param name="inertial_order" value="t;gx;gy;gz;ax;ay;az" type="string"/>
+        <!--
+        for example, current configure is suitable for the following raw inertial measurements:
+         #################################################################################
+         |Time              Gyro_X     Gyro_Y     Gyro_Z    Accel_X    Accel_Y    Accel_Z|
+         |546676.300000   -0.00553   -0.05556    0.03887   -9.82086    0.02228   -0.04242|
+         |546676.305000    0.00000   -0.03889    0.01111   -9.82147    0.03998    0.00061|
+         |546676.310000   -0.01109    0.01667   -0.07222   -9.81079    0.04150    0.01495|
+         #################################################################################
+        -->
+    </node>
+
+    <!--
+         iKalibr: Unified Targetless Spatiotemporal Calibration Framework
+         Copyright 2024, the School of Geodesy and Geomatics (SGG), Wuhan University, China
+         https://github.com/Unsigned-Long/iKalibr.git
+
+         Author: Shuolong Chen (shlchen@whu.edu.cn)
+         GitHub: https://github.com/Unsigned-Long
+          ORCID: 0000-0002-5283-9057
+
+         Purpose: See .h/.hpp file.
+
+         Redistribution and use in source and binary forms, with or without
+         modification, are permitted provided that the following conditions are met:
+
+         * Redistributions of source code must retain the above copyright notice,
+           this list of conditions and the following disclaimer.
+         * Redistributions in binary form must reproduce the above copyright notice,
+           this list of conditions and the following disclaimer in the documentation
+           and/or other materials provided with the distribution.
+         * The names of its contributors can not be
+           used to endorse or promote products derived from this software without
+           specific prior written permission.
+
+         THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+         AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+         IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+         ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+         LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+         CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+         SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+         INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+         CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+         ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+         POSSIBILITY OF SUCH DAMAGE.
+    -->
+</launch>
