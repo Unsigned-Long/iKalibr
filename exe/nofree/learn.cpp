@@ -38,6 +38,7 @@
 #include "util/status.hpp"
 #include "nofree/ufomap_learner.hpp"
 #include "nofree/logo_svg.hpp"
+#include "nofree/data_collect_demo.hpp"
 
 _3_
 
@@ -48,7 +49,9 @@ int main(int argc, char **argv) {
 
         ns_ikalibr::PrintIKalibrLibInfo();
 
-        ns_ikalibr::LoGoMaker::SaveToFile("/home/csl/ros_ws/iKalibr/src/ikalibr/docs/img/logo.svg");
+        ns_ikalibr::DataCollectionMotionDemo::Run();
+
+        // ns_ikalibr::LoGoMaker::SaveToFile("/home/csl/ros_ws/iKalibr/src/ikalibr/docs/img/logo.svg");
 
         // ns_ikalibr::UFOMapLearner::Learn();
 

@@ -15,7 +15,17 @@
 
 Sufficiently excited motion is required for accurate spatiotemporal calibration in `iKalibr` (to ensure the observability of spatiotemporal parameters). This is a less noticeable but more important point, and we have to be ready at the starting line.
 
-+ todo...
+Here we give a guiding data collection motion incentive method, see the following demo video. The key is to make a circular motion, shaking your sensor in a 8-shape pattern as you go. **Be careful not to shake too fast or too slow**. 
+
+
+
+In fact, this animation can be generated and viewed on your computer through [ikalibr-learn.launch](../../launch/nofree/ikalibr-learn.launch). Just run:
+
+```sh
+roslaunch ikalibr ikalibr-learn.launch
+```
+
+Of course, this is not the only way. You can do it according to your way, as long as you ensure that the collected data is fully excited.
 
 <p align="left">
     <a><strong>Write An Adaptable Configure File »</strong></a>
