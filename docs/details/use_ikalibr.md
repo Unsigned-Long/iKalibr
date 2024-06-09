@@ -19,6 +19,10 @@ Here we give a guiding data collection motion incentive method, see the followin
 
 
 
+https://github.com/Unsigned-Long/iKalibr/assets/76953144/b8481efe-0d07-42b3-9bc7-f4f119465313
+
+
+
 In fact, this animation can be generated and viewed on your computer through [ikalibr-learn.launch](../../launch/nofree/ikalibr-learn.launch). Just run:
 
 ```sh
