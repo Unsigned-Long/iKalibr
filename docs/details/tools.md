@@ -53,6 +53,7 @@ roslaunch ikalibr ikalibr-data-format-transformer.launch
 <p align="left">
     <a><strong>Rosbag Merge and Split »</strong></a>
 </p> 
+
 If you collect data from each sensor separately into a separate rosbag, you can merge them into one rosbag using [ikalibr-bag-merge](../../launch/tool/ikalibr-bag-merge.launch) before solving. Specifically, you should first configure the [config-bag-merge.yaml](../../config/tool/config-bag-merge.yaml) file, and then run:
 
 ```sh
@@ -62,6 +63,7 @@ roslaunch ikalibr ikalibr-bag-merge.launch
 <p align="left">
     <a><strong>Images To Rosbag »</strong></a>
 </p> 
+
 If you store the image directly as a single file on disk when you collect sensor data, you may need to make them as a rosbag. In this case, you can use [ikalibr-imgs-to-bag](../../launch/tool/ikalibr-imgs-to-bag.launch). After you have configured the contents in the launch file, run:
 
 ```sh
@@ -72,6 +74,7 @@ roslaunch ikalibr ikalibr-imgs-to-bag.launch
 <p align="left">
     <a><strong>Raw Inertial Measurements To Rosbag »</strong></a>
 </p> 
+
 If you store the inertial measurements directly as a raw text file on disk when you collect sensor data, you may need to make them as a rosbag. In this case, you can use [ikalibr-raw-inertial-to-bag](../../launch/tool/ikalibr-raw-inertial-to-bag.launch). After you have configured the contents in the launch file, run:
 
 ```sh
@@ -82,4 +85,5 @@ roslaunch ikalibr ikalibr-raw-inertial-to-bag.launch
 <p align="left">
     <a><strong>LiDAR Map Viewer »</strong></a>
 </p> 
+
 It's just a little toy, don't pay any attention to it.
