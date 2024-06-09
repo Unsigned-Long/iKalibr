@@ -102,3 +102,28 @@ colmap model_converter --input_path /home/.../images/cam0/frame/sfm_ws/0 --outpu
 + *Feature extraction*: use `SIFT` feature extraction algorithm to extract features from images. This is conducted by `colmap feature_extractor`.
 + *Feature matching*: given two images, feature matching is performed using the extracted `SIFT` feature descriptors. This is conducted by `colmap matches_importer`.
 + *SfM sparse reconstruction*: structural reconstruction via bundle adjustment (BA). Please note that we provide two methods here: *command line based method* (`colmap mapper`) and *GUI based method* `colmap gui`. **We recommend using the GUI** so that you can see in real time whether the SfM reconstruction is correct. Of course, if you use this mode, you will need to **manually set the reconstruction options** in the GUI interface (detailed options to set can be found in the given command line based reconstruction, `colmap mapper`, such as `--Mapper.init_min_tri_angle` option, `--Mapper.ba_refine_principal_point` option, and so on).
++ *Convert the SfM result files*: use `colmap model_converter` to convert binary-format files to txt-format files **in folder `sfm_ws`**. They are `cameras.txt`, `images.txt`, and `points3D.txt`.
+
+The following one is a typical file structure after performing SfM using `colmap`:
+
+```sh
+.
+├── images                   # output by ikalibr_prog
+│   ├── 1548685768126.jpg
+│   ├── 1548685768226.jpg
+│   ├── ...
+├── info.yaml                # output by ikalibr_prog [used in solving]
+└── sfm_ws         
+    ├── 0                    # output by colmap
+    │   ├── cameras.bin
+    │   ├── images.bin
+    │   ├── points3D.bin
+    │   └── project.ini
+    ├── cameras.txt          # converted from colmap  [used in solving]
+    ├── database.db          # output by colmap
+    ├── images.txt           # converted from colmap  [used in solving]
+    ├── matches.txt          # output by ikalibr_prog
+    ├── points3D.txt         # converted from colmap  [used in solving]
+    └── sfm-command-line.txt # output by ikalibr_prog
+```
+
