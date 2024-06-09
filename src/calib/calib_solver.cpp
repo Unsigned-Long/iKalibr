@@ -121,6 +121,7 @@ namespace ns_ikalibr {
     }
 
     void CalibSolver::Process() {
+        if (Configor::Preference::OutputParamInEachIter) { SaveStageCalibParam(_parMagr, "stage_0_init"); }
         // --------------
         // initialization
         // --------------
@@ -1480,7 +1481,7 @@ namespace ns_ikalibr {
         logger->info("performing SfM using [colmap gui] is suggested, rather than the command line, "
                      "which is very strict in initialization (finding initial image pair) and would cost lots of time!!!");
         // reconstruction
-        logger->info("command line for 'feature_extractor' in [colmap gui] for topic '{}':\n"
+        logger->info("command line for 'colmap gui' for topic '{}':\n"
                      "colmap gui "
                      "--database_path {} "
                      "--image_path {}",
@@ -1488,7 +1489,7 @@ namespace ns_ikalibr {
         logger->info("------------------------------------------------------------------------------");
         double init_max_error = IsRSCamera(topic) ? 2.0 : 1.0;
         // reconstruction
-        logger->info("command line for 'feature_extractor' in [colmap mapper] for topic '{}':\n"
+        logger->info("command line for 'colmap mapper' for topic '{}':\n"
                      "colmap mapper "
                      "--database_path {} "
                      "--image_path {} "

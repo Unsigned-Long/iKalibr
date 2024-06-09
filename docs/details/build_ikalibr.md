@@ -31,12 +31,14 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
 + install `Pangolin`: see the `GitHub` Profile of **[Pangolin](https://github.com/stevenlovegrove/Pangolin.git)** library, clone it, compile it, and install it.
 
-+ install `cereal`, `yaml-cpp`, and `spdlog`:
++ install `cereal`, `yaml-cpp`, `spdlog`, and `colmap`. If possible, installing `colmap` from the [source](https://github.com/colmap/colmap.git) is recommend.
 
   ```bash
   sudo apt-get install libcereal-dev
   sudo apt-get install libyaml-cpp-dev
   sudo apt-get install libspdlog-dev
+  # installing colmap from source is a better way
+  sudo apt-get install colmap
   ```
 
 **Key point**: both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`.

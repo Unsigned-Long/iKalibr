@@ -12,7 +12,7 @@
 
 ---
 
-When you want to calibrate a sensor suite that integrates LiDARs, you need to write their information in the configure file, such as their topics, their types, and their weights when performing solving. **Selecting a right type for each sensor is important**, as different type points to different data loader to ensure decode the binary data in the rosbag correctly. 
+When you want to calibrate a sensor suite, you need to write their information in the configure file, such as their topics, their types, and their weights when performing solving. **Selecting a right type for each sensor is important**, as different type points to different data loader to ensure decode the binary data in the rosbag correctly. 
 
 <p align="left">
     <a><strong>Currently Supported Sensor Type »</strong></a>
