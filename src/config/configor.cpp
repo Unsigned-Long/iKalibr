@@ -234,6 +234,11 @@ namespace ns_ikalibr {
             if (config.GyroWeight <= 0.0) {
                 throw Status(Status::ERROR, "gyroscope weight of IMU '{}' should be positive!", topic);
             }
+            if (!std::filesystem::exists(config.Intrinsics)) {
+                throw Status(
+                        Status::ERROR, "IMU intrinsic file for '{}' dose not exist: '{}'", topic, config.Intrinsics
+                );
+            }
         }
         for (const auto &[topic, config]: DataStream::RadarTopics) {
             if (topic.empty()) { throw Status(Status::ERROR, "empty Radar topic exists!"); }
@@ -252,6 +257,14 @@ namespace ns_ikalibr {
             if (config.Weight <= 0.0) {
                 throw Status(Status::ERROR, "weight of camera '{}' should be positive!", topic);
             }
+            if (config.TrackLengthMin < 2) {
+                throw Status(Status::ERROR, "track length of camera '{}' should be larger than '1'!", topic);
+            }
+            if (!std::filesystem::exists(config.Intrinsics)) {
+                throw Status(
+                        Status::ERROR, "camera intrinsic file for '{}' dose not exist: '{}'", topic, config.Intrinsics
+                );
+            }
         }
 
         // the reference imu should be one of multiple imus
@@ -259,8 +272,8 @@ namespace ns_ikalibr {
             throw Status(Status::ERROR, "the reference IMU is not set, it should be one of the IMUs!");
         }
 
-        if (DataStream::BagPath.empty()) {
-            throw Status(Status::ERROR, "the ros bag path (i.e., DataStream::BagPath) is empty!");
+        if (!std::filesystem::exists(DataStream::BagPath)) {
+            throw Status(Status::ERROR, "can not find the ros bag (i.e., DataStream::BagPath)!");
         }
         if (DataStream::OutputPath.empty()) {
             throw Status(Status::ERROR, "the output path (i.e., DataStream::OutputPath) is empty!");
@@ -275,6 +288,11 @@ namespace ns_ikalibr {
         if (Prior::TimeOffsetPadding <= 0.0) {
             throw Status(
                     Status::ERROR, "the time offset padding (i.e., Prior::TimeOffsetPadding) should be positive!"
+            );
+        }
+        if (Prior::ReadoutTimePadding <= 0.0) {
+            throw Status(
+                    Status::ERROR, "the readout time padding (i.e., Prior::ReadoutTimePadding) should be positive!"
             );
         }
         if (Prior::KnotTimeDist::SO3Spline <= 0.0) {
@@ -299,6 +317,22 @@ namespace ns_ikalibr {
             throw Status(
                     Status::ERROR,
                     "the down sample rate for NDT LiDAR odometer (i.e., Prior::NDTLiDAROdometer::KeyFrameDownSample) should be positive!"
+            );
+        }
+
+        if (Prior::CauchyLossForRadarFactor <= 0.0) {
+            throw Status(
+                    Status::ERROR, "the Prior::CauchyLossForRadarFactor should be positive!"
+            );
+        }
+        if (Prior::CauchyLossForLiDARFactor <= 0.0) {
+            throw Status(
+                    Status::ERROR, "the Prior::CauchyLossForLiDARFactor should be positive!"
+            );
+        }
+        if (Prior::CauchyLossForCameraFactor <= 0.0) {
+            throw Status(
+                    Status::ERROR, "the Prior::CauchyLossForCameraFactor should be positive!"
             );
         }
 

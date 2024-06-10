@@ -1,0 +1,122 @@
+Configor:
+  DataStream:
+    # key: IMU topic, value: IMU type. Supported IMU types are:
+    #   1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html
+    #   2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git
+    #   3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)
+    IMUTopics:
+      - key: "/imu/frame"
+        value:
+          Type: "SENSOR_IMU"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/config/imu-intri.yaml"
+          AcceWeight: 17.68
+          GyroWeight: 57.66
+    # key: radar topic, value: radar type. Supported radar types are:
+    #   1.     AINSTEIN_RADAR: https://github.com/AinsteinAI/ainstein_radar.git
+    #   2. AWR1843BOOST_RAW: https://github.com/Unsigned-Long/ti_mmwave_rospkg.git
+    #   3. AWR1843BOOST_CUSTOM: https://github.com/Unsigned-Long/ti_mmwave_rospkg.git
+    #   4.  POINTCLOUD2_POSV: 'sensor_msgs/PointCloud2' with point format: [x, y, z, velocity]
+    #   5.  POINTCLOUD2_POSIV: 'sensor_msgs/PointCloud2' with point format: [x, y, z, intensity, velocity]
+    #   6.  POINTCLOUD2_XRIO: 'sensor_msgs/PointCloud2' with x-RIO point format (see https://github.com/christopherdoer/rio.git)
+    RadarTopics:
+    # key: LiDAR topic, value: LiDAR type. Supported LiDAR types:
+    #   1.        Velodyne LiDARs: VLP_16_PACKET, VLP_16_SIMU, VLP_16_POINTS, VLP_32E_POINTS
+    #   2.          Ouster LiDARs: OUSTER_16_POINTS OUSTER_32_POINTS, OUSTER_64_POINTS, OUSTER_128_POINTS
+    #   3. Hesai Pandar XT LiDARs: PANDAR_XT_16, PANDAR_XT_32
+    #   4.           Livox LiDARs: LIVOX_MID_360, LIVOX_AVIA
+    LiDARTopics:
+    # key: camera topic, value: camera type. Supported camera types:
+    #   1. SENSOR_IMAGE_GS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    #   2. SENSOR_IMAGE_RS_FIRST: first-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    #   3. SENSOR_IMAGE_RS_MID: middle-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    #   4. SENSOR_IMAGE_RS_LAST: last-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    CameraTopics:
+      - key: "/cam0/frame"
+        value:
+          Type: "SENSOR_IMAGE_GS"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/tum/cam0-intri-pinhole-fisheye.yaml"
+          Weight: 50.0
+          TrackLengthMin: 10
+      - key: "/cam1/frame"
+        value:
+          Type: "SENSOR_IMAGE_RS_FIRST"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/tum/cam1-intri-pinhole-fisheye.yaml"
+          Weight: 50.0
+          TrackLengthMin: 10
+    ReferIMU: "/imu/frame"
+    BagPath: "/home/csl/dataset/tum/rolling-shutter/dataset-seq5/cams_imu.bag"
+    # the time piece: [BegTime, BegTime + Duration], unit: second(s)
+    # if you want to use all time data for calibration, please set them to negative numbers
+    # Note that the 'BegTime' here is measured from the start time of bag
+    # and is not related to the timestamp of the data recorded in the package.
+    # [0, 84]
+    BeginTime: 0
+    Duration: 84
+    OutputPath: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/tum/rs-seq-5"
+  Prior:
+    GravityNorm: 9.8
+    # if sensor are hardware-synchronized, you could choose to fix temporal parameters by setting this field to 'false'
+    OptTemporalParams: false
+    # the range where the time offsets would be optimized.
+    # make sure this range contains the ground truth of time offsets
+    # If you're not sure, make this field large, but this could lead to longer optimization time
+    TimeOffsetPadding: 0.02
+    # readout time padding for RS camera
+    ReadoutTimePadding: 0.04
+    # the time distance of two neighbor control points, which determines the accuracy
+    # of the representation of the B-splines. Smaller distance would lead to longer optimization time
+    # common choices: from '0.01' to '0.10'
+    KnotTimeDist:
+      SO3Spline: 0.05
+      ScaleSpline: 0.05
+    # when lidar is involved in the calibration framework, the ndt odometer is employed to recover pose roughly
+    NDTLiDAROdometer:
+      # 0.5 for indoor case and 1.0 for outdoor case
+      Resolution: 0.5
+      KeyFrameDownSample: 0.1
+    LiDARDataAssociate:
+      # leaf size when down sample the map using 'pcl::VoxelGrid' filter
+      # note that this field just for visualization, no connection with calibration
+      # for outdoor, 0.05 is suggested, and for indoor: 0.1 is suggested
+      MapDownSample: 0.05
+      # associate point and surfel when distance is less than this value
+      PointToSurfelMax: 0.1
+      # chose plane as a surfel for data association when planarity is larger than this value
+      PlanarityMin: 0.6
+    # the loss function used for radar factor (m/s)
+    CauchyLossForRadarFactor: 0.1
+    # the loss function used for lidar factor (m)
+    CauchyLossForLiDARFactor: 0.5
+    # the loss function used for visual reprojection factor (pixel)
+    CauchyLossForCameraFactor: 1.0
+  Preference:
+    # whether using cuda to speed up when solving least-squares problems
+    UseCudaInSolving: true
+    # whether output the spatiotemporal parameters each iteration
+    OutputParamInEachIter: true
+    # whether output B-splines
+    OutputBSplines: true
+    # whether output maps (radar and lidar)
+    OutputMaps: true
+    # whether output hessian matrix
+    OutputHessianMat: true
+    # whether covisibility image between camera and lidar
+    OutputVisualLiDARCovisibility: true
+    # whether output visual images with kinetics (angular velocity, linear velocity, and gravity)
+    OutputVisualKinematics: true
+    # whether output the visual colorized point cloud map
+    OutputColorizedMap: true
+    # whether output aligned inertial measurements (aligned to the reference IMU)
+    OutputAlignedInertialMes: true
+    # supported data output format:
+    # 1. JSON
+    # 2. XML
+    # 3. YAML
+    # 4. BINARY (not recommended)
+    OutputDataFormat: YAML
+    # number of thread to use for solving, negative value means use all valid thread to perform solving
+    ThreadsToUse: -1
+    # scale of splines in viewer, you can also use 'a' and 'd' keys to zoom out and in splines in run time
+    SplineScaleInViewer: 3.0
+    # scale of coordinates in viewer, you can also use 's' and 'w' keys to zoom out and in coordinates in run time
+    CoordSScaleInViewer: 0.3

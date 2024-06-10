@@ -23,7 +23,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   source ~/.bashrc
   ```
 
-+ install `Ceres`: see the `GitHub` Profile of **[Ceres](https://github.com/ceres-solver/ceres-solver.git)** library, clone it, compile it, and install it. Make sure that the version of `Ceres` contains the `Manifold` module. **`Ceres` version equals to 2.2.0 or higher.**
++ install `Ceres`: see the `GitHub` Profile of **[Ceres](https://github.com/ceres-solver/ceres-solver.git)** library, clone it, compile it, and install it. Make sure that the version of `Ceres` contains the `Manifold` module and `cuda` support. **`Ceres` version equals to 2.2.0 or higher.**
 
 + install `Sophus`: see the `GitHub` Profile of **[Sophus](https://github.com/strasdat/Sophus.git)** library, clone it, compile it, and install it.
 
