@@ -53,8 +53,10 @@ namespace ns_ikalibr {
                     Status::WARNING,
                     "Unsupported camera Type: '{}'. "
                     "Currently supported camera types are: \n"
-                    "(1) SENSOR_IMAGE_GS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                    "(2) SENSOR_IMAGE_RS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                    "1. SENSOR_IMAGE_GS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                    "2. SENSOR_IMAGE_RS_FIRST: first-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                    "3. SENSOR_IMAGE_RS_MID: middle-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                    "4. SENSOR_IMAGE_RS_LAST: last-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
                     "...\n"
                     "If you need to use other camera types, "
                     "please 'Issues' us on the profile of the github repository.",
@@ -64,7 +66,9 @@ namespace ns_ikalibr {
         CameraDataLoader::Ptr imuDataLoader;
         switch (model) {
             case CameraModelType::SENSOR_IMAGE_GS:
-            case CameraModelType::SENSOR_IMAGE_RS:
+            case CameraModelType::SENSOR_IMAGE_RS_FIRST:
+            case CameraModelType::SENSOR_IMAGE_RS_MID:
+            case CameraModelType::SENSOR_IMAGE_RS_LAST:
                 imuDataLoader = SensorImageLoader::Create(model);
                 break;
             default:
@@ -72,8 +76,10 @@ namespace ns_ikalibr {
                         Status::WARNING,
                         "Unsupported camera Type: '{}'. "
                         "Currently supported camera types are: \n"
-                        "(1) SENSOR_IMAGE_GS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                        "(2) SENSOR_IMAGE_RS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                        "1. SENSOR_IMAGE_GS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                        "2. SENSOR_IMAGE_RS_FIRST: first-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                        "3. SENSOR_IMAGE_RS_MID: middle-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                        "4. SENSOR_IMAGE_RS_LAST: last-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
                         "...\n"
                         "If you need to use other camera types, "
                         "please 'Issues' us on the profile of the github repository.",

@@ -55,9 +55,9 @@ namespace ns_ikalibr {
                     Status::WARNING,
                     "Unsupported IMU Type: '{}'. "
                     "Currently supported IMU types are: \n"
-                    "(1)   SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html\n"
-                    "(2)      SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git\n"
-                    "(3) SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)\n"
+                    "1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html\n"
+                    "2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git\n"
+                    "3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)\n"
                     "...\n"
                     "If you need to use other IMU types, "
                     "please 'Issues' us on the profile of the github repository.",
@@ -75,6 +75,19 @@ namespace ns_ikalibr {
             case IMUModelType::SENSOR_IMU_G:
                 imuDataLoader = SensorIMUGUnitLoader::Create(imuModel, Configor::Prior::GravityNorm);
                 break;
+            default:
+                throw Status(
+                        Status::WARNING,
+                        "Unsupported IMU Type: '{}'. "
+                        "Currently supported IMU types are: \n"
+                        "1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html\n"
+                        "2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git\n"
+                        "3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)\n"
+                        "...\n"
+                        "If you need to use other IMU types, "
+                        "please 'Issues' us on the profile of the github repository.",
+                        imuModelStr
+                );
         }
         return imuDataLoader;
     }

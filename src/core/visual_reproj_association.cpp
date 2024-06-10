@@ -38,12 +38,34 @@ _3_
 
 namespace ns_ikalibr {
 
-    VisualReProjAssociator::Ptr VisualReProjAssociator::Create() {
-        return std::make_shared<VisualReProjAssociator>();
+    VisualReProjAssociator::VisualReProjAssociator(const CameraModelType &type) : ExposureFactor(0.0) {
+        if (IsOptionWith(CameraModelType::RS, type)) {
+            // if it is a RS camera
+            if (IsOptionWith(CameraModelType::FIRST_EXPOSURE, type)) {
+                ExposureFactor = 0.0;
+                spdlog::info(
+                        "RS images are stamped by 'FIRST_EXPOSURE' mode, ExposureFactor: '{:.2f}'", ExposureFactor
+                );
+            } else if (IsOptionWith(CameraModelType::MID_EXPOSURE, type)) {
+                ExposureFactor = 0.5;
+                spdlog::info(
+                        "RS images are stamped by 'MID_EXPOSURE' mode, ExposureFactor: '{:.2f}'", ExposureFactor
+                );
+            } else if (IsOptionWith(CameraModelType::LAST_EXPOSURE, type)) {
+                ExposureFactor = 1.0;
+                spdlog::info(
+                        "RS images are stamped by 'LAST_EXPOSURE' mode, ExposureFactor: '{:.2f}'", ExposureFactor
+                );
+            }
+        }
+    }
+
+    VisualReProjAssociator::Ptr VisualReProjAssociator::Create(const CameraModelType &type) {
+        return std::make_shared<VisualReProjAssociator>(type);
     }
 
     std::vector<VisualReProjCorrSeq::Ptr>
-    VisualReProjAssociator::Association(const ns_veta::Veta &veta, const ns_veta::PinholeIntrinsic::Ptr &intri) {
+    VisualReProjAssociator::Association(const ns_veta::Veta &veta, const ns_veta::PinholeIntrinsic::Ptr &intri) const {
         // scale weight from image pixel to real scale
         const double weight = intri->ImagePlaneToCameraPlaneError(1.0);
 
@@ -54,9 +76,10 @@ namespace ns_ikalibr {
             auto begIter = lm.obs.cbegin();
             const auto &[viewIdFir, featFir] = *begIter;
             const auto &viewFir = veta.views.find(viewIdFir)->second;
-            // row / image height - 0.5
+            // row / image height - ExposureFactor
             // attention: computed based on raw pixel rather undistorted pixel
-            const double lFir = intri->GetDistoPixel(featFir.x)(1) / static_cast<double>(viewFir->imgHeight) - 0.5;
+            const double lFir = intri->GetDistoPixel(featFir.x)(1) / static_cast<double>(viewFir->imgHeight)
+                                - ExposureFactor;
 
             auto corrSeq = std::make_shared<VisualReProjCorrSeq>();
 
@@ -72,16 +95,17 @@ namespace ns_ikalibr {
             for (auto curIter = std::next(begIter); curIter != lm.obs.cend(); ++curIter) {
                 const auto &[viewIdCur, featCur] = *curIter;
                 const auto &viewCur = veta.views.find(viewIdCur)->second;
-                // row / image height - 0.5
+                // row / image height - ExposureFactor
                 // attention: computed based on raw pixel rather undistorted pixel
-                const double lCur = intri->GetDistoPixel(featCur.x)(1) / static_cast<double>(viewCur->imgHeight) - 0.5;
+                const double lCur = intri->GetDistoPixel(featCur.x)(1) / static_cast<double>(viewCur->imgHeight)
+                                    - ExposureFactor;
 
                 corrSeq->corrs.emplace_back(
                         // timestamps
                         viewFir->timestamp, viewCur->timestamp,
                         // feature location in image plane (has been undistorted)
                         featFir.x, featCur.x,
-                        // row / image height - 0.5: v/h-1/2
+                        // row / image height - ExposureFactor: v/h - ExposureFactor
                         lFir, lCur,
                         // rough weight
                         weight

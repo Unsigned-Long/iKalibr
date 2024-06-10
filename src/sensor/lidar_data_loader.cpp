@@ -55,10 +55,10 @@ namespace ns_ikalibr {
                     Status::WARNING,
                     "Unsupported LiDAR Type: '{}'. "
                     "Currently supported LiDAR types are: \n"
-                    "(1)        Velodyne LiDARs: VLP_16_PACKET, VLP_16_SIMU, VLP_16_POINTS, VLP_32E_POINTS\n"
-                    "(2)          Ouster LiDARs: OUSTER_16_POINTS OUSTER_32_POINTS, OUSTER_64_POINTS, OUSTER_128_POINTS\n"
-                    "(3) Hesai Pandar XT LiDARs: PANDAR_XT_16, PANDAR_XT_32\n"
-                    "(4)           Livox LiDARs: LIVOX_MID_360, LIVOX_AVIA\n"
+                    "1.        Velodyne LiDARs: VLP_16_PACKET, VLP_16_SIMU, VLP_16_POINTS, VLP_32E_POINTS\n"
+                    "2.          Ouster LiDARs: OUSTER_16_POINTS OUSTER_32_POINTS, OUSTER_64_POINTS, OUSTER_128_POINTS\n"
+                    "3. Hesai Pandar XT LiDARs: PANDAR_XT_16, PANDAR_XT_32\n"
+                    "4.           Livox LiDARs: LIVOX_MID_360, LIVOX_AVIA\n"
                     "...\n", lidarModelStr
             );
         }
@@ -85,6 +85,17 @@ namespace ns_ikalibr {
             case LidarModelType::LIVOX_AVIA:
                 lidarDataLoader = LivoxLiDAR::Create(lidarModel);
                 break;
+            default:
+                throw Status(
+                        Status::WARNING,
+                        "Unsupported LiDAR Type: '{}'. "
+                        "Currently supported LiDAR types are: \n"
+                        "1.        Velodyne LiDARs: VLP_16_PACKET, VLP_16_SIMU, VLP_16_POINTS, VLP_32E_POINTS\n"
+                        "2.          Ouster LiDARs: OUSTER_16_POINTS OUSTER_32_POINTS, OUSTER_64_POINTS, OUSTER_128_POINTS\n"
+                        "3. Hesai Pandar XT LiDARs: PANDAR_XT_16, PANDAR_XT_32\n"
+                        "4.           Livox LiDARs: LIVOX_MID_360, LIVOX_AVIA\n"
+                        "...\n", lidarModelStr
+                );
         }
         return lidarDataLoader;
     }

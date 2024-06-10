@@ -51,10 +51,17 @@ namespace ns_ikalibr {
         GS = 1 << 1,
         RS = 1 << 2,
 
-        SENSOR_IMAGE = 1 << 3,
+        FIRST_EXPOSURE = 1 << 3,
+        MID_EXPOSURE = 1 << 4,
+        LAST_EXPOSURE = 1 << 5,
+
+        SENSOR_IMAGE = 1 << 6,
 
         SENSOR_IMAGE_GS = SENSOR_IMAGE | GS,
-        SENSOR_IMAGE_RS = SENSOR_IMAGE | RS
+
+        SENSOR_IMAGE_RS_FIRST = SENSOR_IMAGE | RS | FIRST_EXPOSURE,
+        SENSOR_IMAGE_RS_MID = SENSOR_IMAGE | RS | MID_EXPOSURE,
+        SENSOR_IMAGE_RS_LAST = SENSOR_IMAGE | RS | LAST_EXPOSURE,
     };
 
     class CameraDataLoader {

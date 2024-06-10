@@ -1081,7 +1081,18 @@ namespace ns_ikalibr {
             }
             *radarCloud += *curRadarCloud;
         }
-        _viewer->AddStarMarkCloud(radarCloud, Viewer::VIEW_MAP);
+
+        // ---------------------------
+        // down sample the radar cloud
+        // ---------------------------
+        pcl::VoxelGrid<IKalibrPoint> filter;
+        filter.setInputCloud(radarCloud);
+        auto size = static_cast<float>(Configor::Prior::LiDARDataAssociate::MapDownSample);
+        filter.setLeafSize(size, size, size);
+
+        IKalibrPointCloud::Ptr radarCloudSampled(new IKalibrPointCloud);
+        filter.filter(*radarCloudSampled);
+        _viewer->AddStarMarkCloud(radarCloudSampled, Viewer::VIEW_MAP);
 
         return radarCloud;
     }
@@ -1172,12 +1183,12 @@ namespace ns_ikalibr {
     std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> CalibSolver::DataAssociationForCameras() {
         if (!Configor::IsCameraIntegrated()) { return {}; }
 
-        std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> corrs;
+        std::map <std::string, std::vector<VisualReProjCorrSeq::Ptr>> corrs;
         for (const auto &[topic, sfmData]: _dataMagr->GetSfMData()) {
             spdlog::info("performing visual reprojection data association for camera '{}'...", topic);
-            corrs[topic] = VisualReProjAssociator::Create()->Association(
-                    *sfmData, _parMagr->INTRI.Camera.at(topic)
-            );
+            corrs[topic] = VisualReProjAssociator::Create(
+                    EnumCast::stringToEnum<CameraModelType>(Configor::DataStream::CameraTopics.at(topic).Type)
+            )->Association(*sfmData, _parMagr->INTRI.Camera.at(topic));
             _viewer->AddVeta(sfmData, Viewer::VIEW_MAP);
             spdlog::info("visual reprojection sequences for '{}': {}", topic, corrs.at(topic).size());
         }

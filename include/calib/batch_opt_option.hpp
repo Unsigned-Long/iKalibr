@@ -90,12 +90,7 @@ namespace ns_ikalibr {
                     options = MergeOptions(options, AryToVecWithAppend(MultiLiDARIMU));
                 }
                 if (Configor::IsCameraIntegrated()) {
-                    auto opt = AryToVecWithAppend(MultiCameraIMU);
-                    // only the first time we optimize the global scale
-                    for (int i = 1; i < static_cast<int>(opt.size()); ++i) {
-                        opt.at(i) ^= Opt::OPT_VISUAL_GLOBAL_SCALE;
-                    }
-                    options = MergeOptions(options, opt);
+                    options = MergeOptions(options, AryToVecWithAppend(MultiCameraIMU));
                 }
                 if (Configor::IsRadarIntegrated()) {
                     options = MergeOptions(options, AryToVecWithAppend(MultiRadarIMU));

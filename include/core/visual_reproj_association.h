@@ -40,6 +40,7 @@
 #include "config/configor.h"
 #include "veta/camera/pinhole_brown.h"
 #include "util/utils.hpp"
+#include "sensor/camera_data_loader.h"
 
 _3_
 
@@ -48,13 +49,16 @@ namespace ns_ikalibr {
     public:
         using Ptr = std::shared_ptr<VisualReProjAssociator>;
 
+    protected:
+        double ExposureFactor;
+
     public:
-        VisualReProjAssociator() = default;
+        explicit VisualReProjAssociator(const CameraModelType &type);
 
-        static Ptr Create();
+        static Ptr Create(const CameraModelType &type);
 
-        static std::vector<VisualReProjCorrSeq::Ptr>
-        Association(const ns_veta::Veta &veta, const ns_veta::PinholeIntrinsic::Ptr &intri);
+        std::vector<VisualReProjCorrSeq::Ptr>
+        Association(const ns_veta::Veta &veta, const ns_veta::PinholeIntrinsic::Ptr &intri) const;
 
     };
 }
