@@ -9,7 +9,7 @@
 
 ---
 
-Like it or not, let’s just throw out a typical configuration file with detailed comments as follows. In fact, we believe that you are able to modify it to adapt your sensor suite by yourself after reading this. 
+We provide a typical configuration file with detailed comments here. In fact, we believe that you are able to modify it to adapt your sensor suite by yourself after reading this. 
 
 **Tips**: don't be intimidated by the length of this configuration file. **It is long since it contains detailed comments to help you understand it.** As the saying goes: **more is less!** It's easy to understand, I promise! Most of the time, you only need to modify a few items to switch to another sensor suite to calibrate.
 
@@ -20,10 +20,10 @@ Configor:
   DataStream:
     # key: IMU topic, value: IMU type. Supported IMU types are:
     #   1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: m/s^2)
-    #   2. SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git (acce unit: m/s^2)
+    #   2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git (acce unit: m/s^2)
     #   3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)
-    #   4. ...
     IMUTopics:
+      # at least one IMU is integrated in the sensor suite
       - key: "/imu0/frame"
         value:
           Type: "SENSOR_IMU"
@@ -45,13 +45,12 @@ Configor:
           AcceWeight: 17.68
           GyroWeight: 57.66
     # key: radar topic, value: radar type. Supported radar types are:
-    #   1.         AINSTEIN_RADAR: https://github.com/AinsteinAI/ainstein_radar.git
-    #   2.       AWR1843BOOST_RAW: https://github.com/Unsigned-Long/ti_mmwave_rospkg.git
-    #   3.    AWR1843BOOST_CUSTOM: https://github.com/Unsigned-Long/ti_mmwave_rospkg.git
-    #   4.       POINTCLOUD2_POSV: 'sensor_msgs/PointCloud2' with point format: [x, y, z, velocity]
-    #   5.      POINTCLOUD2_POSIV: 'sensor_msgs/PointCloud2' with point format: [x, y, z, intensity, velocity]
-    #   6.       POINTCLOUD2_XRIO: https://github.com/christopherdoer/rio.git
-    #   7. ...
+    #   1.     AINSTEIN_RADAR: https://github.com/AinsteinAI/ainstein_radar.git
+    #   2. AWR1843BOOST_RAW: https://github.com/Unsigned-Long/ti_mmwave_rospkg.git
+    #   3. AWR1843BOOST_CUSTOM: https://github.com/Unsigned-Long/ti_mmwave_rospkg.git
+    #   4.  POINTCLOUD2_POSV: 'sensor_msgs/PointCloud2' with point format: [x, y, z, velocity]
+    #   5.  POINTCLOUD2_POSIV: 'sensor_msgs/PointCloud2' with point format: [x, y, z, intensity, velocity]
+    #   6.  POINTCLOUD2_XRIO: 'sensor_msgs/PointCloud2' with x-RIO point format (see https://github.com/christopherdoer/rio.git)
     RadarTopics:
       # if no radar is integrated in your sensor suite, just comment out the following key items
       - key: "/radar0/scan"
@@ -63,7 +62,7 @@ Configor:
           Type: "AWR1843BOOST_CUSTOM"
           Weight: 10.0
     # key: LiDAR topic, value: LiDAR type. Supported LiDAR types:
-    #   1.        Velodyne LiDARs: VLP_16_PACKET, VLP_16_POINTS, VLP_32E_POINTS
+    #   1.        Velodyne LiDARs: VLP_16_PACKET, VLP_16_SIMU, VLP_16_POINTS, VLP_32E_POINTS
     #   2.          Ouster LiDARs: OUSTER_16_POINTS OUSTER_32_POINTS, OUSTER_64_POINTS, OUSTER_128_POINTS
     #   3. Hesai Pandar XT LiDARs: PANDAR_XT_16, PANDAR_XT_32
     #   4.           Livox LiDARs: LIVOX_MID_360, LIVOX_AVIA
@@ -78,8 +77,10 @@ Configor:
           Type: "LIVOX_AVIA"
           Weight: 80.0
     # key: camera topic, value: camera type. Supported camera types:
-    #   1. SENSOR_IMAGE_GS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html
-    #   2. SENSOR_IMAGE_RS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html
+    #   1. SENSOR_IMAGE_GS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    #   2. SENSOR_IMAGE_RS_FIRST: first-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    #   3. SENSOR_IMAGE_RS_MID: middle-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    #   4. SENSOR_IMAGE_RS_LAST: last-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
     CameraTopics:
       # if no camera is integrated in your sensor suite, just comment out the following key items
       - key: "/camera0/frame"
@@ -96,7 +97,7 @@ Configor:
           TrackLengthMin: 10
       - key: "/camera1/frame"
         value:
-          Type: "SENSOR_IMAGE_RS"
+          Type: "SENSOR_IMAGE_RS_FIRST"
           Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/.../cam1-intri.yaml"
           Weight: 50.0
           TrackLengthMin: 10
@@ -170,10 +171,10 @@ Configor:
     # whether output aligned inertial measurements (aligned to the reference IMU)
     OutputAlignedInertialMes: true
     # supported data output format:
-    # 0. JSON
-    # 1. XML
-    # 2. YAML
-    # 3. BINARY (not recommended)
+    # 1. JSON
+    # 2. XML
+    # 3. YAML
+    # 4. BINARY (not recommended)
     # do not dwell on it, we have provide an additional ros program to perform data format tranform
     OutputDataFormat: "YAML"
     # number of thread to use for solving, negative value means use all valid thread to perform solving

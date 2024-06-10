@@ -34,8 +34,12 @@ Currently, the following types of sensor are supported in `iKalibr`:
 
   + *Livox LiDARs*: `LIVOX_MID_360`, `LIVOX_AVIA`
 
-+ **Camera** type: corresponding type definition can be found [here](https://github.com/Unsigned-Long/iKalibr/blob/master/include/sensor/camera_data_loader.h#L45-L58). If you have an RS camera but use the GS camera option, it will not cause a fatal error, but it will reduce the calibration accuracy.
-  + `SENSOR_IMAGE_GS`, `SENSOR_IMAGE_RS`
++ **Camera** type: corresponding type definition can be found [here](https://github.com/Unsigned-Long/iKalibr/blob/master/include/sensor/camera_data_loader.h#L45-L65). If you have an RS camera but use the GS camera option, it will not cause a fatal error, but it will reduce the calibration accuracy.
+  + `SENSOR_IMAGE_GS`, `SENSOR_IMAGE_RS_FIRST`, `SENSOR_IMAGE_RS_MID`, `SENSOR_IMAGE_RS_LAST`
+  + for RS cameras, make sure understand how the RS images are timestamped: 
+    + `SENSOR_IMAGE_RS_FIRST`: the timestamp of an image is denoted as the time of the first row;
+    + `SENSOR_IMAGE_RS_MID`: the timestamp of an image is denoted as the time of the middle row;
+    + `SENSOR_IMAGE_RS_LAST`: the timestamp of an image is denoted as the time of the last row;
 
 <p align="left">
     <a><strong>Can Not Find Suitable Sensor Type »</strong></a>
