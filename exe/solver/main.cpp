@@ -89,15 +89,15 @@ int main(int argc, char **argv) {
 
         if (ns_ikalibr::Configor::Preference::OutputHessianMat) { solverIO->SaveHessianMatrix(); }
 
-        if (ns_ikalibr::Configor::Preference::OutputVisualLiDARCovisibility) { solverIO->VerifyVisualLiDARConsistency(); }
-
-        if (ns_ikalibr::Configor::Preference::OutputVisualKinematics) { solverIO->SaveVisualKinematics(); }
+        if (ns_ikalibr::Configor::Preference::OutputAlignedInertialMes) { solverIO->SaveAlignedInertialMes(); }
 
         if (ns_ikalibr::Configor::Preference::OutputVisualKinematics) { solverIO->SaveVisualReprojectionError(); }
 
-        if (ns_ikalibr::Configor::Preference::OutputColorizedMap) { solverIO->SaveVisualColorizedMap(); }
+        if (ns_ikalibr::Configor::Preference::OutputVisualKinematics) { solverIO->SaveVisualKinematics(); }
 
-        if (ns_ikalibr::Configor::Preference::OutputAlignedInertialMes) { solverIO->SaveAlignedInertialMes(); }
+        if (ns_ikalibr::Configor::Preference::OutputVisualLiDARCovisibility) { solverIO->VerifyVisualLiDARConsistency(); }
+
+        if (ns_ikalibr::Configor::Preference::OutputColorizedMap) { solverIO->SaveVisualColorizedMap(); }
 
         static const auto FStyle = fmt::emphasis::italic | fmt::fg(fmt::color::green);
         spdlog::info(fmt::format(FStyle, "solving and outputting finished!!! Everything is fine!!!"));

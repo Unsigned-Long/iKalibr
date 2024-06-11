@@ -199,73 +199,77 @@ int main(int argc, char **argv) {
 
             // linear acceleration
             auto subWS = ws + "/kinematics/lin_acce";
-            auto files = ns_ikalibr::FilesInDirRecursive(subWS);
-            files.erase(std::remove_if(files.begin(), files.end(), [&srcExt](const std::string &str) {
-                return std::filesystem::path(str).extension() != srcExt;
-            }), files.end());
-            for (const auto &filename: files) {
-                if (std::filesystem::path(filename).filename() == "inertial_mes" + srcExt) {
-                    std::list<ns_ikalibr::IMUFrame> rawMes, estMes, diff;
-                    // load
-                    std::ifstream ifile(filename);
-                    auto iar = GetInputArchiveVariant(ifile, srcFormat);
-                    SerializeByInputArchiveVariant(
-                            iar, srcFormat, cereal::make_nvp("raw_inertial", rawMes),
-                            cereal::make_nvp("est_inertial", estMes),
-                            cereal::make_nvp("inertial_diff", diff)
-                    );
-                    // save
-                    wName = std::filesystem::path(filename).replace_extension(dstExt).string();
-                    std::ofstream ofile(wName);
-                    auto oar = GetOutputArchiveVariant(ofile, dstFormat);
-                    SerializeByOutputArchiveVariant(
-                            oar, dstFormat, cereal::make_nvp("raw_inertial", rawMes),
-                            cereal::make_nvp("est_inertial", estMes),
-                            cereal::make_nvp("inertial_diff", diff)
-                    );
-                    spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
-                } else if (std::filesystem::path(filename).filename() == "aligned_mes_to_ref" + srcExt) {
-                    std::list<ns_ikalibr::IMUFrame> estMes;
-                    // load
-                    std::ifstream ifile(filename);
-                    auto iar = GetInputArchiveVariant(ifile, srcFormat);
-                    SerializeByInputArchiveVariant(
-                            iar, srcFormat, cereal::make_nvp("aligned_inertial", estMes)
-                    );
-                    // save
-                    wName = std::filesystem::path(filename).replace_extension(dstExt).string();
-                    std::ofstream ofile(wName);
-                    auto oar = GetOutputArchiveVariant(ofile, dstFormat);
-                    SerializeByOutputArchiveVariant(
-                            oar, dstFormat, cereal::make_nvp("aligned_inertial", estMes)
-                    );
-                    spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+            if (std::filesystem::exists(subWS)) {
+                auto files = ns_ikalibr::FilesInDirRecursive(subWS);
+                files.erase(std::remove_if(files.begin(), files.end(), [&srcExt](const std::string &str) {
+                    return std::filesystem::path(str).extension() != srcExt;
+                }), files.end());
+                for (const auto &filename: files) {
+                    if (std::filesystem::path(filename).filename() == "inertial_mes" + srcExt) {
+                        std::list<ns_ikalibr::IMUFrame> rawMes, estMes, diff;
+                        // load
+                        std::ifstream ifile(filename);
+                        auto iar = GetInputArchiveVariant(ifile, srcFormat);
+                        SerializeByInputArchiveVariant(
+                                iar, srcFormat, cereal::make_nvp("raw_inertial", rawMes),
+                                cereal::make_nvp("est_inertial", estMes),
+                                cereal::make_nvp("inertial_diff", diff)
+                        );
+                        // save
+                        wName = std::filesystem::path(filename).replace_extension(dstExt).string();
+                        std::ofstream ofile(wName);
+                        auto oar = GetOutputArchiveVariant(ofile, dstFormat);
+                        SerializeByOutputArchiveVariant(
+                                oar, dstFormat, cereal::make_nvp("raw_inertial", rawMes),
+                                cereal::make_nvp("est_inertial", estMes),
+                                cereal::make_nvp("inertial_diff", diff)
+                        );
+                        spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+                    } else if (std::filesystem::path(filename).filename() == "aligned_mes_to_ref" + srcExt) {
+                        std::list<ns_ikalibr::IMUFrame> estMes;
+                        // load
+                        std::ifstream ifile(filename);
+                        auto iar = GetInputArchiveVariant(ifile, srcFormat);
+                        SerializeByInputArchiveVariant(
+                                iar, srcFormat, cereal::make_nvp("aligned_inertial", estMes)
+                        );
+                        // save
+                        wName = std::filesystem::path(filename).replace_extension(dstExt).string();
+                        std::ofstream ofile(wName);
+                        auto oar = GetOutputArchiveVariant(ofile, dstFormat);
+                        SerializeByOutputArchiveVariant(
+                                oar, dstFormat, cereal::make_nvp("aligned_inertial", estMes)
+                        );
+                        spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+                    }
                 }
             }
 
             // reprojection error
             subWS = ws + "/kinematics/reproj_error";
-            files = ns_ikalibr::FilesInDirRecursive(subWS);
-            files.erase(std::remove_if(files.begin(), files.end(), [&srcExt](const std::string &str) {
-                return std::filesystem::path(str).extension() != srcExt;
-            }), files.end());
-            for (const auto &filename: files) {
-                if (std::filesystem::path(filename).filename() == "residuals" + srcExt) {
-                    std::list<Eigen::Vector2d> reprojErrors;
-                    // load
-                    std::ifstream ifile(filename);
-                    auto iar = GetInputArchiveVariant(ifile, srcFormat);
-                    SerializeByInputArchiveVariant(
-                            iar, srcFormat, cereal::make_nvp("reproj_errors", reprojErrors)
-                    );
-                    // save
-                    wName = std::filesystem::path(filename).replace_extension(dstExt).string();
-                    std::ofstream ofile(wName);
-                    auto oar = GetOutputArchiveVariant(ofile, dstFormat);
-                    SerializeByOutputArchiveVariant(
-                            oar, dstFormat, cereal::make_nvp("reproj_errors", reprojErrors)
-                    );
-                    spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+            if (std::filesystem::exists(subWS)) {
+                auto files = ns_ikalibr::FilesInDirRecursive(subWS);
+                files.erase(std::remove_if(files.begin(), files.end(), [&srcExt](const std::string &str) {
+                    return std::filesystem::path(str).extension() != srcExt;
+                }), files.end());
+                for (const auto &filename: files) {
+                    if (std::filesystem::path(filename).filename() == "residuals" + srcExt) {
+                        std::list<Eigen::Vector2d> reprojErrors;
+                        // load
+                        std::ifstream ifile(filename);
+                        auto iar = GetInputArchiveVariant(ifile, srcFormat);
+                        SerializeByInputArchiveVariant(
+                                iar, srcFormat, cereal::make_nvp("reproj_errors", reprojErrors)
+                        );
+                        // save
+                        wName = std::filesystem::path(filename).replace_extension(dstExt).string();
+                        std::ofstream ofile(wName);
+                        auto oar = GetOutputArchiveVariant(ofile, dstFormat);
+                        SerializeByOutputArchiveVariant(
+                                oar, dstFormat, cereal::make_nvp("reproj_errors", reprojErrors)
+                        );
+                        spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+                    }
                 }
             }
         }

@@ -22,7 +22,7 @@
         -->
         <!-- data format transformation example from YAML (2) to JSON (0) -->
         <param name="src_format" value="YAML" type="string" />
-        <param name="dst_format" value="XML" type="string" />
+        <param name="dst_format" value="JSON" type="string" />
 
         <!-- the ${ws_dir_vec} would be appended after the ${pre_dir} -->
         <!-- multiple workspaces are supported, you just need to add them in the below list -->

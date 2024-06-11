@@ -23,7 +23,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   source ~/.bashrc
   ```
 
-+ install `Ceres`: see the `GitHub` Profile of **[Ceres](https://github.com/ceres-solver/ceres-solver.git)** library, clone it, compile it, and install it. Make sure that the version of `Ceres` contains the `Manifold` module and `cuda` support. **`Ceres` version equals to 2.2.0 or higher.**
++ install `Ceres`: see the `GitHub` Profile of **[Ceres](https://github.com/ceres-solver/ceres-solver.git)** library, clone it, compile it, and install it. Make sure that the version of `Ceres` contains the `Manifold` module and `Cuda` support. **`Ceres` version equals to 2.2.0 or higher.**
 
 + install `Sophus`: see the `GitHub` Profile of **[Sophus](https://github.com/strasdat/Sophus.git)** library, clone it, compile it, and install it.
 
@@ -84,5 +84,5 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   catkin_make -j8
   ```
 
-Congratulations :clap: , if everything goes well and no error happened. At the end, you would obtain several binary programs, such as `ikalibr_prog`, `ikalibr_imu_intri_calib`, etc. Each program is exactly a executable ros node, and can be launched by `rosrun` or provided `roslaunch)` (recommend).
+Congratulations :clap: , if everything goes well and no error happened. At the end, you would obtain several binary programs, such as `ikalibr_prog`, `ikalibr_imu_intri_calib`, etc. Each program is exactly an executable ros node, and can be launched by `rosrun` or provided `roslaunch` (recommend).
 
