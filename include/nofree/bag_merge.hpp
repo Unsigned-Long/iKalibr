@@ -78,6 +78,8 @@ namespace ns_ikalibr {
 
     public:
         std::vector<BagMergeInfo> _bags;
+        double _bagBeginTime;
+        double _bagEndTime;
         std::string _outputBagPath;
 
         MergeConfigor() = default;
@@ -119,7 +121,10 @@ namespace ns_ikalibr {
     public:
         template<class Archive>
         void serialize(Archive &ar) {
-            ar(cereal::make_nvp("Bags", _bags), cereal::make_nvp("OutputBagPath", _outputBagPath));
+            ar(cereal::make_nvp("Bags", _bags),
+               cereal::make_nvp("BagBeginTime", _bagBeginTime),
+               cereal::make_nvp("BagEndTime", _bagEndTime),
+               cereal::make_nvp("OutputBagPath", _outputBagPath));
         }
     };
 
@@ -136,10 +141,15 @@ namespace ns_ikalibr {
             return std::make_shared<BagMerger>(mergeConfigor);
         }
 
-        void Process() {
+        auto Process() {
+            for (const auto &bagInfo: _configor->_bags) {
+                if (!std::filesystem::exists(bagInfo.bagPath)) {
+                    throw Status(Status::CRITICAL, "the bag dose not exist: '{}'", bagInfo.bagPath);
+                }
+            }
             spdlog::info("start merge {} bag(s) to '{}'.", _configor->_bags.size(), _configor->_outputBagPath);
             auto dstBag = std::make_unique<rosbag::Bag>();
-            dstBag->open(_configor->_outputBagPath, rosbag::BagMode::Write);
+            dstBag->open(_configor->_outputBagPath, rosbag::BagMode::Write | rosbag::BagMode::Read);
             for (const auto &bagInfo: _configor->_bags) {
                 spdlog::info("process bag at '{}'...", bagInfo.bagPath);
                 // open current rosbag
@@ -155,8 +165,12 @@ namespace ns_ikalibr {
                 }
                 srcBag->close();
             }
+            auto view = rosbag::View();
+            view.addQuery(*dstBag);
+            auto st = view.getBeginTime(), et = view.getEndTime();
             dstBag->close();
             spdlog::info("process finished...");
+            return std::pair{st, et};
         }
     };
 }

@@ -64,8 +64,48 @@ int main(int argc, char **argv) {
                     "the output bag exists! delete it then rerun as I do not known whether it's valuable!");
         }
 
-        ns_ikalibr::BagMerger::Create(mergeConfigor)->Process();
+        auto [begTime, endTime] = ns_ikalibr::BagMerger::Create(mergeConfigor)->Process();
+        if (mergeConfigor->_bagBeginTime < 0.0 && mergeConfigor->_bagEndTime < 0.0) {
+            spdlog::info("do not perform rosbag filter, as configured.");
+        } else {
+            spdlog::info("perform rosbag filter, as configured.");
+            spdlog::info("origin time span: '{:.5f}' to '{:.5f}'", begTime.toSec(), endTime.toSec());
 
+            if (mergeConfigor->_bagEndTime > 0.0) {
+                auto tarEndTime = begTime + ros::Duration(mergeConfigor->_bagEndTime);
+                if (tarEndTime > endTime) {
+                    spdlog::warn(
+                            "desired end time '{:.5f}' is out of the bag's data range, set end time to '{:.5f}'.",
+                            tarEndTime.toSec(), endTime.toSec()
+                    );
+                } else {
+                    endTime = tarEndTime;
+                }
+            }
+            if (mergeConfigor->_bagBeginTime > 0.0) {
+                auto tarBegTime = begTime + ros::Duration(mergeConfigor->_bagBeginTime);
+                if (tarBegTime >= endTime) {
+                    spdlog::warn(
+                            "desired begin time '{:.5f}' is out of the bag's data range, set begin time to '{:.5f}'.",
+                            tarBegTime.toSec(), begTime.toSec()
+                    );
+                } else {
+                    begTime = tarBegTime;
+                }
+            }
+
+            spdlog::info("configured time span: '{:.5f}' to '{:.5f}'", begTime.toSec(), endTime.toSec());
+            auto newPath = std::filesystem::path(mergeConfigor->_outputBagPath);
+            newPath.replace_filename("filtered-" + newPath.filename().string());
+
+            auto res = std::system(fmt::format(
+                    "rosbag filter {} {} "
+                    "\"t.to_sec() > {:.5f} and t.to_sec() < {:.5f}\"",
+                    mergeConfigor->_outputBagPath, newPath.string(), begTime.toSec(), endTime.toSec()
+            ).c_str());
+            if (res != 0) { spdlog::warn("filter rosbag failed!!!"); }
+            else { spdlog::warn("filter rosbag as '{}'", newPath.string()); }
+        }
     } catch (const ns_ikalibr::IKalibrStatus &status) {
         // if error happened, print it
         static const auto FStyle = fmt::emphasis::italic | fmt::fg(fmt::color::green);

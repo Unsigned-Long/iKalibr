@@ -48,4 +48,9 @@ MergeConfigor:
       TopicsToMerge:
         - key: /imu/frame
           value: /imu/frame
+  # filter data after bags are merged, note that this is different from the timestamps in the rosbag.
+  # here, the time means the period, i.e., 'BagBeginTime' starts from 0.
+  # negative values means do not perform filtering
+  BagBeginTime: -1
+  BagEndTime: -1
   OutputBagPath: /home/csl/dataset/tum/rolling-shutter/dataset-seq10/cams_imu.bag
