@@ -31,25 +31,55 @@ add_gitmodules.sh
 
 /data/li-calib/Court-01/*
 !/data/li-calib/Court-01/config-real.yaml
+!/data/li-calib/Court-01/imu1-intri.yaml
+!/data/li-calib/Court-01/imu2-intri.yaml
+!/data/li-calib/Court-01/imu3-intri.yaml
 /data/li-calib/Court-02/*
 !/data/li-calib/Court-02/config-real.yaml
+!/data/li-calib/Court-02/imu1-intri.yaml
+!/data/li-calib/Court-02/imu2-intri.yaml
+!/data/li-calib/Court-02/imu3-intri.yaml
 /data/li-calib/Court-03/*
 !/data/li-calib/Court-03/config-real.yaml
+!/data/li-calib/Court-03/imu1-intri.yaml
+!/data/li-calib/Court-03/imu2-intri.yaml
+!/data/li-calib/Court-03/imu3-intri.yaml
 /data/li-calib/Court-04/*
 !/data/li-calib/Court-04/config-real.yaml
+!/data/li-calib/Court-04/imu1-intri.yaml
+!/data/li-calib/Court-04/imu2-intri.yaml
+!/data/li-calib/Court-04/imu3-intri.yaml
 /data/li-calib/Court-05/*
 !/data/li-calib/Court-05/config-real.yaml
+!/data/li-calib/Court-05/imu1-intri.yaml
+!/data/li-calib/Court-05/imu2-intri.yaml
+!/data/li-calib/Court-05/imu3-intri.yaml
 
 /data/li-calib/Garage-01/*
 !/data/li-calib/Garage-01/config-real.yaml
+!/data/li-calib/Garage-01/imu1-intri.yaml
+!/data/li-calib/Garage-01/imu2-intri.yaml
+!/data/li-calib/Garage-01/imu3-intri.yaml
 /data/li-calib/Garage-02/*
 !/data/li-calib/Garage-02/config-real.yaml
+!/data/li-calib/Garage-02/imu1-intri.yaml
+!/data/li-calib/Garage-02/imu2-intri.yaml
+!/data/li-calib/Garage-02/imu3-intri.yaml
 /data/li-calib/Garage-03/*
 !/data/li-calib/Garage-03/config-real.yaml
+!/data/li-calib/Garage-03/imu1-intri.yaml
+!/data/li-calib/Garage-03/imu2-intri.yaml
+!/data/li-calib/Garage-03/imu3-intri.yaml
 /data/li-calib/Garage-04/*
 !/data/li-calib/Garage-04/config-real.yaml
+!/data/li-calib/Garage-04/imu1-intri.yaml
+!/data/li-calib/Garage-04/imu2-intri.yaml
+!/data/li-calib/Garage-04/imu3-intri.yaml
 /data/li-calib/Garage-05/*
 !/data/li-calib/Garage-05/config-real.yaml
+!/data/li-calib/Garage-05/imu1-intri.yaml
+!/data/li-calib/Garage-05/imu2-intri.yaml
+!/data/li-calib/Garage-05/imu3-intri.yaml
 
 /data/real-world-old
 

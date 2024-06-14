@@ -8,19 +8,19 @@ Configor:
       - key: "/imu1/data"
         value:
           Type: "SENSOR_IMU"
-          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/config/imu-intri.yaml"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/li-calib/Court-05/imu1-intri.yaml"
           AcceWeight: 17.68
           GyroWeight: 57.66
       - key: "/imu2/data"
         value:
           Type: "SENSOR_IMU"
-          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/config/imu-intri.yaml"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/li-calib/Court-05/imu2-intri.yaml"
           AcceWeight: 17.68
           GyroWeight: 57.66
       - key: "/imu3/data"
         value:
           Type: "SENSOR_IMU"
-          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/config/imu-intri.yaml"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/li-calib/Court-05/imu3-intri.yaml"
           AcceWeight: 17.68
           GyroWeight: 57.66
     # key: radar topic, value: radar type. Supported radar types are:
