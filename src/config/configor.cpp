@@ -37,10 +37,28 @@
 #include "fstream"
 #include "spdlog/spdlog.h"
 #include "util/status.hpp"
+#include "magic_enum_flags.hpp"
 
 _3_
 
 namespace ns_ikalibr {
+    const static std::map<std::string, OutputOption> OutputOptionMap = {
+            {"NONE", OutputOption::NONE},
+            {"ParamInEachIter", OutputOption::ParamInEachIter},
+            {"BSplines", OutputOption::BSplines},
+            {"LiDARMaps", OutputOption::LiDARMaps},
+            {"VisualMaps", OutputOption::VisualMaps},
+            {"RadarMaps", OutputOption::RadarMaps},
+            {"HessianMat", OutputOption::HessianMat},
+            {"VisualLiDARCovisibility", OutputOption::VisualLiDARCovisibility},
+            {"VisualKinematics", OutputOption::VisualKinematics},
+            {"ColorizedLiDARMap", OutputOption::ColorizedLiDARMap},
+            {"AlignedInertialMes", OutputOption::AlignedInertialMes},
+            {"VisualReprojErrors", OutputOption::VisualReprojErrors},
+            {"RadarDopplerErrors", OutputOption::RadarDopplerErrors},
+            {"ALL", OutputOption::ALL},
+    };
+
     // ------------------------
     // static initialized filed
     // ------------------------
@@ -76,15 +94,10 @@ namespace ns_ikalibr {
     bool Configor::Prior::OptTemporalParams = {};
 
     bool Configor::Preference::UseCudaInSolving = {};
-    bool Configor::Preference::OutputParamInEachIter = {};
-    bool Configor::Preference::OutputBSplines = {};
-    bool Configor::Preference::OutputMaps = {};
-    bool Configor::Preference::OutputHessianMat = {};
-    bool Configor::Preference::OutputVisualLiDARCovisibility = {};
-    bool Configor::Preference::OutputVisualKinematics = {};
-    bool Configor::Preference::OutputColorizedMap = {};
-    bool Configor::Preference::OutputAlignedInertialMes = {};
-    std::string Configor::Preference::OutputDataFormat = {};
+    OutputOption Configor::Preference::Outputs = OutputOption::NONE;
+    std::set<std::string> Configor::Preference::OutputsStr = {};
+    std::string Configor::Preference::OutputDataFormatStr = {};
+    CerealArchiveType::Enum Configor::Preference::OutputDataFormat = CerealArchiveType::Enum::YAML;
     const std::map<CerealArchiveType::Enum, std::string> Configor::Preference::FileExtension = {
             {CerealArchiveType::Enum::YAML,   ".yaml"},
             {CerealArchiveType::Enum::JSON,   ".json"},
@@ -114,16 +127,6 @@ namespace ns_ikalibr {
                Configor::GetFormatExtension();
     }
 
-    CerealArchiveType::Enum Configor::Preference::DataIOFormat() {
-        CerealArchiveType::Enum type;
-        try {
-            type = EnumCast::stringToEnum<CerealArchiveType::Enum>(OutputDataFormat);
-        } catch (...) {
-            throw Status(Status::CRITICAL, "unsupported data format ({}) for io!!!", OutputDataFormat);
-        }
-        return type;
-    }
-
     int Configor::Preference::AvailableThreads() {
         int hardwareConcurrency = static_cast<int>(std::thread::hardware_concurrency());
         if (ThreadsToUse <= 0 || ThreadsToUse > hardwareConcurrency) {
@@ -147,6 +150,12 @@ namespace ns_ikalibr {
         std::string RadarTopics = ssRadarTopics.str();
         std::string LiDARTopics = ssLiDARTopics.str();
         std::string CameraTopics = ssCameraTopics.str();
+
+        auto GetOptString = [](OutputOption opt) -> std::string {
+            std::stringstream stringStream;
+            stringStream << magic_enum::enum_flags_name(opt);
+            return stringStream.str();
+        };
 
 #define DESC_FIELD(field) #field, field
 #define DESC_FORMAT "\n{:>45}: {}"
@@ -202,7 +211,8 @@ namespace ns_ikalibr {
                 DESC_FIELD(Prior::CauchyLossForLiDARFactor),
                 DESC_FIELD(Prior::CauchyLossForLiDARFactor),
                 DESC_FIELD(Preference::UseCudaInSolving),
-                DESC_FIELD(Preference::OutputDataFormat),
+                "Preference::OutputDataFormat", Preference::OutputDataFormatStr,
+                "Preference::Outputs", GetOptString(Preference::Outputs),
                 DESC_FIELD(Preference::ThreadsToUse)
         );
 
@@ -336,9 +346,6 @@ namespace ns_ikalibr {
             );
         }
 
-        // check format, wrong format would throw exception
-        Preference::DataIOFormat();
-
         if (Preference::SplineScaleInViewer <= 0.0) {
             throw Status(Status::ERROR, "the scale of splines in visualization should be positive!");
         }
@@ -352,10 +359,11 @@ namespace ns_ikalibr {
     }
 
     std::string Configor::GetFormatExtension() {
-        return Preference::FileExtension.at(Preference::DataIOFormat());
+        return Preference::FileExtension.at(Preference::OutputDataFormat);
     }
 
     bool Configor::LoadConfigure(const std::string &filename, CerealArchiveType::Enum archiveType) {
+        // load configure info
         std::ifstream file(filename);
         if (!file.is_open()) {
             return false;
@@ -363,6 +371,34 @@ namespace ns_ikalibr {
         auto archive = GetInputArchiveVariant(file, archiveType);
         auto configor = Configor::Create();
         SerializeByInputArchiveVariant(archive, archiveType, cereal::make_nvp("Configor", *configor));
+
+        // perform internal data transformation
+        try {
+            Configor::Preference::OutputDataFormat = EnumCast::stringToEnum<CerealArchiveType::Enum>(
+                    Configor::Preference::OutputDataFormatStr
+            );
+        } catch (...) {
+            throw Status(
+                    Status::CRITICAL, "unsupported data format '{}' for io!!!",
+                    Configor::Preference::OutputDataFormatStr
+            );
+        }
+        for (const auto &output: Preference::OutputsStr) {
+            // when the enum is out of range of [MAGIC_ENUM_RANGE_MIN, MAGIC_ENUM_RANGE_MAX],
+            // magic_enum would not work
+            // try {
+            //     Configor::Preference::Outputs |= EnumCast::stringToEnum<OutputOption>(output);
+            // } catch (...) {
+            //     throw Status(Status::CRITICAL, "unsupported output context: '{}'!!!", output);
+            // }
+            if (auto iter = OutputOptionMap.find(output);iter == OutputOptionMap.cend()) {
+                throw Status(Status::CRITICAL, "unsupported output context: '{}'!!!", output);
+            } else {
+                Configor::Preference::Outputs |= iter->second;
+            }
+        }
+
+        // perform checking
         configor->CheckConfigure();
         return true;
     }

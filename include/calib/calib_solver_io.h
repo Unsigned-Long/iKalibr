@@ -61,7 +61,11 @@ namespace ns_ikalibr {
 
         void SaveBSplines(int hz = 400);
 
-        void UpdateMapsToSave();
+        void SaveLiDARMaps();
+
+        void SaveVisualMaps();
+
+        void SaveRadarMaps();
 
         void SaveHessianMatrix();
 

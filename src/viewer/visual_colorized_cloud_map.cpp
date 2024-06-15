@@ -148,9 +148,9 @@ namespace ns_ikalibr {
             op.x = ip.x, op.y = ip.y, op.z = ip.z;
             // although we should perform color average in the hsv space, to reduce the computation, we directly perform it in BGR space
             Eigen::Vector3d avgBGR = totalBGR / count;
-            op.r = static_cast<uchar>(avgBGR(0));
+            op.r = static_cast<uchar>(avgBGR(2));
             op.g = static_cast<uchar>(avgBGR(1));
-            op.b = static_cast<uchar>(avgBGR(2));
+            op.b = static_cast<uchar>(avgBGR(0));
             op.a = 255;
 #pragma omp critical
             { colorMap->push_back(op); }

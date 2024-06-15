@@ -41,7 +41,6 @@
 #include "viewer/visual_gravity.h"
 #include "viewer/visual_colorized_cloud_map.h"
 #include "opencv2/imgcodecs.hpp"
-#include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include "cereal/types/utility.hpp"
 #include "cereal/types/list.hpp"
@@ -87,107 +86,18 @@ namespace ns_ikalibr {
                 t += dt;
             }
             auto filename = saveDir + "/samples" + Configor::GetFormatExtension();
-            SavePoseSequence(poseSeq, filename, Configor::Preference::DataIOFormat());
+            SavePoseSequence(poseSeq, filename, Configor::Preference::OutputDataFormat);
         }
         {
             // control points
             auto filename = saveDir + "/knots" + Configor::GetFormatExtension();
             std::ofstream file(filename);
-            auto ar = GetOutputArchiveVariant(file, Configor::Preference::DataIOFormat());
+            auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
             SerializeByOutputArchiveVariant(
-                    ar, Configor::Preference::DataIOFormat(), cereal::make_nvp("splines", *_solver->_splines)
+                    ar, Configor::Preference::OutputDataFormat, cereal::make_nvp("splines", *_solver->_splines)
             );
         }
         spdlog::info("saving splines finished!");
-    }
-
-    void CalibSolverIO::UpdateMapsToSave() {
-        if (_solver->GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) { return; }
-
-        std::string saveDir = Configor::DataStream::OutputPath + "/maps";
-        if (TryCreatePath(saveDir)) {
-            spdlog::info("saving maps to dir: '{}'...", saveDir);
-        } else { return; }
-
-        if (Configor::IsLiDARIntegrated()) {
-            auto subSaveDir = saveDir + "/lidar";
-            if (!TryCreatePath(subSaveDir)) {
-                spdlog::warn("create sub directory to save lidar map failed: '{}'", subSaveDir);
-            } else {
-                std::map<ufo::map::Node, std::vector<PointToSurfelCorr::Ptr>> nodes;
-                std::size_t count = 0;
-                for (const auto &[topic, corrVec]: _solver->_backup->lidarCorrs) {
-                    for (const auto &corr: corrVec) { nodes[corr->node].push_back(corr), ++count; }
-                }
-
-                ColorPointCloud::Ptr surfelCloud(new ColorPointCloud);
-                surfelCloud->reserve(count);
-                for (const auto &[node, corrVec]: nodes) {
-                    auto color = ns_viewer::Entity::GetUniqueColour();
-                    for (const auto &corr: corrVec) {
-                        ColorPoint p;
-                        p.x = static_cast<float>(corr->pInMap(0));
-                        p.y = static_cast<float>(corr->pInMap(1));
-                        p.z = static_cast<float>(corr->pInMap(2));
-                        p.r = static_cast<std::uint8_t>(color.r * 255.0f);
-                        p.g = static_cast<std::uint8_t>(color.g * 255.0f);
-                        p.b = static_cast<std::uint8_t>(color.b * 255.0f);
-                        p.a = static_cast<std::uint8_t>(color.a * 255.0f);
-                        surfelCloud->push_back(p);
-                    }
-                }
-                auto filename = subSaveDir + "/surfel_map.pcd";
-                spdlog::info("save global lidar map...");
-                if (Configor::Preference::OutputMaps && pcl::io::savePCDFile(filename, *surfelCloud, true) == -1) {
-                    spdlog::warn("save surfel lidar map as : '{}' failed!", filename);
-                }
-
-                // deconstruct
-                surfelCloud.reset();
-
-                filename = subSaveDir + "/gravity_aligned_map.pcd";
-
-                // create colorized map by aligning to the gravity
-                auto colorizedMap = ns_viewer::AlignedCloud<IKalibrPoint>::Create(
-                        _solver->_backup->lidarMap, -_solver->_parMagr->GRAVITY.cast<float>(), 2.0f
-                )->GetCloud().GetCloud();
-                if (Configor::Preference::OutputMaps && pcl::io::savePCDFile(filename, *colorizedMap, true) == -1) {
-                    spdlog::warn("save aligned lidar map as : '{}' failed!", filename);
-                }
-            }
-        }
-
-        if (Configor::IsCameraIntegrated()) {
-            for (const auto &[topic, sfmData]: _solver->_dataMagr->GetSfMData()) {
-                spdlog::info("save veta for camera '{}'...", topic);
-
-                auto subSaveDir = saveDir + '/' + topic;
-                if (!TryCreatePath(subSaveDir)) {
-                    spdlog::warn("create sub directory to save veta for '{}' failed: '{}'", topic, subSaveDir);
-                    continue;
-                }
-
-                auto filename = subSaveDir + "/veta.bin";
-                if (Configor::Preference::OutputMaps && !ns_veta::Save(*sfmData, filename, ns_veta::Veta::ALL)) {
-                    spdlog::warn("create sub directory to save veta for '{}' failed: '{}'", topic, saveDir);
-                }
-            }
-        }
-
-        if (Configor::IsRadarIntegrated() && _solver->GetScaleType() == TimeDeriv::LIN_POS_SPLINE) {
-            auto subSaveDir = saveDir + "/radar";
-            if (!TryCreatePath(subSaveDir)) {
-                spdlog::warn("create sub directory to save radar target cloud map failed: '{}'", subSaveDir);
-            } else {
-                spdlog::info("save target cloud map for radar...");
-                auto radarMap = _solver->_backup->radarMap;
-                auto filename = subSaveDir + "/target_map.pcd";
-                if (Configor::Preference::OutputMaps && pcl::io::savePCDFile(filename, *radarMap, true) == -1) {
-                    spdlog::warn("save radar map as : '{}' failed!", filename);
-                }
-            }
-        }
-        spdlog::info("saving maps finished!");
     }
 
     void CalibSolverIO::SaveHessianMatrix() {
@@ -281,9 +191,9 @@ namespace ns_ikalibr {
         auto hessianMat = estimator->GetHessianMatrix(parAddress, Configor::Preference::AvailableThreads());
         auto filename = saveDir + "/hessian" + Configor::GetFormatExtension();
         std::ofstream file(filename);
-        auto ar = GetOutputArchiveVariant(file, Configor::Preference::DataIOFormat());
+        auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
         SerializeByOutputArchiveVariant(
-                ar, Configor::Preference::DataIOFormat(), cereal::make_nvp("row", hessianMat.rows()),
+                ar, Configor::Preference::OutputDataFormat, cereal::make_nvp("row", hessianMat.rows()),
                 cereal::make_nvp("col", hessianMat.cols()), cereal::make_nvp("hessian", hessianMat),
                 cereal::make_nvp("par_order_size", parOrderSize)
         );
@@ -344,9 +254,9 @@ namespace ns_ikalibr {
             // save pose vector
             auto filename = subSaveDir + "/pose" + ns_ikalibr::Configor::GetFormatExtension();
             std::ofstream file(filename, std::ios::out);
-            auto ar = GetOutputArchiveVariant(file, Configor::Preference::DataIOFormat());
+            auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
             SerializeByOutputArchiveVariant(
-                    ar, Configor::Preference::DataIOFormat(), cereal::make_nvp(
+                    ar, Configor::Preference::OutputDataFormat, cereal::make_nvp(
                             "note", std::string("The pose denotes transformation from camera frame to world frame!")
                     ), cereal::make_nvp("pose_seq", poseVec)
             );
@@ -462,7 +372,7 @@ namespace ns_ikalibr {
         for (const auto &[topic, frames]: _solver->_dataMagr->GetCameraMeasurements()) {
             spdlog::info("create colorized map using camera '{}'...", topic);
 
-            auto subSaveDir = saveDir + '/' + topic;
+            auto subSaveDir = saveDir + "/camera/" + topic;
             if (!TryCreatePath(subSaveDir)) {
                 spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
                 continue;
@@ -554,9 +464,9 @@ namespace ns_ikalibr {
                 );
             }
             std::ofstream file(subSaveDir + "/inertial_mes" + Configor::GetFormatExtension(), std::ios::out);
-            auto ar = GetOutputArchiveVariant(file, Configor::Preference::DataIOFormat());
+            auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
             SerializeByOutputArchiveVariant(
-                    ar, Configor::Preference::DataIOFormat(),
+                    ar, Configor::Preference::OutputDataFormat,
                     cereal::make_nvp("raw_inertial", rawMes),
                     cereal::make_nvp("est_inertial", estMes),
                     cereal::make_nvp("inertial_diff", diff)
@@ -608,9 +518,9 @@ namespace ns_ikalibr {
                 estMes.push_back(*refIntri->InvolveIntri(alignedMes));
             }
             std::ofstream file(subSaveDir + "/aligned_mes_to_ref" + Configor::GetFormatExtension(), std::ios::out);
-            auto ar = GetOutputArchiveVariant(file, Configor::Preference::DataIOFormat());
+            auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
             SerializeByOutputArchiveVariant(
-                    ar, Configor::Preference::DataIOFormat(), cereal::make_nvp("aligned_inertial", estMes)
+                    ar, Configor::Preference::OutputDataFormat, cereal::make_nvp("aligned_inertial", estMes)
             );
         }
         spdlog::info("saving aligned inertial measurements finished!");
@@ -681,9 +591,9 @@ namespace ns_ikalibr {
             }
 
             std::ofstream file(subSaveDir + "/residuals" + Configor::GetFormatExtension(), std::ios::out);
-            auto ar = GetOutputArchiveVariant(file, Configor::Preference::DataIOFormat());
+            auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
             SerializeByOutputArchiveVariant(
-                    ar, Configor::Preference::DataIOFormat(), cereal::make_nvp("reproj_errors", reprojErrors)
+                    ar, Configor::Preference::OutputDataFormat, cereal::make_nvp("reproj_errors", reprojErrors)
             );
         }
         spdlog::info("saving visual reprojection errors finished!");
@@ -704,6 +614,118 @@ namespace ns_ikalibr {
             return false;
         } else {
             return true;
+        }
+    }
+
+    void CalibSolverIO::SaveLiDARMaps() {
+        if (_solver->GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
+            !Configor::IsLiDARIntegrated()) { return; }
+
+        std::string saveDir = Configor::DataStream::OutputPath + "/maps";
+        if (TryCreatePath(saveDir)) {
+            spdlog::info("saving maps to dir: '{}'...", saveDir);
+        } else { return; }
+
+        auto subSaveDir = saveDir + "/lidar";
+        if (!TryCreatePath(subSaveDir)) {
+            spdlog::warn("create sub directory to save lidar map failed: '{}'", subSaveDir);
+        } else {
+            std::map<ufo::map::Node, std::vector<PointToSurfelCorr::Ptr>> nodes;
+            std::size_t count = 0;
+            for (const auto &[topic, corrVec]: _solver->_backup->lidarCorrs) {
+                for (const auto &corr: corrVec) { nodes[corr->node].push_back(corr), ++count; }
+            }
+
+            ColorPointCloud::Ptr surfelCloud(new ColorPointCloud);
+            surfelCloud->reserve(count);
+            for (const auto &[node, corrVec]: nodes) {
+                auto color = ns_viewer::Entity::GetUniqueColour();
+                for (const auto &corr: corrVec) {
+                    ColorPoint p;
+                    p.x = static_cast<float>(corr->pInMap(0));
+                    p.y = static_cast<float>(corr->pInMap(1));
+                    p.z = static_cast<float>(corr->pInMap(2));
+                    p.r = static_cast<std::uint8_t>(color.r * 255.0f);
+                    p.g = static_cast<std::uint8_t>(color.g * 255.0f);
+                    p.b = static_cast<std::uint8_t>(color.b * 255.0f);
+                    p.a = static_cast<std::uint8_t>(color.a * 255.0f);
+                    surfelCloud->push_back(p);
+                }
+            }
+            auto filename = subSaveDir + "/surfel_map.pcd";
+            spdlog::info("save global lidar surfel map...");
+            if (pcl::io::savePCDFile(filename, *surfelCloud, true) == -1) {
+                spdlog::warn("save surfel lidar map as : '{}' failed!", filename);
+            } else {
+                spdlog::info("save global lidar surfel map as '{}'", filename);
+            }
+
+            // deconstruct
+            surfelCloud.reset();
+
+            filename = subSaveDir + "/gravity_aligned_map.pcd";
+
+            // create colorized map by aligning to the gravity
+            auto colorizedMap = ns_viewer::AlignedCloud<IKalibrPoint>::Create(
+                    _solver->_backup->lidarMap, -_solver->_parMagr->GRAVITY.cast<float>(), 2.0f
+            )->GetCloud().GetCloud();
+            spdlog::info("save global lidar map...");
+            if (pcl::io::savePCDFile(filename, *colorizedMap, true) == -1) {
+                spdlog::warn("save aligned lidar map as : '{}' failed!", filename);
+            } else {
+                spdlog::info("save global lidar map as '{}'", filename);
+            }
+        }
+    }
+
+    void CalibSolverIO::SaveVisualMaps() {
+        if (_solver->GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
+            !Configor::IsCameraIntegrated()) { return; }
+
+        std::string saveDir = Configor::DataStream::OutputPath + "/maps";
+        if (TryCreatePath(saveDir)) {
+            spdlog::info("saving maps to dir: '{}'...", saveDir);
+        } else { return; }
+
+        for (const auto &[topic, sfmData]: _solver->_dataMagr->GetSfMData()) {
+            spdlog::info("save veta for camera '{}'...", topic);
+
+            auto subSaveDir = saveDir + "/camera/" + topic;
+            if (!TryCreatePath(subSaveDir)) {
+                spdlog::warn("create sub directory to save veta for '{}' failed: '{}'", topic, subSaveDir);
+                continue;
+            }
+
+            auto filename = subSaveDir + "/veta.bin";
+            if (!ns_veta::Save(*sfmData, filename, ns_veta::Veta::ALL)) {
+                spdlog::warn("create sub directory to save veta for '{}' failed: '{}'", topic, saveDir);
+            } else {
+                spdlog::info("save veta for camera '{}' as '{}'", topic, filename);
+            }
+        }
+    }
+
+    void CalibSolverIO::SaveRadarMaps() {
+        if (_solver->GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
+            !Configor::IsRadarIntegrated()) { return; }
+
+        std::string saveDir = Configor::DataStream::OutputPath + "/maps";
+        if (TryCreatePath(saveDir)) {
+            spdlog::info("saving maps to dir: '{}'...", saveDir);
+        } else { return; }
+
+        auto subSaveDir = saveDir + "/radar";
+        if (!TryCreatePath(subSaveDir)) {
+            spdlog::warn("create sub directory to save radar target cloud map failed: '{}'", subSaveDir);
+        } else {
+            spdlog::info("save target cloud map for radar...");
+            auto radarMap = _solver->_backup->radarMap;
+            auto filename = subSaveDir + "/target_map.pcd";
+            if (pcl::io::savePCDFile(filename, *radarMap, true) == -1) {
+                spdlog::warn("save radar map as : '{}' failed!", filename);
+            } else {
+                spdlog::info("save radar map as '{}'", filename);
+            }
         }
     }
 }

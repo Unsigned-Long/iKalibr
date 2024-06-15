@@ -47,6 +47,7 @@
 #include "core/visual_reproj_association.h"
 #include "opencv2/highgui.hpp"
 #include "util/tqdm.h"
+#include "magic_enum_flags.hpp"
 
 _3_
 
@@ -110,7 +111,7 @@ namespace ns_ikalibr {
         _ceresOption.update_state_every_iteration = true;
 
         // output spatiotemporal parameters after each iteration if needed
-        if (Configor::Preference::OutputParamInEachIter) {
+        if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
             _ceresOption.callbacks.push_back(new CeresDebugCallBack(_parMagr));
         }
     }
@@ -121,7 +122,9 @@ namespace ns_ikalibr {
     }
 
     void CalibSolver::Process() {
-        if (Configor::Preference::OutputParamInEachIter) { SaveStageCalibParam(_parMagr, "stage_0_init"); }
+        if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
+            SaveStageCalibParam(_parMagr, "stage_0_init");
+        }
         // --------------
         // initialization
         // --------------
@@ -174,7 +177,7 @@ namespace ns_ikalibr {
 
             _parMagr->ShowParamStatus();
 
-            if (Configor::Preference::OutputParamInEachIter) {
+            if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
                 SaveStageCalibParam(_parMagr, "stage_4_bo_" + std::to_string(i));
             }
         }
@@ -240,7 +243,9 @@ namespace ns_ikalibr {
         sum = estimator->Solve(_ceresOption);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
-        if (Configor::Preference::OutputParamInEachIter) { SaveStageCalibParam(_parMagr, "stage_1_rot_fit"); }
+        if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
+            SaveStageCalibParam(_parMagr, "stage_1_rot_fit");
+        }
 
         // --------------------------------------------------------------------
         // Step 2.1: perform rotation-only visual odometer to recover rotations
@@ -757,7 +762,9 @@ namespace ns_ikalibr {
         sum = estimator->Solve(_ceresOption);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
-        if (Configor::Preference::OutputParamInEachIter) { SaveStageCalibParam(_parMagr, "stage_2_align"); }
+        if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
+            SaveStageCalibParam(_parMagr, "stage_2_align");
+        }
 
         for (const auto &[topic, lidarOdom]: lidarOdometers) {
             _viewer->AddCloud(lidarOdom->GetMap(), Viewer::VIEW_MAP, ns_viewer::Entity::GetUniqueColour(), 2.0f);
@@ -960,7 +967,9 @@ namespace ns_ikalibr {
             spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
         }
 
-        if (Configor::Preference::OutputParamInEachIter) { SaveStageCalibParam(_parMagr, "stage_3_scale_fit"); }
+        if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
+            SaveStageCalibParam(_parMagr, "stage_3_scale_fit");
+        }
 
         //------------------------------------------------------
         // Step 6: align initialized states to gravity direction
@@ -1183,7 +1192,7 @@ namespace ns_ikalibr {
     std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> CalibSolver::DataAssociationForCameras() {
         if (!Configor::IsCameraIntegrated()) { return {}; }
 
-        std::map <std::string, std::vector<VisualReProjCorrSeq::Ptr>> corrs;
+        std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> corrs;
         for (const auto &[topic, sfmData]: _dataMagr->GetSfMData()) {
             spdlog::info("performing visual reprojection data association for camera '{}'...", topic);
             corrs[topic] = VisualReProjAssociator::Create(
@@ -1201,7 +1210,7 @@ namespace ns_ikalibr {
 
         auto GetOptString = [](OptOption::Option opt) -> std::string {
             std::stringstream stringStream;
-            stringStream << opt;
+            stringStream << magic_enum::enum_flags_name(opt);
             return stringStream.str();
         };
         spdlog::info("Optimization option: {}", GetOptString(optOption));
@@ -1524,8 +1533,8 @@ namespace ns_ikalibr {
         spdlog::drop("sfm_cmd");
 
         std::ofstream file(ns_ikalibr::Configor::DataStream::GetImageStoreInfoFile(topic));
-        auto ar = GetOutputArchiveVariant(file, Configor::Preference::DataIOFormat());
-        SerializeByOutputArchiveVariant(ar, Configor::Preference::DataIOFormat(), cereal::make_nvp("info", info));
+        auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
+        SerializeByOutputArchiveVariant(ar, Configor::Preference::OutputDataFormat, cereal::make_nvp("info", info));
     }
 
     ns_veta::Veta::Ptr CalibSolver::TryLoadSfMData(const std::string &topic, double errorThd, std::size_t trackLenThd) {
@@ -1568,8 +1577,8 @@ namespace ns_ikalibr {
         ImagesInfo info("", "", {});
         {
             std::ifstream file(infoFilename);
-            auto ar = GetInputArchiveVariant(file, Configor::Preference::DataIOFormat());
-            SerializeByInputArchiveVariant(ar, Configor::Preference::DataIOFormat(), cereal::make_nvp("info", info));
+            auto ar = GetInputArchiveVariant(file, Configor::Preference::OutputDataFormat);
+            SerializeByInputArchiveVariant(ar, Configor::Preference::OutputDataFormat, cereal::make_nvp("info", info));
         }
 
         // load cameras
@@ -1708,7 +1717,7 @@ namespace ns_ikalibr {
             spdlog::warn("create directory failed: '{}'", paramDir);
         } else {
             const std::string paramFilename = paramDir + "/" + desc + ns_ikalibr::Configor::GetFormatExtension();
-            par->Save(paramFilename, ns_ikalibr::Configor::Preference::DataIOFormat());
+            par->Save(paramFilename, ns_ikalibr::Configor::Preference::OutputDataFormat);
         }
     }
 
@@ -1734,7 +1743,7 @@ namespace ns_ikalibr {
             // save param
             const std::string paramFilename = _outputDir + "/ikalibr_param_" + std::to_string(_idx) +
                                               ns_ikalibr::Configor::GetFormatExtension();
-            _parMagr->Save(paramFilename, ns_ikalibr::Configor::Preference::DataIOFormat());
+            _parMagr->Save(paramFilename, ns_ikalibr::Configor::Preference::OutputDataFormat);
 
             // save iter info
             _iterInfoFile << _idx << ','

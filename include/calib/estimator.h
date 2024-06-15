@@ -45,7 +45,6 @@
 #include "factor/lin_scale_factor.hpp"
 #include "factor/point_to_surfel_factor.hpp"
 #include "factor/visual_reproj_factor.hpp"
-#include "magic_enum_flags.hpp"
 
 _3_
 
@@ -105,14 +104,6 @@ namespace ns_ikalibr {
                   OPT_ACCE_BIAS | OPT_ACCE_MAP_COEFF | OPT_SO3_AtoG | OPT_GRAVITY |
                   OPT_VISUAL_GLOBAL_SCALE | OPT_VISUAL_INV_DEPTH | OPT_CAM_FOCAL_LEN |
                   OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME
-        };
-
-        /**
-         * @brief override operator '<<' for type 'Option'
-         */
-        friend std::ostream &operator<<(std::ostream &os, const Option &curOption) {
-            os << magic_enum::enum_flags_name(curOption);
-            return os;
         };
     };
 

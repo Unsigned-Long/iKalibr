@@ -58,10 +58,34 @@ The benefit is that you don’t need to declare std::vector with Eigen::aligned_
 #include "sensor/imu_intrinsic.hpp"
 #include "thread"
 #include "ros/package.h"
+#include "util/status.hpp"
 
 _3_
 
 namespace ns_ikalibr {
+    // myenumGenor OutputOption ParamInEachIter BSplines LiDARMaps VisualMaps RadarMaps HessianMat VisualLiDARCovisibility VisualKinematics ColorizedLiDARMap AlignedInertialMes VisualReprojErrors RadarDopplerErrors
+    enum class OutputOption : std::uint32_t {
+        /**
+         * @brief options
+         */
+        NONE = 1 << 0,
+        ParamInEachIter = 1 << 1,
+        BSplines = 1 << 2,
+        LiDARMaps = 1 << 3,
+        VisualMaps = 1 << 4,
+        RadarMaps = 1 << 5,
+        HessianMat = 1 << 6,
+        VisualLiDARCovisibility = 1 << 7,
+        VisualKinematics = 1 << 8,
+        ColorizedLiDARMap = 1 << 9,
+        AlignedInertialMes = 1 << 10,
+        VisualReprojErrors = 1 << 11,
+        RadarDopplerErrors = 1 << 12,
+        ALL = ParamInEachIter | BSplines | LiDARMaps | VisualMaps | RadarMaps |
+              HessianMat | VisualLiDARCovisibility | VisualKinematics |
+              ColorizedLiDARMap | AlignedInertialMes | VisualReprojErrors |
+              RadarDopplerErrors
+    };
 
     struct Configor {
     public:
@@ -230,15 +254,11 @@ namespace ns_ikalibr {
 
         static struct Preference {
             static bool UseCudaInSolving;
-            static bool OutputParamInEachIter;
-            static bool OutputBSplines;
-            static bool OutputMaps;
-            static bool OutputHessianMat;
-            static bool OutputVisualLiDARCovisibility;
-            static bool OutputVisualKinematics;
-            static bool OutputColorizedMap;
-            static bool OutputAlignedInertialMes;
-            static std::string OutputDataFormat;
+            static OutputOption Outputs;
+            static std::set<std::string> OutputsStr;
+            // str for file configuration, and enum for internal use
+            static std::string OutputDataFormatStr;
+            static CerealArchiveType::Enum OutputDataFormat;
             const static std::map<CerealArchiveType::Enum, std::string> FileExtension;
             static int ThreadsToUse;
 
@@ -250,22 +270,13 @@ namespace ns_ikalibr {
 
             static int AvailableThreads();
 
-            static CerealArchiveType::Enum DataIOFormat();
-
         public:
             template<class Archive>
             void serialize(Archive &ar) {
                 ar(
                         CEREAL_NVP(UseCudaInSolving),
-                        CEREAL_NVP(OutputParamInEachIter),
-                        CEREAL_NVP(OutputBSplines),
-                        CEREAL_NVP(OutputMaps),
-                        CEREAL_NVP(OutputHessianMat),
-                        CEREAL_NVP(OutputVisualLiDARCovisibility),
-                        CEREAL_NVP(OutputVisualKinematics),
-                        CEREAL_NVP(OutputColorizedMap),
-                        CEREAL_NVP(OutputAlignedInertialMes),
-                        CEREAL_NVP(OutputDataFormat),
+                        cereal::make_nvp("Outputs", OutputsStr),
+                        cereal::make_nvp("OutputDataFormat", OutputDataFormatStr),
                         CEREAL_NVP(ThreadsToUse),
                         CEREAL_NVP(SplineScaleInViewer),
                         CEREAL_NVP(CoordSScaleInViewer)
@@ -279,30 +290,12 @@ namespace ns_ikalibr {
         static Ptr Create();
 
         // load configure information from file
-        template<class CerealArchiveType=CerealArchiveType::YAML>
-        static bool LoadConfigure(const std::string &filename) {
-            std::ifstream file(filename);
-            auto archive = GetInputArchive<CerealArchiveType>(file);
-            auto configor = Configor::Create();
-            (*archive)(cereal::make_nvp("Configor", *configor));
-            configor->CheckConfigure();
-            return true;
-        }
+        static bool LoadConfigure(const std::string &filename,
+                                  CerealArchiveType::Enum archiveType = CerealArchiveType::Enum::YAML);
 
         // save configure information to file
-        template<class CerealArchiveType=CerealArchiveType::YAML>
-        bool SaveConfigure(const std::string &filename) {
-            std::ofstream file(filename);
-            auto archive = GetOutputArchive<CerealArchiveType>(file);
-            (*archive)(cereal::make_nvp("Configor", *this));
-            return true;
-        }
-
-        // load configure information from file
-        static bool LoadConfigure(const std::string &filename, CerealArchiveType::Enum archiveType);
-
-        // save configure information to file
-        bool SaveConfigure(const std::string &filename, CerealArchiveType::Enum archiveType);
+        bool SaveConfigure(const std::string &filename,
+                           CerealArchiveType::Enum archiveType = CerealArchiveType::Enum::YAML);
 
         // print the main fields
         static void PrintMainFields();

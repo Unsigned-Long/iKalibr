@@ -79,25 +79,64 @@ int main(int argc, char **argv) {
         // solve finished, save calibration results (file type: JSON | YAML | XML | BINARY)
         auto filename = ns_ikalibr::Configor::DataStream::OutputPath + "/ikalibr_param" +
                         ns_ikalibr::Configor::GetFormatExtension();
-        paramMagr->Save(filename, ns_ikalibr::Configor::Preference::DataIOFormat());
+        paramMagr->Save(filename, ns_ikalibr::Configor::Preference::OutputDataFormat);
 
         auto solverIO = ns_ikalibr::CalibSolverIO::Create(solver);
-        // update maps if exists, and save them if needed
-        solverIO->UpdateMapsToSave();
 
-        if (ns_ikalibr::Configor::Preference::OutputBSplines) { solverIO->SaveBSplines(); }
+        if (IsOptionWith(ns_ikalibr::OutputOption::LiDARMaps,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveLiDARMaps();
+        }
 
-        if (ns_ikalibr::Configor::Preference::OutputHessianMat) { solverIO->SaveHessianMatrix(); }
+        if (IsOptionWith(ns_ikalibr::OutputOption::VisualMaps,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveVisualMaps();
+        }
 
-        if (ns_ikalibr::Configor::Preference::OutputAlignedInertialMes) { solverIO->SaveAlignedInertialMes(); }
+        if (IsOptionWith(ns_ikalibr::OutputOption::RadarMaps,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveRadarMaps();
+        }
 
-        if (ns_ikalibr::Configor::Preference::OutputVisualKinematics) { solverIO->SaveVisualReprojectionError(); }
+        if (IsOptionWith(ns_ikalibr::OutputOption::BSplines,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveBSplines();
+        }
 
-        if (ns_ikalibr::Configor::Preference::OutputVisualKinematics) { solverIO->SaveVisualKinematics(); }
+        if (IsOptionWith(ns_ikalibr::OutputOption::HessianMat,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveHessianMatrix();
+        }
 
-        if (ns_ikalibr::Configor::Preference::OutputVisualLiDARCovisibility) { solverIO->VerifyVisualLiDARConsistency(); }
+        if (IsOptionWith(ns_ikalibr::OutputOption::AlignedInertialMes,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveAlignedInertialMes();
+        }
 
-        if (ns_ikalibr::Configor::Preference::OutputColorizedMap) { solverIO->SaveVisualColorizedMap(); }
+        if (IsOptionWith(ns_ikalibr::OutputOption::VisualReprojErrors,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveVisualReprojectionError();
+        }
+
+        if (IsOptionWith(ns_ikalibr::OutputOption::VisualKinematics,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveVisualKinematics();
+        }
+
+        if (IsOptionWith(ns_ikalibr::OutputOption::VisualLiDARCovisibility,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->VerifyVisualLiDARConsistency();
+        }
+
+        if (IsOptionWith(ns_ikalibr::OutputOption::ColorizedLiDARMap,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveVisualColorizedMap();
+        }
+
+        if (IsOptionWith(ns_ikalibr::OutputOption::RadarDopplerErrors,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            // todo...
+        }
 
         static const auto FStyle = fmt::emphasis::italic | fmt::fg(fmt::color::green);
         spdlog::info(fmt::format(FStyle, "solving and outputting finished!!! Everything is fine!!!"));

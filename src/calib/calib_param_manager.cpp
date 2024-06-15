@@ -96,12 +96,12 @@ namespace ns_ikalibr {
         // intrinsics
         for (auto &[topic, intri]: parMarg->INTRI.IMU) {
             intri = ParIntri::LoadIMUIntri(
-                    Configor::DataStream::IMUTopics.at(topic).Intrinsics, Configor::Preference::DataIOFormat()
+                    Configor::DataStream::IMUTopics.at(topic).Intrinsics, Configor::Preference::OutputDataFormat
             );
         }
         for (auto &[topic, intri]: parMarg->INTRI.Camera) {
             intri = ParIntri::LoadCameraIntri(
-                    Configor::DataStream::CameraTopics.at(topic).Intrinsics, Configor::Preference::DataIOFormat()
+                    Configor::DataStream::CameraTopics.at(topic).Intrinsics, Configor::Preference::OutputDataFormat
             );
         }
 

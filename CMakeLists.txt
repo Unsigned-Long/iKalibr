@@ -176,6 +176,10 @@ endif ()
 
 find_package(OpenCV)
 find_package(magic_enum)
+# magic_enum works in range of [MAGIC_ENUM_RANGE_MIN, MAGIC_ENUM_RANGE_MAX]
+add_definitions(-DMAGIC_ENUM_RANGE_MIN=0)
+# 1024 = 2^10
+add_definitions(-DMAGIC_ENUM_RANGE_MAX=1023)
 find_package(yaml-cpp)
 find_package(PCL REQUIRED)
 
@@ -331,7 +335,7 @@ target_link_libraries(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
         # INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
-#        LIBRARIES ${PROJECT_NAME}
+        #        LIBRARIES ${PROJECT_NAME}
         CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs message_runtime
         #  DEPENDS system_lib
 )
