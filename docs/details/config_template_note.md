@@ -154,22 +154,21 @@ Configor:
     # whether using cuda to speed up when solving least-squares problems
     # if you do not install the cuda dependency, set it to 'false'
     UseCudaInSolving: false
-    # whether output the spatiotemporal parameters each iteration
-    OutputParamInEachIter: true
-    # whether output B-splines
-    OutputBSplines: true
-    # whether output maps
-    OutputMaps: true
-    # whether output hessian matrix
-    OutputHessianMat: true
-    # whether covisibility image between camera and lidar
-    OutputVisualLiDARCovisibility: true
-    # whether output visual images with kinetics (angular velocity, linear velocity, and gravity)
-    OutputVisualKinematics: true
-    # whether output the visual colorized point cloud map
-    OutputColorizedMap: true
-    # whether output aligned inertial measurements (aligned to the reference IMU)
-    OutputAlignedInertialMes: true
+    # currently available output content:
+    # ParamInEachIter, BSplines, LiDARMaps, VisualMaps, RadarMaps, HessianMat,
+    # VisualLiDARCovisibility, VisualKinematics, ColorizedLiDARMap
+    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors
+    # NONE, ALL
+    Outputs:
+      - LiDARMaps
+      - VisualMaps
+      - RadarMaps
+      - VisualLiDARCovisibility
+      - VisualKinematics
+      - ColorizedLiDARMap
+      - AlignedInertialMes
+      - VisualReprojErrors
+      - RadarDopplerErrors
     # supported data output format:
     # 1. JSON
     # 2. XML
