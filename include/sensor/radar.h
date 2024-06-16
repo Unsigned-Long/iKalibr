@@ -35,10 +35,8 @@
 #ifndef IKALIBR_RADAR_H
 #define IKALIBR_RADAR_H
 
-#include "memory"
-#include "util/utils.hpp"
+#include "util/utils.h"
 #include "ctraj/utils/macros.hpp"
-#include "ctraj/utils/utils.hpp"
 
 _3_
 

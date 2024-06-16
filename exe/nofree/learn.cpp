@@ -37,8 +37,9 @@
 #include "calib/calib_param_manager.h"
 #include "util/status.hpp"
 #include "nofree/ufomap_learner.hpp"
-#include "nofree/logo_svg.hpp"
-#include "nofree/data_collect_demo.hpp"
+#include "nofree/logo_svg.h"
+#include "nofree/data_collect_demo.h"
+#include "spdlog/fmt/bundled/color.h"
 
 _3_
 

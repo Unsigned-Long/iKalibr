@@ -40,7 +40,7 @@
 #include "ctraj/utils/sophus_utils.hpp"
 #include "ceres/ceres.h"
 #include "veta/camera/pinhole_brown.h"
-#include "util/utils.hpp"
+#include "util/utils.h"
 
 _3_
 

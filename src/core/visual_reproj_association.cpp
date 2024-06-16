@@ -33,6 +33,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/visual_reproj_association.h"
+#include "spdlog/spdlog.h"
 
 _3_
 

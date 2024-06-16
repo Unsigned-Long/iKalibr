@@ -35,12 +35,11 @@
 #ifndef IKALIBR_VISUAL_LIN_VEL_DRAWER_H
 #define IKALIBR_VISUAL_LIN_VEL_DRAWER_H
 
-#include "opencv2/core.hpp"
 #include "ctraj/core/spline_bundle.h"
 #include "config/configor.h"
 #include "veta/veta.h"
-#include "veta/camera/pinhole_brown.h"
-#include "util/cloud_define.hpp"
+#include "veta/camera/pinhole.h"
+#include "opencv2/core.hpp"
 
 _3_
 

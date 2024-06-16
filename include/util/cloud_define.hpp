@@ -39,7 +39,7 @@
 #include "pcl/pcl_macros.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
-#include "util/utils.hpp"
+#include "util/utils.h"
 
 _3_
 

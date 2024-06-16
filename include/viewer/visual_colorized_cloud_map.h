@@ -35,11 +35,11 @@
 #ifndef IKALIBR_VISUAL_COLORIZED_CLOUD_MAP_H
 #define IKALIBR_VISUAL_COLORIZED_CLOUD_MAP_H
 
-#include "opencv2/core.hpp"
 #include "ctraj/core/spline_bundle.h"
 #include "config/configor.h"
 #include "veta/veta.h"
-#include "veta/camera/pinhole_brown.h"
+#include "veta/camera/pinhole.h"
+#include "opencv2/core.hpp"
 #include "util/cloud_define.hpp"
 
 _3_

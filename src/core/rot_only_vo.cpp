@@ -33,13 +33,16 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/rot_only_vo.h"
+#include "sensor/camera.h"
+#include "calib/calib_param_manager.h"
+
 #include "opencv2/highgui.hpp"
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/calib3d.hpp"
+
 #include "opengv/sac/Ransac.hpp"
 #include "opengv/sac_problems/relative_pose/RotationOnlySacProblem.hpp"
-#include "sensor/camera.h"
-#include "calib/calib_param_manager.h"
+#include "opengv/relative_pose/CentralRelativeAdapter.hpp"
 
 _3_
 

@@ -35,7 +35,6 @@
 #ifndef IKALIBR_CALIB_SOLVER_IO_H
 #define IKALIBR_CALIB_SOLVER_IO_H
 
-#include "memory"
 #include "util/cereal_archive_helper.hpp"
 
 _3_

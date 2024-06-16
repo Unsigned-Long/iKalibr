@@ -35,12 +35,10 @@
 #ifndef IKALIBR_ROT_ONLY_VO_H
 #define IKALIBR_ROT_ONLY_VO_H
 
-#include <utility>
-#include "opencv2/features2d.hpp"
-#include "veta/camera/pinhole_brown.h"
-#include "opengv/relative_pose/methods.hpp"
-#include "opengv/relative_pose/CentralRelativeAdapter.hpp"
-#include "util/utils.hpp"
+#include "util/utils.h"
+#include "opencv2/core.hpp"
+#include "opengv/types.hpp"
+#include "veta/camera/pinhole.h"
 
 _3_
 

@@ -32,14 +32,16 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include "util/utils.h"
 #include "spdlog/spdlog.h"
 #include "util/status.hpp"
 #include "cereal/types/utility.hpp"
 #include "opencv2/imgcodecs.hpp"
-#include "util/utils.hpp"
 #include "sensor_msgs/Image.h"
 #include "cv_bridge/cv_bridge.h"
 #include "rosbag/bag.h"
+#include "filesystem"
+#include "spdlog/fmt/bundled/color.h"
 
 _3_
 

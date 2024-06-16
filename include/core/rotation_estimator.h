@@ -35,8 +35,9 @@
 #ifndef IKALIBR_ROTATION_ESTIMATOR_H
 #define IKALIBR_ROTATION_ESTIMATOR_H
 
-#include "ctraj/core/spline_bundle.h"
 #include "config/configor.h"
+#include "ctraj/core/spline_bundle.h"
+#include "ctraj/core/pose.hpp"
 
 _3_
 

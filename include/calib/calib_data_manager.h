@@ -35,14 +35,12 @@
 #ifndef IKALIBR_CALIB_DATA_MANAGER_H
 #define IKALIBR_CALIB_DATA_MANAGER_H
 
-#include <utility>
 #include "config/configor.h"
 #include "util/status.hpp"
 #include "sensor/imu.h"
 #include "sensor/radar.h"
 #include "sensor/lidar.h"
 #include "sensor/camera.h"
-#include "cereal/types/utility.hpp"
 #include "veta/veta.h"
 
 _3_

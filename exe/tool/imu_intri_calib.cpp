@@ -36,7 +36,7 @@
 #include "spdlog/spdlog.h"
 #include "util/status.hpp"
 #include "spdlog/fmt/bundled/color.h"
-#include "nofree/imu_intri_calib.hpp"
+#include "nofree/imu_intri_calib.h"
 
 _3_
 

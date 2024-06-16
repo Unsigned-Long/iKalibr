@@ -39,6 +39,7 @@
 #include "calib/calib_solver.h"
 #include "cereal/types/utility.hpp"
 #include "cereal/types/list.hpp"
+#include "spdlog/fmt/bundled/color.h"
 
 _3_
 

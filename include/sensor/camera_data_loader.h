@@ -36,8 +36,8 @@
 #define IKALIBR_CAMERA_DATA_LOADER_H
 
 #include "sensor/camera.h"
-#include "util/enum_cast.hpp"
 #include "rosbag/message_instance.h"
+#include "util/enum_cast.hpp"
 
 _3_
 

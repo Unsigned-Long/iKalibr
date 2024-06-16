@@ -32,8 +32,12 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "nofree/bag_merge.hpp"
+#include "nofree/bag_merge.h"
 #include "util/cereal_archive_helper.hpp"
+#include "spdlog/fmt/bundled/color.h"
+#include "spdlog/spdlog.h"
+#include "util/status.hpp"
+#include "filesystem"
 
 _3_
 

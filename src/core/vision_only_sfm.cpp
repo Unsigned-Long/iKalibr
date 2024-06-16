@@ -33,22 +33,24 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/vision_only_sfm.h"
+#include "util/status.hpp"
+
+#include "calib/calib_param_manager.h"
 #include "calib/estimator.h"
+#include "sensor/camera.h"
 #include "viewer/viewer.h"
+
+#include "boost/geometry.hpp"
 
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
-#include "opencv2/opencv.hpp"
 #include "opencv2/features2d.hpp"
+#include "opencv2/calib3d/calib3d.hpp"
 
 #include "opengv/sac_problems/relative_pose/RotationOnlySacProblem.hpp"
 #include "opengv/sac_problems/relative_pose/TranslationOnlySacProblem.hpp"
-#include "opengv/sac_problems/relative_pose/CentralRelativePoseSacProblem.hpp"
-#include "opengv/relative_pose/methods.hpp"
 #include "opengv/relative_pose/CentralRelativeAdapter.hpp"
-#include "opengv/triangulation/methods.hpp"
 
-#include "util/status.hpp"
 
 _3_
 

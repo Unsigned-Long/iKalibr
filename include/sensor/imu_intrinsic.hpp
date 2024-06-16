@@ -35,7 +35,7 @@
 #ifndef IKALIBR_IMU_INTRINSIC_HPP
 #define IKALIBR_IMU_INTRINSIC_HPP
 
-#include "util/utils.hpp"
+#include "util/utils.h"
 #include "sensor/imu.h"
 #include "util/cereal_archive_helper.hpp"
 

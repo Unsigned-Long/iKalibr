@@ -35,7 +35,6 @@
 #include "calib/estimator.h"
 #include "factor/imu_gyro_factor.hpp"
 #include "factor/inertial_align_factor.hpp"
-#include "factor/imu_acce_factor.hpp"
 #include "factor/lidar_inertial_align_factor.hpp"
 #include "factor/visual_inertial_align_factor.hpp"
 #include "factor/radar_inertial_align_factor.hpp"
@@ -43,6 +42,7 @@
 #include "factor/so3_factor.hpp"
 #include "factor/visual_proj_factor.hpp"
 #include "factor/linear_knots_factor.hpp"
+#include "ctraj/core/trajectory_estimator.h"
 
 _3_
 

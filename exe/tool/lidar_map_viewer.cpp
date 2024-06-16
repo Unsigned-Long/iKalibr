@@ -35,11 +35,12 @@
 #include "ros/ros.h"
 #include "spdlog/spdlog.h"
 #include "util/status.hpp"
-#include "util/utils.hpp"
+#include "util/utils.h"
 #include "pcl/filters/voxel_grid.h"
 #include "ufo/map/predicate/predicates.h"
 #include "tiny-viewer/core/multi_viewer.h"
 #include "util/cloud_define.hpp"
+#include "spdlog/fmt/bundled/color.h"
 
 _3_
 

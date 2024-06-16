@@ -35,8 +35,8 @@
 #ifndef IKALIBR_IMU_H
 #define IKALIBR_IMU_H
 
+#include "util/utils.h"
 #include "ctraj/core/imu.h"
-#include "util/utils.hpp"
 
 _3_
 

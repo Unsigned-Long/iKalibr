@@ -34,8 +34,8 @@
 
 #include "sensor/camera_data_loader.h"
 #include "sensor_msgs/Image.h"
+#include "cv_bridge/cv_bridge.h"
 #include "util/status.hpp"
-#include "spdlog/fmt/fmt.h"
 
 _3_
 

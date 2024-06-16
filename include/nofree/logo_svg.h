@@ -32,58 +32,22 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IKALIBR_ENUM_CAST_HPP
-#define IKALIBR_ENUM_CAST_HPP
+#ifndef IKALIBR_LOGO_SVG_H
+#define IKALIBR_LOGO_SVG_H
 
-#include "exception"
-#include "magic_enum.hpp"
-#include "string"
 #include "util/utils.h"
+#include "random"
 
 _3_
 
 namespace ns_ikalibr {
+    struct LoGoMaker {
+    public:
+        static void SaveToFile(const std::string &filename);
 
-    struct EnumCast {
-        template<class EnumType>
-        static constexpr auto stringToEnum(const std::string &enumStr) {
-            if (auto color = magic_enum::enum_cast<EnumType>(enumStr);color.has_value()) {
-                return color.value();
-            } else {
-                throw std::runtime_error("'EnumCast::stringToEnum' cast failed");
-            }
-        }
-
-        template<class EnumType>
-        static constexpr auto integerToEnum(int enumValue) {
-            if (auto color = magic_enum::enum_cast<EnumType>(enumValue);color.has_value()) {
-                return color.value();
-            } else {
-                throw std::runtime_error("'EnumCast::integerToEnum' cast failed");
-            }
-        }
-
-        template<class EnumType>
-        static constexpr auto enumToInteger(EnumType enumType) {
-            return magic_enum::enum_integer(enumType);
-        }
-
-        template<class EnumType>
-        static constexpr auto enumToString(EnumType enumType) {
-            return magic_enum::enum_name(enumType);
-        }
-
-        template<class EnumType>
-        static constexpr auto stringToInteger(const std::string &enumStr) {
-            return enumToInteger(stringToEnum<EnumType>(enumStr));
-        }
-
-        template<class EnumType>
-        static constexpr auto integerToString(int enumValue) {
-            return enumToString(integerToEnum<EnumType>(enumValue));
-        }
+    private:
+        static std::string DrawCube(float x, float y, float w, float h);
     };
-
 }
 
-#endif //IKALIBR_ENUM_CAST_HPP
+#endif //IKALIBR_LOGO_SVG_H

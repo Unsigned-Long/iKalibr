@@ -35,12 +35,10 @@
 #ifndef IKALIBR_VISUAL_REPROJ_ASSOCIATION_H
 #define IKALIBR_VISUAL_REPROJ_ASSOCIATION_H
 
-#include "veta/veta.h"
+#include "util/utils.h"
 #include "factor/visual_reproj_factor.hpp"
-#include "config/configor.h"
-#include "veta/camera/pinhole_brown.h"
-#include "util/utils.hpp"
 #include "sensor/camera_data_loader.h"
+#include "veta/camera/pinhole.h"
 
 _3_
 

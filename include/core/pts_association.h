@@ -35,13 +35,10 @@
 #ifndef IKALIBR_PTS_ASSOCIATION_H
 #define IKALIBR_PTS_ASSOCIATION_H
 
-#include "ufo/map/predicate/predicates.h"
-#include "ufo/map/surfel_map.h"
-#include "Eigen/Dense"
 #include "config/configor.h"
 #include "util/cloud_define.hpp"
-#include "ufo/map/point_cloud.h"
 #include "factor/point_to_surfel_factor.hpp"
+#include "ufo/map/point_cloud.h"
 
 _3_
 

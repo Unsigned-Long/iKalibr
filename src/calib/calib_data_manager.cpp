@@ -35,7 +35,6 @@
 #include "calib/calib_data_manager.h"
 #include "rosbag/view.h"
 #include "spdlog/spdlog.h"
-#include "sensor_msgs/Imu.h"
 #include "sensor/imu_data_loader.h"
 #include "sensor/radar_data_loader.h"
 #include "sensor/lidar_data_loader.h"

@@ -35,21 +35,13 @@
 #ifndef IKALIBR_LIDAR_DATA_LOADER_H
 #define IKALIBR_LIDAR_DATA_LOADER_H
 
-#include "angles/angles.h"
-#include "iostream"
-#include "ros/ros.h"
-#include "rosbag/bag.h"
-#include "rosbag/view.h"
 #include "sensor/lidar.h"
-#include "sensor_msgs/PointCloud.h"
-#include "sensor_msgs/PointCloud2.h"
-#include "sensor_msgs/point_cloud_conversion.h"
-#include "vector"
-#include "velodyne_msgs/VelodynePacket.h"
-#include "velodyne_msgs/VelodyneScan.h"
+#include "rosbag/message_instance.h"
 #include "util/enum_cast.hpp"
+#include "velodyne_msgs/VelodyneScan.h"
 
 _3_
+
 
 namespace ns_ikalibr {
 

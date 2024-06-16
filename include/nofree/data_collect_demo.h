@@ -32,58 +32,44 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IKALIBR_ENUM_CAST_HPP
-#define IKALIBR_ENUM_CAST_HPP
+#ifndef IKALIBR_DATA_COLLECT_DEMO_H
+#define IKALIBR_DATA_COLLECT_DEMO_H
 
-#include "exception"
-#include "magic_enum.hpp"
-#include "string"
 #include "util/utils.h"
+#include "tiny-viewer/core/pose.hpp"
 
 _3_
 
 namespace ns_ikalibr {
+    struct DataCollectionMotionDemo {
+    private:
+        constexpr static float Radius = 2.0;
+        constexpr static float Time = 30.0;
+        constexpr static int Frequency = 30;
+        constexpr static int KeepTime = 3;
 
-    struct EnumCast {
-        template<class EnumType>
-        static constexpr auto stringToEnum(const std::string &enumStr) {
-            if (auto color = magic_enum::enum_cast<EnumType>(enumStr);color.has_value()) {
-                return color.value();
-            } else {
-                throw std::runtime_error("'EnumCast::stringToEnum' cast failed");
-            }
-        }
+        constexpr static float CoordSizeMax = 0.4f;
+        constexpr static float CoordSizeMin = 0.0f;
+        constexpr static float CoordSizeRange = CoordSizeMax - CoordSizeMin;
 
-        template<class EnumType>
-        static constexpr auto integerToEnum(int enumValue) {
-            if (auto color = magic_enum::enum_cast<EnumType>(enumValue);color.has_value()) {
-                return color.value();
-            } else {
-                throw std::runtime_error("'EnumCast::integerToEnum' cast failed");
-            }
-        }
+        constexpr static float EightWidth = 1.0f;
+        constexpr static float EightHeight = 0.6f;
+        constexpr static float EightTime = 3.0f;
 
-        template<class EnumType>
-        static constexpr auto enumToInteger(EnumType enumType) {
-            return magic_enum::enum_integer(enumType);
-        }
+        constexpr static float CameraZBias = 0.5f;
+        constexpr static float CameraYBias = 2.0f;
 
-        template<class EnumType>
-        static constexpr auto enumToString(EnumType enumType) {
-            return magic_enum::enum_name(enumType);
-        }
+        constexpr static int KeepNum = KeepTime * Frequency;
+        constexpr static float Dt = 1.0 / Frequency;
+        constexpr static int PoseSize = Time / Dt;
+        constexpr static float DTheta = 2 * M_PI / PoseSize;
 
-        template<class EnumType>
-        static constexpr auto stringToInteger(const std::string &enumStr) {
-            return enumToInteger(stringToEnum<EnumType>(enumStr));
-        }
+    public:
+        static void Run();
 
-        template<class EnumType>
-        static constexpr auto integerToString(int enumValue) {
-            return enumToString(integerToEnum<EnumType>(enumValue));
-        }
+    protected:
+        static std::array<std::vector<ns_viewer::Posef>, 2> GeneratePoseSeq();
     };
-
 }
 
-#endif //IKALIBR_ENUM_CAST_HPP
+#endif //IKALIBR_DATA_COLLECT_DEMO_H

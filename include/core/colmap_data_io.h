@@ -35,8 +35,7 @@
 #ifndef IKALIBR_COLMAP_DATA_IO_H
 #define IKALIBR_COLMAP_DATA_IO_H
 
-#include "fstream"
-#include "util/utils.hpp"
+#include "util/utils.h"
 
 _3_
 

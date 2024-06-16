@@ -34,19 +34,18 @@
 
 #include "calib/calib_solver.h"
 #include "calib/batch_opt_option.hpp"
-#include "calib/estimator.h"
 #include "core/rotation_estimator.h"
 #include "core/lidar_odometer.h"
 #include "core/scan_undistortion.h"
 #include "core/pts_association.h"
 #include "pangolin/display/display.h"
 #include "core/rot_only_vo.h"
-#include "veta/landmark.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "core/colmap_data_io.h"
 #include "core/visual_reproj_association.h"
 #include "opencv2/highgui.hpp"
 #include "util/tqdm.h"
+#include "ros/package.h"
 #include "magic_enum_flags.hpp"
 
 _3_

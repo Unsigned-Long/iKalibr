@@ -35,6 +35,7 @@
 #ifndef IKALIBR_RADAR_INERTIAL_ALIGN_FACTOR_HPP
 #define IKALIBR_RADAR_INERTIAL_ALIGN_FACTOR_HPP
 
+#include "util/utils.h"
 #include "ctraj/utils/eigen_utils.hpp"
 #include "ctraj/utils/sophus_utils.hpp"
 #include "ctraj/spline/spline_segment.h"
@@ -44,7 +45,8 @@
 #include "ceres/ceres.h"
 #include "sensor/radar.h"
 #include "core/radar_velocity_sac.h"
-#include "util/utils.hpp"
+#include "opengv/sac/Ransac.hpp"
+#include "spdlog/spdlog.h"
 
 _3_
 

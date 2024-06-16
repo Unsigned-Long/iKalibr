@@ -35,9 +35,9 @@
 #ifndef IKALIBR_VISUAL_LIDAR_COVISIBILITY_H
 #define IKALIBR_VISUAL_LIDAR_COVISIBILITY_H
 
-#include "util/cloud_define.hpp"
+#include "veta/camera/pinhole.h"
 #include "opencv2/core.hpp"
-#include "veta/camera/pinhole_brown.h"
+#include "util/cloud_define.hpp"
 
 _3_
 

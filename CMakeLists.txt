@@ -191,10 +191,34 @@ aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/core CORE_SRC_FILES)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/sensor SENSOR_SRC_FILES)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/config CONFIG_SRC_FILES)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/viewer VIEWER_SRC_FILES)
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/util UTIL_SRC_FILES)
 
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
+###################
+# libikalibr_util #
+###################
+add_library(
+        ${PROJECT_NAME}_util SHARED
+        # source files
+        ${UTIL_SRC_FILES}
+)
+
+target_include_directories(
+        ${PROJECT_NAME}_util PUBLIC
+        # include
+        ${catkin_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(
+        ${PROJECT_NAME}_util PUBLIC
+        ${catkin_LIBRARIES}
+        # thirdparty
+        ctraj
+        veta
+)
 #####################
 # libikalibr_sensor #
 #####################
@@ -355,14 +379,42 @@ catkin_package(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/ikalibr_node.cpp)
 
-add_executable(${PROJECT_NAME}_prog exe/solver/main.cpp)
-add_executable(${PROJECT_NAME}_learn exe/nofree/learn.cpp)
-add_executable(${PROJECT_NAME}_lidar_map_viewer exe/tool/lidar_map_viewer.cpp)
-add_executable(${PROJECT_NAME}_data_format_transformer exe/tool/data_format_transformer.cpp)
-add_executable(${PROJECT_NAME}_bag_merge exe/tool/bag_merge.cpp)
-add_executable(${PROJECT_NAME}_imgs_to_bag exe/tool/imgs_to_bag.cpp)
-add_executable(${PROJECT_NAME}_imu_intri_calib exe/tool/imu_intri_calib.cpp)
-add_executable(${PROJECT_NAME}_raw_inertial_to_bag exe/tool/raw_inertial_to_bag.cpp)
+add_executable(
+        ${PROJECT_NAME}_prog
+        exe/solver/main.cpp
+)
+add_executable(
+        ${PROJECT_NAME}_learn
+        exe/nofree/learn.cpp
+        src/nofree/logo_svg.cpp
+        src/nofree/data_collect_demo.cpp
+)
+add_executable(
+        ${PROJECT_NAME}_lidar_map_viewer
+        exe/tool/lidar_map_viewer.cpp
+)
+add_executable(
+        ${PROJECT_NAME}_data_format_transformer
+        exe/tool/data_format_transformer.cpp
+)
+add_executable(
+        ${PROJECT_NAME}_bag_merge
+        exe/tool/bag_merge.cpp
+        src/nofree/bag_merge.cpp
+)
+add_executable(
+        ${PROJECT_NAME}_imgs_to_bag
+        exe/tool/imgs_to_bag.cpp
+)
+add_executable(
+        ${PROJECT_NAME}_imu_intri_calib
+        exe/tool/imu_intri_calib.cpp
+        src/nofree/imu_intri_calib.cpp
+)
+add_executable(
+        ${PROJECT_NAME}_raw_inertial_to_bag
+        exe/tool/raw_inertial_to_bag.cpp
+)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -378,11 +430,20 @@ add_executable(${PROJECT_NAME}_raw_inertial_to_bag exe/tool/raw_inertial_to_bag.
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-
+###################
+# libikalibr_prog #
+###################
+target_include_directories(
+        ${PROJECT_NAME}_prog PUBLIC
+        # include
+        ${catkin_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 target_link_libraries(
         ${PROJECT_NAME}_prog PRIVATE
 
         # iKalibr libraries
+        ${PROJECT_NAME}_util
         ${PROJECT_NAME}_calib
         ${PROJECT_NAME}_config
         ${PROJECT_NAME}_sensor
@@ -392,11 +453,20 @@ target_link_libraries(
         # thirdparty
         ${YAML_CPP_LIBRARIES}
 )
-
+####################
+# libikalibr_learn #
+####################
+target_include_directories(
+        ${PROJECT_NAME}_learn PUBLIC
+        # include
+        ${catkin_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 target_link_libraries(
         ${PROJECT_NAME}_learn PRIVATE
 
         # iKalibr libraries
+        ${PROJECT_NAME}_util
         ${PROJECT_NAME}_calib
         ${PROJECT_NAME}_config
         ${PROJECT_NAME}_sensor
@@ -406,7 +476,9 @@ target_link_libraries(
         # thirdparty
         ${YAML_CPP_LIBRARIES}
 )
-
+###############################
+# libikalibr_lidar_map_viewer #
+###############################
 target_include_directories(
         ${PROJECT_NAME}_lidar_map_viewer PUBLIC
         # include
@@ -417,15 +489,22 @@ target_link_libraries(
         ${PROJECT_NAME}_lidar_map_viewer PRIVATE
 
         # thirdparty
-        ${YAML_CPP_LIBRARIES}
-        ctraj
-        ${catkin_LIBRARIES}
+        ${PROJECT_NAME}_util
 )
-
+######################################
+# libikalibr_data_format_transformer #
+######################################
+target_include_directories(
+        ${PROJECT_NAME}_data_format_transformer PUBLIC
+        # include
+        ${catkin_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 target_link_libraries(
         ${PROJECT_NAME}_data_format_transformer PRIVATE
 
         # iKalibr libraries
+        ${PROJECT_NAME}_util
         ${PROJECT_NAME}_calib
         ${PROJECT_NAME}_config
         ${PROJECT_NAME}_sensor
@@ -435,7 +514,9 @@ target_link_libraries(
         # thirdparty
         ${YAML_CPP_LIBRARIES}
 )
-
+########################
+# libikalibr_bag_merge #
+########################
 target_include_directories(
         ${PROJECT_NAME}_bag_merge PUBLIC
         # include
@@ -446,11 +527,12 @@ target_link_libraries(
         ${PROJECT_NAME}_bag_merge PRIVATE
 
         # thirdparty
+        ${PROJECT_NAME}_util
         ${YAML_CPP_LIBRARIES}
-        ctraj
-        ${catkin_LIBRARIES}
 )
-
+##########################
+# libikalibr_imgs_to_bag #
+##########################
 target_include_directories(
         ${PROJECT_NAME}_imgs_to_bag PUBLIC
         # include
@@ -461,15 +543,22 @@ target_link_libraries(
         ${PROJECT_NAME}_imgs_to_bag PRIVATE
 
         # thirdparty
-        ${YAML_CPP_LIBRARIES}
-        ctraj
-        ${catkin_LIBRARIES}
+        ${PROJECT_NAME}_util
 )
-
+##############################
+# libikalibr_imu_intri_calib #
+##############################
+target_include_directories(
+        ${PROJECT_NAME}_imu_intri_calib PUBLIC
+        # include
+        ${catkin_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 target_link_libraries(
         ${PROJECT_NAME}_imu_intri_calib PRIVATE
 
         # iKalibr libraries
+        ${PROJECT_NAME}_util
         ${PROJECT_NAME}_calib
         ${PROJECT_NAME}_config
         ${PROJECT_NAME}_sensor
@@ -479,7 +568,9 @@ target_link_libraries(
         # thirdparty
         ${YAML_CPP_LIBRARIES}
 )
-
+##################################
+# libikalibr_raw_inertial_to_bag #
+##################################
 target_include_directories(
         ${PROJECT_NAME}_raw_inertial_to_bag PUBLIC
         # include
@@ -490,9 +581,7 @@ target_link_libraries(
         ${PROJECT_NAME}_raw_inertial_to_bag PRIVATE
 
         # thirdparty
-        ${YAML_CPP_LIBRARIES}
-        ctraj
-        ${catkin_LIBRARIES}
+        ${PROJECT_NAME}_util
 )
 
 #############

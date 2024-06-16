@@ -43,7 +43,7 @@
 #include "ctraj/spline/ceres_spline_helper_jet.h"
 #include "ceres/ceres.h"
 #include "veta/veta.h"
-#include "util/utils.hpp"
+#include "util/utils.h"
 
 _3_
 

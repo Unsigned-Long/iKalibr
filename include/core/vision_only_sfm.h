@@ -35,24 +35,23 @@
 #ifndef IKALIBR_VISION_ONLY_SFM_H
 #define IKALIBR_VISION_ONLY_SFM_H
 
-#include "ctraj/core/spline_bundle.h"
-#include "veta/veta.h"
-#include "veta/camera/pinhole_brown.h"
 #include "config/configor.h"
+
+#include "ctraj/core/spline_bundle.h"
 #include "tiny-viewer/entity/entity.h"
 
-#include "boost/geometry.hpp"
+#include "veta/veta.h"
+#include "veta/camera/pinhole.h"
+
 #include "boost/geometry/geometries/polygon.hpp"
 #include "boost/geometry/geometries/point_xy.hpp"
 
 #include "opengv/sac/Ransac.hpp"
-#include "opengv/absolute_pose/methods.hpp"
 #include "opengv/absolute_pose/CentralAbsoluteAdapter.hpp"
 #include "opengv/sac_problems/absolute_pose/AbsolutePoseSacProblem.hpp"
 
-#include "opencv2/features2d/features2d.hpp"
-#include "opencv2/calib3d/calib3d.hpp"
-#include "opencv2/core/eigen.hpp"
+#include "opencv2/core.hpp"
+#include "spdlog/spdlog.h"
 
 _3_
 

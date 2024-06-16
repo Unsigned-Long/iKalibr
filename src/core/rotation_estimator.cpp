@@ -33,7 +33,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/rotation_estimator.h"
-#include "util/utils.hpp"
 
 _3_
 

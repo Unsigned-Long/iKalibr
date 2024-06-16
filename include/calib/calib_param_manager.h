@@ -36,16 +36,12 @@
 #define IKALIBR_CALIB_PARAM_MANAGER_H
 
 #include "config/configor.h"
-#include "sophus/se3.hpp"
-#include "ctraj/view/traj_viewer.h"
-#include "cereal/types/map.hpp"
-#include "spdlog/spdlog.h"
 #include "sensor/imu_intrinsic.hpp"
+#include "tiny-viewer/core/viewer.h"
 #include "tiny-viewer/core/multi_viewer.h"
 #include "veta/camera/pinhole_brown.h"
 #include "veta/camera/pinhole_fisheye.h"
 #include "opencv2/core.hpp"
-#include "util/status.hpp"
 
 _3_
 

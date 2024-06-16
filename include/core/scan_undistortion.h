@@ -35,16 +35,17 @@
 #ifndef LIC_CALIB_SCAN_UNDISTORTION_H
 #define LIC_CALIB_SCAN_UNDISTORTION_H
 
-#include "calib/calib_param_manager.h"
-#include "ctraj/core/pose.hpp"
-#include "ctraj/core/spline_bundle.h"
 #include "config/configor.h"
+#include "ctraj/core/spline_bundle.h"
 
 _3_
 
 namespace ns_ikalibr {
     struct LiDARFrame;
     using LiDARFramePtr = std::shared_ptr<LiDARFrame>;
+
+    struct CalibParamManager;
+    using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
 
     class ScanUndistortion {
     public:
@@ -66,13 +67,13 @@ namespace ns_ikalibr {
         const SplineBundleType::So3SplineType &_so3Spline;
         const SplineBundleType::RdSplineType &_posSpline;
 
-        CalibParamManager::Ptr _parMagr;
+        CalibParamManagerPtr _parMagr;
 
     public:
-        ScanUndistortion(const SplineBundleType::Ptr &splines, CalibParamManager::Ptr calibParamManager);
+        ScanUndistortion(const SplineBundleType::Ptr &splines, CalibParamManagerPtr calibParamManager);
 
         static ScanUndistortion::Ptr
-        Create(const SplineBundleType::Ptr &splines, const CalibParamManager::Ptr &calibParamManager);
+        Create(const SplineBundleType::Ptr &splines, const CalibParamManagerPtr &calibParamManager);
 
         std::vector<LiDARFramePtr>
         UndistortToScan(const std::vector<LiDARFramePtr> &data, const std::string &topic, Option option);

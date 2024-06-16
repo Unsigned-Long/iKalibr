@@ -32,13 +32,12 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "filesystem"
 #include "calib/calib_param_manager.h"
+#include "util/status.hpp"
 #include "spdlog/fmt/bundled/color.h"
-#include "util/utils.hpp"
-#include <algorithm>
 #include "opencv2/calib3d.hpp"
-#include <opencv2/imgproc/imgproc.hpp>
+#include "opencv2/imgproc/imgproc.hpp"
+#include "spdlog/spdlog.h"
 
 _3_
 

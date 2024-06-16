@@ -36,12 +36,9 @@
 #ifndef IKALIBR_LIDAR_H
 #define IKALIBR_LIDAR_H
 
-#include "filesystem"
-#include "fstream"
-#include "ostream"
-#include "pcl_conversions/pcl_conversions.h"
-#include "util/utils.hpp"
+#include "util/utils.h"
 #include "util/cloud_define.hpp"
+#include "ctraj/utils/macros.hpp"
 
 _3_
 
@@ -61,7 +58,8 @@ namespace ns_ikalibr {
 
         // constructor
         explicit LiDARFrame(
-                double timestamp = INVALID_TIME_STAMP, IKalibrPointCloud::Ptr scan = boost::make_shared<IKalibrPointCloud>()
+                double timestamp = INVALID_TIME_STAMP,
+                IKalibrPointCloud::Ptr scan = boost::make_shared<IKalibrPointCloud>()
         );
 
         // creator

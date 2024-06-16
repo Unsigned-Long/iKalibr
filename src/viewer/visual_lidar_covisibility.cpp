@@ -33,7 +33,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "viewer/visual_lidar_covisibility.h"
-#include "utility"
 #include "pcl/common/transforms.h"
 #include "opencv2/imgproc.hpp"
 

@@ -33,7 +33,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/lidar_odometer.h"
-#include "util/utils.hpp"
 #include "sensor/lidar.h"
 
 _3_

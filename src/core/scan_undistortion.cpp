@@ -33,6 +33,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/scan_undistortion.h"
+#include "calib/calib_param_manager.h"
 #include "sensor/lidar.h"
 #include "util/tqdm.h"
 

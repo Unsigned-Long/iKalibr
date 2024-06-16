@@ -32,11 +32,10 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "ikalibr/AinsteinRadarTargetArray.h"
 #include "sensor/radar_data_loader.h"
+#include "ikalibr/AinsteinRadarTargetArray.h"
 #include "ikalibr/AWR1843RadarScan.h"
 #include "ikalibr/AWR1843RadarScanCustom.h"
-#include "util/enum_cast.hpp"
 #include "util/status.hpp"
 #include "sensor_msgs/PointCloud2.h"
 #include "pcl_conversions/pcl_conversions.h"

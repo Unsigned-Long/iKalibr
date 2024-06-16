@@ -35,18 +35,12 @@
 #ifndef IKALIBR_CALIB_SOLVER_H
 #define IKALIBR_CALIB_SOLVER_H
 
-#include <utility>
 #include "calib/calib_param_manager.h"
 #include "calib/calib_data_manager.h"
-#include "ctraj/core/trajectory.h"
-#include "ceres/ceres.h"
-#include "viewer/viewer.h"
-#include "ctraj/core/spline_bundle.h"
 #include "calib/estimator.h"
-#include "core/vision_only_sfm.h"
-#include "core/visual_reproj_association.h"
-#include "sensor/camera_data_loader.h"
 #include "calib/calib_solver_io.h"
+#include "core/vision_only_sfm.h"
+#include "viewer/viewer.h"
 
 _3_
 

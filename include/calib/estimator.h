@@ -37,7 +37,7 @@
 
 #include "config/configor.h"
 #include "ctraj/core/spline_bundle.h"
-#include "ctraj/core/trajectory_estimator.h"
+#include "ctraj/core/pose.hpp"
 #include "calib/calib_param_manager.h"
 #include "calib/calib_data_manager.h"
 #include "factor/imu_acce_factor.hpp"

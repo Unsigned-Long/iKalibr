@@ -35,30 +35,9 @@
 #ifndef IKALIBR_CONFIGOR_H
 #define IKALIBR_CONFIGOR_H
 
-/**
- * @attention Description about "veta/type_def.hpp"
- 'EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION_INITIALIZER_LIST' is a macro used to handle Eigen objects within STL containers.
- In C++, we often use standard library containers (e.g., std::vector) to store data.
-However, when we attempt to store Eigen objects (e.g., Eigen::Vector2d) in these containers, we encounter some issues.
- When using Eigen objects in STL containers, special handling is required to ensure proper memory alignment and initialization.
-'EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION_INITIALIZER_LIST' exists to address such issues.
- The macro allows us to use Eigen objects in STL containers without manually dealing with memory alignment and initialization.
-With this macro, we can use std::vector<Eigen::Vector2d> just like any other vector, without worrying about the underlying implementation details.
- This specialization needs to be defined before using code snippets like std::vector<Vector2d>.
-The benefit is that you don’t need to declare std::vector with Eigen::aligned_allocator everywhere in your code. However, the downside is that the specialization must be defined before using code snippets like std::vector<Vector2d.
- */
-#include "veta/type_def.hpp"
-#include "memory"
-#include "cereal/archives/json.hpp"
-#include "cereal/cereal.hpp"
-#include "cereal/types/vector.hpp"
-#include "cereal/types/set.hpp"
-#include "util/utils.hpp"
+#include "util/utils.h"
 #include "util/enum_cast.hpp"
-#include "sensor/imu_intrinsic.hpp"
-#include "thread"
-#include "ros/package.h"
-#include "util/status.hpp"
+#include "util/cereal_archive_helper.hpp"
 
 _3_
 

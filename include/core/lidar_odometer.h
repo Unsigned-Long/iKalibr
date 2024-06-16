@@ -35,11 +35,10 @@
 #ifndef IKALIBR_LIDAR_ODOMETER_H
 #define IKALIBR_LIDAR_ODOMETER_H
 
-#include "ctraj/core/pose.hpp"
-#include "pclomp/gicp_omp.hpp"
-#include "pclomp/ndt_omp.hpp"
-#include "pclomp/voxel_grid_covariance_omp.hpp"
+#include "util/utils.h"
 #include "util/cloud_define.hpp"
+#include "ctraj/core/pose.hpp"
+#include "pclomp/ndt_omp.hpp"
 
 _3_
 

@@ -35,6 +35,7 @@
 #ifndef IKALIBR_IMU_DATA_LOADER_H
 #define IKALIBR_IMU_DATA_LOADER_H
 
+#include "util/utils.h"
 #include "sensor_msgs/Imu.h"
 #include "rosbag/message_instance.h"
 #include "sensor/imu.h"

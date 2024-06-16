@@ -32,55 +32,76 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IKALIBR_CAMERA_H
-#define IKALIBR_CAMERA_H
+#ifndef IKALIBR_BAG_MERGE_H
+#define IKALIBR_BAG_MERGE_H
 
 #include "util/utils.h"
-#include "ctraj/utils/macros.hpp"
-#include "opencv4/opencv2/core.hpp"
+#include "util/cereal_archive_helper.hpp"
 
 _3_
 
 namespace ns_ikalibr {
 
-    struct CameraFrame {
+    struct MergeConfigor {
     public:
-        using Ptr = std::shared_ptr<CameraFrame>;
+        using Ptr = std::shared_ptr<MergeConfigor>;
+
+        struct BagMergeInfo {
+            std::string bagPath;
+            std::map<std::string, std::string> topicsToMerge;
+
+            [[nodiscard]] std::string GetDstTopic(const std::string &srcTopic) const;
+
+            [[nodiscard]] std::vector<std::string> GetSrcTopicVec() const;
+
+        public:
+            template<class Archive>
+            void serialize(Archive &ar) {
+                ar(cereal::make_nvp("BagPath", bagPath), cereal::make_nvp("TopicsToMerge", topicsToMerge));
+            }
+        };
+
+    public:
+        std::vector<BagMergeInfo> _bags;
+        double _bagBeginTime{};
+        double _bagEndTime{};
+        std::string _outputBagPath;
+
+        MergeConfigor() = default;
+
+        static Ptr Create();
+
+        // load configure information from file
+        static Ptr LoadConfigure(const std::string &filename, CerealArchiveType::Enum archiveType);
+
+        // save configure information to file
+        bool SaveConfigure(const std::string &filename, CerealArchiveType::Enum archiveType);
+
+        void PrintMainFields();
+
+    public:
+        template<class Archive>
+        void serialize(Archive &ar) {
+            ar(cereal::make_nvp("Bags", _bags),
+               cereal::make_nvp("BagBeginTime", _bagBeginTime),
+               cereal::make_nvp("BagEndTime", _bagEndTime),
+               cereal::make_nvp("OutputBagPath", _outputBagPath));
+        }
+    };
+
+    class BagMerger {
+    public:
+        using Ptr = std::shared_ptr<BagMerger>;
 
     private:
-        double _timestamp;
-        cv::Mat _greyImg, _colorImg;
-        ns_veta::IndexT _id;
-
+        MergeConfigor::Ptr _configor;
     public:
+        explicit BagMerger(MergeConfigor::Ptr mergeConfigor);
 
-        // constructor
-        explicit CameraFrame(double timestamp = INVALID_TIME_STAMP, cv::Mat greyImg = cv::Mat(),
-                             cv::Mat colorImg = cv::Mat(), ns_veta::IndexT id = ns_veta::UndefinedIndexT);
+        static Ptr Create(const MergeConfigor::Ptr &mergeConfigor);
 
-        // creator
-        static CameraFrame::Ptr Create(double timestamp = INVALID_TIME_STAMP, const cv::Mat &greyImg = cv::Mat(),
-                                       const cv::Mat &colorImg = cv::Mat(),
-                                       ns_veta::IndexT id = ns_veta::UndefinedIndexT);
-
-        cv::Mat &GetImage();
-
-        cv::Mat &GetColorImage();
-
-        // release the image mat data to save memory when needed
-        void ReleaseMat();
-
-        [[nodiscard]] double GetTimestamp() const;
-
-        void SetTimestamp(double timestamp);
-
-        [[nodiscard]] ns_veta::IndexT GetId() const;
-
-        void SetId(ns_veta::IndexT id);
-
-        friend std::ostream &operator<<(std::ostream &os, const CameraFrame &frame);
+        std::pair<ros::Time, ros::Time> Process();
     };
 }
 
-
-#endif //IKALIBR_CAMERA_H
+#endif //IKALIBR_BAG_MERGE_H

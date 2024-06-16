@@ -33,30 +33,32 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "config/configor.h"
-#include "cereal/archives/xml.hpp"
-#include "fstream"
 #include "spdlog/spdlog.h"
 #include "util/status.hpp"
 #include "magic_enum_flags.hpp"
+#include "ros/package.h"
+#include "filesystem"
+#include "cereal/types/vector.hpp"
+#include "cereal/types/set.hpp"
 
 _3_
 
 namespace ns_ikalibr {
     const static std::map<std::string, OutputOption> OutputOptionMap = {
-            {"NONE", OutputOption::NONE},
-            {"ParamInEachIter", OutputOption::ParamInEachIter},
-            {"BSplines", OutputOption::BSplines},
-            {"LiDARMaps", OutputOption::LiDARMaps},
-            {"VisualMaps", OutputOption::VisualMaps},
-            {"RadarMaps", OutputOption::RadarMaps},
-            {"HessianMat", OutputOption::HessianMat},
+            {"NONE",                    OutputOption::NONE},
+            {"ParamInEachIter",         OutputOption::ParamInEachIter},
+            {"BSplines",                OutputOption::BSplines},
+            {"LiDARMaps",               OutputOption::LiDARMaps},
+            {"VisualMaps",              OutputOption::VisualMaps},
+            {"RadarMaps",               OutputOption::RadarMaps},
+            {"HessianMat",              OutputOption::HessianMat},
             {"VisualLiDARCovisibility", OutputOption::VisualLiDARCovisibility},
-            {"VisualKinematics", OutputOption::VisualKinematics},
-            {"ColorizedLiDARMap", OutputOption::ColorizedLiDARMap},
-            {"AlignedInertialMes", OutputOption::AlignedInertialMes},
-            {"VisualReprojErrors", OutputOption::VisualReprojErrors},
-            {"RadarDopplerErrors", OutputOption::RadarDopplerErrors},
-            {"ALL", OutputOption::ALL},
+            {"VisualKinematics",        OutputOption::VisualKinematics},
+            {"ColorizedLiDARMap",       OutputOption::ColorizedLiDARMap},
+            {"AlignedInertialMes",      OutputOption::AlignedInertialMes},
+            {"VisualReprojErrors",      OutputOption::VisualReprojErrors},
+            {"RadarDopplerErrors",      OutputOption::RadarDopplerErrors},
+            {"ALL",                     OutputOption::ALL},
     };
 
     // ------------------------

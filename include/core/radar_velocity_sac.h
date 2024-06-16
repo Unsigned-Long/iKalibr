@@ -35,9 +35,8 @@
 #ifndef IKALIBR_RADAR_VELOCITY_SAC_H
 #define IKALIBR_RADAR_VELOCITY_SAC_H
 
-#include "opengv/sac/SampleConsensusProblem.hpp"
 #include "sensor/radar.h"
-#include <opengv/sac/Ransac.hpp>
+#include "opengv/sac/SampleConsensusProblem.hpp"
 
 _3_
 

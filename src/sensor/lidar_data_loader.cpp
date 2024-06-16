@@ -40,6 +40,8 @@
 #include "util/status.hpp"
 #include "spdlog/spdlog.h"
 #include "ikalibr/LivoxCustomMsg.h"
+#include "sensor_msgs/PointCloud2.h"
+#include "velodyne_msgs/VelodynePacket.h"
 
 _3_
 
@@ -247,7 +249,7 @@ namespace ns_ikalibr {
         CONFIG.maxAngle = 36000;
         // Set up cached values for sin and cos of all the possible headings
         for (uint16_t rotIndex = 0; rotIndex < ROTATION_MAX_UNITS; ++rotIndex) {
-            auto rotation = (float) angles::from_degrees(ROTATION_RESOLUTION * (float) rotIndex);
+            auto rotation = (float) (ROTATION_RESOLUTION * (float) rotIndex * M_PI / 180.0);
             COS_ROT_TABLE[rotIndex] = cosf(rotation);
             SIN_ROT_TABLE[rotIndex] = sinf(rotation);
         }
