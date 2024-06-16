@@ -396,7 +396,7 @@ namespace ns_ikalibr {
         auto &so3Spline = _solver->_splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
 
         // folder
-        std::string saveDir = Configor::DataStream::OutputPath + "/kinematics/lin_acce";
+        std::string saveDir = Configor::DataStream::OutputPath + "/residuals/lin_acce";
         if (TryCreatePath(saveDir)) {
             spdlog::info("saving aligned inertial measurements to dir: '{}'...", saveDir);
         } else { return; }
@@ -530,7 +530,7 @@ namespace ns_ikalibr {
         if (!Configor::IsCameraIntegrated()) { return; }
 
         // folder
-        std::string saveDir = Configor::DataStream::OutputPath + "/kinematics/reproj_error";
+        std::string saveDir = Configor::DataStream::OutputPath + "/residuals/reproj_error";
         if (TryCreatePath(saveDir)) {
             spdlog::info("saving visual reprojection errors to dir: '{}'...", saveDir);
         } else { return; }
@@ -727,5 +727,67 @@ namespace ns_ikalibr {
                 spdlog::info("save radar map as '{}'", filename);
             }
         }
+    }
+
+    void CalibSolverIO::SaveRadarDopplerError() {
+        if (!Configor::IsRadarIntegrated()) { return; }
+
+        // folder
+        std::string saveDir = Configor::DataStream::OutputPath + "/residuals/doppler_error";
+        if (TryCreatePath(saveDir)) {
+            spdlog::info("saving radar radar doppler errors to dir: '{}'...", saveDir);
+        } else { return; }
+
+        const auto &so3Spline = _solver->_splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+        const auto &scaleSpline = _solver->_splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+        auto scaleType = _solver->GetScaleType();
+
+        for (const auto &[topic, data]: _solver->_dataMagr->GetRadarMeasurements()) {
+            auto subSaveDir = saveDir + "/" + topic;
+            if (!TryCreatePath(subSaveDir)) {
+                spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
+                continue;
+            }
+            std::list<double> dopplerErrors;
+
+            const double TO_RjToBr = _solver->_parMagr->TEMPORAL.TO_RjToBr.at(topic);
+            const auto SE3_RjToBr = _solver->_parMagr->EXTRI.SE3_RjToBr(topic);
+
+            for (const auto &ary: data) {
+                for (const auto &tar: ary->GetTargets()) {
+                    double timeByBr = tar->GetTimestamp() + TO_RjToBr;
+                    // query
+                    Sophus::SO3d SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
+                    Eigen::Vector3d ANG_VEL_BrToBr0InBr = so3Spline.VelocityBody(timeByBr);;
+                    Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * ANG_VEL_BrToBr0InBr;
+
+                    Eigen::Vector3d LIN_VEL_BrInBr0;
+                    if (scaleType == TimeDeriv::LIN_VEL_SPLINE) {
+                        LIN_VEL_BrInBr0 = scaleSpline.Evaluate<0>(timeByBr);
+                    } else if (scaleType == TimeDeriv::LIN_POS_SPLINE) {
+                        LIN_VEL_BrInBr0 = scaleSpline.Evaluate<1>(timeByBr);
+                    } else {
+                        throw Status(Status::ERROR, "unknown scale spline type when compute the radar residuals");
+                    }
+
+                    Eigen::Vector3d tarInRj = tar->GetTargetXYZ();
+                    Eigen::Vector1d v1 = -tarInRj.transpose() * SE3_RjToBr.so3().matrix().transpose()
+                                         * SO3_BrToBr0.matrix().transpose()
+                                         * (-Sophus::SO3d::hat(SO3_BrToBr0 * SE3_RjToBr.translation())
+                                            * ANG_VEL_BrToBr0InBr0 + LIN_VEL_BrInBr0);
+
+                    double v2 = tar->GetRadialVelocity();
+                    double error = tar->GetInvRange() * v1(0) - v2;
+                    dopplerErrors.push_back(error);
+                }
+            }
+
+            std::ofstream file(subSaveDir + "/residuals" + Configor::GetFormatExtension(), std::ios::out);
+            auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
+            SerializeByOutputArchiveVariant(
+                    ar, Configor::Preference::OutputDataFormat, cereal::make_nvp("doppler_errors", dopplerErrors)
+            );
+        }
+        spdlog::info("saving radar doppler errors finished!");
     }
 }

@@ -79,6 +79,8 @@ namespace ns_ikalibr {
 
         void SaveVisualReprojectionError();
 
+        void SaveRadarDopplerError();
+
         static bool SavePoseSequence(const Eigen::aligned_vector<ns_ctraj::Posed> &poseSeq,
                                      const std::string &filename,
                                      CerealArchiveType::Enum archiveType);

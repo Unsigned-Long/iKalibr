@@ -118,6 +118,11 @@ int main(int argc, char **argv) {
             solverIO->SaveVisualReprojectionError();
         }
 
+        if (IsOptionWith(ns_ikalibr::OutputOption::RadarDopplerErrors,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveRadarDopplerError();
+        }
+
         if (IsOptionWith(ns_ikalibr::OutputOption::VisualKinematics,
                          ns_ikalibr::Configor::Preference::Outputs)) {
             solverIO->SaveVisualKinematics();
@@ -131,11 +136,6 @@ int main(int argc, char **argv) {
         if (IsOptionWith(ns_ikalibr::OutputOption::ColorizedLiDARMap,
                          ns_ikalibr::Configor::Preference::Outputs)) {
             solverIO->SaveVisualColorizedMap();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::RadarDopplerErrors,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            // todo...
         }
 
         static const auto FStyle = fmt::emphasis::italic | fmt::fg(fmt::color::green);
