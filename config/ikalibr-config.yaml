@@ -1,21 +1,3 @@
-<div align=center><img src="../img/logo.svg" width =100%></div>
-
----
-
-<h3 align="center">Configure File Format In iKalibr</h3>
-<p align="center">
-    <a href="https://github.com/Unsigned-Long"><strong>Author » Shuolong Chen</strong></a>
-</p>
-
----
-
-We provide a typical configuration file with detailed comments below (you can also find it [here](../../config/ikalibr-config.yaml), in the `config` folder of `iKalibr`). In fact, we believe that you are able to modify it to adapt your sensor suite by yourself after reading this. 
-
-**Tips**: don't be intimidated by the length of this configuration file. **It is long since it contains detailed comments to help you understand it.** As the saying goes: **more is less!** It's easy to understand, I promise! Most of the time, you only need to modify a few items to switch to another sensor suite to calibrate.
-
-After reading this, perhaps the left questions are about how to choose the sensor type, see [here](sensor_type.md) for more information.
-
-```yaml
 Configor:
   DataStream:
     # key: IMU topic, value: IMU type. Supported IMU types are:
@@ -184,5 +166,3 @@ Configor:
     # scale of coordinates in viewer, you can also use 's' and 'w' keys
     # to zoom out and in coordinates in run time
     CoordSScaleInViewer: 0.3
-```
-
