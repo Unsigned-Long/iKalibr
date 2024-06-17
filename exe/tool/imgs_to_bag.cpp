@@ -43,7 +43,9 @@
 #include "filesystem"
 #include "spdlog/fmt/bundled/color.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "ikalibr_imgs_to_bag");
@@ -56,43 +58,47 @@ int main(int argc, char **argv) {
         auto imgPath = ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_imgs_to_bag/imgs_path");
         spdlog::info("the path of images: '{}'", imgPath);
         if (!std::filesystem::exists(imgPath)) {
-            throw ns_ikalibr::Status(
-                    ns_ikalibr::Status::ERROR, "the raw image path not exists!!! '{}'", imgPath
-            );
+            throw ns_ikalibr::Status(ns_ikalibr::Status::ERROR,
+                                     "the raw image path not exists!!! '{}'", imgPath);
         }
 
-        auto imgsTopic = ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_imgs_to_bag/imgs_topic");
+        auto imgsTopic =
+            ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_imgs_to_bag/imgs_topic");
         spdlog::info("the topic of images: '{}'", imgsTopic);
 
         auto bagPath = ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_imgs_to_bag/bag_path");
         spdlog::info("the path of rosbag to output: '{}'", bagPath);
         auto parPath = std::filesystem::path(bagPath).parent_path();
         if (!std::filesystem::exists(parPath) && !std::filesystem::create_directories(parPath)) {
-            throw ns_ikalibr::Status(
-                    ns_ikalibr::Status::ERROR, "the folder to output rosbag not exists!!! '{}'", parPath.string()
-            );
+            throw ns_ikalibr::Status(ns_ikalibr::Status::ERROR,
+                                     "the folder to output rosbag not exists!!! '{}'",
+                                     parPath.string());
         }
 
         auto toGray = ns_ikalibr::GetParamFromROS<bool>("/ikalibr_imgs_to_bag/to_gray");
         spdlog::info("whether to convert color image (if it is) to gray image: '{}'", toGray);
 
-        auto downsampleNum = ns_ikalibr::GetParamFromROS<int>("/ikalibr_imgs_to_bag/downsample_num");
+        auto downsampleNum =
+            ns_ikalibr::GetParamFromROS<int>("/ikalibr_imgs_to_bag/downsample_num");
         spdlog::info("downsample images: grab an image per {} images to rosbag", downsampleNum);
 
         auto filenames = ns_ikalibr::FilesInDir(imgPath);
 
         // erase filenames that are not images
-        filenames.erase(std::remove_if(filenames.begin(), filenames.end(), [](const std::string &filename) {
-            auto extension = ns_ikalibr::UpperString(std::filesystem::path(filename).extension());
-            return extension != ".JPG" && extension != ".JPEG" && extension != ".PNG";
-        }), filenames.cend());
+        filenames.erase(std::remove_if(filenames.begin(), filenames.end(),
+                                       [](const std::string &filename) {
+                                           auto extension = ns_ikalibr::UpperString(
+                                               std::filesystem::path(filename).extension());
+                                           return extension != ".JPG" && extension != ".JPEG" &&
+                                                  extension != ".PNG";
+                                       }),
+                        filenames.cend());
 
         std::sort(filenames.begin(), filenames.end());
 
         if (filenames.empty()) {
-            throw ns_ikalibr::Status(
-                    ns_ikalibr::Status::CRITICAL, "there is no any image in this directory '{}'.", imgPath
-            );
+            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL,
+                                     "there is no any image in this directory '{}'.", imgPath);
         }
 
         spdlog::info("there are '{}' images in this directory.", filenames.size());
@@ -105,18 +111,20 @@ int main(int argc, char **argv) {
         std::vector<double> timestamps(filenames.size());
 
         if (nameAsStamp) {
-            auto nameToStampScale = ns_ikalibr::GetParamFromROS<double>("/ikalibr_imgs_to_bag/name_to_stamp_scale");
+            auto nameToStampScale =
+                ns_ikalibr::GetParamFromROS<double>("/ikalibr_imgs_to_bag/name_to_stamp_scale");
             spdlog::info("when using name as time stamp, the scale is: '{}'", nameToStampScale);
 
             for (int i = 0; i < static_cast<int>(filenames.size()); ++i) {
-                timestamps.at(i) = std::stod(
-                        std::filesystem::path(filenames.at(i)).filename().string()
-                ) * nameToStampScale;
+                timestamps.at(i) =
+                    std::stod(std::filesystem::path(filenames.at(i)).filename().string()) *
+                    nameToStampScale;
             }
 
         } else {
             ros::Time::init();
-            auto imgFrequency = ns_ikalibr::GetParamFromROS<int>("/ikalibr_imgs_to_bag/img_frequency");
+            auto imgFrequency =
+                ns_ikalibr::GetParamFromROS<int>("/ikalibr_imgs_to_bag/img_frequency");
             spdlog::info("if not use name as time stamp, the frequency is: '{}'", imgFrequency);
             const double dt = 1.0 / imgFrequency;
 
@@ -133,7 +141,9 @@ int main(int argc, char **argv) {
 
         for (int i = 0; i < static_cast<int>(filenames.size()); ++i) {
             // downsample
-            if (i % downsampleNum != 0) { continue; }
+            if (i % downsampleNum != 0) {
+                continue;
+            }
 
             auto filename = filenames.at(i);
             auto img = cv::imread(filename);
@@ -143,7 +153,8 @@ int main(int argc, char **argv) {
             }
 
             auto time = timestamps.at(i);
-            spdlog::info("filename: '{}', time: '{:.3f}'", std::filesystem::path(filename).filename().string(), time);
+            spdlog::info("filename: '{}', time: '{:.3f}'",
+                         std::filesystem::path(filename).filename().string(), time);
 
             std::string encoding;
             if (img.channels() == 3) {
@@ -156,9 +167,8 @@ int main(int argc, char **argv) {
             } else if (img.channels() == 1) {
                 encoding = sensor_msgs::image_encodings::MONO8;
             } else {
-                throw ns_ikalibr::Status(
-                        ns_ikalibr::Status::CRITICAL, "unknown image type for '{}'", filename
-                );
+                throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL,
+                                         "unknown image type for '{}'", filename);
             }
 
             cv_bridge::CvImage cvImage;

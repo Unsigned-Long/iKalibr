@@ -37,56 +37,56 @@
 
 #include "util/cereal_archive_helper.hpp"
 
-_3_
-
-namespace ns_ikalibr {
-    class CalibSolver;
-
-    using CalibSolverPtr = std::shared_ptr<CalibSolver>;
-
-    class CalibSolverIO {
-    public:
-        using Ptr = std::shared_ptr<CalibSolverIO>;
-
-    private:
-        CalibSolverPtr _solver;
-
-    public:
-        explicit CalibSolverIO(CalibSolverPtr solver);
-
-        static CalibSolverIO::Ptr Create(const CalibSolverPtr &solver);
-
-    public:
-
-        void SaveBSplines(int hz = 400);
-
-        void SaveLiDARMaps();
-
-        void SaveVisualMaps();
-
-        void SaveRadarMaps();
-
-        void SaveHessianMatrix();
-
-        void VerifyVisualLiDARConsistency();
-
-        void SaveVisualKinematics();
-
-        void SaveVisualColorizedMap();
-
-        void SaveAlignedInertialMes();
-
-        void SaveVisualReprojectionError();
-
-        void SaveRadarDopplerError();
-
-        static bool SavePoseSequence(const Eigen::aligned_vector<ns_ctraj::Posed> &poseSeq,
-                                     const std::string &filename,
-                                     CerealArchiveType::Enum archiveType);
-
-        static bool TryCreatePath(const std::string &path);
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
+namespace ns_ikalibr {
+class CalibSolver;
 
-#endif //IKALIBR_CALIB_SOLVER_IO_H
+using CalibSolverPtr = std::shared_ptr<CalibSolver>;
+
+class CalibSolverIO {
+public:
+    using Ptr = std::shared_ptr<CalibSolverIO>;
+
+private:
+    CalibSolverPtr _solver;
+
+public:
+    explicit CalibSolverIO(CalibSolverPtr solver);
+
+    static CalibSolverIO::Ptr Create(const CalibSolverPtr &solver);
+
+public:
+    void SaveBSplines(int hz = 400);
+
+    void SaveLiDARMaps();
+
+    void SaveVisualMaps();
+
+    void SaveRadarMaps();
+
+    void SaveHessianMatrix();
+
+    void VerifyVisualLiDARConsistency();
+
+    void SaveVisualKinematics();
+
+    void SaveVisualColorizedMap();
+
+    void SaveAlignedInertialMes();
+
+    void SaveVisualReprojectionError();
+
+    void SaveRadarDopplerError();
+
+    static bool SavePoseSequence(const Eigen::aligned_vector<ns_ctraj::Posed> &poseSeq,
+                                 const std::string &filename,
+                                 CerealArchiveType::Enum archiveType);
+
+    static bool TryCreatePath(const std::string &path);
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_CALIB_SOLVER_IO_H

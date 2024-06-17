@@ -38,59 +38,62 @@
 #include "config/configor.h"
 #include "ctraj/core/spline_bundle.h"
 
-_3_
-
-namespace ns_ikalibr {
-    struct LiDARFrame;
-    using LiDARFramePtr = std::shared_ptr<LiDARFrame>;
-
-    struct CalibParamManager;
-    using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
-
-    class ScanUndistortion {
-    public:
-        using Ptr = std::shared_ptr<ScanUndistortion>;
-        using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
-
-    public:
-        enum class Option : std::uint32_t {
-            /**
-             * @brief options
-             */
-            NONE = 1 << 0,
-            UNDIST_SO3 = 1 << 1,
-            UNDIST_POS = 1 << 2,
-            ALL = UNDIST_SO3 | UNDIST_POS
-        };
-
-    private:
-        const SplineBundleType::So3SplineType &_so3Spline;
-        const SplineBundleType::RdSplineType &_posSpline;
-
-        CalibParamManagerPtr _parMagr;
-
-    public:
-        ScanUndistortion(const SplineBundleType::Ptr &splines, CalibParamManagerPtr calibParamManager);
-
-        static ScanUndistortion::Ptr
-        Create(const SplineBundleType::Ptr &splines, const CalibParamManagerPtr &calibParamManager);
-
-        std::vector<LiDARFramePtr>
-        UndistortToScan(const std::vector<LiDARFramePtr> &data, const std::string &topic, Option option);
-
-        std::vector<LiDARFramePtr>
-        UndistortToRef(const std::vector<LiDARFramePtr> &data, const std::string &topic, Option option);
-
-    protected:
-
-        std::optional<LiDARFramePtr>
-        UndistortToScan(const LiDARFramePtr &lidarFrame, const std::string &topic, bool correctPos);
-
-        std::optional<LiDARFramePtr>
-        UndistortToRef(const LiDARFramePtr &lidarFrame, const std::string &topic, bool correctPos);
-
-
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //LIC_CALIB_SCAN_UNDISTORTION_H
+namespace ns_ikalibr {
+struct LiDARFrame;
+using LiDARFramePtr = std::shared_ptr<LiDARFrame>;
+
+struct CalibParamManager;
+using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
+
+class ScanUndistortion {
+public:
+    using Ptr = std::shared_ptr<ScanUndistortion>;
+    using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
+
+public:
+    enum class Option : std::uint32_t {
+        /**
+         * @brief options
+         */
+        NONE = 1 << 0,
+        UNDIST_SO3 = 1 << 1,
+        UNDIST_POS = 1 << 2,
+        ALL = UNDIST_SO3 | UNDIST_POS
+    };
+
+private:
+    const SplineBundleType::So3SplineType &_so3Spline;
+    const SplineBundleType::RdSplineType &_posSpline;
+
+    CalibParamManagerPtr _parMagr;
+
+public:
+    ScanUndistortion(const SplineBundleType::Ptr &splines, CalibParamManagerPtr calibParamManager);
+
+    static ScanUndistortion::Ptr Create(const SplineBundleType::Ptr &splines,
+                                        const CalibParamManagerPtr &calibParamManager);
+
+    std::vector<LiDARFramePtr> UndistortToScan(const std::vector<LiDARFramePtr> &data,
+                                               const std::string &topic,
+                                               Option option);
+
+    std::vector<LiDARFramePtr> UndistortToRef(const std::vector<LiDARFramePtr> &data,
+                                              const std::string &topic,
+                                              Option option);
+
+protected:
+    std::optional<LiDARFramePtr> UndistortToScan(const LiDARFramePtr &lidarFrame,
+                                                 const std::string &topic,
+                                                 bool correctPos);
+
+    std::optional<LiDARFramePtr> UndistortToRef(const LiDARFramePtr &lidarFrame,
+                                                const std::string &topic,
+                                                bool correctPos);
+};
+}  // namespace ns_ikalibr
+
+#endif  // LIC_CALIB_SCAN_UNDISTORTION_H

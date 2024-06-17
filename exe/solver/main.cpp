@@ -40,7 +40,9 @@
 #include "spdlog/fmt/bundled/color.h"
 #include "calib/calib_solver_io.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "ikalibr_prog");
@@ -53,11 +55,13 @@ int main(int argc, char **argv) {
         auto configPath = ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_prog/config_path");
         spdlog::info("loading configure from yaml file '{}'...", configPath);
         if (!std::filesystem::exists(configPath)) {
-            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL, "configure file dose not exist: '{}'", configPath);
+            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL,
+                                     "configure file dose not exist: '{}'", configPath);
         }
 
         if (!ns_ikalibr::Configor::LoadConfigure(configPath)) {
-            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL, "load configure file from '{}' failed!", configPath);
+            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL,
+                                     "load configure file from '{}' failed!", configPath);
         } else {
             ns_ikalibr::Configor::PrintMainFields();
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -139,7 +143,8 @@ int main(int argc, char **argv) {
         }
 
         static const auto FStyle = fmt::emphasis::italic | fmt::fg(fmt::color::green);
-        spdlog::info(fmt::format(FStyle, "solving and outputting finished!!! Everything is fine!!!"));
+        spdlog::info(
+            fmt::format(FStyle, "solving and outputting finished!!! Everything is fine!!!"));
 
     } catch (const ns_ikalibr::IKalibrStatus &status) {
         // if error happened, print it

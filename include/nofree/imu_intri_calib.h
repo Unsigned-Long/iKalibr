@@ -39,89 +39,90 @@
 #include "sensor/imu_intrinsic.hpp"
 #include "cereal/types/utility.hpp"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
-    class IMUIntriCalibSolver {
+class IMUIntriCalibSolver {
+public:
+    using Ptr = std::shared_ptr<IMUIntriCalibSolver>;
+
+public:
+    struct Configor {
     public:
-        using Ptr = std::shared_ptr<IMUIntriCalibSolver>;
+        struct Item {
+            std::string bagPath;
+            std::vector<std::pair<double, double>> staticPieces;
 
-    public:
-        struct Configor {
-        public:
-            struct Item {
-                std::string bagPath;
-                std::vector<std::pair<double, double>> staticPieces;
-
-                Item() = default;
-
-            public:
-                template<class Archive>
-                void serialize(Archive &ar) {
-                    ar(cereal::make_nvp("BagPath", bagPath),
-                       cereal::make_nvp("StaticPieces", staticPieces));
-                }
-            };
+            Item() = default;
 
         public:
-
-            std::vector<Item> items;
-            std::string IMUType;
-            std::string IMUTopic;
-            double gravityNorm{};
-            std::string outputPath;
-
-        public:
-            Configor() = default;
-
-            // load configure information from file
-            template<class CerealArchiveType=CerealArchiveType::YAML>
-            static Configor LoadConfigure(const std::string &filename) {
-                std::ifstream file(filename);
-                auto archive = GetInputArchive<CerealArchiveType>(file);
-                auto configor = Configor();
-                (*archive)(cereal::make_nvp("Configor", configor));
-                return configor;
-            }
-
-            // save configure information to file
-            template<class CerealArchiveType=CerealArchiveType::YAML>
-            bool SaveConfigure(const std::string &filename) {
-                std::ofstream file(filename);
-                auto archive = GetOutputArchive<CerealArchiveType>(file);
-                (*archive)(cereal::make_nvp("Configor", *this));
-                return true;
-            }
-
-        public:
-            template<class Archive>
+            template <class Archive>
             void serialize(Archive &ar) {
-                ar(cereal::make_nvp("IMUTopic", IMUTopic), CEREAL_NVP(IMUType),
-                   cereal::make_nvp("GravityNorm", gravityNorm), cereal::make_nvp("OutputPath", outputPath),
-                   cereal::make_nvp("ROSBags", items));
+                ar(cereal::make_nvp("BagPath", bagPath),
+                   cereal::make_nvp("StaticPieces", staticPieces));
             }
         };
 
-    protected:
-        Configor configor;
-        std::vector<std::list<IMUFrame::Ptr>> data;
-        std::vector<Eigen::Vector3d> gravity;
-        IMUIntrinsics intrinsics;
+    public:
+        std::vector<Item> items;
+        std::string IMUType;
+        std::string IMUTopic;
+        double gravityNorm{};
+        std::string outputPath;
 
     public:
-        explicit IMUIntriCalibSolver(Configor configor);
+        Configor() = default;
 
-        static Ptr Create(const Configor &configor);
+        // load configure information from file
+        template <class CerealArchiveType = CerealArchiveType::YAML>
+        static Configor LoadConfigure(const std::string &filename) {
+            std::ifstream file(filename);
+            auto archive = GetInputArchive<CerealArchiveType>(file);
+            auto configor = Configor();
+            (*archive)(cereal::make_nvp("Configor", configor));
+            return configor;
+        }
 
-        void Process();
+        // save configure information to file
+        template <class CerealArchiveType = CerealArchiveType::YAML>
+        bool SaveConfigure(const std::string &filename) {
+            std::ofstream file(filename);
+            auto archive = GetOutputArchive<CerealArchiveType>(file);
+            (*archive)(cereal::make_nvp("Configor", *this));
+            return true;
+        }
 
-        [[nodiscard]] const IMUIntrinsics &GetIntrinsics() const;
-
-    protected:
-        void LoadIMUData();
-
-        static Eigen::Vector3d AverageAcce(const std::list<IMUFrame::Ptr> &frames);
+    public:
+        template <class Archive>
+        void serialize(Archive &ar) {
+            ar(cereal::make_nvp("IMUTopic", IMUTopic), CEREAL_NVP(IMUType),
+               cereal::make_nvp("GravityNorm", gravityNorm),
+               cereal::make_nvp("OutputPath", outputPath), cereal::make_nvp("ROSBags", items));
+        }
     };
-}
 
-#endif //IKALIBR_IMU_INTRI_CALIB_H
+protected:
+    Configor configor;
+    std::vector<std::list<IMUFrame::Ptr>> data;
+    std::vector<Eigen::Vector3d> gravity;
+    IMUIntrinsics intrinsics;
+
+public:
+    explicit IMUIntriCalibSolver(Configor configor);
+
+    static Ptr Create(const Configor &configor);
+
+    void Process();
+
+    [[nodiscard]] const IMUIntrinsics &GetIntrinsics() const;
+
+protected:
+    void LoadIMUData();
+
+    static Eigen::Vector3d AverageAcce(const std::list<IMUFrame::Ptr> &frames);
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_IMU_INTRI_CALIB_H

@@ -40,79 +40,81 @@
 #include "factor/point_to_surfel_factor.hpp"
 #include "ufo/map/point_cloud.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    struct PointToSurfelCondition {
-        double pointToSurfelMax;
-        uint8_t queryDepthMin;
-        uint8_t queryDepthMax;
-        std::size_t surfelPointMin;
-        double planarityMin;
+struct PointToSurfelCondition {
+    double pointToSurfelMax;
+    uint8_t queryDepthMin;
+    uint8_t queryDepthMax;
+    std::size_t surfelPointMin;
+    double planarityMin;
 
-        explicit PointToSurfelCondition(
-                double pointToSurfelMax = Configor::Prior::LiDARDataAssociate::PointToSurfelMax,
-                uint8_t queryDepthMin = Configor::Prior::LiDARDataAssociate::QueryDepthMin,
-                uint8_t queryDepthMax = Configor::Prior::LiDARDataAssociate::QueryDepthMax,
-                size_t surfelPointMin = Configor::Prior::LiDARDataAssociate::SurfelPointMin,
-                double planarityMin = Configor::Prior::LiDARDataAssociate::PlanarityMin);
+    explicit PointToSurfelCondition(
+        double pointToSurfelMax = Configor::Prior::LiDARDataAssociate::PointToSurfelMax,
+        uint8_t queryDepthMin = Configor::Prior::LiDARDataAssociate::QueryDepthMin,
+        uint8_t queryDepthMax = Configor::Prior::LiDARDataAssociate::QueryDepthMax,
+        size_t surfelPointMin = Configor::Prior::LiDARDataAssociate::SurfelPointMin,
+        double planarityMin = Configor::Prior::LiDARDataAssociate::PlanarityMin);
 
-        PointToSurfelCondition &WithPointToSurfelMax(double val);
+    PointToSurfelCondition &WithPointToSurfelMax(double val);
 
-        PointToSurfelCondition &WithQueryDepthMin(uint8_t val);
+    PointToSurfelCondition &WithQueryDepthMin(uint8_t val);
 
-        PointToSurfelCondition &WithQueryDepthMax(uint8_t val);
+    PointToSurfelCondition &WithQueryDepthMax(uint8_t val);
 
-        PointToSurfelCondition &WithSurfelPointMin(std::size_t val);
+    PointToSurfelCondition &WithSurfelPointMin(std::size_t val);
 
-        PointToSurfelCondition &WithPlanarityMin(double val);
-    };
+    PointToSurfelCondition &WithPlanarityMin(double val);
+};
 
-    class PointToSurfelAssociator {
-    public:
-        using Ptr = std::shared_ptr<PointToSurfelAssociator>;
+class PointToSurfelAssociator {
+public:
+    using Ptr = std::shared_ptr<PointToSurfelAssociator>;
 
-    protected:
-        ufo::map::SurfelMap _smp;
+protected:
+    ufo::map::SurfelMap _smp;
 
-    public:
-        explicit PointToSurfelAssociator(const IKalibrPointCloud::Ptr &mapInW, double resolution, std::uint8_t depth);
+public:
+    explicit PointToSurfelAssociator(const IKalibrPointCloud::Ptr &mapInW,
+                                     double resolution,
+                                     std::uint8_t depth);
 
-        static Ptr Create(const IKalibrPointCloud::Ptr &mapInW, double resolution, std::uint8_t depth);
+    static Ptr Create(const IKalibrPointCloud::Ptr &mapInW, double resolution, std::uint8_t depth);
 
-        std::vector<PointToSurfelCorr::Ptr> Association(const IKalibrPointCloud::Ptr &mapCloud,
-                                                        const IKalibrPointCloud::Ptr &rawCloud,
-                                                        const PointToSurfelCondition &condition);
+    std::vector<PointToSurfelCorr::Ptr> Association(const IKalibrPointCloud::Ptr &mapCloud,
+                                                    const IKalibrPointCloud::Ptr &rawCloud,
+                                                    const PointToSurfelCondition &condition);
 
+    static double SurfelScore(const ufo::map::SurfelMap &m, const ufo::map::Node &n);
 
-        static double SurfelScore(const ufo::map::SurfelMap &m, const ufo::map::Node &n);
+    [[nodiscard]] const ufo::map::SurfelMap &GetSurfelMap() const;
 
-        [[nodiscard]] const ufo::map::SurfelMap &GetSurfelMap() const;
+protected:
+    static double PointToSurfel(const ufo::map::SurfelMap::Surfel &s, const ufo::map::Point3 &p);
 
-    protected:
+    static Eigen::Vector4d SurfelCoeffs(const ufo::map::SurfelMap::Surfel &s);
 
-        static double PointToSurfel(const ufo::map::SurfelMap::Surfel &s, const ufo::map::Point3 &p);
+    template <typename PointType>
+    void InsertCloudToSurfelMap(ufo::map::SurfelMap &map, pcl::PointCloud<PointType> &pclCloud) {
+        int cloudSize = pclCloud.size();
 
-        static Eigen::Vector4d SurfelCoeffs(const ufo::map::SurfelMap::Surfel &s);
+        ufo::map::PointCloud ufoCloud;
+        ufoCloud.resize(cloudSize);
 
-        template<typename PointType>
-        void InsertCloudToSurfelMap(ufo::map::SurfelMap &map, pcl::PointCloud<PointType> &pclCloud) {
-            int cloudSize = pclCloud.size();
-
-            ufo::map::PointCloud ufoCloud;
-            ufoCloud.resize(cloudSize);
-
-#pragma omp parallel for num_threads(omp_get_max_threads()) default(none) shared(ufoCloud, cloudSize, pclCloud)
-            for (int i = 0; i < cloudSize; i++) {
-                ufoCloud[i].x = pclCloud.points[i].x;
-                ufoCloud[i].y = pclCloud.points[i].y;
-                ufoCloud[i].z = pclCloud.points[i].z;
-            }
-
-            map.insertSurfelPoint(std::begin(ufoCloud), std::end(ufoCloud));
+#pragma omp parallel for num_threads(omp_get_max_threads()) default(none) \
+    shared(ufoCloud, cloudSize, pclCloud)
+        for (int i = 0; i < cloudSize; i++) {
+            ufoCloud[i].x = pclCloud.points[i].x;
+            ufoCloud[i].y = pclCloud.points[i].y;
+            ufoCloud[i].z = pclCloud.points[i].z;
         }
 
-    };
-}
-#endif //IKALIBR_PTS_ASSOCIATION_H
+        map.insertSurfelPoint(std::begin(ufoCloud), std::end(ufoCloud));
+    }
+};
+}  // namespace ns_ikalibr
+#endif  // IKALIBR_PTS_ASSOCIATION_H

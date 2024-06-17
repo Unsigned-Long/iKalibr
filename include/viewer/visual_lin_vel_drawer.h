@@ -41,41 +41,45 @@
 #include "veta/camera/pinhole.h"
 #include "opencv2/core.hpp"
 
-_3_
-
-namespace ns_ikalibr {
-    struct CalibParamManager;
-    using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
-    struct CameraFrame;
-    using CameraFramePtr = std::shared_ptr<CameraFrame>;
-
-    class VisualLinVelDrawer {
-    public:
-        using Ptr = std::shared_ptr<VisualLinVelDrawer>;
-        using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
-
-    private:
-        std::string _topic;
-        ns_veta::Veta::Ptr _veta;
-        SplineBundleType::Ptr _splines;
-        CalibParamManagerPtr _parMagr;
-
-        ns_veta::PinholeIntrinsic::Ptr _intri;
-
-        Sophus::SE3d SE3_CmToBr;
-        double TO_CmToBr;
-
-    public:
-        VisualLinVelDrawer(std::string topic, ns_veta::Veta::Ptr veta, SplineBundleType::Ptr splines,
-                           CalibParamManagerPtr parMagr);
-
-        static Ptr Create(const std::string &topic, const ns_veta::Veta::Ptr &veta,
-                          const SplineBundleType::Ptr &splines,
-                          const CalibParamManagerPtr &parMagr);
-
-        cv::Mat CreateLinVelImg(const CameraFramePtr &frame, float scale = 0.3f);
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
+namespace ns_ikalibr {
+struct CalibParamManager;
+using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
+struct CameraFrame;
+using CameraFramePtr = std::shared_ptr<CameraFrame>;
 
-#endif //IKALIBR_VISUAL_LIN_VEL_DRAWER_H
+class VisualLinVelDrawer {
+public:
+    using Ptr = std::shared_ptr<VisualLinVelDrawer>;
+    using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
+
+private:
+    std::string _topic;
+    ns_veta::Veta::Ptr _veta;
+    SplineBundleType::Ptr _splines;
+    CalibParamManagerPtr _parMagr;
+
+    ns_veta::PinholeIntrinsic::Ptr _intri;
+
+    Sophus::SE3d SE3_CmToBr;
+    double TO_CmToBr;
+
+public:
+    VisualLinVelDrawer(std::string topic,
+                       ns_veta::Veta::Ptr veta,
+                       SplineBundleType::Ptr splines,
+                       CalibParamManagerPtr parMagr);
+
+    static Ptr Create(const std::string &topic,
+                      const ns_veta::Veta::Ptr &veta,
+                      const SplineBundleType::Ptr &splines,
+                      const CalibParamManagerPtr &parMagr);
+
+    cv::Mat CreateLinVelImg(const CameraFramePtr &frame, float scale = 0.3f);
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_VISUAL_LIN_VEL_DRAWER_H

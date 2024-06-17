@@ -40,87 +40,103 @@
 #include "opengv/types.hpp"
 #include "veta/camera/pinhole.h"
 
-_3_
-
-namespace ns_ikalibr {
-    struct CameraFrame;
-    using CameraFramePtr = std::shared_ptr<CameraFrame>;
-
-    struct ORBFeatExtMatConfig {
-    public:
-        int featNumPerImg{};
-
-        ORBFeatExtMatConfig();
-    };
-
-    class RotOnlyVisualOdometer {
-    public:
-        using Ptr = std::shared_ptr<RotOnlyVisualOdometer>;
-
-    private:
-        const int FEAT_NUM_PER_IMG;
-        const int MIN_DIST;
-        ns_veta::PinholeIntrinsic::Ptr _intri;
-
-        CameraFramePtr _lastFrame;
-        std::vector<cv::Point2f> _ptsInLast;
-        std::vector<int> _ptsTrackCount;
-        std::vector<cv::Point2f> _ptsUndistInLast;
-
-        std::vector<std::pair<double, Sophus::SO3d>> _rotations;
-
-    public:
-        explicit RotOnlyVisualOdometer(int featNumPerImg, int minDist, ns_veta::PinholeIntrinsic::Ptr intri)
-                : FEAT_NUM_PER_IMG(featNumPerImg), MIN_DIST(minDist), _intri(std::move(intri)), _lastFrame(nullptr) {}
-
-        static Ptr Create(int featNumPerImg, int minDist, const ns_veta::PinholeIntrinsic::Ptr &intri);
-
-        bool GrabFrame(const CameraFramePtr &curFrame);
-
-        [[nodiscard]] const std::vector<std::pair<double, Sophus::SO3d>> &GetRotations() const;
-
-        virtual ~RotOnlyVisualOdometer();
-
-    protected:
-        static bool InImageBorder(const cv::Point2f &pt, const CameraFramePtr &frame, int borderSize = 1);
-
-        template<class Type>
-        static void ReduceVector(std::vector<Type> &v, std::vector<uchar> status) {
-            int j = 0;
-            for (int i = 0; i < int(v.size()); i++) { if (status[i]) { v[j++] = v[i]; }}
-            v.resize(j);
-        }
-
-        std::vector<cv::Point2f> UndistortedPoints(const std::vector<cv::Point2f> &pts);
-
-        [[nodiscard]] std::tuple<cv::Mat, std::vector<cv::Point2f>, std::vector<int>, std::vector<int>>
-        ComputeMaskAndFilterPts(const CameraFramePtr &frame, const std::vector<cv::Point2f> &pts,
-                                const std::vector<int> &trackCount) const;
-
-        template<class Type>
-        std::vector<Type> FindElements(const std::vector<Type> &vec, const std::vector<int> &idx) {
-            std::vector<Type> newVec(idx.size());
-            for (int i = 0; i < static_cast<int>(idx.size()); ++i) {
-                newVec.at(i) = vec.at(idx.at(i));
-            }
-            return newVec;
-        }
-
-        void ShowCurrentFrame() const;
-
-        static void ShowFeatureTracking(const CameraFramePtr &lastFrame, const std::vector<cv::Point2f> &ptsInLast,
-                                        const CameraFramePtr &curFrame, const std::vector<cv::Point2f> &ptsInCur,
-                                        const std::vector<int> &inliers, const std::string &winName);
-
-        static std::vector<uchar> RejectUsingFMat(const std::vector<cv::Point2f> &undistPtsInLast,
-                                                  const std::vector<cv::Point2f> &undistPtsInCur);
-
-        std::pair<opengv::rotation_t, std::vector<int>>
-        RelRotationRecovery(const std::vector<cv::Point2f> &ptsUndisto1, const std::vector<cv::Point2f> &ptsUndisto2);
-
-        opengv::bearingVectors_t ComputeBeringVec(const std::vector<cv::Point2f> &ptsUndist);
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
+namespace ns_ikalibr {
+struct CameraFrame;
+using CameraFramePtr = std::shared_ptr<CameraFrame>;
 
-#endif //IKALIBR_ROT_ONLY_VO_H
+struct ORBFeatExtMatConfig {
+public:
+    int featNumPerImg{};
+
+    ORBFeatExtMatConfig();
+};
+
+class RotOnlyVisualOdometer {
+public:
+    using Ptr = std::shared_ptr<RotOnlyVisualOdometer>;
+
+private:
+    const int FEAT_NUM_PER_IMG;
+    const int MIN_DIST;
+    ns_veta::PinholeIntrinsic::Ptr _intri;
+
+    CameraFramePtr _lastFrame;
+    std::vector<cv::Point2f> _ptsInLast;
+    std::vector<int> _ptsTrackCount;
+    std::vector<cv::Point2f> _ptsUndistInLast;
+
+    std::vector<std::pair<double, Sophus::SO3d>> _rotations;
+
+public:
+    explicit RotOnlyVisualOdometer(int featNumPerImg,
+                                   int minDist,
+                                   ns_veta::PinholeIntrinsic::Ptr intri)
+        : FEAT_NUM_PER_IMG(featNumPerImg),
+          MIN_DIST(minDist),
+          _intri(std::move(intri)),
+          _lastFrame(nullptr) {}
+
+    static Ptr Create(int featNumPerImg, int minDist, const ns_veta::PinholeIntrinsic::Ptr &intri);
+
+    bool GrabFrame(const CameraFramePtr &curFrame);
+
+    [[nodiscard]] const std::vector<std::pair<double, Sophus::SO3d>> &GetRotations() const;
+
+    virtual ~RotOnlyVisualOdometer();
+
+protected:
+    static bool InImageBorder(const cv::Point2f &pt,
+                              const CameraFramePtr &frame,
+                              int borderSize = 1);
+
+    template <class Type>
+    static void ReduceVector(std::vector<Type> &v, std::vector<uchar> status) {
+        int j = 0;
+        for (int i = 0; i < int(v.size()); i++) {
+            if (status[i]) {
+                v[j++] = v[i];
+            }
+        }
+        v.resize(j);
+    }
+
+    std::vector<cv::Point2f> UndistortedPoints(const std::vector<cv::Point2f> &pts);
+
+    [[nodiscard]] std::tuple<cv::Mat, std::vector<cv::Point2f>, std::vector<int>, std::vector<int>>
+    ComputeMaskAndFilterPts(const CameraFramePtr &frame,
+                            const std::vector<cv::Point2f> &pts,
+                            const std::vector<int> &trackCount) const;
+
+    template <class Type>
+    std::vector<Type> FindElements(const std::vector<Type> &vec, const std::vector<int> &idx) {
+        std::vector<Type> newVec(idx.size());
+        for (int i = 0; i < static_cast<int>(idx.size()); ++i) {
+            newVec.at(i) = vec.at(idx.at(i));
+        }
+        return newVec;
+    }
+
+    void ShowCurrentFrame() const;
+
+    static void ShowFeatureTracking(const CameraFramePtr &lastFrame,
+                                    const std::vector<cv::Point2f> &ptsInLast,
+                                    const CameraFramePtr &curFrame,
+                                    const std::vector<cv::Point2f> &ptsInCur,
+                                    const std::vector<int> &inliers,
+                                    const std::string &winName);
+
+    static std::vector<uchar> RejectUsingFMat(const std::vector<cv::Point2f> &undistPtsInLast,
+                                              const std::vector<cv::Point2f> &undistPtsInCur);
+
+    std::pair<opengv::rotation_t, std::vector<int>> RelRotationRecovery(
+        const std::vector<cv::Point2f> &ptsUndisto1, const std::vector<cv::Point2f> &ptsUndisto2);
+
+    opengv::bearingVectors_t ComputeBeringVec(const std::vector<cv::Point2f> &ptsUndist);
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_ROT_ONLY_VO_H

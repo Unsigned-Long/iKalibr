@@ -40,117 +40,118 @@
 #include "util/cloud_define.hpp"
 #include "util/enum_cast.hpp"
 
-_3_
-
-namespace ns_ikalibr {
-    enum class RadarModelType {
-        AINSTEIN_RADAR,
-        AWR1843BOOST_RAW,
-        AWR1843BOOST_CUSTOM,
-        POINTCLOUD2_POSV,
-        POINTCLOUD2_POSIV,
-        POINTCLOUD2_XRIO,
-    };
-
-    class RadarDataLoader {
-    public:
-        using Ptr = std::shared_ptr<RadarDataLoader>;
-
-    protected:
-        RadarModelType _radarModel;
-
-    public:
-        explicit RadarDataLoader(RadarModelType radarModel);
-
-        virtual RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) = 0;
-
-        static RadarDataLoader::Ptr GetLoader(const std::string &radarModelStr);
-
-        [[nodiscard]] RadarModelType GetRadarModel() const;
-
-    protected:
-        template<class MsgType>
-        void CheckMessage(typename MsgType::ConstPtr msg) {
-            if (msg == nullptr) {
-                throw std::runtime_error(
-                        "message type of some radars was set incorrectly!!! Wrong type: " +
-                        std::string(EnumCast::enumToString(GetRadarModel()))
-                );
-            }
-        }
-    };
-
-    class AinsteinRadarLoader : public RadarDataLoader {
-    public:
-        using Ptr = std::shared_ptr<AinsteinRadarLoader>;
-
-    public:
-        explicit AinsteinRadarLoader(RadarModelType radarModel);
-
-        static AinsteinRadarLoader::Ptr Create(RadarModelType radarModel);
-
-        RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
-    };
-
-    class AWR1843BOOSTRawLoader : public RadarDataLoader {
-    public:
-        using Ptr = std::shared_ptr<AWR1843BOOSTRawLoader>;
-
-    public:
-        explicit AWR1843BOOSTRawLoader(RadarModelType radarModel);
-
-        static AWR1843BOOSTRawLoader::Ptr Create(RadarModelType radarModel);
-
-        RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
-    };
-
-    class PointCloud2POSVLoader : public RadarDataLoader {
-    public:
-        using Ptr = std::shared_ptr<PointCloud2POSVLoader>;
-
-    public:
-        explicit PointCloud2POSVLoader(RadarModelType radarModel);
-
-        static PointCloud2POSVLoader::Ptr Create(RadarModelType radarModel);
-
-        RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
-    };
-
-    class PointCloud2POSIVLoader : public RadarDataLoader {
-    public:
-        using Ptr = std::shared_ptr<PointCloud2POSIVLoader>;
-
-    public:
-        explicit PointCloud2POSIVLoader(RadarModelType radarModel);
-
-        static PointCloud2POSIVLoader::Ptr Create(RadarModelType radarModel);
-
-        RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
-    };
-
-    class AWR1843BOOSTCustomLoader : public RadarDataLoader {
-    public:
-        using Ptr = std::shared_ptr<AWR1843BOOSTCustomLoader>;
-
-    public:
-        explicit AWR1843BOOSTCustomLoader(RadarModelType radarModel);
-
-        static AWR1843BOOSTCustomLoader::Ptr Create(RadarModelType radarModel);
-
-        RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
-    };
-
-    class PointCloud2XRIOLoader : public RadarDataLoader {
-    public:
-        using Ptr = std::shared_ptr<PointCloud2POSIVLoader>;
-
-    public:
-        explicit PointCloud2XRIOLoader(RadarModelType radarModel);
-
-        static PointCloud2XRIOLoader::Ptr Create(RadarModelType radarModel);
-
-        RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_RADAR_DATA_LOADER_H
+namespace ns_ikalibr {
+enum class RadarModelType {
+    AINSTEIN_RADAR,
+    AWR1843BOOST_RAW,
+    AWR1843BOOST_CUSTOM,
+    POINTCLOUD2_POSV,
+    POINTCLOUD2_POSIV,
+    POINTCLOUD2_XRIO,
+};
+
+class RadarDataLoader {
+public:
+    using Ptr = std::shared_ptr<RadarDataLoader>;
+
+protected:
+    RadarModelType _radarModel;
+
+public:
+    explicit RadarDataLoader(RadarModelType radarModel);
+
+    virtual RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) = 0;
+
+    static RadarDataLoader::Ptr GetLoader(const std::string &radarModelStr);
+
+    [[nodiscard]] RadarModelType GetRadarModel() const;
+
+protected:
+    template <class MsgType>
+    void CheckMessage(typename MsgType::ConstPtr msg) {
+        if (msg == nullptr) {
+            throw std::runtime_error(
+                "message type of some radars was set incorrectly!!! Wrong type: " +
+                std::string(EnumCast::enumToString(GetRadarModel())));
+        }
+    }
+};
+
+class AinsteinRadarLoader : public RadarDataLoader {
+public:
+    using Ptr = std::shared_ptr<AinsteinRadarLoader>;
+
+public:
+    explicit AinsteinRadarLoader(RadarModelType radarModel);
+
+    static AinsteinRadarLoader::Ptr Create(RadarModelType radarModel);
+
+    RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
+};
+
+class AWR1843BOOSTRawLoader : public RadarDataLoader {
+public:
+    using Ptr = std::shared_ptr<AWR1843BOOSTRawLoader>;
+
+public:
+    explicit AWR1843BOOSTRawLoader(RadarModelType radarModel);
+
+    static AWR1843BOOSTRawLoader::Ptr Create(RadarModelType radarModel);
+
+    RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
+};
+
+class PointCloud2POSVLoader : public RadarDataLoader {
+public:
+    using Ptr = std::shared_ptr<PointCloud2POSVLoader>;
+
+public:
+    explicit PointCloud2POSVLoader(RadarModelType radarModel);
+
+    static PointCloud2POSVLoader::Ptr Create(RadarModelType radarModel);
+
+    RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
+};
+
+class PointCloud2POSIVLoader : public RadarDataLoader {
+public:
+    using Ptr = std::shared_ptr<PointCloud2POSIVLoader>;
+
+public:
+    explicit PointCloud2POSIVLoader(RadarModelType radarModel);
+
+    static PointCloud2POSIVLoader::Ptr Create(RadarModelType radarModel);
+
+    RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
+};
+
+class AWR1843BOOSTCustomLoader : public RadarDataLoader {
+public:
+    using Ptr = std::shared_ptr<AWR1843BOOSTCustomLoader>;
+
+public:
+    explicit AWR1843BOOSTCustomLoader(RadarModelType radarModel);
+
+    static AWR1843BOOSTCustomLoader::Ptr Create(RadarModelType radarModel);
+
+    RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
+};
+
+class PointCloud2XRIOLoader : public RadarDataLoader {
+public:
+    using Ptr = std::shared_ptr<PointCloud2POSIVLoader>;
+
+public:
+    explicit PointCloud2XRIOLoader(RadarModelType radarModel);
+
+    static PointCloud2XRIOLoader::Ptr Create(RadarModelType radarModel);
+
+    RadarTargetArray::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_RADAR_DATA_LOADER_H

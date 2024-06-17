@@ -41,7 +41,9 @@
 #include "cereal/types/list.hpp"
 #include "spdlog/fmt/bundled/color.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "ikalibr_data_format_transformer");
@@ -51,36 +53,43 @@ int main(int argc, char **argv) {
         ns_ikalibr::PrintIKalibrLibInfo();
 
         // load parameters
-        auto preDir = ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_data_format_transformer/pre_dir");
+        auto preDir =
+            ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_data_format_transformer/pre_dir");
         spdlog::info("pre directory: '{}'", preDir);
 
-        auto srcFormatStr = ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_data_format_transformer/src_format");
+        auto srcFormatStr =
+            ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_data_format_transformer/src_format");
         spdlog::info("source data format: '{}'", srcFormatStr);
         ns_ikalibr::CerealArchiveType::Enum srcFormat;
         try {
-            srcFormat = ns_ikalibr::EnumCast::stringToEnum<ns_ikalibr::CerealArchiveType::Enum>(srcFormatStr);
+            srcFormat = ns_ikalibr::EnumCast::stringToEnum<ns_ikalibr::CerealArchiveType::Enum>(
+                srcFormatStr);
         } catch (...) {
-            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL, "data format '{}' is unsupported!!!", srcFormatStr);
+            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL,
+                                     "data format '{}' is unsupported!!!", srcFormatStr);
         }
         const auto &srcExt = ns_ikalibr::Configor::Preference::FileExtension.at(srcFormat);
 
-        auto dstFormatStr = ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_data_format_transformer/dst_format");
+        auto dstFormatStr =
+            ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_data_format_transformer/dst_format");
         spdlog::info("destination data format: '{}'", dstFormatStr);
         ns_ikalibr::CerealArchiveType::Enum dstFormat;
         try {
-            dstFormat = ns_ikalibr::EnumCast::stringToEnum<ns_ikalibr::CerealArchiveType::Enum>(dstFormatStr);
+            dstFormat = ns_ikalibr::EnumCast::stringToEnum<ns_ikalibr::CerealArchiveType::Enum>(
+                dstFormatStr);
         } catch (...) {
-            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL, "data format '{}' is unsupported!!!", dstFormatStr);
+            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL,
+                                     "data format '{}' is unsupported!!!", dstFormatStr);
         }
         const auto &dstExt = ns_ikalibr::Configor::Preference::FileExtension.at(dstFormat);
 
         auto wsDirVecSrc = ns_ikalibr::GetParamFromROS<std::vector<std::string>>(
-                "/ikalibr_data_format_transformer/ws_dir_vec"
-        );
+            "/ikalibr_data_format_transformer/ws_dir_vec");
 
-        for (const auto &dir: wsDirVecSrc) {
+        for (const auto &dir : wsDirVecSrc) {
             auto ws = preDir + '/' + dir;
-            spdlog::info("perform data format transform for '{}', from '{}' to '{}'", ws, srcExt, dstExt);
+            spdlog::info("perform data format transform for '{}', from '{}' to '{}'", ws, srcExt,
+                         dstExt);
 
             // -------------------------
             // spatiotemporal parameters
@@ -99,18 +108,21 @@ int main(int argc, char **argv) {
             wName = ws + "/splines/knots" + dstExt;
             if (std::filesystem::exists(rName)) {
                 spdlog::info("perform transformation:\n   '{}'\n-> '{}'", rName, wName);
-                auto bundle = ns_ctraj::SplineBundle<ns_ikalibr::Configor::Prior::SplineOrder>::Create({});
+                auto bundle =
+                    ns_ctraj::SplineBundle<ns_ikalibr::Configor::Prior::SplineOrder>::Create({});
                 {
                     // load
                     std::ifstream file(rName);
                     auto ar = ns_ikalibr::GetInputArchiveVariant(file, srcFormat);
-                    SerializeByInputArchiveVariant(ar, srcFormat, cereal::make_nvp("splines", *bundle));
+                    SerializeByInputArchiveVariant(ar, srcFormat,
+                                                   cereal::make_nvp("splines", *bundle));
                 }
                 {
                     // output
                     std::ofstream file(wName);
                     auto ar = ns_ikalibr::GetOutputArchiveVariant(file, dstFormat);
-                    SerializeByOutputArchiveVariant(ar, dstFormat, cereal::make_nvp("splines", *bundle));
+                    SerializeByOutputArchiveVariant(ar, dstFormat,
+                                                    cereal::make_nvp("splines", *bundle));
                 }
             }
 
@@ -123,13 +135,15 @@ int main(int argc, char **argv) {
                     // load
                     std::ifstream file(rName);
                     auto ar = ns_ikalibr::GetInputArchiveVariant(file, srcFormat);
-                    SerializeByInputArchiveVariant(ar, srcFormat, cereal::make_nvp("pose_seq", poseSeq));
+                    SerializeByInputArchiveVariant(ar, srcFormat,
+                                                   cereal::make_nvp("pose_seq", poseSeq));
                 }
                 {
                     // output
                     std::ofstream file(wName);
                     auto ar = ns_ikalibr::GetOutputArchiveVariant(file, dstFormat);
-                    SerializeByOutputArchiveVariant(ar, dstFormat, cereal::make_nvp("pose_seq", poseSeq));
+                    SerializeByOutputArchiveVariant(ar, dstFormat,
+                                                    cereal::make_nvp("pose_seq", poseSeq));
                 }
             }
 
@@ -148,20 +162,20 @@ int main(int argc, char **argv) {
                     std::ifstream file(rName);
                     auto ar = ns_ikalibr::GetInputArchiveVariant(file, srcFormat);
                     SerializeByInputArchiveVariant(
-                            ar, srcFormat, cereal::make_nvp("row", row), cereal::make_nvp("col", col),
-                            cereal::make_nvp("par_order_size", parOrderSize)
-                    );
+                        ar, srcFormat, cereal::make_nvp("row", row), cereal::make_nvp("col", col),
+                        cereal::make_nvp("par_order_size", parOrderSize));
                     hessian.resize(row, col);
-                    SerializeByInputArchiveVariant(ar, srcFormat, cereal::make_nvp("hessian", hessian));
+                    SerializeByInputArchiveVariant(ar, srcFormat,
+                                                   cereal::make_nvp("hessian", hessian));
                 }
                 {
                     // output
                     std::ofstream file(wName);
                     auto ar = ns_ikalibr::GetOutputArchiveVariant(file, dstFormat);
                     SerializeByOutputArchiveVariant(
-                            ar, dstFormat, cereal::make_nvp("row", row), cereal::make_nvp("col", col),
-                            cereal::make_nvp("hessian", hessian), cereal::make_nvp("par_order_size", parOrderSize)
-                    );
+                        ar, dstFormat, cereal::make_nvp("row", row), cereal::make_nvp("col", col),
+                        cereal::make_nvp("hessian", hessian),
+                        cereal::make_nvp("par_order_size", parOrderSize));
                 }
             }
 
@@ -171,12 +185,16 @@ int main(int argc, char **argv) {
             {
                 auto paramsEpochDir = ws + "/iteration/epoch";
                 auto files = ns_ikalibr::FilesInDir(paramsEpochDir);
-                files.erase(std::remove_if(files.begin(), files.end(), [&srcExt](const std::string &str) {
-                    return std::filesystem::path(str).extension() != srcExt;
-                }), files.end());
-                for (const auto &filename: files) {
+                files.erase(std::remove_if(files.begin(), files.end(),
+                                           [&srcExt](const std::string &str) {
+                                               return std::filesystem::path(str).extension() !=
+                                                      srcExt;
+                                           }),
+                            files.end());
+                for (const auto &filename : files) {
                     wName = std::filesystem::path(filename).replace_extension(dstExt).string();
-                    ns_ikalibr::CalibParamManager::Load(filename, srcFormat)->Save(wName, dstFormat);
+                    ns_ikalibr::CalibParamManager::Load(filename, srcFormat)
+                        ->Save(wName, dstFormat);
                     spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
                 }
             }
@@ -184,12 +202,16 @@ int main(int argc, char **argv) {
             {
                 auto paramsStageDir = ws + "/iteration/stage";
                 auto files = ns_ikalibr::FilesInDir(paramsStageDir);
-                files.erase(std::remove_if(files.begin(), files.end(), [&srcExt](const std::string &str) {
-                    return std::filesystem::path(str).extension() != srcExt;
-                }), files.end());
-                for (const auto &filename: files) {
+                files.erase(std::remove_if(files.begin(), files.end(),
+                                           [&srcExt](const std::string &str) {
+                                               return std::filesystem::path(str).extension() !=
+                                                      srcExt;
+                                           }),
+                            files.end());
+                for (const auto &filename : files) {
                     wName = std::filesystem::path(filename).replace_extension(dstExt).string();
-                    ns_ikalibr::CalibParamManager::Load(filename, srcFormat)->Save(wName, dstFormat);
+                    ns_ikalibr::CalibParamManager::Load(filename, srcFormat)
+                        ->Save(wName, dstFormat);
                     spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
                 }
             }
@@ -202,45 +224,45 @@ int main(int argc, char **argv) {
             auto subWS = ws + "/kinematics/lin_acce";
             if (std::filesystem::exists(subWS)) {
                 auto files = ns_ikalibr::FilesInDirRecursive(subWS);
-                files.erase(std::remove_if(files.begin(), files.end(), [&srcExt](const std::string &str) {
-                    return std::filesystem::path(str).extension() != srcExt;
-                }), files.end());
-                for (const auto &filename: files) {
+                files.erase(std::remove_if(files.begin(), files.end(),
+                                           [&srcExt](const std::string &str) {
+                                               return std::filesystem::path(str).extension() !=
+                                                      srcExt;
+                                           }),
+                            files.end());
+                for (const auto &filename : files) {
                     if (std::filesystem::path(filename).filename() == "inertial_mes" + srcExt) {
                         std::list<ns_ikalibr::IMUFrame> rawMes, estMes, diff;
                         // load
                         std::ifstream ifile(filename);
                         auto iar = GetInputArchiveVariant(ifile, srcFormat);
-                        SerializeByInputArchiveVariant(
-                                iar, srcFormat, cereal::make_nvp("raw_inertial", rawMes),
-                                cereal::make_nvp("est_inertial", estMes),
-                                cereal::make_nvp("inertial_diff", diff)
-                        );
+                        SerializeByInputArchiveVariant(iar, srcFormat,
+                                                       cereal::make_nvp("raw_inertial", rawMes),
+                                                       cereal::make_nvp("est_inertial", estMes),
+                                                       cereal::make_nvp("inertial_diff", diff));
                         // save
                         wName = std::filesystem::path(filename).replace_extension(dstExt).string();
                         std::ofstream ofile(wName);
                         auto oar = GetOutputArchiveVariant(ofile, dstFormat);
-                        SerializeByOutputArchiveVariant(
-                                oar, dstFormat, cereal::make_nvp("raw_inertial", rawMes),
-                                cereal::make_nvp("est_inertial", estMes),
-                                cereal::make_nvp("inertial_diff", diff)
-                        );
+                        SerializeByOutputArchiveVariant(oar, dstFormat,
+                                                        cereal::make_nvp("raw_inertial", rawMes),
+                                                        cereal::make_nvp("est_inertial", estMes),
+                                                        cereal::make_nvp("inertial_diff", diff));
                         spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
-                    } else if (std::filesystem::path(filename).filename() == "aligned_mes_to_ref" + srcExt) {
+                    } else if (std::filesystem::path(filename).filename() ==
+                               "aligned_mes_to_ref" + srcExt) {
                         std::list<ns_ikalibr::IMUFrame> estMes;
                         // load
                         std::ifstream ifile(filename);
                         auto iar = GetInputArchiveVariant(ifile, srcFormat);
                         SerializeByInputArchiveVariant(
-                                iar, srcFormat, cereal::make_nvp("aligned_inertial", estMes)
-                        );
+                            iar, srcFormat, cereal::make_nvp("aligned_inertial", estMes));
                         // save
                         wName = std::filesystem::path(filename).replace_extension(dstExt).string();
                         std::ofstream ofile(wName);
                         auto oar = GetOutputArchiveVariant(ofile, dstFormat);
                         SerializeByOutputArchiveVariant(
-                                oar, dstFormat, cereal::make_nvp("aligned_inertial", estMes)
-                        );
+                            oar, dstFormat, cereal::make_nvp("aligned_inertial", estMes));
                         spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
                     }
                 }
@@ -250,25 +272,26 @@ int main(int argc, char **argv) {
             subWS = ws + "/kinematics/reproj_error";
             if (std::filesystem::exists(subWS)) {
                 auto files = ns_ikalibr::FilesInDirRecursive(subWS);
-                files.erase(std::remove_if(files.begin(), files.end(), [&srcExt](const std::string &str) {
-                    return std::filesystem::path(str).extension() != srcExt;
-                }), files.end());
-                for (const auto &filename: files) {
+                files.erase(std::remove_if(files.begin(), files.end(),
+                                           [&srcExt](const std::string &str) {
+                                               return std::filesystem::path(str).extension() !=
+                                                      srcExt;
+                                           }),
+                            files.end());
+                for (const auto &filename : files) {
                     if (std::filesystem::path(filename).filename() == "residuals" + srcExt) {
                         std::list<Eigen::Vector2d> reprojErrors;
                         // load
                         std::ifstream ifile(filename);
                         auto iar = GetInputArchiveVariant(ifile, srcFormat);
                         SerializeByInputArchiveVariant(
-                                iar, srcFormat, cereal::make_nvp("reproj_errors", reprojErrors)
-                        );
+                            iar, srcFormat, cereal::make_nvp("reproj_errors", reprojErrors));
                         // save
                         wName = std::filesystem::path(filename).replace_extension(dstExt).string();
                         std::ofstream ofile(wName);
                         auto oar = GetOutputArchiveVariant(ofile, dstFormat);
                         SerializeByOutputArchiveVariant(
-                                oar, dstFormat, cereal::make_nvp("reproj_errors", reprojErrors)
-                        );
+                            oar, dstFormat, cereal::make_nvp("reproj_errors", reprojErrors));
                         spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
                     }
                 }

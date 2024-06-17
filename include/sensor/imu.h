@@ -38,11 +38,12 @@
 #include "util/utils.h"
 #include "ctraj/core/imu.h"
 
-_3_
-
-namespace ns_ikalibr {
-    using IMUFrame = ns_ctraj::IMUFrame;
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
+namespace ns_ikalibr {
+using IMUFrame = ns_ctraj::IMUFrame;
+}
 
-#endif //IKALIBR_IMU_H
+#endif  // IKALIBR_IMU_H

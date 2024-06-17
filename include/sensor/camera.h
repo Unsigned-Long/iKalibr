@@ -39,48 +39,51 @@
 #include "ctraj/utils/macros.hpp"
 #include "opencv4/opencv2/core.hpp"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    struct CameraFrame {
-    public:
-        using Ptr = std::shared_ptr<CameraFrame>;
+struct CameraFrame {
+public:
+    using Ptr = std::shared_ptr<CameraFrame>;
 
-    private:
-        double _timestamp;
-        cv::Mat _greyImg, _colorImg;
-        ns_veta::IndexT _id;
+private:
+    double _timestamp;
+    cv::Mat _greyImg, _colorImg;
+    ns_veta::IndexT _id;
 
-    public:
+public:
+    // constructor
+    explicit CameraFrame(double timestamp = INVALID_TIME_STAMP,
+                         cv::Mat greyImg = cv::Mat(),
+                         cv::Mat colorImg = cv::Mat(),
+                         ns_veta::IndexT id = ns_veta::UndefinedIndexT);
 
-        // constructor
-        explicit CameraFrame(double timestamp = INVALID_TIME_STAMP, cv::Mat greyImg = cv::Mat(),
-                             cv::Mat colorImg = cv::Mat(), ns_veta::IndexT id = ns_veta::UndefinedIndexT);
+    // creator
+    static CameraFrame::Ptr Create(double timestamp = INVALID_TIME_STAMP,
+                                   const cv::Mat &greyImg = cv::Mat(),
+                                   const cv::Mat &colorImg = cv::Mat(),
+                                   ns_veta::IndexT id = ns_veta::UndefinedIndexT);
 
-        // creator
-        static CameraFrame::Ptr Create(double timestamp = INVALID_TIME_STAMP, const cv::Mat &greyImg = cv::Mat(),
-                                       const cv::Mat &colorImg = cv::Mat(),
-                                       ns_veta::IndexT id = ns_veta::UndefinedIndexT);
+    cv::Mat &GetImage();
 
-        cv::Mat &GetImage();
+    cv::Mat &GetColorImage();
 
-        cv::Mat &GetColorImage();
+    // release the image mat data to save memory when needed
+    void ReleaseMat();
 
-        // release the image mat data to save memory when needed
-        void ReleaseMat();
+    [[nodiscard]] double GetTimestamp() const;
 
-        [[nodiscard]] double GetTimestamp() const;
+    void SetTimestamp(double timestamp);
 
-        void SetTimestamp(double timestamp);
+    [[nodiscard]] ns_veta::IndexT GetId() const;
 
-        [[nodiscard]] ns_veta::IndexT GetId() const;
+    void SetId(ns_veta::IndexT id);
 
-        void SetId(ns_veta::IndexT id);
+    friend std::ostream &operator<<(std::ostream &os, const CameraFrame &frame);
+};
+}  // namespace ns_ikalibr
 
-        friend std::ostream &operator<<(std::ostream &os, const CameraFrame &frame);
-    };
-}
-
-
-#endif //IKALIBR_CAMERA_H
+#endif  // IKALIBR_CAMERA_H

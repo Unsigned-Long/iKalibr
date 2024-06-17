@@ -38,70 +38,73 @@
 #include "util/utils.h"
 #include "util/cereal_archive_helper.hpp"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    struct MergeConfigor {
-    public:
-        using Ptr = std::shared_ptr<MergeConfigor>;
+struct MergeConfigor {
+public:
+    using Ptr = std::shared_ptr<MergeConfigor>;
 
-        struct BagMergeInfo {
-            std::string bagPath;
-            std::map<std::string, std::string> topicsToMerge;
+    struct BagMergeInfo {
+        std::string bagPath;
+        std::map<std::string, std::string> topicsToMerge;
 
-            [[nodiscard]] std::string GetDstTopic(const std::string &srcTopic) const;
+        [[nodiscard]] std::string GetDstTopic(const std::string &srcTopic) const;
 
-            [[nodiscard]] std::vector<std::string> GetSrcTopicVec() const;
-
-        public:
-            template<class Archive>
-            void serialize(Archive &ar) {
-                ar(cereal::make_nvp("BagPath", bagPath), cereal::make_nvp("TopicsToMerge", topicsToMerge));
-            }
-        };
+        [[nodiscard]] std::vector<std::string> GetSrcTopicVec() const;
 
     public:
-        std::vector<BagMergeInfo> _bags;
-        double _bagBeginTime{};
-        double _bagEndTime{};
-        std::string _outputBagPath;
-
-        MergeConfigor() = default;
-
-        static Ptr Create();
-
-        // load configure information from file
-        static Ptr LoadConfigure(const std::string &filename, CerealArchiveType::Enum archiveType);
-
-        // save configure information to file
-        bool SaveConfigure(const std::string &filename, CerealArchiveType::Enum archiveType);
-
-        void PrintMainFields();
-
-    public:
-        template<class Archive>
+        template <class Archive>
         void serialize(Archive &ar) {
-            ar(cereal::make_nvp("Bags", _bags),
-               cereal::make_nvp("BagBeginTime", _bagBeginTime),
-               cereal::make_nvp("BagEndTime", _bagEndTime),
-               cereal::make_nvp("OutputBagPath", _outputBagPath));
+            ar(cereal::make_nvp("BagPath", bagPath),
+               cereal::make_nvp("TopicsToMerge", topicsToMerge));
         }
     };
 
-    class BagMerger {
-    public:
-        using Ptr = std::shared_ptr<BagMerger>;
+public:
+    std::vector<BagMergeInfo> _bags;
+    double _bagBeginTime{};
+    double _bagEndTime{};
+    std::string _outputBagPath;
 
-    private:
-        MergeConfigor::Ptr _configor;
-    public:
-        explicit BagMerger(MergeConfigor::Ptr mergeConfigor);
+    MergeConfigor() = default;
 
-        static Ptr Create(const MergeConfigor::Ptr &mergeConfigor);
+    static Ptr Create();
 
-        std::pair<ros::Time, ros::Time> Process();
-    };
-}
+    // load configure information from file
+    static Ptr LoadConfigure(const std::string &filename, CerealArchiveType::Enum archiveType);
 
-#endif //IKALIBR_BAG_MERGE_H
+    // save configure information to file
+    bool SaveConfigure(const std::string &filename, CerealArchiveType::Enum archiveType);
+
+    void PrintMainFields();
+
+public:
+    template <class Archive>
+    void serialize(Archive &ar) {
+        ar(cereal::make_nvp("Bags", _bags), cereal::make_nvp("BagBeginTime", _bagBeginTime),
+           cereal::make_nvp("BagEndTime", _bagEndTime),
+           cereal::make_nvp("OutputBagPath", _outputBagPath));
+    }
+};
+
+class BagMerger {
+public:
+    using Ptr = std::shared_ptr<BagMerger>;
+
+private:
+    MergeConfigor::Ptr _configor;
+
+public:
+    explicit BagMerger(MergeConfigor::Ptr mergeConfigor);
+
+    static Ptr Create(const MergeConfigor::Ptr &mergeConfigor);
+
+    std::pair<ros::Time, ros::Time> Process();
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_BAG_MERGE_H

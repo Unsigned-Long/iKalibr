@@ -38,32 +38,33 @@
 #include "core/pts_association.h"
 #include "viewer/viewer.h"
 
-_3_
-
-namespace ns_ikalibr {
-    struct UFOMapLearner {
-    public:
-        static void Learn() {
-            ns_ikalibr::Configor::LoadConfigure("/home/csl/ros_ws/iKalibr/src/ikalibr/config/config.yaml");
-            auto viewer = Viewer::Create(nullptr, nullptr);
-
-            IKalibrPointCloud::Ptr cloud(new IKalibrPointCloud);
-            pcl::io::loadPCDFile(
-                    "/home/csl/ros_ws/iKalibr/thirdparty/ctraj/thirdparty/tiny-viewer/data/scan.pcd", *cloud
-            );
-
-            auto associator = PointToSurfelAssociator::Create(
-                    cloud, Configor::Prior::LiDARDataAssociate::MapResolution,
-                    Configor::Prior::LiDARDataAssociate::MapDepthLevels
-            );
-            auto condition = PointToSurfelCondition();
-            viewer->AddSurfelMap(associator->GetSurfelMap(), condition, Viewer::VIEW_ASSOCIATION);
-            viewer->AddCloud(
-                    cloud, Viewer::VIEW_ASSOCIATION, ns_viewer::Colour::Black().WithAlpha(0.2f), DefaultPointSize
-            );
-            std::cin.get();
-        }
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_UFOMAP_LEARNER_HPP
+namespace ns_ikalibr {
+struct UFOMapLearner {
+public:
+    static void Learn() {
+        ns_ikalibr::Configor::LoadConfigure(
+            "/home/csl/ros_ws/iKalibr/src/ikalibr/config/config.yaml");
+        auto viewer = Viewer::Create(nullptr, nullptr);
+
+        IKalibrPointCloud::Ptr cloud(new IKalibrPointCloud);
+        pcl::io::loadPCDFile(
+            "/home/csl/ros_ws/iKalibr/thirdparty/ctraj/thirdparty/tiny-viewer/data/scan.pcd",
+            *cloud);
+
+        auto associator = PointToSurfelAssociator::Create(
+            cloud, Configor::Prior::LiDARDataAssociate::MapResolution,
+            Configor::Prior::LiDARDataAssociate::MapDepthLevels);
+        auto condition = PointToSurfelCondition();
+        viewer->AddSurfelMap(associator->GetSurfelMap(), condition, Viewer::VIEW_ASSOCIATION);
+        viewer->AddCloud(cloud, Viewer::VIEW_ASSOCIATION,
+                         ns_viewer::Colour::Black().WithAlpha(0.2f), DefaultPointSize);
+        std::cin.get();
+    }
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_UFOMAP_LEARNER_HPP

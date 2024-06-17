@@ -38,38 +38,40 @@
 #include "util/utils.h"
 #include "tiny-viewer/core/pose.hpp"
 
-_3_
-
-namespace ns_ikalibr {
-    struct DataCollectionMotionDemo {
-    private:
-        constexpr static float Radius = 2.0;
-        constexpr static float Time = 30.0;
-        constexpr static int Frequency = 30;
-        constexpr static int KeepTime = 3;
-
-        constexpr static float CoordSizeMax = 0.4f;
-        constexpr static float CoordSizeMin = 0.0f;
-        constexpr static float CoordSizeRange = CoordSizeMax - CoordSizeMin;
-
-        constexpr static float EightWidth = 1.0f;
-        constexpr static float EightHeight = 0.6f;
-        constexpr static float EightTime = 3.0f;
-
-        constexpr static float CameraZBias = 0.5f;
-        constexpr static float CameraYBias = 2.0f;
-
-        constexpr static int KeepNum = KeepTime * Frequency;
-        constexpr static float Dt = 1.0 / Frequency;
-        constexpr static int PoseSize = Time / Dt;
-        constexpr static float DTheta = 2 * M_PI / PoseSize;
-
-    public:
-        static void Run();
-
-    protected:
-        static std::array<std::vector<ns_viewer::Posef>, 2> GeneratePoseSeq();
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_DATA_COLLECT_DEMO_H
+namespace ns_ikalibr {
+struct DataCollectionMotionDemo {
+private:
+    constexpr static float Radius = 2.0;
+    constexpr static float Time = 30.0;
+    constexpr static int Frequency = 30;
+    constexpr static int KeepTime = 3;
+
+    constexpr static float CoordSizeMax = 0.4f;
+    constexpr static float CoordSizeMin = 0.0f;
+    constexpr static float CoordSizeRange = CoordSizeMax - CoordSizeMin;
+
+    constexpr static float EightWidth = 1.0f;
+    constexpr static float EightHeight = 0.6f;
+    constexpr static float EightTime = 3.0f;
+
+    constexpr static float CameraZBias = 0.5f;
+    constexpr static float CameraYBias = 2.0f;
+
+    constexpr static int KeepNum = KeepTime * Frequency;
+    constexpr static float Dt = 1.0 / Frequency;
+    constexpr static int PoseSize = Time / Dt;
+    constexpr static float DTheta = 2 * M_PI / PoseSize;
+
+public:
+    static void Run();
+
+protected:
+    static std::array<std::vector<ns_viewer::Posef>, 2> GeneratePoseSeq();
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_DATA_COLLECT_DEMO_H

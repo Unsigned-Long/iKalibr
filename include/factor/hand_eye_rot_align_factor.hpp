@@ -43,86 +43,93 @@
 #include "ceres/ceres.h"
 #include "util/utils.h"
 
-_3_
-
-namespace ns_ikalibr {
-    template<int Order>
-    struct HandEyeRotationAlignFactor {
-    private:
-        ns_ctraj::SplineMeta<Order> _so3Meta;
-
-        Sophus::SO3d SO3_CurLkToLastLk;
-        double _tLastByLk, _tCurByLk;
-
-        double _so3DtInv;
-        double _weight;
-
-    public:
-        explicit HandEyeRotationAlignFactor(ns_ctraj::SplineMeta<Order> so3Meta, double tLastByLk, double tCurByLk,
-                                            const Sophus::SO3d &so3CurLkToLastLk, double weight)
-                : _so3Meta(std::move(so3Meta)), SO3_CurLkToLastLk(so3CurLkToLastLk), _tLastByLk(tLastByLk),
-                  _tCurByLk(tCurByLk), _so3DtInv(1.0 / _so3Meta.segments.front().dt), _weight(weight) {}
-
-        static auto Create(const ns_ctraj::SplineMeta<Order> &so3Meta, double tLastByLk, double tCurByLk,
-                           const Sophus::SO3d &so3CurLkToLastLk, double weight) {
-            return new ceres::DynamicAutoDiffCostFunction<HandEyeRotationAlignFactor>(
-                    new HandEyeRotationAlignFactor(so3Meta, tLastByLk, tCurByLk, so3CurLkToLastLk, weight)
-            );
-        }
-
-        static std::size_t TypeHashCode() {
-            return typeid(HandEyeRotationAlignFactor).hash_code();
-        }
-
-    public:
-        /**
-         * param blocks:
-         * [ SO3 | ... | SO3 | SO3_LkToBr | TO_LkToBr ]
-         */
-        template<class T>
-        bool operator()(T const *const *sKnots, T *sResiduals) const {
-            // array offset
-            std::size_t CUR_SO3_OFFSET, LAST_SO3_OFFSET;
-            std::size_t SO3_LkToBr_OFFSET = _so3Meta.NumParameters();
-            std::size_t TO_LkToBr_OFFSET = SO3_LkToBr_OFFSET + 1;
-
-            Eigen::Map<Sophus::SO3<T> const> const SO3_LkToBr(sKnots[SO3_LkToBr_OFFSET]);
-            T TO_LkToBr = sKnots[TO_LkToBr_OFFSET][0];
-
-            auto tLastByBr = _tLastByLk + TO_LkToBr;
-            auto tCurByBr = _tCurByLk + TO_LkToBr;
-
-            // calculate the so3 offset
-            std::pair<std::size_t, T> iuLast;
-            _so3Meta.template ComputeSplineIndex(tLastByBr, iuLast.first, iuLast.second);
-            LAST_SO3_OFFSET = iuLast.first;
-
-            Sophus::SO3<T> SO3_LastBrToBr0;
-            ns_ctraj::CeresSplineHelperJet<T, Order>::template EvaluateLie(
-                    sKnots + LAST_SO3_OFFSET, iuLast.second, _so3DtInv, &SO3_LastBrToBr0
-            );
-
-            std::pair<std::size_t, T> iuCur;
-            _so3Meta.template ComputeSplineIndex(tCurByBr, iuCur.first, iuCur.second);
-            CUR_SO3_OFFSET = iuCur.first;
-
-            Sophus::SO3<T> SO3_CurBrToBr0;
-            ns_ctraj::CeresSplineHelperJet<T, Order>::template EvaluateLie(
-                    sKnots + CUR_SO3_OFFSET, iuCur.second, _so3DtInv, &SO3_CurBrToBr0
-            );
-
-            Sophus::SO3<T> left = SO3_LkToBr * SO3_CurLkToLastLk;
-            Sophus::SO3<T> right = (SO3_LastBrToBr0.inverse() * SO3_CurBrToBr0) * SO3_LkToBr;
-
-            Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
-            residuals = T(_weight) * (right.inverse() * left).log();
-
-            return true;
-        }
-
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_HAND_EYE_ROT_ALIGN_FACTOR_HPP
+namespace ns_ikalibr {
+template <int Order>
+struct HandEyeRotationAlignFactor {
+private:
+    ns_ctraj::SplineMeta<Order> _so3Meta;
+
+    Sophus::SO3d SO3_CurLkToLastLk;
+    double _tLastByLk, _tCurByLk;
+
+    double _so3DtInv;
+    double _weight;
+
+public:
+    explicit HandEyeRotationAlignFactor(ns_ctraj::SplineMeta<Order> so3Meta,
+                                        double tLastByLk,
+                                        double tCurByLk,
+                                        const Sophus::SO3d &so3CurLkToLastLk,
+                                        double weight)
+        : _so3Meta(std::move(so3Meta)),
+          SO3_CurLkToLastLk(so3CurLkToLastLk),
+          _tLastByLk(tLastByLk),
+          _tCurByLk(tCurByLk),
+          _so3DtInv(1.0 / _so3Meta.segments.front().dt),
+          _weight(weight) {}
+
+    static auto Create(const ns_ctraj::SplineMeta<Order> &so3Meta,
+                       double tLastByLk,
+                       double tCurByLk,
+                       const Sophus::SO3d &so3CurLkToLastLk,
+                       double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<HandEyeRotationAlignFactor>(
+            new HandEyeRotationAlignFactor(so3Meta, tLastByLk, tCurByLk, so3CurLkToLastLk, weight));
+    }
+
+    static std::size_t TypeHashCode() { return typeid(HandEyeRotationAlignFactor).hash_code(); }
+
+public:
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | SO3_LkToBr | TO_LkToBr ]
+     */
+    template <class T>
+    bool operator()(T const *const *sKnots, T *sResiduals) const {
+        // array offset
+        std::size_t CUR_SO3_OFFSET, LAST_SO3_OFFSET;
+        std::size_t SO3_LkToBr_OFFSET = _so3Meta.NumParameters();
+        std::size_t TO_LkToBr_OFFSET = SO3_LkToBr_OFFSET + 1;
+
+        Eigen::Map<Sophus::SO3<T> const> const SO3_LkToBr(sKnots[SO3_LkToBr_OFFSET]);
+        T TO_LkToBr = sKnots[TO_LkToBr_OFFSET][0];
+
+        auto tLastByBr = _tLastByLk + TO_LkToBr;
+        auto tCurByBr = _tCurByLk + TO_LkToBr;
+
+        // calculate the so3 offset
+        std::pair<std::size_t, T> iuLast;
+        _so3Meta.template ComputeSplineIndex(tLastByBr, iuLast.first, iuLast.second);
+        LAST_SO3_OFFSET = iuLast.first;
+
+        Sophus::SO3<T> SO3_LastBrToBr0;
+        ns_ctraj::CeresSplineHelperJet<T, Order>::template EvaluateLie(
+            sKnots + LAST_SO3_OFFSET, iuLast.second, _so3DtInv, &SO3_LastBrToBr0);
+
+        std::pair<std::size_t, T> iuCur;
+        _so3Meta.template ComputeSplineIndex(tCurByBr, iuCur.first, iuCur.second);
+        CUR_SO3_OFFSET = iuCur.first;
+
+        Sophus::SO3<T> SO3_CurBrToBr0;
+        ns_ctraj::CeresSplineHelperJet<T, Order>::template EvaluateLie(
+            sKnots + CUR_SO3_OFFSET, iuCur.second, _so3DtInv, &SO3_CurBrToBr0);
+
+        Sophus::SO3<T> left = SO3_LkToBr * SO3_CurLkToLastLk;
+        Sophus::SO3<T> right = (SO3_LastBrToBr0.inverse() * SO3_CurBrToBr0) * SO3_LkToBr;
+
+        Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
+        residuals = T(_weight) * (right.inverse() * left).log();
+
+        return true;
+    }
+
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_HAND_EYE_ROT_ALIGN_FACTOR_HPP

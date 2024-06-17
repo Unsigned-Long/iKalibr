@@ -42,207 +42,234 @@
 #include "core/vision_only_sfm.h"
 #include "viewer/viewer.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    struct ImagesInfo {
+struct ImagesInfo {
+public:
+    std::string topic;
+    std::string root_path;
+    // image list [id, filename]
+    std::map<ns_veta::IndexT, std::string> images;
+
+    ImagesInfo(std::string topic,
+               std::string rootPath,
+               const std::map<ns_veta::IndexT, std::string> &images)
+        : topic(std::move(topic)),
+          root_path(std::move(rootPath)),
+          images(images) {}
+
+    [[nodiscard]] std::optional<std::string> GetImagePath(ns_veta::IndexT id) const;
+
+    [[nodiscard]] std::optional<std::string> GetImageFilename(ns_veta::IndexT id) const;
+
+    [[nodiscard]] std::map<ns_veta::IndexT, std::string> GetImagesIdxToName() const;
+
+    [[nodiscard]] std::map<std::string, ns_veta::IndexT> GetImagesNameToIdx() const;
+
+public:
+    template <class Archive>
+    void serialize(Archive &ar) {
+        ar(CEREAL_NVP(topic), CEREAL_NVP(root_path), CEREAL_NVP(images));
+    }
+};
+
+class CalibSolver {
+public:
+    using Ptr = std::shared_ptr<CalibSolver>;
+    using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
+
+    friend class CalibSolverIO;
+
+    struct BackUp {
     public:
-        std::string topic;
-        std::string root_path;
-        // image list [id, filename]
-        std::map<ns_veta::IndexT, std::string> images;
-
-        ImagesInfo(std::string topic, std::string rootPath, const std::map<ns_veta::IndexT, std::string> &images)
-                : topic(std::move(topic)), root_path(std::move(rootPath)), images(images) {}
-
-        [[nodiscard]] std::optional<std::string> GetImagePath(ns_veta::IndexT id) const;
-
-        [[nodiscard]] std::optional<std::string> GetImageFilename(ns_veta::IndexT id) const;
-
-        [[nodiscard]] std::map<ns_veta::IndexT, std::string> GetImagesIdxToName() const;
-
-        [[nodiscard]] std::map<std::string, ns_veta::IndexT> GetImagesNameToIdx() const;
+        using Ptr = std::shared_ptr<BackUp>;
 
     public:
-        template<class Archive>
-        void serialize(Archive &ar) {
-            ar(CEREAL_NVP(topic), CEREAL_NVP(root_path), CEREAL_NVP(images));
-        }
+        // estimator
+        Estimator::Ptr estimator;
+        // visual global scale
+        std::shared_ptr<double> visualGlobalScale;
+        // visual reprojection correspondences contains inverse depth parameters
+        std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> visualCorrs;
+        // lidar global map
+        IKalibrPointCloud::Ptr lidarMap;
+        // lidar point-to-surfel correspondences
+        std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> lidarCorrs;
+        // radar global map
+        IKalibrPointCloud::Ptr radarMap;
     };
 
-    class CalibSolver {
-    public:
-        using Ptr = std::shared_ptr<CalibSolver>;
-        using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
+private:
+    CalibDataManager::Ptr _dataMagr;
+    CalibParamManager::Ptr _parMagr;
 
-        friend class CalibSolverIO;
+    SplineBundleType::Ptr _splines;
+    ceres::Solver::Options _ceresOption;
 
-        struct BackUp {
-        public:
-            using Ptr = std::shared_ptr<BackUp>;
+    Viewer::Ptr _viewer;
+    BackUp::Ptr _backup;
 
-        public:
-            // estimator
-            Estimator::Ptr estimator;
-            // visual global scale
-            std::shared_ptr<double> visualGlobalScale;
-            // visual reprojection correspondences contains inverse depth parameters
-            std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> visualCorrs;
-            // lidar global map
-            IKalibrPointCloud::Ptr lidarMap;
-            // lidar point-to-surfel correspondences
-            std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> lidarCorrs;
-            // radar global map
-            IKalibrPointCloud::Ptr radarMap;
-        };
+    bool _solveFinished;
 
-    private:
-        CalibDataManager::Ptr _dataMagr;
-        CalibParamManager::Ptr _parMagr;
+public:
+    explicit CalibSolver(CalibDataManager::Ptr calibDataManager,
+                         CalibParamManager::Ptr calibParamManager);
 
-        SplineBundleType::Ptr _splines;
-        ceres::Solver::Options _ceresOption;
+    static CalibSolver::Ptr Create(const CalibDataManager::Ptr &calibDataManager,
+                                   const CalibParamManager::Ptr &calibParamManager);
 
-        Viewer::Ptr _viewer;
-        BackUp::Ptr _backup;
+    void Process();
 
-        bool _solveFinished;
+    virtual ~CalibSolver();
 
-    public:
-        explicit CalibSolver(CalibDataManager::Ptr calibDataManager, CalibParamManager::Ptr calibParamManager);
+protected:
+    static void PerformTransformForVeta(const ns_veta::Veta::Ptr &veta,
+                                        const ns_veta::Posed &curToNew,
+                                        double scale);
 
-        static CalibSolver::Ptr
-        Create(const CalibDataManager::Ptr &calibDataManager, const CalibParamManager::Ptr &calibParamManager);
+    void AlignStatesToGravity();
 
-        void Process();
+    std::tuple<IKalibrPointCloud::Ptr, std::map<std::string, std::vector<LiDARFrame::Ptr>>>
+    Initialization();
 
-        virtual ~CalibSolver();
+    std::tuple<IKalibrPointCloud::Ptr, std::map<std::string, std::vector<LiDARFrame::Ptr>>>
+    BuildGlobalMapOfLiDAR();
 
-    protected:
-        static void PerformTransformForVeta(
-                const ns_veta::Veta::Ptr &veta, const ns_veta::Posed &curToNew, double scale);
+    IKalibrPointCloud::Ptr BuildGlobalMapOfRadar();
 
-        void AlignStatesToGravity();
+    std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> DataAssociationForLiDARs(
+        const IKalibrPointCloud::Ptr &map,
+        const std::map<std::string, std::vector<LiDARFrame::Ptr>> &undistFrames,
+        int ptsCountInEachScan);
 
-        std::tuple<IKalibrPointCloud::Ptr, std::map<std::string, std::vector<LiDARFrame::Ptr>>> Initialization();
+    std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> DataAssociationForCameras();
 
-        std::tuple<IKalibrPointCloud::Ptr, std::map<std::string, std::vector<LiDARFrame::Ptr>>> BuildGlobalMapOfLiDAR();
+    BackUp::Ptr BatchOptimization(
+        OptOption::Option optOption,
+        const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &ptsCorrs,
+        const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualCorrs);
 
-        IKalibrPointCloud::Ptr BuildGlobalMapOfRadar();
+    std::optional<Sophus::SE3d> CurBrToW(double timeByBr);
 
-        std::map<std::string, std::vector<PointToSurfelCorr::Ptr>>
-        DataAssociationForLiDARs(const IKalibrPointCloud::Ptr &map,
-                                 const std::map<std::string, std::vector<LiDARFrame::Ptr>> &undistFrames,
-                                 int ptsCountInEachScan);
+    std::optional<Sophus::SE3d> CurLkToW(double timeByLk, const std::string &topic);
 
-        std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> DataAssociationForCameras();
+    std::optional<Sophus::SE3d> CurCmToW(double timeByCm, const std::string &topic);
 
-        BackUp::Ptr BatchOptimization(OptOption::Option optOption,
-                                      const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &ptsCorrs,
-                                      const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualCorrs);
+    std::optional<Sophus::SE3d> CurRjToW(double timeByRj, const std::string &topic);
 
-        std::optional<Sophus::SE3d> CurBrToW(double timeByBr);
+    static SplineBundleType::Ptr CreateSplineBundle(double st,
+                                                    double et,
+                                                    double so3Dt,
+                                                    double scaleDt);
 
-        std::optional<Sophus::SE3d> CurLkToW(double timeByLk, const std::string &topic);
+    static TimeDeriv::ScaleSplineType GetScaleType();
 
-        std::optional<Sophus::SE3d> CurCmToW(double timeByCm, const std::string &topic);
+    template <TimeDeriv::ScaleSplineType type>
+    void AddRadarFactor(Estimator::Ptr &estimator,
+                        const std::string &radarTopic,
+                        Estimator::Opt option) {
+        double weight = Configor::DataStream::RadarTopics.at(radarTopic).Weight;
 
-        std::optional<Sophus::SE3d> CurRjToW(double timeByRj, const std::string &topic);
-
-        static SplineBundleType::Ptr CreateSplineBundle(double st, double et, double so3Dt, double scaleDt);
-
-        static TimeDeriv::ScaleSplineType GetScaleType();
-
-        template<TimeDeriv::ScaleSplineType type>
-        void AddRadarFactor(Estimator::Ptr &estimator, const std::string &radarTopic, Estimator::Opt option) {
-            double weight = Configor::DataStream::RadarTopics.at(radarTopic).Weight;
-
-            for (const auto &targetAry: _dataMagr->GetRadarMeasurements(radarTopic)) {
-                for (const auto &tar: targetAry->GetTargets()) {
-                    estimator->AddRadarMeasurement<type>(tar, radarTopic, option, weight);
-                }
+        for (const auto &targetAry : _dataMagr->GetRadarMeasurements(radarTopic)) {
+            for (const auto &tar : targetAry->GetTargets()) {
+                estimator->AddRadarMeasurement<type>(tar, radarTopic, option, weight);
             }
         }
+    }
 
-        template<TimeDeriv::ScaleSplineType type>
-        void AddAcceFactor(Estimator::Ptr &estimator, const std::string &imuTopic, Estimator::Opt option) {
-            double weight = Configor::DataStream::IMUTopics.at(imuTopic).AcceWeight;
+    template <TimeDeriv::ScaleSplineType type>
+    void AddAcceFactor(Estimator::Ptr &estimator,
+                       const std::string &imuTopic,
+                       Estimator::Opt option) {
+        double weight = Configor::DataStream::IMUTopics.at(imuTopic).AcceWeight;
 
-            for (const auto &item: _dataMagr->GetIMUMeasurements(imuTopic)) {
-                estimator->AddIMUAcceMeasurement<type>(item, imuTopic, option, weight);
+        for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {
+            estimator->AddIMUAcceMeasurement<type>(item, imuTopic, option, weight);
+        }
+    }
+
+    void AddGyroFactor(Estimator::Ptr &estimator,
+                       const std::string &imuTopic,
+                       Estimator::Opt option) {
+        double weight = Configor::DataStream::IMUTopics.at(imuTopic).GyroWeight;
+
+        for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {
+            estimator->AddIMUGyroMeasurement(item, imuTopic, option, weight);
+        }
+    }
+
+    template <TimeDeriv::ScaleSplineType type>
+    void AddPointToSurfelFactor(Estimator::Ptr &estimator,
+                                const std::string &lidarTopic,
+                                const std::vector<PointToSurfelCorr::Ptr> &corrs,
+                                Estimator::Opt option) {
+        double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
+
+        for (const auto &corr : corrs) {
+            estimator->AddPointTiSurfelConstraint<type>(corr, lidarTopic, option, weight);
+        }
+    }
+
+    template <TimeDeriv::ScaleSplineType type>
+    void AddVisualReprojectionFactor(Estimator::Ptr &estimator,
+                                     const std::string &camTopic,
+                                     const std::vector<VisualReProjCorrSeq::Ptr> &corrs,
+                                     double *globalScale,
+                                     Estimator::Opt option) {
+        double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
+
+        for (const auto &corr : corrs) {
+            for (const auto &c : corr->corrs) {
+                estimator->AddVisualReprojection<type>(c, camTopic, globalScale,
+                                                       corr->invDepthFir.get(), option, weight);
             }
         }
+    }
 
-        void AddGyroFactor(Estimator::Ptr &estimator, const std::string &imuTopic, Estimator::Opt option) {
-            double weight = Configor::DataStream::IMUTopics.at(imuTopic).GyroWeight;
+    void StoreImagesForSfM(const std::string &camTopic, const std::set<IndexPair> &matchRes);
 
-            for (const auto &item: _dataMagr->GetIMUMeasurements(imuTopic)) {
-                estimator->AddIMUGyroMeasurement(item, imuTopic, option, weight);
-            }
-        }
+    ns_veta::Veta::Ptr TryLoadSfMData(const std::string &camTopic,
+                                      double errorThd,
+                                      std::size_t trackLenThd);
 
-        template<TimeDeriv::ScaleSplineType type>
-        void AddPointToSurfelFactor(Estimator::Ptr &estimator, const std::string &lidarTopic,
-                                    const std::vector<PointToSurfelCorr::Ptr> &corrs, Estimator::Opt option) {
-            double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
+    static void DownsampleVeta(const ns_veta::Veta::Ptr &veta,
+                               std::size_t lmNumThd,
+                               std::size_t obvNumThd);
 
-            for (const auto &corr: corrs) {
-                estimator->AddPointTiSurfelConstraint<type>(corr, lidarTopic, option, weight);
-            }
-        }
+    static bool IsRSCamera(const std::string &camTopic);
 
-        template<TimeDeriv::ScaleSplineType type>
-        void AddVisualReprojectionFactor(Estimator::Ptr &estimator, const std::string &camTopic,
-                                         const std::vector<VisualReProjCorrSeq::Ptr> &corrs, double *globalScale,
-                                         Estimator::Opt option) {
-            double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
+    static void SaveStageCalibParam(const CalibParamManager::Ptr &par, const std::string &desc);
+};
 
-            for (const auto &corr: corrs) {
-                for (const auto &c: corr->corrs) {
-                    estimator->AddVisualReprojection<type>(
-                            c, camTopic, globalScale, corr->invDepthFir.get(), option, weight
-                    );
-                }
-            }
-        }
+struct CeresDebugCallBack : public ceres::IterationCallback {
+private:
+    CalibParamManager::Ptr _parMagr;
+    const std::string _outputDir;
+    std::ofstream _iterInfoFile;
+    int _idx;
 
-        void StoreImagesForSfM(const std::string &camTopic, const std::set<IndexPair> &matchRes);
+public:
+    explicit CeresDebugCallBack(CalibParamManager::Ptr calibParamManager);
 
-        ns_veta::Veta::Ptr TryLoadSfMData(const std::string &camTopic, double errorThd, std::size_t trackLenThd);
+    ~CeresDebugCallBack() override;
 
-        static void DownsampleVeta(const ns_veta::Veta::Ptr &veta, std::size_t lmNumThd, std::size_t obvNumThd);
+    ceres::CallbackReturnType operator()(const ceres::IterationSummary &summary) override;
+};
 
-        static bool IsRSCamera(const std::string &camTopic);
+struct CeresViewerCallBack : public ceres::IterationCallback {
+private:
+    Viewer::Ptr _viewer;
 
-        static void SaveStageCalibParam(const CalibParamManager::Ptr &par, const std::string &desc);
-    };
+public:
+    explicit CeresViewerCallBack(Viewer::Ptr viewer);
 
-    struct CeresDebugCallBack : public ceres::IterationCallback {
-    private:
-        CalibParamManager::Ptr _parMagr;
-        const std::string _outputDir;
-        std::ofstream _iterInfoFile;
-        int _idx;
+    ceres::CallbackReturnType operator()(const ceres::IterationSummary &summary) override;
+};
 
-    public:
-        explicit CeresDebugCallBack(CalibParamManager::Ptr calibParamManager);
+}  // namespace ns_ikalibr
 
-        ~CeresDebugCallBack() override;
-
-        ceres::CallbackReturnType operator()(const ceres::IterationSummary &summary) override;
-    };
-
-    struct CeresViewerCallBack : public ceres::IterationCallback {
-    private:
-        Viewer::Ptr _viewer;
-
-    public:
-        explicit CeresViewerCallBack(Viewer::Ptr viewer);
-
-        ceres::CallbackReturnType operator()(const ceres::IterationSummary &summary) override;
-    };
-
-}
-
-#endif //IKALIBR_CALIB_SOLVER_H
+#endif  // IKALIBR_CALIB_SOLVER_H

@@ -38,7 +38,9 @@
 #include "spdlog/fmt/bundled/color.h"
 #include "nofree/imu_intri_calib.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "ikalibr_imu_intri_calib");
@@ -50,10 +52,9 @@ int main(int argc, char **argv) {
         // load settings
         std::string configPath;
         if (!ros::param::get("/ikalibr_imu_intri_calib/config_path", configPath)) {
-            throw ns_ikalibr::Status(
-                    ns_ikalibr::Status::CRITICAL,
-                    "the configure path couldn't obtained from ros param '/ikalibr_imu_intri_calib/config_path'."
-            );
+            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL,
+                                     "the configure path couldn't obtained from ros param "
+                                     "'/ikalibr_imu_intri_calib/config_path'.");
         }
         spdlog::info("loading configure from yaml file '{}'...", configPath);
 
@@ -61,10 +62,9 @@ int main(int argc, char **argv) {
 
         if (!std::filesystem::exists(configor.outputPath) &&
             !std::filesystem::create_directories(configor.outputPath)) {
-            throw ns_ikalibr::Status(
-                    ns_ikalibr::Status::CRITICAL,
-                    "the output path dose not exist! output path: '{}'", configor.outputPath
-            );
+            throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL,
+                                     "the output path dose not exist! output path: '{}'",
+                                     configor.outputPath);
         }
 
         auto solver = ns_ikalibr::IMUIntriCalibSolver::Create(configor);
@@ -74,7 +74,9 @@ int main(int argc, char **argv) {
         std::string filename = configor.IMUTopic + "-intri.yaml";
         for (int i = 1; i < static_cast<int>(filename.size()); ++i) {
             auto &c = filename.at(i);
-            if (c == '/') { c = '-'; }
+            if (c == '/') {
+                c = '-';
+            }
         }
 
         solver->GetIntrinsics().Save(configor.outputPath + '/' + filename);

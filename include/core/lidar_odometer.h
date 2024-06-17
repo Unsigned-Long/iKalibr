@@ -40,71 +40,74 @@
 #include "ctraj/core/pose.hpp"
 #include "pclomp/ndt_omp.hpp"
 
-_3_
-
-namespace ns_ikalibr {
-    struct LiDARFrame;
-    using LiDARFramePtr = std::shared_ptr<LiDARFrame>;
-
-    class LiDAROdometer {
-    public:
-        using Ptr = std::shared_ptr<LiDAROdometer>;
-
-    private:
-        float _ndtResolution;
-        int _threads;
-
-        // the key frame index in the '_frames'
-        std::vector<std::size_t> _keyFrameIdx;
-        std::vector<LiDARFramePtr> _frames;
-
-        // the global map
-        IKalibrPointCloud::Ptr _map;
-        double _mapTime;
-
-        // ndt
-        pclomp::NormalDistributionsTransform<IKalibrPoint, IKalibrPoint>::Ptr _ndt;
-
-        bool _initialized;
-
-        // pose sequence
-        std::vector<ns_ctraj::Posed> _poseSeq;
-
-    public:
-        LiDAROdometer(float ndtResolution, int threads);
-
-        static LiDAROdometer::Ptr Create(float ndtResolution, int threads);
-
-        ns_ctraj::Posed FeedFrame(
-                const LiDARFramePtr &frame, const Eigen::Matrix4d &predCurToLast = Eigen::Matrix4d::Identity(),
-                bool updateMap = true
-        );
-
-        [[nodiscard]] std::size_t KeyFrameSize() const;
-
-        [[nodiscard]] std::size_t FrameSize() const;
-
-        // getters
-        [[nodiscard]] const std::vector<size_t> &GetKeyFrameIdxVec() const;
-
-        [[nodiscard]] const std::vector<ns_ctraj::Posed> &GetOdomPoseVec() const;
-
-        [[nodiscard]] const IKalibrPointCloud::Ptr &GetMap() const;
-
-        [[nodiscard]] const std::vector<LiDARFramePtr> &GetFramesVec() const;
-
-        [[nodiscard]] const pclomp::NormalDistributionsTransform<IKalibrPoint, IKalibrPoint>::Ptr &GetNdt() const;
-
-        [[nodiscard]] double GetMapTime() const;
-
-    protected:
-        bool CheckKeyFrame(const ns_ctraj::Posed &LtoM);
-
-        void UpdateMap(const LiDARFramePtr &frame, const ns_ctraj::Posed &LtoM);
-
-        static void
-        DownSampleCloud(const IKalibrPointCloud::Ptr &inCloud, const IKalibrPointCloud::Ptr &outCloud, float leafSize);
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_LIDAR_ODOMETER_H
+namespace ns_ikalibr {
+struct LiDARFrame;
+using LiDARFramePtr = std::shared_ptr<LiDARFrame>;
+
+class LiDAROdometer {
+public:
+    using Ptr = std::shared_ptr<LiDAROdometer>;
+
+private:
+    float _ndtResolution;
+    int _threads;
+
+    // the key frame index in the '_frames'
+    std::vector<std::size_t> _keyFrameIdx;
+    std::vector<LiDARFramePtr> _frames;
+
+    // the global map
+    IKalibrPointCloud::Ptr _map;
+    double _mapTime;
+
+    // ndt
+    pclomp::NormalDistributionsTransform<IKalibrPoint, IKalibrPoint>::Ptr _ndt;
+
+    bool _initialized;
+
+    // pose sequence
+    std::vector<ns_ctraj::Posed> _poseSeq;
+
+public:
+    LiDAROdometer(float ndtResolution, int threads);
+
+    static LiDAROdometer::Ptr Create(float ndtResolution, int threads);
+
+    ns_ctraj::Posed FeedFrame(const LiDARFramePtr &frame,
+                              const Eigen::Matrix4d &predCurToLast = Eigen::Matrix4d::Identity(),
+                              bool updateMap = true);
+
+    [[nodiscard]] std::size_t KeyFrameSize() const;
+
+    [[nodiscard]] std::size_t FrameSize() const;
+
+    // getters
+    [[nodiscard]] const std::vector<size_t> &GetKeyFrameIdxVec() const;
+
+    [[nodiscard]] const std::vector<ns_ctraj::Posed> &GetOdomPoseVec() const;
+
+    [[nodiscard]] const IKalibrPointCloud::Ptr &GetMap() const;
+
+    [[nodiscard]] const std::vector<LiDARFramePtr> &GetFramesVec() const;
+
+    [[nodiscard]] const pclomp::NormalDistributionsTransform<IKalibrPoint, IKalibrPoint>::Ptr &
+    GetNdt() const;
+
+    [[nodiscard]] double GetMapTime() const;
+
+protected:
+    bool CheckKeyFrame(const ns_ctraj::Posed &LtoM);
+
+    void UpdateMap(const LiDARFramePtr &frame, const ns_ctraj::Posed &LtoM);
+
+    static void DownSampleCloud(const IKalibrPointCloud::Ptr &inCloud,
+                                const IKalibrPointCloud::Ptr &outCloud,
+                                float leafSize);
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_LIDAR_ODOMETER_H

@@ -44,63 +44,69 @@
 #include "sensor/imu.h"
 #include "util/utils.h"
 
-_3_
-
-namespace ns_ikalibr {
-    template<int Order, int TimeDeriv>
-    struct LinearScaleDerivFactor {
-    private:
-        ns_ctraj::SplineMeta<Order> _scaleMeta;
-
-        double _time;
-        Eigen::Vector3d _linScaleOfDeriv;
-        double _scaleDtInv;
-        double _weight;
-    public:
-        explicit LinearScaleDerivFactor(ns_ctraj::SplineMeta<Order> linAcceMeta, double time,
-                                        Eigen::Vector3d linScaleOfDeriv, double weight)
-                : _scaleMeta(std::move(linAcceMeta)), _time(time), _linScaleOfDeriv(std::move(linScaleOfDeriv)),
-                  _scaleDtInv(1.0 / _scaleMeta.segments.front().dt), _weight(weight) {}
-
-        static auto Create(const ns_ctraj::SplineMeta<Order> &splineMeta, double time,
-                           const Eigen::Vector3d &linScaleOfDeriv, double weight) {
-            return new ceres::DynamicAutoDiffCostFunction<LinearScaleDerivFactor>(
-                    new LinearScaleDerivFactor(splineMeta, time, linScaleOfDeriv, weight)
-            );
-        }
-
-        static std::size_t TypeHashCode() {
-            return typeid(LinearScaleDerivFactor).hash_code();
-        }
-
-    public:
-        /**
-         * param blocks:
-         * [ LIN_SCALE | ... | LIN_SCALE ]
-         */
-        template<class T>
-        bool operator()(T const *const *sKnots, T *sResiduals) const {
-            std::size_t LIN_SCALE_OFFSET;
-
-            // calculate the so3 and pos offset
-            std::pair<std::size_t, double> iuScale;
-            _scaleMeta.template ComputeSplineIndex(_time, iuScale.first, iuScale.second);
-            LIN_SCALE_OFFSET = iuScale.first;
-
-            Eigen::Vector3<T> linScaleOfDeriv;
-            ns_ctraj::CeresSplineHelper<Order>::template Evaluate<T, 3, TimeDeriv>(
-                    sKnots + LIN_SCALE_OFFSET, iuScale.second, _scaleDtInv, &linScaleOfDeriv
-            );
-
-            Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
-            residuals = T(_weight) * (linScaleOfDeriv - _linScaleOfDeriv);
-
-            return true;
-        }
-
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_LIN_SCALE_FACTOR_HPP
+namespace ns_ikalibr {
+template <int Order, int TimeDeriv>
+struct LinearScaleDerivFactor {
+private:
+    ns_ctraj::SplineMeta<Order> _scaleMeta;
+
+    double _time;
+    Eigen::Vector3d _linScaleOfDeriv;
+    double _scaleDtInv;
+    double _weight;
+
+public:
+    explicit LinearScaleDerivFactor(ns_ctraj::SplineMeta<Order> linAcceMeta,
+                                    double time,
+                                    Eigen::Vector3d linScaleOfDeriv,
+                                    double weight)
+        : _scaleMeta(std::move(linAcceMeta)),
+          _time(time),
+          _linScaleOfDeriv(std::move(linScaleOfDeriv)),
+          _scaleDtInv(1.0 / _scaleMeta.segments.front().dt),
+          _weight(weight) {}
+
+    static auto Create(const ns_ctraj::SplineMeta<Order> &splineMeta,
+                       double time,
+                       const Eigen::Vector3d &linScaleOfDeriv,
+                       double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<LinearScaleDerivFactor>(
+            new LinearScaleDerivFactor(splineMeta, time, linScaleOfDeriv, weight));
+    }
+
+    static std::size_t TypeHashCode() { return typeid(LinearScaleDerivFactor).hash_code(); }
+
+public:
+    /**
+     * param blocks:
+     * [ LIN_SCALE | ... | LIN_SCALE ]
+     */
+    template <class T>
+    bool operator()(T const *const *sKnots, T *sResiduals) const {
+        std::size_t LIN_SCALE_OFFSET;
+
+        // calculate the so3 and pos offset
+        std::pair<std::size_t, double> iuScale;
+        _scaleMeta.template ComputeSplineIndex(_time, iuScale.first, iuScale.second);
+        LIN_SCALE_OFFSET = iuScale.first;
+
+        Eigen::Vector3<T> linScaleOfDeriv;
+        ns_ctraj::CeresSplineHelper<Order>::template Evaluate<T, 3, TimeDeriv>(
+            sKnots + LIN_SCALE_OFFSET, iuScale.second, _scaleDtInv, &linScaleOfDeriv);
+
+        Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
+        residuals = T(_weight) * (linScaleOfDeriv - _linScaleOfDeriv);
+
+        return true;
+    }
+
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_LIN_SCALE_FACTOR_HPP

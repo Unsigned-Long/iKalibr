@@ -44,121 +44,126 @@
 #include "sensor/imu.h"
 #include "util/utils.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
-    template<int Order, int TimeDeriv>
-    struct IMUAcceFactor {
-    private:
-        ns_ctraj::SplineMeta<Order> _so3Meta, _scaleMeta;
-        IMUFrame::Ptr _imuFrame{};
+template <int Order, int TimeDeriv>
+struct IMUAcceFactor {
+private:
+    ns_ctraj::SplineMeta<Order> _so3Meta, _scaleMeta;
+    IMUFrame::Ptr _imuFrame{};
 
-        double _so3DtInv, _scaleDtInv;
-        double _weight;
-    public:
-        explicit IMUAcceFactor(ns_ctraj::SplineMeta<Order> rotMeta, ns_ctraj::SplineMeta<Order> linScaleMeta,
-                               IMUFrame::Ptr imuFrame, double weight)
-                : _so3Meta(rotMeta), _scaleMeta(std::move(linScaleMeta)), _imuFrame(std::move(imuFrame)),
-                  _so3DtInv(1.0 / rotMeta.segments.front().dt),
-                  _scaleDtInv(1.0 / _scaleMeta.segments.front().dt), _weight(weight) {}
+    double _so3DtInv, _scaleDtInv;
+    double _weight;
 
-        static auto
-        Create(const ns_ctraj::SplineMeta<Order> &rotMeta, const ns_ctraj::SplineMeta<Order> &linScaleMeta,
-               const IMUFrame::Ptr &imuFrame, double weight) {
-            return new ceres::DynamicAutoDiffCostFunction<IMUAcceFactor>(
-                    new IMUAcceFactor(rotMeta, linScaleMeta, imuFrame, weight)
-            );
-        }
+public:
+    explicit IMUAcceFactor(ns_ctraj::SplineMeta<Order> rotMeta,
+                           ns_ctraj::SplineMeta<Order> linScaleMeta,
+                           IMUFrame::Ptr imuFrame,
+                           double weight)
+        : _so3Meta(rotMeta),
+          _scaleMeta(std::move(linScaleMeta)),
+          _imuFrame(std::move(imuFrame)),
+          _so3DtInv(1.0 / rotMeta.segments.front().dt),
+          _scaleDtInv(1.0 / _scaleMeta.segments.front().dt),
+          _weight(weight) {}
 
-        static std::size_t TypeHashCode() {
-            return typeid(IMUAcceFactor).hash_code();
-        }
+    static auto Create(const ns_ctraj::SplineMeta<Order> &rotMeta,
+                       const ns_ctraj::SplineMeta<Order> &linScaleMeta,
+                       const IMUFrame::Ptr &imuFrame,
+                       double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<IMUAcceFactor>(
+            new IMUAcceFactor(rotMeta, linScaleMeta, imuFrame, weight));
+    }
 
-    public:
-        /**
-         * param blocks:
-         * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | ACCE_BIAS | ACCE_MAP_COEFF | GRAVITY |
-         *   SO3_BiToBr | POS_BiInBr | TO_BiToBr ]
-         */
-        template<class T>
-        bool operator()(T const *const *sKnots, T *sResiduals) const {
-            std::size_t SO3_OFFSET;
-            std::size_t LIN_SCALE_OFFSET;
+    static std::size_t TypeHashCode() { return typeid(IMUAcceFactor).hash_code(); }
 
-            std::size_t ACCE_BIAS_OFFSET = _so3Meta.NumParameters() + _scaleMeta.NumParameters();
-            std::size_t ACCE_MAP_COEFF_OFFSET = ACCE_BIAS_OFFSET + 1;
-            std::size_t GRAVITY_OFFSET = ACCE_MAP_COEFF_OFFSET + 1;
-            std::size_t SO3_BiToBr_OFFSET = GRAVITY_OFFSET + 1;
-            std::size_t POS_BiInBr_OFFSET = SO3_BiToBr_OFFSET + 1;
-            std::size_t TO_BiToBr_OFFSET = POS_BiInBr_OFFSET + 1;
+public:
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | ACCE_BIAS | ACCE_MAP_COEFF | GRAVITY |
+     *   SO3_BiToBr | POS_BiInBr | TO_BiToBr ]
+     */
+    template <class T>
+    bool operator()(T const *const *sKnots, T *sResiduals) const {
+        std::size_t SO3_OFFSET;
+        std::size_t LIN_SCALE_OFFSET;
 
-            // get value
-            Eigen::Map<const Sophus::SO3<T>> SO3_BiToBr(sKnots[SO3_BiToBr_OFFSET]);
-            Eigen::Map<const Eigen::Vector3<T>> POS_BiInBr(sKnots[POS_BiInBr_OFFSET]);
-            T TO_BiToBr = sKnots[TO_BiToBr_OFFSET][0];
+        std::size_t ACCE_BIAS_OFFSET = _so3Meta.NumParameters() + _scaleMeta.NumParameters();
+        std::size_t ACCE_MAP_COEFF_OFFSET = ACCE_BIAS_OFFSET + 1;
+        std::size_t GRAVITY_OFFSET = ACCE_MAP_COEFF_OFFSET + 1;
+        std::size_t SO3_BiToBr_OFFSET = GRAVITY_OFFSET + 1;
+        std::size_t POS_BiInBr_OFFSET = SO3_BiToBr_OFFSET + 1;
+        std::size_t TO_BiToBr_OFFSET = POS_BiInBr_OFFSET + 1;
 
-            auto timeByBr = _imuFrame->GetTimestamp() + TO_BiToBr;
+        // get value
+        Eigen::Map<const Sophus::SO3<T>> SO3_BiToBr(sKnots[SO3_BiToBr_OFFSET]);
+        Eigen::Map<const Eigen::Vector3<T>> POS_BiInBr(sKnots[POS_BiInBr_OFFSET]);
+        T TO_BiToBr = sKnots[TO_BiToBr_OFFSET][0];
 
-            // calculate the so3 and lin scale offset
-            std::pair<std::size_t, T> iuSo3, iuScale;
-            _so3Meta.template ComputeSplineIndex(timeByBr, iuSo3.first, iuSo3.second);
-            _scaleMeta.template ComputeSplineIndex(timeByBr, iuScale.first, iuScale.second);
+        auto timeByBr = _imuFrame->GetTimestamp() + TO_BiToBr;
 
-            SO3_OFFSET = iuSo3.first;
-            LIN_SCALE_OFFSET = iuScale.first + _so3Meta.NumParameters();
+        // calculate the so3 and lin scale offset
+        std::pair<std::size_t, T> iuSo3, iuScale;
+        _so3Meta.template ComputeSplineIndex(timeByBr, iuSo3.first, iuSo3.second);
+        _scaleMeta.template ComputeSplineIndex(timeByBr, iuScale.first, iuScale.second);
 
-            Sophus::SO3<T> SO3_BrToBr0;
-            Sophus::SO3Tangent<T> SO3_VEL_BrToBr0InBr, SO3_ACCE_BrToBr0InBr;
-            ns_ctraj::CeresSplineHelperJet<T, Order>::template EvaluateLie(
-                    sKnots + SO3_OFFSET, iuSo3.second, _so3DtInv,
-                    &SO3_BrToBr0, &SO3_VEL_BrToBr0InBr, &SO3_ACCE_BrToBr0InBr
-            );
-            Sophus::SO3Tangent<T> SO3_VEL_BrToBr0InBr0 = SO3_BrToBr0 * SO3_VEL_BrToBr0InBr;
-            Sophus::SO3Tangent<T> SO3_ACCE_BrToBr0InBr0 = SO3_BrToBr0 * SO3_ACCE_BrToBr0InBr;
+        SO3_OFFSET = iuSo3.first;
+        LIN_SCALE_OFFSET = iuScale.first + _so3Meta.NumParameters();
 
-            Eigen::Vector3<T> ACCE_BrToBr0InBr0;
-            ns_ctraj::CeresSplineHelperJet<T, Order>::template Evaluate<3, TimeDeriv>(
-                    sKnots + LIN_SCALE_OFFSET, iuScale.second, _scaleDtInv, &ACCE_BrToBr0InBr0
-            );
+        Sophus::SO3<T> SO3_BrToBr0;
+        Sophus::SO3Tangent<T> SO3_VEL_BrToBr0InBr, SO3_ACCE_BrToBr0InBr;
+        ns_ctraj::CeresSplineHelperJet<T, Order>::template EvaluateLie(
+            sKnots + SO3_OFFSET, iuSo3.second, _so3DtInv, &SO3_BrToBr0, &SO3_VEL_BrToBr0InBr,
+            &SO3_ACCE_BrToBr0InBr);
+        Sophus::SO3Tangent<T> SO3_VEL_BrToBr0InBr0 = SO3_BrToBr0 * SO3_VEL_BrToBr0InBr;
+        Sophus::SO3Tangent<T> SO3_ACCE_BrToBr0InBr0 = SO3_BrToBr0 * SO3_ACCE_BrToBr0InBr;
 
-            Eigen::Map<const Eigen::Vector3<T>> acceBias(sKnots[ACCE_BIAS_OFFSET]);
-            Eigen::Map<const Eigen::Vector3<T>> gravity(sKnots[GRAVITY_OFFSET]);
+        Eigen::Vector3<T> ACCE_BrToBr0InBr0;
+        ns_ctraj::CeresSplineHelperJet<T, Order>::template Evaluate<3, TimeDeriv>(
+            sKnots + LIN_SCALE_OFFSET, iuScale.second, _scaleDtInv, &ACCE_BrToBr0InBr0);
 
-            auto acceCoeff = sKnots[ACCE_MAP_COEFF_OFFSET];
+        Eigen::Map<const Eigen::Vector3<T>> acceBias(sKnots[ACCE_BIAS_OFFSET]);
+        Eigen::Map<const Eigen::Vector3<T>> gravity(sKnots[GRAVITY_OFFSET]);
 
-            Eigen::Matrix33<T> acceMapMat = Eigen::Matrix33<T>::Zero();
+        auto acceCoeff = sKnots[ACCE_MAP_COEFF_OFFSET];
 
-            acceMapMat.diagonal() = Eigen::Map<const Eigen::Vector3<T>>(acceCoeff, 3);
-            acceMapMat(0, 1) = *(acceCoeff + 3);
-            acceMapMat(0, 2) = *(acceCoeff + 4);
-            acceMapMat(1, 2) = *(acceCoeff + 5);
+        Eigen::Matrix33<T> acceMapMat = Eigen::Matrix33<T>::Zero();
 
-            Sophus::SO3<T> SO3_BiToBr0 = SO3_BrToBr0 * SO3_BiToBr;
+        acceMapMat.diagonal() = Eigen::Map<const Eigen::Vector3<T>>(acceCoeff, 3);
+        acceMapMat(0, 1) = *(acceCoeff + 3);
+        acceMapMat(0, 2) = *(acceCoeff + 4);
+        acceMapMat(1, 2) = *(acceCoeff + 5);
 
-            Eigen::Matrix33<T> SO3_VEL_MAT = Sophus::SO3<T>::hat(SO3_VEL_BrToBr0InBr0);
-            Eigen::Matrix33<T> SO3_ACCE_MAT = Sophus::SO3<T>::hat(SO3_ACCE_BrToBr0InBr0);
-            Eigen::Vector3<T> POS_ACCE_BiToBr0InBr0 =
-                    ACCE_BrToBr0InBr0 +
-                    (SO3_ACCE_MAT + SO3_VEL_MAT * SO3_VEL_MAT) * (SO3_BrToBr0.matrix() * POS_BiInBr);
+        Sophus::SO3<T> SO3_BiToBr0 = SO3_BrToBr0 * SO3_BiToBr;
 
-            // Eigen::Vector3<T> POS_ACCE_BiToBr0InBr0 =
-            //         -Sophus::SO3<T>::hat(SO3_BrToBr0 * POS_BiInBr) * SO3_ACCE_BrToBr0InBr0 +
-            //         ACCE_BrToBr0InBr0 - Sophus::SO3<T>::hat(SO3_VEL_BrToBr0InBr0) *
-            //                             Sophus::SO3<T>::hat(SO3_BrToBr0 * POS_BiInBr) *
-            //                             SO3_VEL_BrToBr0InBr0;
+        Eigen::Matrix33<T> SO3_VEL_MAT = Sophus::SO3<T>::hat(SO3_VEL_BrToBr0InBr0);
+        Eigen::Matrix33<T> SO3_ACCE_MAT = Sophus::SO3<T>::hat(SO3_ACCE_BrToBr0InBr0);
+        Eigen::Vector3<T> POS_ACCE_BiToBr0InBr0 =
+            ACCE_BrToBr0InBr0 +
+            (SO3_ACCE_MAT + SO3_VEL_MAT * SO3_VEL_MAT) * (SO3_BrToBr0.matrix() * POS_BiInBr);
 
-            Eigen::Vector3<T> accePred =
-                    (acceMapMat * (SO3_BiToBr0.inverse() * (POS_ACCE_BiToBr0InBr0 - gravity))).eval() + acceBias;
+        // Eigen::Vector3<T> POS_ACCE_BiToBr0InBr0 =
+        //         -Sophus::SO3<T>::hat(SO3_BrToBr0 * POS_BiInBr) * SO3_ACCE_BrToBr0InBr0 +
+        //         ACCE_BrToBr0InBr0 - Sophus::SO3<T>::hat(SO3_VEL_BrToBr0InBr0) *
+        //                             Sophus::SO3<T>::hat(SO3_BrToBr0 * POS_BiInBr) *
+        //                             SO3_VEL_BrToBr0InBr0;
 
-            Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
-            residuals = accePred - _imuFrame->GetAcce().template cast<T>();
-            residuals = T(_weight) * residuals;
+        Eigen::Vector3<T> accePred =
+            (acceMapMat * (SO3_BiToBr0.inverse() * (POS_ACCE_BiToBr0InBr0 - gravity))).eval() +
+            acceBias;
 
-            return true;
-        }
+        Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
+        residuals = accePred - _imuFrame->GetAcce().template cast<T>();
+        residuals = T(_weight) * residuals;
 
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    };
-}
-#endif //IKALIBR_IMU_ACCE_FACTOR_HPP
+        return true;
+    }
+
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+}  // namespace ns_ikalibr
+#endif  // IKALIBR_IMU_ACCE_FACTOR_HPP

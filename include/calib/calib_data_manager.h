@@ -43,155 +43,158 @@
 #include "sensor/camera.h"
 #include "veta/veta.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    class CalibDataManager {
-    public:
-        using Ptr = std::shared_ptr<CalibDataManager>;
+class CalibDataManager {
+public:
+    using Ptr = std::shared_ptr<CalibDataManager>;
 
-    private:
-        std::map<std::string, std::vector<IMUFrame::Ptr>> _imuMes;
-        std::map<std::string, std::vector<RadarTargetArray::Ptr>> _radarMes;
-        std::map<std::string, std::vector<LiDARFrame::Ptr>> _lidarMes;
-        std::map<std::string, std::vector<CameraFrame::Ptr>> _camMes;
+private:
+    std::map<std::string, std::vector<IMUFrame::Ptr>> _imuMes;
+    std::map<std::string, std::vector<RadarTargetArray::Ptr>> _radarMes;
+    std::map<std::string, std::vector<LiDARFrame::Ptr>> _lidarMes;
+    std::map<std::string, std::vector<CameraFrame::Ptr>> _camMes;
 
-        std::map<std::string, ns_veta::Veta::Ptr> _sfmData;
+    std::map<std::string, ns_veta::Veta::Ptr> _sfmData;
 
-        double _rawStartTimestamp{};
-        double _rawEndTimestamp{};
+    double _rawStartTimestamp{};
+    double _rawEndTimestamp{};
 
-        double _alignedStartTimestamp{};
-        double _alignedEndTimestamp{};
+    double _alignedStartTimestamp{};
+    double _alignedEndTimestamp{};
 
-    public:
-        // using config information to load and adjust data in this constructor
-        CalibDataManager();
+public:
+    // using config information to load and adjust data in this constructor
+    CalibDataManager();
 
-        // the creator
-        static CalibDataManager::Ptr Create();
+    // the creator
+    static CalibDataManager::Ptr Create();
 
-        // get raw imu measurements
-        [[nodiscard]] const std::map<std::string, std::vector<IMUFrame::Ptr>> &
-        GetIMUMeasurements() const;
+    // get raw imu measurements
+    [[nodiscard]] const std::map<std::string, std::vector<IMUFrame::Ptr>> &GetIMUMeasurements()
+        const;
 
-        [[nodiscard]] const std::vector<IMUFrame::Ptr> &
-        GetIMUMeasurements(const std::string &imuTopic) const;
+    [[nodiscard]] const std::vector<IMUFrame::Ptr> &GetIMUMeasurements(
+        const std::string &imuTopic) const;
 
-        // get raw radar measurements
-        [[nodiscard]] const std::map<std::string, std::vector<RadarTargetArray::Ptr>> &
-        GetRadarMeasurements() const;
+    // get raw radar measurements
+    [[nodiscard]] const std::map<std::string, std::vector<RadarTargetArray::Ptr>> &
+    GetRadarMeasurements() const;
 
-        [[nodiscard]] const std::vector<RadarTargetArray::Ptr> &
-        GetRadarMeasurements(const std::string &radarTopic) const;
+    [[nodiscard]] const std::vector<RadarTargetArray::Ptr> &GetRadarMeasurements(
+        const std::string &radarTopic) const;
 
-        // get raw lidar measurements
-        [[nodiscard]] const std::map<std::string, std::vector<LiDARFrame::Ptr>> &
-        GetLiDARMeasurements() const;
+    // get raw lidar measurements
+    [[nodiscard]] const std::map<std::string, std::vector<LiDARFrame::Ptr>> &GetLiDARMeasurements()
+        const;
 
-        [[nodiscard]] const std::vector<LiDARFrame::Ptr> &
-        GetLiDARMeasurements(const std::string &lidarTopic) const;
+    [[nodiscard]] const std::vector<LiDARFrame::Ptr> &GetLiDARMeasurements(
+        const std::string &lidarTopic) const;
 
-        // get raw camera measurements
-        [[nodiscard]] const std::map<std::string, std::vector<CameraFrame::Ptr>> &
-        GetCameraMeasurements() const;
+    // get raw camera measurements
+    [[nodiscard]] const std::map<std::string, std::vector<CameraFrame::Ptr>> &
+    GetCameraMeasurements() const;
 
-        [[nodiscard]] const std::vector<CameraFrame::Ptr> &
-        GetCameraMeasurements(const std::string &camTopic) const;
+    [[nodiscard]] const std::vector<CameraFrame::Ptr> &GetCameraMeasurements(
+        const std::string &camTopic) const;
 
-        // get raw SfM data
-        [[nodiscard]] const std::map<std::string, ns_veta::Veta::Ptr> &GetSfMData() const;
+    // get raw SfM data
+    [[nodiscard]] const std::map<std::string, ns_veta::Veta::Ptr> &GetSfMData() const;
 
-        [[nodiscard]] const ns_veta::Veta::Ptr &GetSfMData(const std::string &camTopic) const;
+    [[nodiscard]] const ns_veta::Veta::Ptr &GetSfMData(const std::string &camTopic) const;
 
-        void SetSfMData(const std::string &camTopic, const ns_veta::Veta::Ptr &veta);
+    void SetSfMData(const std::string &camTopic, const ns_veta::Veta::Ptr &veta);
 
-        [[nodiscard]] double GetRawStartTimestamp() const;
+    [[nodiscard]] double GetRawStartTimestamp() const;
 
-        [[nodiscard]] double GetRawEndTimestamp() const;
+    [[nodiscard]] double GetRawEndTimestamp() const;
 
-        [[nodiscard]] double GetAlignedStartTimestamp() const;
+    [[nodiscard]] double GetAlignedStartTimestamp() const;
 
-        [[nodiscard]] double GetAlignedEndTimestamp() const;
+    [[nodiscard]] double GetAlignedEndTimestamp() const;
 
-        [[nodiscard]] double GetAlignedTimeRange() const;
+    [[nodiscard]] double GetAlignedTimeRange() const;
 
-        [[nodiscard]] double GetCalibStartTimestamp() const;
+    [[nodiscard]] double GetCalibStartTimestamp() const;
 
-        [[nodiscard]] double GetCalibEndTimestamp() const;
+    [[nodiscard]] double GetCalibEndTimestamp() const;
 
-        [[nodiscard]] double GetCalibTimeRange() const;
+    [[nodiscard]] double GetCalibTimeRange() const;
 
-        [[nodiscard]] double GetLiDARAvgFrequency() const;
+    [[nodiscard]] double GetLiDARAvgFrequency() const;
 
-        [[nodiscard]] double GetCameraAvgFrequency() const;
+    [[nodiscard]] double GetCameraAvgFrequency() const;
 
-        static auto ExtractIMUDataPiece(const std::vector<IMUFrame::Ptr> &data, double st, double et) {
-            auto sIter = std::find_if(data.begin(), data.end(), [st](const IMUFrame::Ptr &frame) {
-                return frame->GetTimestamp() > st;
-            });
-            auto eIter = std::find_if(data.rbegin(), data.rend(), [et](const IMUFrame::Ptr &frame) {
-                return frame->GetTimestamp() < et;
-            }).base();
-            return std::pair(sIter, eIter);
+    static auto ExtractIMUDataPiece(const std::vector<IMUFrame::Ptr> &data, double st, double et) {
+        auto sIter = std::find_if(data.begin(), data.end(), [st](const IMUFrame::Ptr &frame) {
+            return frame->GetTimestamp() > st;
+        });
+        auto eIter = std::find_if(data.rbegin(), data.rend(), [et](const IMUFrame::Ptr &frame) {
+                         return frame->GetTimestamp() < et;
+                     }).base();
+        return std::pair(sIter, eIter);
+    }
+
+    auto ExtractIMUDataPiece(const std::string &topic, double st, double et) {
+        return ExtractIMUDataPiece(_imuMes.at(topic), st, et);
+    }
+
+    // load camera, lidar, imu data from the ros bag [according to the config file]
+    void LoadCalibData();
+
+protected:
+    // make sure the first imu frame is before camera and lidar data
+    // assign the '_alignedStartTimestamp' and '_alignedEndTimestamp'
+    void AdjustCalibDataSequence();
+
+    // align the timestamp to zero
+    void AlignTimestamp();
+
+    // remove the head data according to the pred
+    template <typename ElemType, typename Pred>
+    void EraseSeqHeadData(std::vector<ElemType> &seq, Pred pred, const std::string &errorMsg) {
+        auto iter = std::find_if(seq.begin(), seq.end(), pred);
+        if (iter == seq.end()) {
+            // find failed
+            throw Status(Status::ERROR, errorMsg);
+        } else {
+            // adjust
+            seq.erase(seq.begin(), iter);
         }
+    }
 
-        auto ExtractIMUDataPiece(const std::string &topic, double st, double et) {
-            return ExtractIMUDataPiece(_imuMes.at(topic), st, et);
+    // remove the tail data according to the pred
+    template <typename ElemType, typename Pred>
+    void EraseSeqTailData(std::vector<ElemType> &seq, Pred pred, const std::string &errorMsg) {
+        auto iter = std::find_if(seq.rbegin(), seq.rend(), pred);
+        if (iter == seq.rend()) {
+            // find failed
+            throw Status(Status::ERROR, errorMsg);
+        } else {
+            // adjust
+            seq.erase(iter.base(), seq.end());
         }
+    }
 
-        // load camera, lidar, imu data from the ros bag [according to the config file]
-        void LoadCalibData();
+    // output the data status
+    void OutputDataStatus() const;
 
-    protected:
-
-        // make sure the first imu frame is before camera and lidar data
-        // assign the '_alignedStartTimestamp' and '_alignedEndTimestamp'
-        void AdjustCalibDataSequence();
-
-        // align the timestamp to zero
-        void AlignTimestamp();
-
-        // remove the head data according to the pred
-        template<typename ElemType, typename Pred>
-        void EraseSeqHeadData(std::vector<ElemType> &seq, Pred pred, const std::string &errorMsg) {
-            auto iter = std::find_if(seq.begin(), seq.end(), pred);
-            if (iter == seq.end()) {
-                // find failed
-                throw Status(Status::ERROR, errorMsg);
-            } else {
-                // adjust
-                seq.erase(seq.begin(), iter);
-            }
+    template <typename MesSeqType>
+    static void CheckTopicExists(const std::string &topic,
+                                 const std::map<std::string, MesSeqType> &mesSeq) {
+        if (mesSeq.count(topic) == 0) {
+            throw Status(Status::CRITICAL,
+                         "there is no data in topic '{}'! "
+                         "check your configure file and rosbag!",
+                         topic);
         }
+    }
+};
 
-        // remove the tail data according to the pred
-        template<typename ElemType, typename Pred>
-        void EraseSeqTailData(std::vector<ElemType> &seq, Pred pred, const std::string &errorMsg) {
-            auto iter = std::find_if(seq.rbegin(), seq.rend(), pred);
-            if (iter == seq.rend()) {
-                // find failed
-                throw Status(Status::ERROR, errorMsg);
-            } else {
-                // adjust
-                seq.erase(iter.base(), seq.end());
-            }
-        }
+}  // namespace ns_ikalibr
 
-        // output the data status
-        void OutputDataStatus() const;
-
-        template<typename MesSeqType>
-        static void CheckTopicExists(const std::string &topic, const std::map<std::string, MesSeqType> &mesSeq) {
-            if (mesSeq.count(topic) == 0) {
-                throw Status(Status::CRITICAL, "there is no data in topic '{}'! "
-                                               "check your configure file and rosbag!", topic);
-            }
-        }
-    };
-
-}
-
-
-#endif //IKALIBR_CALIB_DATA_MANAGER_H
+#endif  // IKALIBR_CALIB_DATA_MANAGER_H

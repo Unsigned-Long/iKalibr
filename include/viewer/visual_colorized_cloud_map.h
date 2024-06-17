@@ -42,49 +42,56 @@
 #include "opencv2/core.hpp"
 #include "util/cloud_define.hpp"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
-    struct CalibParamManager;
-    using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
-    struct CameraFrame;
-    using CameraFramePtr = std::shared_ptr<CameraFrame>;
+struct CalibParamManager;
+using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
+struct CameraFrame;
+using CameraFramePtr = std::shared_ptr<CameraFrame>;
 
-    class ColorizedCloudMap {
-    public:
-        using Ptr = std::shared_ptr<ColorizedCloudMap>;
-        using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
+class ColorizedCloudMap {
+public:
+    using Ptr = std::shared_ptr<ColorizedCloudMap>;
+    using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
 
-    private:
-        std::string _topic;
-        const std::vector<CameraFramePtr> &_frames;
-        ns_veta::Veta::Ptr _veta;
-        SplineBundleType::Ptr _splines;
-        CalibParamManagerPtr _parMagr;
+private:
+    std::string _topic;
+    const std::vector<CameraFramePtr> &_frames;
+    ns_veta::Veta::Ptr _veta;
+    SplineBundleType::Ptr _splines;
+    CalibParamManagerPtr _parMagr;
 
-        ns_veta::PinholeIntrinsic::Ptr _intri;
+    ns_veta::PinholeIntrinsic::Ptr _intri;
 
-        Sophus::SE3d SE3_CmToBr;
-        double TO_CmToBr;
+    Sophus::SE3d SE3_CmToBr;
+    double TO_CmToBr;
 
-        std::map<ns_veta::IndexT, std::pair<std::optional<Sophus::SE3d>, cv::Mat>> _viewIdToFrame;
+    std::map<ns_veta::IndexT, std::pair<std::optional<Sophus::SE3d>, cv::Mat>> _viewIdToFrame;
 
-    public:
-        ColorizedCloudMap(std::string topic, const std::vector<CameraFramePtr> &frames,
-                          ns_veta::Veta::Ptr veta, SplineBundleType::Ptr splines,
-                          CalibParamManagerPtr parMagr);
+public:
+    ColorizedCloudMap(std::string topic,
+                      const std::vector<CameraFramePtr> &frames,
+                      ns_veta::Veta::Ptr veta,
+                      SplineBundleType::Ptr splines,
+                      CalibParamManagerPtr parMagr);
 
-        static Ptr Create(const std::string &topic, const std::vector<CameraFramePtr> &frames,
-                          const ns_veta::Veta::Ptr &veta, const SplineBundleType::Ptr &splines,
-                          const CalibParamManagerPtr &parMagr);
+    static Ptr Create(const std::string &topic,
+                      const std::vector<CameraFramePtr> &frames,
+                      const ns_veta::Veta::Ptr &veta,
+                      const SplineBundleType::Ptr &splines,
+                      const CalibParamManagerPtr &parMagr);
 
-        ColorPointCloud::Ptr Colorize(const IKalibrPointCloud::Ptr &cloudMap, int K = 5);
+    ColorPointCloud::Ptr Colorize(const IKalibrPointCloud::Ptr &cloudMap, int K = 5);
 
-    protected:
-        std::optional<Sophus::SE3d> CurCmToW(double timeByCm);
+protected:
+    std::optional<Sophus::SE3d> CurCmToW(double timeByCm);
 
-        static cv::Mat
-        DrawPoint(const cv::Mat &img, const Eigen::Vector2i &p, const cv::Scalar &color = cv::Scalar(0, 255, 0));
-    };
-}
-#endif //IKALIBR_VISUAL_COLORIZED_CLOUD_MAP_H
+    static cv::Mat DrawPoint(const cv::Mat &img,
+                             const Eigen::Vector2i &p,
+                             const cv::Scalar &color = cv::Scalar(0, 255, 0));
+};
+}  // namespace ns_ikalibr
+#endif  // IKALIBR_VISUAL_COLORIZED_CLOUD_MAP_H

@@ -34,40 +34,43 @@
 
 #include "core/radar_velocity_sac.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    int RadarVelocitySacProblem::getSampleSize() const {
-        return 3;
-    }
+int RadarVelocitySacProblem::getSampleSize() const { return 3; }
 
-    bool RadarVelocitySacProblem::computeModelCoefficients(const std::vector<int> &indices,
-                                                           RadarVelocitySacProblem::model_t &outModel) const {
-        std::vector<RadarTarget::Ptr> selectedTargets(indices.size());
-        const auto &allTargets = _data->GetTargets();
-        for (int i = 0; i < static_cast<int>(indices.size()); ++i) {
-            selectedTargets.at(i) = allTargets.at(indices.at(i));
-        }
-        outModel = RadarTargetArray(_data->GetTimestamp(), selectedTargets).RadarVelocityFromStaticTargetArray();
-        return true;
+bool RadarVelocitySacProblem::computeModelCoefficients(
+    const std::vector<int> &indices, RadarVelocitySacProblem::model_t &outModel) const {
+    std::vector<RadarTarget::Ptr> selectedTargets(indices.size());
+    const auto &allTargets = _data->GetTargets();
+    for (int i = 0; i < static_cast<int>(indices.size()); ++i) {
+        selectedTargets.at(i) = allTargets.at(indices.at(i));
     }
+    outModel = RadarTargetArray(_data->GetTimestamp(), selectedTargets)
+                   .RadarVelocityFromStaticTargetArray();
+    return true;
+}
 
-    void RadarVelocitySacProblem::getSelectedDistancesToModel(const RadarVelocitySacProblem::model_t &model,
-                                                              const std::vector<int> &indices,
-                                                              std::vector<double> &scores) const {
-        scores.resize(indices.size());
-        const auto &allTargets = _data->GetTargets();
-        for (int i = 0; i < static_cast<int>(indices.size()); ++i) {
-            const auto &curTar = allTargets.at(indices.at(i));
-            const Eigen::Vector3d &tPos = curTar->GetTargetXYZ();
-            scores.at(i) = curTar->GetRadialVelocity() + tPos.dot(model) / tPos.norm();
-        }
-    }
-
-    void RadarVelocitySacProblem::optimizeModelCoefficients(const std::vector<int> &inliers,
-                                                            const RadarVelocitySacProblem::model_t &model,
-                                                            RadarVelocitySacProblem::model_t &optimized_model) {
-        computeModelCoefficients(inliers, optimized_model);
+void RadarVelocitySacProblem::getSelectedDistancesToModel(
+    const RadarVelocitySacProblem::model_t &model,
+    const std::vector<int> &indices,
+    std::vector<double> &scores) const {
+    scores.resize(indices.size());
+    const auto &allTargets = _data->GetTargets();
+    for (int i = 0; i < static_cast<int>(indices.size()); ++i) {
+        const auto &curTar = allTargets.at(indices.at(i));
+        const Eigen::Vector3d &tPos = curTar->GetTargetXYZ();
+        scores.at(i) = curTar->GetRadialVelocity() + tPos.dot(model) / tPos.norm();
     }
 }
+
+void RadarVelocitySacProblem::optimizeModelCoefficients(
+    const std::vector<int> &inliers,
+    const RadarVelocitySacProblem::model_t &model,
+    RadarVelocitySacProblem::model_t &optimized_model) {
+    computeModelCoefficients(inliers, optimized_model);
+}
+}  // namespace ns_ikalibr

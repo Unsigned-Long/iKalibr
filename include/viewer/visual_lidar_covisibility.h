@@ -39,26 +39,28 @@
 #include "opencv2/core.hpp"
 #include "util/cloud_define.hpp"
 
-_3_
-
-namespace ns_ikalibr {
-    class VisualLiDARCovisibility {
-    public:
-        using Ptr = std::shared_ptr<VisualLiDARCovisibility>;
-
-    private:
-        IKalibrPointCloud::Ptr _cloudMap;
-
-    public:
-        explicit VisualLiDARCovisibility(IKalibrPointCloud::Ptr cloudMap);
-
-        static Ptr Create(const IKalibrPointCloud::Ptr &cloudMap);
-
-        std::pair<cv::Mat, cv::Mat> CreateCovisibility(const Sophus::SE3d &SE3_CurCmToW,
-                                                       const ns_veta::PinholeIntrinsic::Ptr &intri,
-                                                       float zMin = 0.1f, float zMax = 80.0f);
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
+namespace ns_ikalibr {
+class VisualLiDARCovisibility {
+public:
+    using Ptr = std::shared_ptr<VisualLiDARCovisibility>;
 
-#endif //IKALIBR_VISUAL_LIDAR_COVISIBILITY_H
+private:
+    IKalibrPointCloud::Ptr _cloudMap;
+
+public:
+    explicit VisualLiDARCovisibility(IKalibrPointCloud::Ptr cloudMap);
+
+    static Ptr Create(const IKalibrPointCloud::Ptr &cloudMap);
+
+    std::pair<cv::Mat, cv::Mat> CreateCovisibility(const Sophus::SE3d &SE3_CurCmToW,
+                                                   const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                                   float zMin = 0.1f,
+                                                   float zMax = 80.0f);
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_VISUAL_LIDAR_COVISIBILITY_H

@@ -39,38 +39,39 @@
 #include "ctraj/core/spline_bundle.h"
 #include "ctraj/core/pose.hpp"
 
-_3_
-
-namespace ns_ikalibr {
-    class RotationEstimator {
-    public:
-        using Ptr = std::shared_ptr<RotationEstimator>;
-        using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
-        using So3SplineType = SplineBundleType::So3SplineType;
-        using RotationSequence = std::vector<std::pair<double, Sophus::SO3d>>;
-
-    private:
-        bool _solveFlag;
-        Sophus::SO3d _sensorToSpline;
-
-    public:
-        RotationEstimator();
-
-        static RotationEstimator::Ptr Create();
-
-        void Estimate(const So3SplineType &spline, const RotationSequence &rotSeq);
-
-        void Estimate(const So3SplineType &spline, const std::vector<ns_ctraj::Posed> &poseSeq);
-
-        [[nodiscard]] bool SolveStatus() const;
-
-        [[nodiscard]] const Sophus::SO3d &GetSO3SensorToSpline() const;
-
-    protected:
-        static std::vector<Eigen::Matrix4d>
-        OrganizeCoeffMatSeq(const So3SplineType &spline, const RotationSequence &rotSeq);
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
+namespace ns_ikalibr {
+class RotationEstimator {
+public:
+    using Ptr = std::shared_ptr<RotationEstimator>;
+    using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
+    using So3SplineType = SplineBundleType::So3SplineType;
+    using RotationSequence = std::vector<std::pair<double, Sophus::SO3d>>;
 
-#endif //IKALIBR_ROTATION_ESTIMATOR_H
+private:
+    bool _solveFlag;
+    Sophus::SO3d _sensorToSpline;
+
+public:
+    RotationEstimator();
+
+    static RotationEstimator::Ptr Create();
+
+    void Estimate(const So3SplineType &spline, const RotationSequence &rotSeq);
+
+    void Estimate(const So3SplineType &spline, const std::vector<ns_ctraj::Posed> &poseSeq);
+
+    [[nodiscard]] bool SolveStatus() const;
+
+    [[nodiscard]] const Sophus::SO3d &GetSO3SensorToSpline() const;
+
+protected:
+    static std::vector<Eigen::Matrix4d> OrganizeCoeffMatSeq(const So3SplineType &spline,
+                                                            const RotationSequence &rotSeq);
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_ROTATION_ESTIMATOR_H

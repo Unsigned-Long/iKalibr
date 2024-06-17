@@ -40,212 +40,211 @@
 #include "util/enum_cast.hpp"
 #include "velodyne_msgs/VelodyneScan.h"
 
-_3_
-
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    enum class LidarModelType {
-        VLP_16_PACKET,
-        VLP_16_POINTS,
-        VLP_32E_POINTS,
+enum class LidarModelType {
+    VLP_16_PACKET,
+    VLP_16_POINTS,
+    VLP_32E_POINTS,
 
-        OUSTER_16_POINTS,
-        OUSTER_32_POINTS,
-        OUSTER_64_POINTS,
-        OUSTER_128_POINTS,
+    OUSTER_16_POINTS,
+    OUSTER_32_POINTS,
+    OUSTER_64_POINTS,
+    OUSTER_128_POINTS,
 
-        PANDAR_XT_16,
-        PANDAR_XT_32,
+    PANDAR_XT_16,
+    PANDAR_XT_32,
 
-        LIVOX_MID_360,
-        LIVOX_AVIA,
-    };
+    LIVOX_MID_360,
+    LIVOX_AVIA,
+};
 
-    class LiDARDataLoader {
-    public:
-        using Ptr = std::shared_ptr<LiDARDataLoader>;
-    protected:
-        LidarModelType _lidarModel;
+class LiDARDataLoader {
+public:
+    using Ptr = std::shared_ptr<LiDARDataLoader>;
 
-    public:
-        explicit LiDARDataLoader(LidarModelType lidarModel) : _lidarModel(lidarModel) {}
+protected:
+    LidarModelType _lidarModel;
 
-        virtual LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) = 0;
+public:
+    explicit LiDARDataLoader(LidarModelType lidarModel)
+        : _lidarModel(lidarModel) {}
 
-        static LiDARDataLoader::Ptr GetLoader(const std::string &lidarModelStr);
+    virtual LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) = 0;
 
-        [[nodiscard]] LidarModelType GetLiDARModel() const;
+    static LiDARDataLoader::Ptr GetLoader(const std::string &lidarModelStr);
 
-    protected:
-        template<class MsgType>
-        void CheckMessage(typename MsgType::ConstPtr msg) {
-            if (msg == nullptr) {
-                throw std::runtime_error(
-                        "message type of some LiDARs was set incorrectly!!! Wrong type: " +
-                        std::string(EnumCast::enumToString(GetLiDARModel()))
-                );
-            }
+    [[nodiscard]] LidarModelType GetLiDARModel() const;
+
+protected:
+    template <class MsgType>
+    void CheckMessage(typename MsgType::ConstPtr msg) {
+        if (msg == nullptr) {
+            throw std::runtime_error(
+                "message type of some LiDARs was set incorrectly!!! Wrong type: " +
+                std::string(EnumCast::enumToString(GetLiDARModel())));
         }
+    }
+};
+
+class Velodyne16 : public LiDARDataLoader {
+public:
+    using Ptr = std::shared_ptr<Velodyne16>;
+
+public:
+    explicit Velodyne16(LidarModelType lidarModel);
+
+    static Velodyne16::Ptr Create(LidarModelType lidarModel);
+
+    // for Velodyne16 ['VLP_16_SIMU' and 'VLP_16_PACKET']
+    LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
+
+protected:
+    [[nodiscard]] LiDARFrame::Ptr UnpackScan(
+        const velodyne_msgs::VelodyneScan::ConstPtr &lidarMsg) const;
+
+    [[nodiscard]] double GetExactTime(int dsr, int firing) const;
+
+    void SetParameters();
+
+    [[nodiscard]] bool PointInRange(float range) const;
+
+private:
+    static const int RAW_SCAN_SIZE = 3;
+    static const int SCANS_PER_BLOCK = 32;
+    static const int BLOCK_DATA_SIZE = (SCANS_PER_BLOCK * RAW_SCAN_SIZE);
+    constexpr static const float ROTATION_RESOLUTION = 0.01f;
+    static const uint16_t ROTATION_MAX_UNITS = 36000u;
+    constexpr static const float DISTANCE_RESOLUTION = 0.002f;
+
+    static const uint16_t UPPER_BANK = 0xeeff;
+    static const uint16_t LOWER_BANK = 0xddff;
+
+    static const int BLOCKS_PER_PACKET = 12;
+    static const int PACKET_STATUS_SIZE = 2;
+
+    int FIRINGS_PER_BLOCK{};
+    int SCANS_PER_FIRING{};
+    float BLOCK_TDURATION{};
+    float DSR_TOFFSET{};
+    float FIRING_TOFFSET{};
+    float PACKET_TIME{};
+
+    float SIN_ROT_TABLE[ROTATION_MAX_UNITS]{};
+    float COS_ROT_TABLE[ROTATION_MAX_UNITS]{};
+    float COS_VERT_ANGLE[16]{};
+    float SIN_VERT_ANGLE[16]{};
+    int SCAN_MAPPING_16[16]{};
+
+    typedef struct RawBlock {
+        uint16_t header;    ///< UPPER_BANK or LOWER_BANK
+        uint16_t rotation;  ///< 0-35999, divide by 100 to get degrees
+        uint8_t data[BLOCK_DATA_SIZE];
+    } RAW_BLOCK_T;
+
+    union TwoBytes {
+        uint16_t uint;
+        uint8_t bytes[2];
     };
 
-    class Velodyne16 : public LiDARDataLoader {
-    public:
-        using Ptr = std::shared_ptr<Velodyne16>;
-
-    public:
-        explicit Velodyne16(LidarModelType lidarModel);
-
-        static Velodyne16::Ptr Create(LidarModelType lidarModel);
-
-        // for Velodyne16 ['VLP_16_SIMU' and 'VLP_16_PACKET']
-        LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
-
-    protected:
-
-        [[nodiscard]] LiDARFrame::Ptr UnpackScan(const velodyne_msgs::VelodyneScan::ConstPtr &lidarMsg) const;
-
-        [[nodiscard]] double GetExactTime(int dsr, int firing) const;
-
-        void SetParameters();
-
-        [[nodiscard]] bool PointInRange(float range) const;
-
-    private:
-        static const int RAW_SCAN_SIZE = 3;
-        static const int SCANS_PER_BLOCK = 32;
-        static const int BLOCK_DATA_SIZE = (SCANS_PER_BLOCK * RAW_SCAN_SIZE);
-        constexpr static const float ROTATION_RESOLUTION = 0.01f;
-        static const uint16_t ROTATION_MAX_UNITS = 36000u;
-        constexpr static const float DISTANCE_RESOLUTION = 0.002f;
-
-        static const uint16_t UPPER_BANK = 0xeeff;
-        static const uint16_t LOWER_BANK = 0xddff;
-
-        static const int BLOCKS_PER_PACKET = 12;
-        static const int PACKET_STATUS_SIZE = 2;
-
-        int FIRINGS_PER_BLOCK{};
-        int SCANS_PER_FIRING{};
-        float BLOCK_TDURATION{};
-        float DSR_TOFFSET{};
-        float FIRING_TOFFSET{};
-        float PACKET_TIME{};
-
-        float SIN_ROT_TABLE[ROTATION_MAX_UNITS]{};
-        float COS_ROT_TABLE[ROTATION_MAX_UNITS]{};
-        float COS_VERT_ANGLE[16]{};
-        float SIN_VERT_ANGLE[16]{};
-        int SCAN_MAPPING_16[16]{};
-
-        typedef struct RawBlock {
-            uint16_t header;    ///< UPPER_BANK or LOWER_BANK
-            uint16_t rotation;  ///< 0-35999, divide by 100 to get degrees
-            uint8_t data[BLOCK_DATA_SIZE];
-        } RAW_BLOCK_T;
-
-        union TwoBytes {
-            uint16_t uint;
-            uint8_t bytes[2];
-        };
-
-        union FourBytes {
-            uint32_t uint32;
-            float_t float32;
-        };
-
-        typedef struct RawPacket {
-            RAW_BLOCK_T blocks[BLOCKS_PER_PACKET];
-            uint32_t revolution;
-            uint8_t status[PACKET_STATUS_SIZE];
-        } RAW_PACKET_T;
-
-        /** configuration parameters */
-        typedef struct {
-            double maxRange;  // maximum range to publish
-            double minRange;
-            int minAngle;  // minimum angle to publish
-            int maxAngle;  // maximum angle to publish
-        } Config;
-        Config CONFIG{};
-
-        double VLP16_TIME_BLOCK[1824][16]{};
+    union FourBytes {
+        uint32_t uint32;
+        float_t float32;
     };
 
-    class VelodynePoints : public LiDARDataLoader {
-    public:
-        using Ptr = std::shared_ptr<VelodynePoints>;
+    typedef struct RawPacket {
+        RAW_BLOCK_T blocks[BLOCKS_PER_PACKET];
+        uint32_t revolution;
+        uint8_t status[PACKET_STATUS_SIZE];
+    } RAW_PACKET_T;
 
-        explicit VelodynePoints(LidarModelType lidarModel);
+    /** configuration parameters */
+    typedef struct {
+        double maxRange;  // maximum range to publish
+        double minRange;
+        int minAngle;  // minimum angle to publish
+        int maxAngle;  // maximum angle to publish
+    } Config;
+    Config CONFIG{};
 
-        static VelodynePoints::Ptr Create(LidarModelType lidarModel);
+    double VLP16_TIME_BLOCK[1824][16]{};
+};
 
-        static bool CheckCloudField(
-                const sensor_msgs::PointCloud2::ConstPtr &cloud_msg, const std::string &desc
-        );
+class VelodynePoints : public LiDARDataLoader {
+public:
+    using Ptr = std::shared_ptr<VelodynePoints>;
 
-        static double ClockwiseAngle(double befAngle, double afterAngle);
+    explicit VelodynePoints(LidarModelType lidarModel);
 
-        static double RotationTravelledClockwise(double nowAngle, bool resetCnt = false);
+    static VelodynePoints::Ptr Create(LidarModelType lidarModel);
 
-        bool InitScanParam(const sensor_msgs::PointCloud2::ConstPtr &lidarMsg);
+    static bool CheckCloudField(const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
+                                const std::string &desc);
 
-        LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
+    static double ClockwiseAngle(double befAngle, double afterAngle);
 
-    private:
-        int NUM_FIRING;
-        int NUM_LASERS;
+    static double RotationTravelledClockwise(double nowAngle, bool resetCnt = false);
 
-        bool FIRST_MSG;
-        bool HAS_TIME_FIELD;
-        bool HAS_RING_FIELD;
+    bool InitScanParam(const sensor_msgs::PointCloud2::ConstPtr &lidarMsg);
 
-        double HORIZON_RESOLUTION;
-        double ONE_SCAN_ANGLE;
+    LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
 
-        int laserID_mapping[32]{};
-    };
+private:
+    int NUM_FIRING;
+    int NUM_LASERS;
 
-    class OusterLiDAR : public LiDARDataLoader {
-    public:
-        using Ptr = std::shared_ptr<OusterLiDAR>;
+    bool FIRST_MSG;
+    bool HAS_TIME_FIELD;
+    bool HAS_RING_FIELD;
 
-    public:
-        explicit OusterLiDAR(LidarModelType lidarModel);
+    double HORIZON_RESOLUTION;
+    double ONE_SCAN_ANGLE;
 
-        static OusterLiDAR::Ptr Create(LidarModelType lidarModel);
+    int laserID_mapping[32]{};
+};
 
-        LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
+class OusterLiDAR : public LiDARDataLoader {
+public:
+    using Ptr = std::shared_ptr<OusterLiDAR>;
 
-    private:
+public:
+    explicit OusterLiDAR(LidarModelType lidarModel);
 
-        int NUM_FIRING;
-    };
+    static OusterLiDAR::Ptr Create(LidarModelType lidarModel);
 
-    class PandarXTLiDAR : public LiDARDataLoader {
-    public:
-        using Ptr = std::shared_ptr<PandarXTLiDAR>;
+    LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
 
-    public:
-        explicit PandarXTLiDAR(LidarModelType lidarModel);
+private:
+    int NUM_FIRING;
+};
 
-        static PandarXTLiDAR::Ptr Create(LidarModelType lidarModel);
+class PandarXTLiDAR : public LiDARDataLoader {
+public:
+    using Ptr = std::shared_ptr<PandarXTLiDAR>;
 
-        LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
-    };
+public:
+    explicit PandarXTLiDAR(LidarModelType lidarModel);
 
-    class LivoxLiDAR : public LiDARDataLoader {
-    public:
-        using Ptr = std::shared_ptr<LivoxLiDAR>;
+    static PandarXTLiDAR::Ptr Create(LidarModelType lidarModel);
 
-    public:
-        explicit LivoxLiDAR(LidarModelType lidarModel);
+    LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
+};
 
-        static LivoxLiDAR::Ptr Create(LidarModelType lidarModel);
+class LivoxLiDAR : public LiDARDataLoader {
+public:
+    using Ptr = std::shared_ptr<LivoxLiDAR>;
 
-        LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
-    };
-}
+public:
+    explicit LivoxLiDAR(LidarModelType lidarModel);
 
+    static LivoxLiDAR::Ptr Create(LidarModelType lidarModel);
 
-#endif //IKALIBR_LIDAR_DATA_LOADER_H
+    LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_LIDAR_DATA_LOADER_H

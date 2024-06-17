@@ -34,50 +34,44 @@
 
 #include "sensor/camera.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    CameraFrame::CameraFrame(double timestamp, cv::Mat greyImg,
-                             cv::Mat colorImg, ns_veta::IndexT id)
-            : _timestamp(timestamp), _greyImg(std::move(greyImg)), _colorImg(std::move(colorImg)), _id(id) {}
+CameraFrame::CameraFrame(double timestamp, cv::Mat greyImg, cv::Mat colorImg, ns_veta::IndexT id)
+    : _timestamp(timestamp),
+      _greyImg(std::move(greyImg)),
+      _colorImg(std::move(colorImg)),
+      _id(id) {}
 
-    CameraFrame::Ptr CameraFrame::Create(double timestamp, const cv::Mat &greyImg,
-                                         const cv::Mat &colorImg, ns_veta::IndexT id) {
-        return std::make_shared<CameraFrame>(timestamp, greyImg, colorImg, id);
-    }
-
-    cv::Mat &CameraFrame::GetImage() {
-        return _greyImg;
-    }
-
-    double CameraFrame::GetTimestamp() const {
-        return _timestamp;
-    }
-
-    void CameraFrame::SetTimestamp(double timestamp) {
-        _timestamp = timestamp;
-    }
-
-    std::ostream &operator<<(std::ostream &os, const CameraFrame &frame) {
-        os << "image: " << frame._greyImg.size << ", timestamp: " << frame._timestamp;
-        return os;
-    }
-
-    void CameraFrame::ReleaseMat() {
-        _greyImg.release();
-        _colorImg.release();
-    }
-
-    ns_veta::IndexT CameraFrame::GetId() const {
-        return _id;
-    }
-
-    void CameraFrame::SetId(ns_veta::IndexT id) {
-        _id = id;
-    }
-
-    cv::Mat &CameraFrame::GetColorImage() {
-        return _colorImg;
-    }
+CameraFrame::Ptr CameraFrame::Create(double timestamp,
+                                     const cv::Mat &greyImg,
+                                     const cv::Mat &colorImg,
+                                     ns_veta::IndexT id) {
+    return std::make_shared<CameraFrame>(timestamp, greyImg, colorImg, id);
 }
+
+cv::Mat &CameraFrame::GetImage() { return _greyImg; }
+
+double CameraFrame::GetTimestamp() const { return _timestamp; }
+
+void CameraFrame::SetTimestamp(double timestamp) { _timestamp = timestamp; }
+
+std::ostream &operator<<(std::ostream &os, const CameraFrame &frame) {
+    os << "image: " << frame._greyImg.size << ", timestamp: " << frame._timestamp;
+    return os;
+}
+
+void CameraFrame::ReleaseMat() {
+    _greyImg.release();
+    _colorImg.release();
+}
+
+ns_veta::IndexT CameraFrame::GetId() const { return _id; }
+
+void CameraFrame::SetId(ns_veta::IndexT id) { _id = id; }
+
+cv::Mat &CameraFrame::GetColorImage() { return _colorImg; }
+}  // namespace ns_ikalibr

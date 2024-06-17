@@ -40,36 +40,39 @@
 #include "util/enum_cast.hpp"
 #include "spdlog/fmt/fmt.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 #define IKALIBR_CODE_POS fmt::format("[line: '{}', file: '{}']", __LINE__, __FILE__)
 
-#define IKALIBR_DEBUG spdlog::warn(fmt::format( \
-        fmt::emphasis::italic | fmt::fg(fmt::color::red), "(iKalibr-DEBUG) {}", IKALIBR_CODE_POS));
+#define IKALIBR_DEBUG                                                          \
+    spdlog::warn(fmt::format(fmt::emphasis::italic | fmt::fg(fmt::color::red), \
+                             "(iKalibr-DEBUG) {}", IKALIBR_CODE_POS));
 
-    enum class Status : std::uint8_t {
-        FINE, WARNING, ERROR, CRITICAL
-    };
+enum class Status : std::uint8_t { FINE, WARNING, ERROR, CRITICAL };
 
-    struct IKalibrStatus : std::exception {
-    public:
-        Status flag;
-        std::string what;
+struct IKalibrStatus : std::exception {
+public:
+    Status flag;
+    std::string what;
 
-    public:
-        IKalibrStatus(Status flag, std::string what) : flag(flag), what(std::move(what)) {}
+public:
+    IKalibrStatus(Status flag, std::string what)
+        : flag(flag),
+          what(std::move(what)) {}
 
-        friend std::ostream &operator<<(std::ostream &os, const IKalibrStatus &status) {
-            os << "[" << EnumCast::enumToString(status.flag) << "]-[" << status.what << "]";
-            return os;
-        }
-    };
-
-    template<typename... T>
-    IKalibrStatus Status(Status flag, fmt::format_string<T...> fmt, T &&... args) {
-        return IKalibrStatus(flag, fmt::format(fmt, args...));
+    friend std::ostream &operator<<(std::ostream &os, const IKalibrStatus &status) {
+        os << "[" << EnumCast::enumToString(status.flag) << "]-[" << status.what << "]";
+        return os;
     }
-}
+};
 
-#endif //IKALIBR_STATUS_HPP
+template <typename... T>
+IKalibrStatus Status(Status flag, fmt::format_string<T...> fmt, T &&...args) {
+    return IKalibrStatus(flag, fmt::format(fmt, args...));
+}
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_STATUS_HPP

@@ -38,16 +38,18 @@
 #include "util/utils.h"
 #include "random"
 
-_3_
-
-namespace ns_ikalibr {
-    struct LoGoMaker {
-    public:
-        static void SaveToFile(const std::string &filename);
-
-    private:
-        static std::string DrawCube(float x, float y, float w, float h);
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_LOGO_SVG_H
+namespace ns_ikalibr {
+struct LoGoMaker {
+public:
+    static void SaveToFile(const std::string &filename);
+
+private:
+    static std::string DrawCube(float x, float y, float w, float h);
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_LOGO_SVG_H

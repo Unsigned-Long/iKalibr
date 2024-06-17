@@ -44,71 +44,72 @@
 #include "ceres/ceres.h"
 #include "util/utils.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    struct InertialAlignHelper {
-    public:
-        using Ptr = std::shared_ptr<InertialAlignHelper>;
+struct InertialAlignHelper {
+public:
+    using Ptr = std::shared_ptr<InertialAlignHelper>;
 
-    public:
-        double dt;
+public:
+    double dt;
 
-        Eigen::Vector3d velVec;
-        Eigen::Matrix3d velMat;
+    Eigen::Vector3d velVec;
+    Eigen::Matrix3d velMat;
 
-    public:
-        InertialAlignHelper(double timeDist, const std::pair<Eigen::Vector3d, Eigen::Matrix3d> &velVecMat) {
-            dt = timeDist;
+public:
+    InertialAlignHelper(double timeDist,
+                        const std::pair<Eigen::Vector3d, Eigen::Matrix3d> &velVecMat) {
+        dt = timeDist;
 
-            velVec = velVecMat.first;
-            velMat = velVecMat.second;
-        }
-    };
+        velVec = velVecMat.first;
+        velMat = velVecMat.second;
+    }
+};
 
-    struct InertialAlignFactor {
-    private:
-        InertialAlignHelper helper;
-        double weight;
+struct InertialAlignFactor {
+private:
+    InertialAlignHelper helper;
+    double weight;
 
-    public:
-        InertialAlignFactor(InertialAlignHelper helper, double weight)
-                : helper(std::move(helper)), weight(weight) {}
+public:
+    InertialAlignFactor(InertialAlignHelper helper, double weight)
+        : helper(std::move(helper)),
+          weight(weight) {}
 
-        static auto Create(const InertialAlignHelper &helper, double weight) {
-            return new ceres::DynamicAutoDiffCostFunction<InertialAlignFactor>(
-                    new InertialAlignFactor(helper, weight)
-            );
-        }
+    static auto Create(const InertialAlignHelper &helper, double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<InertialAlignFactor>(
+            new InertialAlignFactor(helper, weight));
+    }
 
-        static std::size_t TypeHashCode() {
-            return typeid(InertialAlignFactor).hash_code();
-        }
+    static std::size_t TypeHashCode() { return typeid(InertialAlignFactor).hash_code(); }
 
-    public:
-        /**
-         * param blocks:
-         * [ POS_BiInBr | START_VEL | END_VEL | GRAVITY ]
-         */
-        template<class T>
-        bool operator()(T const *const *sKnots, T *sResiduals) const {
-            Eigen::Map<const Eigen::Vector3<T>> POS_BiInBr(sKnots[0]);
-            Eigen::Map<const Eigen::Vector3<T>> START_VEL(sKnots[1]);
-            Eigen::Map<const Eigen::Vector3<T>> END_VEL(sKnots[2]);
-            Eigen::Map<const Eigen::Vector3<T>> GRAVITY(sKnots[3]);
+public:
+    /**
+     * param blocks:
+     * [ POS_BiInBr | START_VEL | END_VEL | GRAVITY ]
+     */
+    template <class T>
+    bool operator()(T const *const *sKnots, T *sResiduals) const {
+        Eigen::Map<const Eigen::Vector3<T>> POS_BiInBr(sKnots[0]);
+        Eigen::Map<const Eigen::Vector3<T>> START_VEL(sKnots[1]);
+        Eigen::Map<const Eigen::Vector3<T>> END_VEL(sKnots[2]);
+        Eigen::Map<const Eigen::Vector3<T>> GRAVITY(sKnots[3]);
 
-            Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
-            residuals = (helper.velVec.cast<T>() - helper.velMat.cast<T>() * POS_BiInBr) -
-                        (END_VEL - START_VEL - GRAVITY * helper.dt);
-            residuals = T(weight) * residuals;
+        Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
+        residuals = (helper.velVec.cast<T>() - helper.velMat.cast<T>() * POS_BiInBr) -
+                    (END_VEL - START_VEL - GRAVITY * helper.dt);
+        residuals = T(weight) * residuals;
 
-            return true;
-        }
+        return true;
+    }
 
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    };
-}
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+}  // namespace ns_ikalibr
 
-#endif //IKALIBR_INERTIAL_ALIGN_FACTOR_HPP
+#endif  // IKALIBR_INERTIAL_ALIGN_FACTOR_HPP

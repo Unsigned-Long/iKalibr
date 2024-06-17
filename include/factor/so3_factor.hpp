@@ -43,64 +43,70 @@
 #include "ceres/ceres.h"
 #include "util/utils.h"
 
-_3_
-
-namespace ns_ikalibr {
-    template<int Order>
-    struct SO3Factor {
-    private:
-        ns_ctraj::SplineMeta<Order> _so3Meta;
-
-        double _time;
-        Sophus::SO3d _so3;
-        double _so3DtInv;
-        double _weight;
-
-    public:
-        explicit SO3Factor(ns_ctraj::SplineMeta<Order> so3Meta, double time, const Sophus::SO3d &so3, double weight)
-                : _so3Meta(std::move(so3Meta)), _time(time), _so3(so3),
-                  _so3DtInv(1.0 / _so3Meta.segments.front().dt), _weight(weight) {}
-
-        static auto
-        Create(const ns_ctraj::SplineMeta<Order> &so3Meta, double time, const Sophus::SO3d &so3, double weight) {
-            return new ceres::DynamicAutoDiffCostFunction<SO3Factor>(
-                    new SO3Factor(so3Meta, time, so3, weight)
-            );
-        }
-
-        static std::size_t TypeHashCode() {
-            return typeid(SO3Factor).hash_code();
-        }
-
-    public:
-        /**
-         * param blocks:
-         * [ SO3 | ... | SO3 ]
-         */
-        template<class T>
-        bool operator()(T const *const *sKnots, T *sResiduals) const {
-            // array offset
-            std::size_t SO3_OFFSET;
-
-            // calculate the so3 offset
-            std::pair<std::size_t, double> iuCur;
-            _so3Meta.template ComputeSplineIndex(_time, iuCur.first, iuCur.second);
-            SO3_OFFSET = iuCur.first;
-
-            Sophus::SO3<T> SO3_BrToBr0;
-            ns_ctraj::CeresSplineHelper<Order>::EvaluateLie(
-                    sKnots + SO3_OFFSET, iuCur.second, _so3DtInv, &SO3_BrToBr0
-            );
-
-            Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
-            residuals = T(_weight) * (_so3.inverse().cast<T>() * SO3_BrToBr0).log();
-
-            return true;
-        }
-
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_SO3_FACTOR_HPP
+namespace ns_ikalibr {
+template <int Order>
+struct SO3Factor {
+private:
+    ns_ctraj::SplineMeta<Order> _so3Meta;
+
+    double _time;
+    Sophus::SO3d _so3;
+    double _so3DtInv;
+    double _weight;
+
+public:
+    explicit SO3Factor(ns_ctraj::SplineMeta<Order> so3Meta,
+                       double time,
+                       const Sophus::SO3d &so3,
+                       double weight)
+        : _so3Meta(std::move(so3Meta)),
+          _time(time),
+          _so3(so3),
+          _so3DtInv(1.0 / _so3Meta.segments.front().dt),
+          _weight(weight) {}
+
+    static auto Create(const ns_ctraj::SplineMeta<Order> &so3Meta,
+                       double time,
+                       const Sophus::SO3d &so3,
+                       double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<SO3Factor>(
+            new SO3Factor(so3Meta, time, so3, weight));
+    }
+
+    static std::size_t TypeHashCode() { return typeid(SO3Factor).hash_code(); }
+
+public:
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 ]
+     */
+    template <class T>
+    bool operator()(T const *const *sKnots, T *sResiduals) const {
+        // array offset
+        std::size_t SO3_OFFSET;
+
+        // calculate the so3 offset
+        std::pair<std::size_t, double> iuCur;
+        _so3Meta.template ComputeSplineIndex(_time, iuCur.first, iuCur.second);
+        SO3_OFFSET = iuCur.first;
+
+        Sophus::SO3<T> SO3_BrToBr0;
+        ns_ctraj::CeresSplineHelper<Order>::EvaluateLie(sKnots + SO3_OFFSET, iuCur.second,
+                                                        _so3DtInv, &SO3_BrToBr0);
+
+        Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
+        residuals = T(_weight) * (_so3.inverse().cast<T>() * SO3_BrToBr0).log();
+
+        return true;
+    }
+
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_SO3_FACTOR_HPP

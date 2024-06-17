@@ -39,70 +39,71 @@
 #include "rosbag/message_instance.h"
 #include "util/enum_cast.hpp"
 
-_3_
-
-namespace ns_ikalibr {
-    enum class CameraModelType : std::uint32_t {
-        /**
-         * @brief options
-         */
-        NONE = 1 << 0,
-
-        GS = 1 << 1,
-        RS = 1 << 2,
-
-        FIRST_EXPOSURE = 1 << 3,
-        MID_EXPOSURE = 1 << 4,
-        LAST_EXPOSURE = 1 << 5,
-
-        SENSOR_IMAGE = 1 << 6,
-
-        SENSOR_IMAGE_GS = SENSOR_IMAGE | GS,
-
-        SENSOR_IMAGE_RS_FIRST = SENSOR_IMAGE | RS | FIRST_EXPOSURE,
-        SENSOR_IMAGE_RS_MID = SENSOR_IMAGE | RS | MID_EXPOSURE,
-        SENSOR_IMAGE_RS_LAST = SENSOR_IMAGE | RS | LAST_EXPOSURE,
-    };
-
-    class CameraDataLoader {
-    public:
-        using Ptr = std::shared_ptr<CameraDataLoader>;
-
-    protected:
-        CameraModelType _model;
-
-    public:
-        explicit CameraDataLoader(CameraModelType model);
-
-        virtual CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) = 0;
-
-        static CameraDataLoader::Ptr GetLoader(const std::string &modelStr);
-
-        [[nodiscard]] CameraModelType GetCameraModel() const;
-
-    protected:
-        template<class MsgType>
-        void CheckMessage(typename MsgType::ConstPtr msg) {
-            if (msg == nullptr) {
-                throw std::runtime_error(
-                        "message type of some cameras was set incorrectly!!! Wrong type: " +
-                        std::string(EnumCast::enumToString(GetCameraModel()))
-                );
-            }
-        }
-    };
-
-    class SensorImageLoader : public CameraDataLoader {
-    public:
-        using Ptr = std::shared_ptr<SensorImageLoader>;
-
-    public:
-        explicit SensorImageLoader(CameraModelType model);
-
-        static SensorImageLoader::Ptr Create(CameraModelType model);
-
-        CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_CAMERA_DATA_LOADER_H
+namespace ns_ikalibr {
+enum class CameraModelType : std::uint32_t {
+    /**
+     * @brief options
+     */
+    NONE = 1 << 0,
+
+    GS = 1 << 1,
+    RS = 1 << 2,
+
+    FIRST_EXPOSURE = 1 << 3,
+    MID_EXPOSURE = 1 << 4,
+    LAST_EXPOSURE = 1 << 5,
+
+    SENSOR_IMAGE = 1 << 6,
+
+    SENSOR_IMAGE_GS = SENSOR_IMAGE | GS,
+
+    SENSOR_IMAGE_RS_FIRST = SENSOR_IMAGE | RS | FIRST_EXPOSURE,
+    SENSOR_IMAGE_RS_MID = SENSOR_IMAGE | RS | MID_EXPOSURE,
+    SENSOR_IMAGE_RS_LAST = SENSOR_IMAGE | RS | LAST_EXPOSURE,
+};
+
+class CameraDataLoader {
+public:
+    using Ptr = std::shared_ptr<CameraDataLoader>;
+
+protected:
+    CameraModelType _model;
+
+public:
+    explicit CameraDataLoader(CameraModelType model);
+
+    virtual CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) = 0;
+
+    static CameraDataLoader::Ptr GetLoader(const std::string &modelStr);
+
+    [[nodiscard]] CameraModelType GetCameraModel() const;
+
+protected:
+    template <class MsgType>
+    void CheckMessage(typename MsgType::ConstPtr msg) {
+        if (msg == nullptr) {
+            throw std::runtime_error(
+                "message type of some cameras was set incorrectly!!! Wrong type: " +
+                std::string(EnumCast::enumToString(GetCameraModel())));
+        }
+    }
+};
+
+class SensorImageLoader : public CameraDataLoader {
+public:
+    using Ptr = std::shared_ptr<SensorImageLoader>;
+
+public:
+    explicit SensorImageLoader(CameraModelType model);
+
+    static SensorImageLoader::Ptr Create(CameraModelType model);
+
+    CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_CAMERA_DATA_LOADER_H

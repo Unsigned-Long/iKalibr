@@ -42,11 +42,13 @@
 #include "util/cloud_define.hpp"
 #include "spdlog/fmt/bundled/color.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
-template<class PointType>
-typename pcl::PointCloud<PointType>::Ptr
-CloudFilter(const typename pcl::PointCloud<PointType>::Ptr &cloud, float minZ, float maxZ, float leafSize) {
+template <class PointType>
+typename pcl::PointCloud<PointType>::Ptr CloudFilter(
+    const typename pcl::PointCloud<PointType>::Ptr &cloud, float minZ, float maxZ, float leafSize) {
     typename pcl::PointCloud<PointType>::Ptr downSampled(new pcl::PointCloud<PointType>);
     if (leafSize > 0.0) {
         pcl::VoxelGrid<PointType> filter;
@@ -60,8 +62,10 @@ CloudFilter(const typename pcl::PointCloud<PointType>::Ptr &cloud, float minZ, f
     typename pcl::PointCloud<PointType>::Ptr newCloud(new pcl::PointCloud<PointType>);
     newCloud->reserve(downSampled->size());
 
-    for (const auto &p: downSampled->points) {
-        if (p.z < minZ || p.z > maxZ) { continue; }
+    for (const auto &p : downSampled->points) {
+        if (p.z < minZ || p.z > maxZ) {
+            continue;
+        }
         newCloud->push_back(p);
     }
     return newCloud;
@@ -83,7 +87,9 @@ ns_viewer::Posef GetCameraPose(const float radius, const float height, const flo
     rotMat.col(2) = zAxis;
 
     radAngle += rotRate;
-    if (radAngle > 2 * M_PI) { radAngle -= 2 * M_PI; }
+    if (radAngle > 2 * M_PI) {
+        radAngle -= 2 * M_PI;
+    }
 
     return ns_viewer::Posef(rotMat, pos);
 }
@@ -104,21 +110,27 @@ int main(int argc, char **argv) {
             throw ns_ikalibr::Status(ns_ikalibr::Status::ERROR, "wrong mode is set!");
         }
 
-        auto outputDir = ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_lidar_map_viewer/output_dir");
+        auto outputDir =
+            ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_lidar_map_viewer/output_dir");
 
-        auto leafSize = (float) ns_ikalibr::GetParamFromROS<double>("/ikalibr_lidar_map_viewer/down_sample_leaf_size");
-        auto minZ = (float) ns_ikalibr::GetParamFromROS<double>("/ikalibr_lidar_map_viewer/min_z");
-        auto maxZ = (float) ns_ikalibr::GetParamFromROS<double>("/ikalibr_lidar_map_viewer/max_z");
-        spdlog::info("min z value: '{:.3f}', max z value: '{:.3f}', leaf size: '{:.3f}'", minZ, maxZ, leafSize);
+        auto leafSize = (float)ns_ikalibr::GetParamFromROS<double>(
+            "/ikalibr_lidar_map_viewer/down_sample_leaf_size");
+        auto minZ = (float)ns_ikalibr::GetParamFromROS<double>("/ikalibr_lidar_map_viewer/min_z");
+        auto maxZ = (float)ns_ikalibr::GetParamFromROS<double>("/ikalibr_lidar_map_viewer/max_z");
+        spdlog::info("min z value: '{:.3f}', max z value: '{:.3f}', leaf size: '{:.3f}'", minZ,
+                     maxZ, leafSize);
 
-        auto camRadius = (float) ns_ikalibr::GetParamFromROS<double>("/ikalibr_lidar_map_viewer/cam_radius");
-        auto camHeight = (float) ns_ikalibr::GetParamFromROS<double>("/ikalibr_lidar_map_viewer/cam_height");
-        auto rotRate = (float) ns_ikalibr::GetParamFromROS<double>("/ikalibr_lidar_map_viewer/rot_rate");
-        spdlog::info(
-                "camera radius: '{:.3f}', camera height: '{:.3f}', rot rate: '{:.3f}'", camRadius, camHeight, rotRate
-        );
+        auto camRadius =
+            (float)ns_ikalibr::GetParamFromROS<double>("/ikalibr_lidar_map_viewer/cam_radius");
+        auto camHeight =
+            (float)ns_ikalibr::GetParamFromROS<double>("/ikalibr_lidar_map_viewer/cam_height");
+        auto rotRate =
+            (float)ns_ikalibr::GetParamFromROS<double>("/ikalibr_lidar_map_viewer/rot_rate");
+        spdlog::info("camera radius: '{:.3f}', camera height: '{:.3f}', rot rate: '{:.3f}'",
+                     camRadius, camHeight, rotRate);
 
-        auto winScaleStr = ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_lidar_map_viewer/win_scale");
+        auto winScaleStr =
+            ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_lidar_map_viewer/win_scale");
         auto wh = ns_ikalibr::SplitString(winScaleStr, ':');
         if (wh.size() != 2) {
             throw ns_ikalibr::Status(ns_ikalibr::Status::ERROR, "wrong scale of window is set!");
@@ -126,16 +138,18 @@ int main(int argc, char **argv) {
         double scale = std::stod(wh[0]) / std::stod(wh[1]);
         spdlog::info("scale of window: '{:.3f}'", scale);
 
-        auto winGridSize = ns_ikalibr::GetParamFromROS<int>("/ikalibr_lidar_map_viewer/win_grid_size");
+        auto winGridSize =
+            ns_ikalibr::GetParamFromROS<int>("/ikalibr_lidar_map_viewer/win_grid_size");
         if (winGridSize < 10) {
-            throw ns_ikalibr::Status(ns_ikalibr::Status::ERROR, "wrong size of window grid is set!");
+            throw ns_ikalibr::Status(ns_ikalibr::Status::ERROR,
+                                     "wrong size of window grid is set!");
         }
         spdlog::info("size of window grid: '{}'", winGridSize);
 
         auto wsDirVecSrc = ns_ikalibr::GetParamFromROS<std::vector<std::string>>(
-                "/ikalibr_lidar_map_viewer/ws_dir_vec");
+            "/ikalibr_lidar_map_viewer/ws_dir_vec");
         std::vector<std::pair<std::string, int>> wsDirVec;
-        for (const auto &dir: wsDirVecSrc) {
+        for (const auto &dir : wsDirVecSrc) {
             auto ws = preDir + '/' + dir;
             auto alignedMap = ws + "/maps/lidar_aligned_map.pcd";
             auto surfelMap = ws + "/maps/lidar_surfel_map.pcd";
@@ -157,8 +171,11 @@ int main(int argc, char **argv) {
         // create viewer names
         std::vector<std::string> viewerNames(row * col);
         for (int i = 0; i < static_cast<int>(viewerNames.size()); ++i) {
-            if (i < static_cast<int>(wsDirVec.size())) { viewerNames.at(i) = wsDirVec.at(i).first; }
-            else { viewerNames.at(i) = std::to_string(i); }
+            if (i < static_cast<int>(wsDirVec.size())) {
+                viewerNames.at(i) = wsDirVec.at(i).first;
+            } else {
+                viewerNames.at(i) = std::to_string(i);
+            }
         }
 
         ns_viewer::MultiViewerConfigor configor(viewerNames, "lidar-map-viewer");
@@ -166,7 +183,7 @@ int main(int argc, char **argv) {
         configor.window.height = row * winGridSize;
         configor.output.dataOutputPath = outputDir;
 
-        for (const auto &name: viewerNames) {
+        for (const auto &name : viewerNames) {
             auto &cam = configor.camera.at(name);
             cam.height = winGridSize;
             cam.width = winGridSize;
@@ -179,10 +196,12 @@ int main(int argc, char **argv) {
         ns_viewer::MultiViewer viewer(configor);
         viewer.RunInMultiThread();
         // set init camera poses
-        for (const auto &name: viewerNames) { viewer.SetCamView(GetCameraPose(camRadius, camHeight, rotRate), name); }
+        for (const auto &name : viewerNames) {
+            viewer.SetCamView(GetCameraPose(camRadius, camHeight, rotRate), name);
+        }
 
         PosPointCloud::Ptr alignedCloudCopy = nullptr;
-        for (const auto &[filename, type]: wsDirVec) {
+        for (const auto &[filename, type] : wsDirVec) {
             spdlog::info("load pcd from '{}'...", filename);
 
             if (type == 0) {
@@ -192,7 +211,8 @@ int main(int argc, char **argv) {
                     continue;
                 }
                 alignedCloud = CloudFilter<PosPoint>(alignedCloud, minZ, maxZ, leafSize);
-                viewer.AddEntity(ns_viewer::AlignedCloud<PosPoint>::Create(alignedCloud, {0, 0, -1}), filename);
+                viewer.AddEntity(
+                    ns_viewer::AlignedCloud<PosPoint>::Create(alignedCloud, {0, 0, -1}), filename);
                 // aligned cloud is stored for surfel map visualization
                 if (mode == 2) {
                     alignedCloudCopy = alignedCloud;
@@ -219,9 +239,12 @@ int main(int argc, char **argv) {
                     alignedCloud = alignedCloudCopy;
                     alignedCloudCopy = nullptr;
                 } else {
-                    std::string alignedFilename = filename, search = "lidar_surfel_map", replace = "lidar_aligned_map";
+                    std::string alignedFilename = filename, search = "lidar_surfel_map",
+                                replace = "lidar_aligned_map";
                     size_t pos = alignedFilename.find(search);
-                    if (pos != std::string::npos) { alignedFilename.replace(pos, search.length(), replace); }
+                    if (pos != std::string::npos) {
+                        alignedFilename.replace(pos, search.length(), replace);
+                    }
 
                     if (pcl::io::loadPCDFile(alignedFilename, *alignedCloud) == -1) {
                         spdlog::warn("load aligned lidar map from '{}' failed!", alignedFilename);
@@ -230,14 +253,15 @@ int main(int argc, char **argv) {
                     alignedCloud = CloudFilter<PosPoint>(alignedCloud, minZ, maxZ, leafSize);
                 }
 
-                pcl::PointCloud<pcl::PointXYZ>::Ptr alignedCloudRaw(new pcl::PointCloud<pcl::PointXYZ>);
+                pcl::PointCloud<pcl::PointXYZ>::Ptr alignedCloudRaw(
+                    new pcl::PointCloud<pcl::PointXYZ>);
                 pcl::copyPointCloud(*alignedCloud, *alignedCloudRaw);
                 alignedCloud.reset();
 
                 auto color = ns_viewer::Colour::Black().WithAlpha(0.2f);
-                viewer.AddEntity(
-                        ns_viewer::Cloud<pcl::PointXYZ>::Create(alignedCloudRaw, DefaultPointSize, color), filename
-                );
+                viewer.AddEntity(ns_viewer::Cloud<pcl::PointXYZ>::Create(alignedCloudRaw,
+                                                                         DefaultPointSize, color),
+                                 filename);
                 alignedCloudRaw.reset();
             }
         }
@@ -247,7 +271,7 @@ int main(int argc, char **argv) {
             ros::start();
             ros::Rate r(25);
             while (ros::ok() && viewer.IsActive()) {
-                for (const auto &[filename, type]: wsDirVec) {
+                for (const auto &[filename, type] : wsDirVec) {
                     viewer.SetCamView(GetCameraPose(camRadius, camHeight, rotRate), filename);
                 }
                 r.sleep();

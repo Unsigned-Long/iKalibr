@@ -38,35 +38,29 @@
 
 #include "sensor/lidar.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    LiDARFrame::LiDARFrame(double timestamp, IKalibrPointCloud::Ptr scan)
-            : _timestamp(timestamp), _scan(std::move(scan)) {}
+LiDARFrame::LiDARFrame(double timestamp, IKalibrPointCloud::Ptr scan)
+    : _timestamp(timestamp),
+      _scan(std::move(scan)) {}
 
-    LiDARFrame::Ptr
-    LiDARFrame::Create(double timestamp, const IKalibrPointCloud::Ptr &scan) {
-        return std::make_shared<LiDARFrame>(timestamp, scan);
-    }
-
-    IKalibrPointCloud::Ptr LiDARFrame::GetScan() const {
-        return this->_scan;
-    }
-
-    double LiDARFrame::GetTimestamp() const {
-        return _timestamp;
-    }
-
-    std::ostream &operator<<(std::ostream &os, const LiDARFrame &frame) {
-        os << "size: " << frame._scan->size()
-           << ", width: " << frame._scan->width
-           << ", height: " << frame._scan->height
-           << ", timestamp: " << frame._timestamp;
-        return os;
-    }
-
-    void LiDARFrame::SetTimestamp(double timestamp) {
-        _timestamp = timestamp;
-    }
+LiDARFrame::Ptr LiDARFrame::Create(double timestamp, const IKalibrPointCloud::Ptr &scan) {
+    return std::make_shared<LiDARFrame>(timestamp, scan);
 }
+
+IKalibrPointCloud::Ptr LiDARFrame::GetScan() const { return this->_scan; }
+
+double LiDARFrame::GetTimestamp() const { return _timestamp; }
+
+std::ostream &operator<<(std::ostream &os, const LiDARFrame &frame) {
+    os << "size: " << frame._scan->size() << ", width: " << frame._scan->width
+       << ", height: " << frame._scan->height << ", timestamp: " << frame._timestamp;
+    return os;
+}
+
+void LiDARFrame::SetTimestamp(double timestamp) { _timestamp = timestamp; }
+}  // namespace ns_ikalibr

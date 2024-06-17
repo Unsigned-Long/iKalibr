@@ -40,25 +40,26 @@
 #include "sensor/camera_data_loader.h"
 #include "veta/camera/pinhole.h"
 
-_3_
-
-namespace ns_ikalibr {
-    class VisualReProjAssociator {
-    public:
-        using Ptr = std::shared_ptr<VisualReProjAssociator>;
-
-    protected:
-        double ExposureFactor;
-
-    public:
-        explicit VisualReProjAssociator(const CameraModelType &type);
-
-        static Ptr Create(const CameraModelType &type);
-
-        std::vector<VisualReProjCorrSeq::Ptr>
-        Association(const ns_veta::Veta &veta, const ns_veta::PinholeIntrinsic::Ptr &intri) const;
-
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_VISUAL_REPROJ_ASSOCIATION_H
+namespace ns_ikalibr {
+class VisualReProjAssociator {
+public:
+    using Ptr = std::shared_ptr<VisualReProjAssociator>;
+
+protected:
+    double ExposureFactor;
+
+public:
+    explicit VisualReProjAssociator(const CameraModelType &type);
+
+    static Ptr Create(const CameraModelType &type);
+
+    std::vector<VisualReProjCorrSeq::Ptr> Association(
+        const ns_veta::Veta &veta, const ns_veta::PinholeIntrinsic::Ptr &intri) const;
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_VISUAL_REPROJ_ASSOCIATION_H

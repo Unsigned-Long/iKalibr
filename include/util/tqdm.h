@@ -13,9 +13,9 @@
 #include <unistd.h>
 #include <vector>
 #ifdef __linux__
-#include <sys/ioctl.h>
+    #include <sys/ioctl.h>
 #else
-#include <windows.h>
+    #include <windows.h>
 #endif
 
 class tqdm {
@@ -50,7 +50,7 @@ private:
         GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
         unsigned short width = csbi.srWindow.Right - csbi.srWindow.Left;
 #endif
-        return std::max((int) width - 50, 1);
+        return std::max((int)width - 50, 1);
     }();
 
     std::string right_pad = "▏";
@@ -63,14 +63,14 @@ private:
             g = v;
             b = v;
         }
-        int i = (int) (h * 6.0);
+        int i = (int)(h * 6.0);
         float f = (h * 6.) - i;
-        int p = (int) (255.0 * (v * (1. - s)));
-        int q = (int) (255.0 * (v * (1. - s * f)));
-        int t = (int) (255.0 * (v * (1. - s * (1. - f))));
+        int p = (int)(255.0 * (v * (1. - s)));
+        int q = (int)(255.0 * (v * (1. - s * f)));
+        int t = (int)(255.0 * (v * (1. - s * (1. - f))));
         v *= 255;
         i %= 6;
-        int vi = (int) v;
+        int vi = (int)v;
         if (i == 0) {
             r = vi;
             g = t;
@@ -155,8 +155,8 @@ public:
             total_ = tot;
             nupdates++;
             auto now = std::chrono::system_clock::now();
-            double dt = ((std::chrono::duration<double>) (now - t_old)).count();
-            double dt_tot = ((std::chrono::duration<double>) (now - t_first)).count();
+            double dt = ((std::chrono::duration<double>)(now - t_old)).count();
+            double dt_tot = ((std::chrono::duration<double>)(now - t_first)).count();
             int dn = curr - n_old;
             n_old = curr;
             t_old = now;
@@ -181,18 +181,18 @@ public:
             // learn an appropriate period length to avoid spamming stdout
             // and slowing down the loop, shoot for ~25Hz and smooth over 3 seconds
             if (nupdates > 10) {
-                period = (int) (std::min(std::max((1.0 / 25) * curr / dt_tot, 1.0), 5e5));
+                period = (int)(std::min(std::max((1.0 / 25) * curr / dt_tot, 1.0), 5e5));
                 smoothing = 25 * 3;
             }
-            double pct = (double) curr / (tot * 0.01);
+            double pct = (double)curr / (tot * 0.01);
             if ((tot - curr) <= period) {
                 pct = 100.0;
                 avgrate = tot / dt_tot;
                 curr = tot;
             }
 
-            double fills = ((double) curr / tot * width);
-            int ifills = (int) fills;
+            double fills = ((double)curr / tot * width);
+            int ifills = (int)fills;
 
             printf("\015▏P ");
             if (use_colors) {
@@ -206,7 +206,7 @@ public:
                 }
             }
             for (int i = 0; i < ifills; i++) std::cout << bars[8];
-            if (!in_screen and (curr != tot)) printf("%s", bars[(int) (8.0 * (fills - ifills))]);
+            if (!in_screen and (curr != tot)) printf("%s", bars[(int)(8.0 * (fills - ifills))]);
             for (int i = 0; i < width - ifills - 1; i++) std::cout << bars[0];
             printf("%s", right_pad.c_str());
             if (use_colors) printf("\033[1m\033[31m");

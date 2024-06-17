@@ -42,64 +42,69 @@
 #include "veta/camera/pinhole_brown.h"
 #include "util/utils.h"
 
-_3_
-
-namespace ns_ikalibr {
-    struct VisualProjFactor {
-    private:
-        Eigen::Vector2d _feat;
-        ns_veta::PinholeIntrinsic::Ptr _intri;
-        double fx, fy, cx, cy;
-        double _weight;
-
-    public:
-        explicit VisualProjFactor(Eigen::Vector2d feat, const ns_veta::PinholeIntrinsic::Ptr &intri,
-                                  double weight)
-                : _feat(std::move(feat)), fx(intri->FocalX()), fy(intri->FocalY()),
-                  cx(intri->PrincipalPoint()(0)), cy(intri->PrincipalPoint()(1)), _weight(weight) {}
-
-        static auto
-        Create(const Eigen::Vector2d &feat, const ns_veta::PinholeIntrinsic::Ptr &intri, double weight) {
-            return new ceres::DynamicAutoDiffCostFunction<VisualProjFactor>(
-                    new VisualProjFactor(feat, intri, weight)
-            );
-        }
-
-        static std::size_t TypeHashCode() {
-            return typeid(VisualProjFactor).hash_code();
-        }
-
-    public:
-        /**
-         * param blocks:
-         * [ SO3_CurCToW | POS_CurCInW | POS_LMInW ]
-         */
-        template<class T>
-        bool operator()(T const *const *sKnots, T *sResiduals) const {
-            std::size_t SO3_CurCToW_OFFSET = 0;
-            std::size_t POS_CurCInW_OFFSET = 1;
-            std::size_t POS_LMInW_OFFSET = 2;
-
-            // get value
-            Eigen::Map<const Sophus::SO3<T>> SO3_CurCToW(sKnots[SO3_CurCToW_OFFSET]);
-            Eigen::Map<const Eigen::Vector3<T>> POS_CurCInW(sKnots[POS_CurCInW_OFFSET]);
-            Eigen::Map<const Eigen::Vector3<T>> POS_LMInW(sKnots[POS_LMInW_OFFSET]);
-
-            Eigen::Vector3<T> POS_LMInCurC = SO3_CurCToW.inverse() * (POS_LMInW - POS_CurCInW);
-
-            T invZ = 1.0 / POS_LMInCurC(2);
-
-            Eigen::Map<Eigen::Vector2<T>> residuals(sResiduals);
-            residuals(0) = fx * POS_LMInCurC(0) * invZ + cx - _feat(0);
-            residuals(1) = fy * POS_LMInCurC(1) * invZ + cy - _feat(1);
-            residuals = T(_weight) * residuals;
-
-            return true;
-        }
-
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_VISUAL_PROJ_FACTOR_HPP
+namespace ns_ikalibr {
+struct VisualProjFactor {
+private:
+    Eigen::Vector2d _feat;
+    ns_veta::PinholeIntrinsic::Ptr _intri;
+    double fx, fy, cx, cy;
+    double _weight;
+
+public:
+    explicit VisualProjFactor(Eigen::Vector2d feat,
+                              const ns_veta::PinholeIntrinsic::Ptr &intri,
+                              double weight)
+        : _feat(std::move(feat)),
+          fx(intri->FocalX()),
+          fy(intri->FocalY()),
+          cx(intri->PrincipalPoint()(0)),
+          cy(intri->PrincipalPoint()(1)),
+          _weight(weight) {}
+
+    static auto Create(const Eigen::Vector2d &feat,
+                       const ns_veta::PinholeIntrinsic::Ptr &intri,
+                       double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<VisualProjFactor>(
+            new VisualProjFactor(feat, intri, weight));
+    }
+
+    static std::size_t TypeHashCode() { return typeid(VisualProjFactor).hash_code(); }
+
+public:
+    /**
+     * param blocks:
+     * [ SO3_CurCToW | POS_CurCInW | POS_LMInW ]
+     */
+    template <class T>
+    bool operator()(T const *const *sKnots, T *sResiduals) const {
+        std::size_t SO3_CurCToW_OFFSET = 0;
+        std::size_t POS_CurCInW_OFFSET = 1;
+        std::size_t POS_LMInW_OFFSET = 2;
+
+        // get value
+        Eigen::Map<const Sophus::SO3<T>> SO3_CurCToW(sKnots[SO3_CurCToW_OFFSET]);
+        Eigen::Map<const Eigen::Vector3<T>> POS_CurCInW(sKnots[POS_CurCInW_OFFSET]);
+        Eigen::Map<const Eigen::Vector3<T>> POS_LMInW(sKnots[POS_LMInW_OFFSET]);
+
+        Eigen::Vector3<T> POS_LMInCurC = SO3_CurCToW.inverse() * (POS_LMInW - POS_CurCInW);
+
+        T invZ = 1.0 / POS_LMInCurC(2);
+
+        Eigen::Map<Eigen::Vector2<T>> residuals(sResiduals);
+        residuals(0) = fx * POS_LMInCurC(0) * invZ + cx - _feat(0);
+        residuals(1) = fy * POS_LMInCurC(1) * invZ + cy - _feat(1);
+        residuals = T(_weight) * residuals;
+
+        return true;
+    }
+
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_VISUAL_PROJ_FACTOR_HPP

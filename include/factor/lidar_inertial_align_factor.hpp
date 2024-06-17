@@ -44,124 +44,127 @@
 #include "ceres/ceres.h"
 #include "util/utils.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    template<int Order>
-    struct LiDARInertialAlignHelper {
-    public:
-        using Ptr = std::shared_ptr<LiDARInertialAlignHelper>;
-        using SplineBundleType = ns_ctraj::SplineBundle<Order>;
-        using So3SplineType = typename SplineBundleType::So3SplineType;
+template <int Order>
+struct LiDARInertialAlignHelper {
+public:
+    using Ptr = std::shared_ptr<LiDARInertialAlignHelper>;
+    using SplineBundleType = ns_ctraj::SplineBundle<Order>;
+    using So3SplineType = typename SplineBundleType::So3SplineType;
 
-    public:
-        double dt, dt2;
-        Eigen::Vector3d velVec, posVec;
-        Eigen::Matrix3d velMat, posMat;
+public:
+    double dt, dt2;
+    Eigen::Vector3d velVec, posVec;
+    Eigen::Matrix3d velMat, posMat;
 
-        Eigen::Matrix3d sCMat, eCMat, diffCMat;
+    Eigen::Matrix3d sCMat, eCMat, diffCMat;
 
-        Eigen::Vector3d diffDMat;
+    Eigen::Vector3d diffDMat;
 
-        Eigen::Matrix3d diffEMat;
+    Eigen::Matrix3d diffEMat;
 
-        Sophus::SO3d mtSo3BrToBr0;
+    Sophus::SO3d mtSo3BrToBr0;
 
-    public:
-        LiDARInertialAlignHelper(const So3SplineType &so3Spline, const ns_ctraj::Posed &sPose,
-                                 const ns_ctraj::Posed &ePose, double mapTime, double TO_LkToBr,
-                                 const std::pair<Eigen::Vector3d, Eigen::Matrix3d> &velVecMat,
-                                 const std::pair<Eigen::Vector3d, Eigen::Matrix3d> &posVecMat) {
-            dt = ePose.timeStamp - sPose.timeStamp;
-            dt2 = dt * dt;
+public:
+    LiDARInertialAlignHelper(const So3SplineType &so3Spline,
+                             const ns_ctraj::Posed &sPose,
+                             const ns_ctraj::Posed &ePose,
+                             double mapTime,
+                             double TO_LkToBr,
+                             const std::pair<Eigen::Vector3d, Eigen::Matrix3d> &velVecMat,
+                             const std::pair<Eigen::Vector3d, Eigen::Matrix3d> &posVecMat) {
+        dt = ePose.timeStamp - sPose.timeStamp;
+        dt2 = dt * dt;
 
-            velVec = velVecMat.first;
-            velMat = velVecMat.second;
+        velVec = velVecMat.first;
+        velMat = velVecMat.second;
 
-            posVec = posVecMat.first;
-            posMat = posVecMat.second;
+        posVec = posVecMat.first;
+        posMat = posVecMat.second;
 
-            sCMat = CMat(so3Spline, sPose.timeStamp + TO_LkToBr);
-            eCMat = CMat(so3Spline, ePose.timeStamp + TO_LkToBr);
-            diffCMat = eCMat - sCMat;
+        sCMat = CMat(so3Spline, sPose.timeStamp + TO_LkToBr);
+        eCMat = CMat(so3Spline, ePose.timeStamp + TO_LkToBr);
+        diffCMat = eCMat - sCMat;
 
-            diffDMat = ePose.t - sPose.t;
+        diffDMat = ePose.t - sPose.t;
 
-            diffEMat = so3Spline.Evaluate(ePose.timeStamp + TO_LkToBr).matrix() -
-                       so3Spline.Evaluate(sPose.timeStamp + TO_LkToBr).matrix();
+        diffEMat = so3Spline.Evaluate(ePose.timeStamp + TO_LkToBr).matrix() -
+                   so3Spline.Evaluate(sPose.timeStamp + TO_LkToBr).matrix();
 
-            mtSo3BrToBr0 = so3Spline.Evaluate(mapTime + TO_LkToBr);
-        }
+        mtSo3BrToBr0 = so3Spline.Evaluate(mapTime + TO_LkToBr);
+    }
 
-    protected:
-        static Eigen::Matrix3d CMat(const So3SplineType &so3Spline, double t) {
-            auto so3 = so3Spline.Evaluate(t);
-            auto angVelInW = so3 * so3Spline.VelocityBody(t);
-            return Sophus::SO3d::hat(angVelInW) * so3.matrix();
-        }
-    };
+protected:
+    static Eigen::Matrix3d CMat(const So3SplineType &so3Spline, double t) {
+        auto so3 = so3Spline.Evaluate(t);
+        auto angVelInW = so3 * so3Spline.VelocityBody(t);
+        return Sophus::SO3d::hat(angVelInW) * so3.matrix();
+    }
+};
 
-    template<int Order>
-    struct LiDARInertialAlignFactor {
-    private:
+template <int Order>
+struct LiDARInertialAlignFactor {
+private:
+    LiDARInertialAlignHelper<Order> helper;
+    double weight;
 
-        LiDARInertialAlignHelper<Order> helper;
-        double weight;
+public:
+    LiDARInertialAlignFactor(const LiDARInertialAlignHelper<Order> &helper, double weight)
+        : helper(helper),
+          weight(weight) {}
 
-    public:
-        LiDARInertialAlignFactor(const LiDARInertialAlignHelper<Order> &helper, double weight)
-                : helper(helper), weight(weight) {}
+    static auto Create(const LiDARInertialAlignHelper<Order> &helper, double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<LiDARInertialAlignFactor>(
+            new LiDARInertialAlignFactor(helper, weight));
+    }
 
-        static auto Create(const LiDARInertialAlignHelper<Order> &helper, double weight) {
-            return new ceres::DynamicAutoDiffCostFunction<LiDARInertialAlignFactor>(
-                    new LiDARInertialAlignFactor(helper, weight)
-            );
-        }
+    static std::size_t TypeHashCode() { return typeid(LiDARInertialAlignFactor).hash_code(); }
 
-        static std::size_t TypeHashCode() {
-            return typeid(LiDARInertialAlignFactor).hash_code();
-        }
+public:
+    /**
+     * param blocks:
+     * [ SO3_LkToBr | POS_LkInBr | POS_BiInBr | S_VEL | E_VEL | GRAVITY ]
+     */
+    template <class T>
+    bool operator()(T const *const *sKnots, T *sResiduals) const {
+        Eigen::Map<const Sophus::SO3<T>> const SO3_LkToBr(sKnots[0]);
+        Eigen::Map<const Eigen::Vector3<T>> const POS_LkInBr(sKnots[1]);
+        Eigen::Map<const Eigen::Vector3<T>> const POS_BiInBr(sKnots[2]);
+        Eigen::Map<const Eigen::Vector3<T>> const S_VEL(sKnots[3]);
+        Eigen::Map<const Eigen::Vector3<T>> const E_VEL(sKnots[4]);
+        Eigen::Map<const Eigen::Vector3<T>> const GRAVITY(sKnots[5]);
 
-    public:
-        /**
-         * param blocks:
-         * [ SO3_LkToBr | POS_LkInBr | POS_BiInBr | S_VEL | E_VEL | GRAVITY ]
-         */
-        template<class T>
-        bool operator()(T const *const *sKnots, T *sResiduals) const {
+        Eigen::Vector3<T> velLeft =
+            helper.velVec.template cast<T>() - helper.velMat.template cast<T>() * POS_BiInBr;
+        Eigen::Vector3<T> velRight =
+            E_VEL - S_VEL - helper.diffCMat.template cast<T>() * POS_LkInBr - GRAVITY * helper.dt;
 
-            Eigen::Map<const Sophus::SO3<T>> const SO3_LkToBr(sKnots[0]);
-            Eigen::Map<const Eigen::Vector3<T>> const POS_LkInBr(sKnots[1]);
-            Eigen::Map<const Eigen::Vector3<T>> const POS_BiInBr(sKnots[2]);
-            Eigen::Map<const Eigen::Vector3<T>> const S_VEL(sKnots[3]);
-            Eigen::Map<const Eigen::Vector3<T>> const E_VEL(sKnots[4]);
-            Eigen::Map<const Eigen::Vector3<T>> const GRAVITY(sKnots[5]);
+        Eigen::Vector3<T> posLeft =
+            helper.posVec.template cast<T>() - helper.posMat.template cast<T>() * POS_BiInBr;
+        Eigen::Vector3<T> posRight =
+            helper.mtSo3BrToBr0.template cast<T>() * SO3_LkToBr *
+                helper.diffDMat.template cast<T>() -
+            helper.diffEMat.template cast<T>() * POS_LkInBr -
+            (S_VEL - helper.sCMat.template cast<T>() * POS_LkInBr) * helper.dt -
+            0.5 * GRAVITY * helper.dt2;
 
-            Eigen::Vector3<T> velLeft =
-                    helper.velVec.template cast<T>() - helper.velMat.template cast<T>() * POS_BiInBr;
-            Eigen::Vector3<T> velRight =
-                    E_VEL - S_VEL - helper.diffCMat.template cast<T>() * POS_LkInBr - GRAVITY * helper.dt;
+        Eigen::Map<Eigen::Vector6<T>> residuals(sResiduals);
 
-            Eigen::Vector3<T> posLeft =
-                    helper.posVec.template cast<T>() - helper.posMat.template cast<T>() * POS_BiInBr;
-            Eigen::Vector3<T> posRight =
-                    helper.mtSo3BrToBr0.template cast<T>() * SO3_LkToBr * helper.diffDMat.template cast<T>() -
-                    helper.diffEMat.template cast<T>() * POS_LkInBr -
-                    (S_VEL - helper.sCMat.template cast<T>() * POS_LkInBr) * helper.dt - 0.5 * GRAVITY * helper.dt2;
+        residuals.template block<3, 1>(0, 0) = velLeft - velRight;
+        residuals.template block<3, 1>(3, 0) = posLeft - posRight;
 
-            Eigen::Map<Eigen::Vector6<T>> residuals(sResiduals);
+        residuals = T(weight) * residuals;
 
-            residuals.template block<3, 1>(0, 0) = velLeft - velRight;
-            residuals.template block<3, 1>(3, 0) = posLeft - posRight;
+        return true;
+    }
 
-            residuals = T(weight) * residuals;
-
-            return true;
-        }
-
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    };
-}
-#endif //IKALIBR_LIDAR_INERTIAL_ALIGN_FACTOR_HPP
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+}  // namespace ns_ikalibr
+#endif  // IKALIBR_LIDAR_INERTIAL_ALIGN_FACTOR_HPP

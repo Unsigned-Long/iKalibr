@@ -41,389 +41,362 @@
 #include "cereal/types/vector.hpp"
 #include "cereal/types/set.hpp"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
-    const static std::map<std::string, OutputOption> OutputOptionMap = {
-            {"NONE",                    OutputOption::NONE},
-            {"ParamInEachIter",         OutputOption::ParamInEachIter},
-            {"BSplines",                OutputOption::BSplines},
-            {"LiDARMaps",               OutputOption::LiDARMaps},
-            {"VisualMaps",              OutputOption::VisualMaps},
-            {"RadarMaps",               OutputOption::RadarMaps},
-            {"HessianMat",              OutputOption::HessianMat},
-            {"VisualLiDARCovisibility", OutputOption::VisualLiDARCovisibility},
-            {"VisualKinematics",        OutputOption::VisualKinematics},
-            {"ColorizedLiDARMap",       OutputOption::ColorizedLiDARMap},
-            {"AlignedInertialMes",      OutputOption::AlignedInertialMes},
-            {"VisualReprojErrors",      OutputOption::VisualReprojErrors},
-            {"RadarDopplerErrors",      OutputOption::RadarDopplerErrors},
-            {"ALL",                     OutputOption::ALL},
-    };
+const static std::map<std::string, OutputOption> OutputOptionMap = {
+    {"NONE", OutputOption::NONE},
+    {"ParamInEachIter", OutputOption::ParamInEachIter},
+    {"BSplines", OutputOption::BSplines},
+    {"LiDARMaps", OutputOption::LiDARMaps},
+    {"VisualMaps", OutputOption::VisualMaps},
+    {"RadarMaps", OutputOption::RadarMaps},
+    {"HessianMat", OutputOption::HessianMat},
+    {"VisualLiDARCovisibility", OutputOption::VisualLiDARCovisibility},
+    {"VisualKinematics", OutputOption::VisualKinematics},
+    {"ColorizedLiDARMap", OutputOption::ColorizedLiDARMap},
+    {"AlignedInertialMes", OutputOption::AlignedInertialMes},
+    {"VisualReprojErrors", OutputOption::VisualReprojErrors},
+    {"RadarDopplerErrors", OutputOption::RadarDopplerErrors},
+    {"ALL", OutputOption::ALL},
+};
 
-    // ------------------------
-    // static initialized filed
-    // ------------------------
-    Configor::DataStream Configor::dataStream = {};
-    Configor::Prior Configor::prior = {};
-    Configor::Preference Configor::preference = {};
+// ------------------------
+// static initialized filed
+// ------------------------
+Configor::DataStream Configor::dataStream = {};
+Configor::Prior Configor::prior = {};
+Configor::Preference Configor::preference = {};
 
-    std::map<std::string, Configor::DataStream::IMUConfig> Configor::DataStream::IMUTopics = {};
-    std::map<std::string, Configor::DataStream::RadarConfig> Configor::DataStream::RadarTopics = {};
-    std::map<std::string, Configor::DataStream::LiDARConfig> Configor::DataStream::LiDARTopics = {};
-    std::map<std::string, Configor::DataStream::CameraConfig> Configor::DataStream::CameraTopics = {};
-    std::string Configor::DataStream::ReferIMU = {};
-    std::string Configor::DataStream::BagPath = {};
-    double Configor::DataStream::BeginTime = {};
-    double Configor::DataStream::Duration = {};
-    std::string Configor::DataStream::OutputPath = {};
-    const std::string Configor::DataStream::PkgPath = ros::package::getPath("ikalibr");
-    const std::string Configor::DataStream::DebugPath = PkgPath + "/debug/";
+std::map<std::string, Configor::DataStream::IMUConfig> Configor::DataStream::IMUTopics = {};
+std::map<std::string, Configor::DataStream::RadarConfig> Configor::DataStream::RadarTopics = {};
+std::map<std::string, Configor::DataStream::LiDARConfig> Configor::DataStream::LiDARTopics = {};
+std::map<std::string, Configor::DataStream::CameraConfig> Configor::DataStream::CameraTopics = {};
+std::string Configor::DataStream::ReferIMU = {};
+std::string Configor::DataStream::BagPath = {};
+double Configor::DataStream::BeginTime = {};
+double Configor::DataStream::Duration = {};
+std::string Configor::DataStream::OutputPath = {};
+const std::string Configor::DataStream::PkgPath = ros::package::getPath("ikalibr");
+const std::string Configor::DataStream::DebugPath = PkgPath + "/debug/";
 
-    double Configor::Prior::GravityNorm = {};
-    double Configor::Prior::TimeOffsetPadding = {};
-    double Configor::Prior::ReadoutTimePadding = {};
-    double Configor::Prior::KnotTimeDist::SO3Spline = {};
-    double Configor::Prior::KnotTimeDist::ScaleSpline = {};
-    double Configor::Prior::NDTLiDAROdometer::Resolution = {};
-    double Configor::Prior::NDTLiDAROdometer::KeyFrameDownSample = {};
-    double Configor::Prior::LiDARDataAssociate::MapDownSample = {};
-    double Configor::Prior::LiDARDataAssociate::PointToSurfelMax = {};
-    double Configor::Prior::LiDARDataAssociate::PlanarityMin = {};
-    double Configor::Prior::CauchyLossForRadarFactor = {};
-    double Configor::Prior::CauchyLossForLiDARFactor = {};
-    double Configor::Prior::CauchyLossForCameraFactor = {};
-    bool Configor::Prior::OptTemporalParams = {};
+double Configor::Prior::GravityNorm = {};
+double Configor::Prior::TimeOffsetPadding = {};
+double Configor::Prior::ReadoutTimePadding = {};
+double Configor::Prior::KnotTimeDist::SO3Spline = {};
+double Configor::Prior::KnotTimeDist::ScaleSpline = {};
+double Configor::Prior::NDTLiDAROdometer::Resolution = {};
+double Configor::Prior::NDTLiDAROdometer::KeyFrameDownSample = {};
+double Configor::Prior::LiDARDataAssociate::MapDownSample = {};
+double Configor::Prior::LiDARDataAssociate::PointToSurfelMax = {};
+double Configor::Prior::LiDARDataAssociate::PlanarityMin = {};
+double Configor::Prior::CauchyLossForRadarFactor = {};
+double Configor::Prior::CauchyLossForLiDARFactor = {};
+double Configor::Prior::CauchyLossForCameraFactor = {};
+bool Configor::Prior::OptTemporalParams = {};
 
-    bool Configor::Preference::UseCudaInSolving = {};
-    OutputOption Configor::Preference::Outputs = OutputOption::NONE;
-    std::set<std::string> Configor::Preference::OutputsStr = {};
-    std::string Configor::Preference::OutputDataFormatStr = {};
-    CerealArchiveType::Enum Configor::Preference::OutputDataFormat = CerealArchiveType::Enum::YAML;
-    const std::map<CerealArchiveType::Enum, std::string> Configor::Preference::FileExtension = {
-            {CerealArchiveType::Enum::YAML,   ".yaml"},
-            {CerealArchiveType::Enum::JSON,   ".json"},
-            {CerealArchiveType::Enum::XML,    ".xml"},
-            {CerealArchiveType::Enum::BINARY, ".bin"}
-    };
-    int Configor::Preference::ThreadsToUse = {};
-    const std::string Configor::Preference::SO3_SPLINE = "SO3_SPLINE";
-    const std::string Configor::Preference::SCALE_SPLINE = "SCALE_SPLINE";
-    double Configor::Preference::SplineScaleInViewer = {};
-    double Configor::Preference::CoordSScaleInViewer = {};
+bool Configor::Preference::UseCudaInSolving = {};
+OutputOption Configor::Preference::Outputs = OutputOption::NONE;
+std::set<std::string> Configor::Preference::OutputsStr = {};
+std::string Configor::Preference::OutputDataFormatStr = {};
+CerealArchiveType::Enum Configor::Preference::OutputDataFormat = CerealArchiveType::Enum::YAML;
+const std::map<CerealArchiveType::Enum, std::string> Configor::Preference::FileExtension = {
+    {CerealArchiveType::Enum::YAML, ".yaml"},
+    {CerealArchiveType::Enum::JSON, ".json"},
+    {CerealArchiveType::Enum::XML, ".xml"},
+    {CerealArchiveType::Enum::BINARY, ".bin"}};
+int Configor::Preference::ThreadsToUse = {};
+const std::string Configor::Preference::SO3_SPLINE = "SO3_SPLINE";
+const std::string Configor::Preference::SCALE_SPLINE = "SCALE_SPLINE";
+double Configor::Preference::SplineScaleInViewer = {};
+double Configor::Preference::CoordSScaleInViewer = {};
 
-    std::optional<std::string> Configor::DataStream::CreateImageStoreFolder(const std::string &camTopic) {
-        std::string path = ns_ikalibr::Configor::DataStream::OutputPath + "/images/" + camTopic + "/images";
-        if (!std::filesystem::exists(path)) { if (!std::filesystem::create_directories(path)) { return {}; }}
-        return std::filesystem::canonical(path);
-    }
-
-    std::optional<std::string> Configor::DataStream::CreateSfMWorkspace(const std::string &camTopic) {
-        std::string path = ns_ikalibr::Configor::DataStream::OutputPath + "/images/" + camTopic + "/sfm_ws";
-        if (!std::filesystem::exists(path)) { if (!std::filesystem::create_directories(path)) { return {}; }}
-        return std::filesystem::canonical(path);
-    }
-
-    std::string Configor::DataStream::GetImageStoreInfoFile(const std::string &camTopic) {
-        return ns_ikalibr::Configor::DataStream::OutputPath + "/images/" + camTopic + "/info" +
-               Configor::GetFormatExtension();
-    }
-
-    int Configor::Preference::AvailableThreads() {
-        int hardwareConcurrency = static_cast<int>(std::thread::hardware_concurrency());
-        if (ThreadsToUse <= 0 || ThreadsToUse > hardwareConcurrency) {
-            return hardwareConcurrency;
-        } else {
-            return ThreadsToUse;
+std::optional<std::string> Configor::DataStream::CreateImageStoreFolder(
+    const std::string &camTopic) {
+    std::string path =
+        ns_ikalibr::Configor::DataStream::OutputPath + "/images/" + camTopic + "/images";
+    if (!std::filesystem::exists(path)) {
+        if (!std::filesystem::create_directories(path)) {
+            return {};
         }
     }
+    return std::filesystem::canonical(path);
+}
 
-    Configor::Configor() = default;
+std::optional<std::string> Configor::DataStream::CreateSfMWorkspace(const std::string &camTopic) {
+    std::string path =
+        ns_ikalibr::Configor::DataStream::OutputPath + "/images/" + camTopic + "/sfm_ws";
+    if (!std::filesystem::exists(path)) {
+        if (!std::filesystem::create_directories(path)) {
+            return {};
+        }
+    }
+    return std::filesystem::canonical(path);
+}
 
-    void Configor::PrintMainFields() {
-        std::stringstream ssIMUTopics, ssRadarTopics, ssLiDARTopics, ssCameraTopics;
+std::string Configor::DataStream::GetImageStoreInfoFile(const std::string &camTopic) {
+    return ns_ikalibr::Configor::DataStream::OutputPath + "/images/" + camTopic + "/info" +
+           Configor::GetFormatExtension();
+}
 
-        for (const auto &[topic, _]: DataStream::IMUTopics) { ssIMUTopics << topic << " "; }
-        for (const auto &[topic, _]: DataStream::RadarTopics) { ssRadarTopics << topic << " "; }
-        for (const auto &[topic, _]: DataStream::LiDARTopics) { ssLiDARTopics << topic << " "; }
-        for (const auto &[topic, _]: DataStream::CameraTopics) { ssCameraTopics << topic << " "; }
+int Configor::Preference::AvailableThreads() {
+    int hardwareConcurrency = static_cast<int>(std::thread::hardware_concurrency());
+    if (ThreadsToUse <= 0 || ThreadsToUse > hardwareConcurrency) {
+        return hardwareConcurrency;
+    } else {
+        return ThreadsToUse;
+    }
+}
 
-        std::string IMUTopics = ssIMUTopics.str();
-        std::string RadarTopics = ssRadarTopics.str();
-        std::string LiDARTopics = ssLiDARTopics.str();
-        std::string CameraTopics = ssCameraTopics.str();
+Configor::Configor() = default;
 
-        auto GetOptString = [](OutputOption opt) -> std::string {
-            std::stringstream stringStream;
-            stringStream << magic_enum::enum_flags_name(opt);
-            return stringStream.str();
-        };
+void Configor::PrintMainFields() {
+    std::stringstream ssIMUTopics, ssRadarTopics, ssLiDARTopics, ssCameraTopics;
+
+    for (const auto &[topic, _] : DataStream::IMUTopics) {
+        ssIMUTopics << topic << " ";
+    }
+    for (const auto &[topic, _] : DataStream::RadarTopics) {
+        ssRadarTopics << topic << " ";
+    }
+    for (const auto &[topic, _] : DataStream::LiDARTopics) {
+        ssLiDARTopics << topic << " ";
+    }
+    for (const auto &[topic, _] : DataStream::CameraTopics) {
+        ssCameraTopics << topic << " ";
+    }
+
+    std::string IMUTopics = ssIMUTopics.str();
+    std::string RadarTopics = ssRadarTopics.str();
+    std::string LiDARTopics = ssLiDARTopics.str();
+    std::string CameraTopics = ssCameraTopics.str();
+
+    auto GetOptString = [](OutputOption opt) -> std::string {
+        std::stringstream stringStream;
+        stringStream << magic_enum::enum_flags_name(opt);
+        return stringStream.str();
+    };
 
 #define DESC_FIELD(field) #field, field
 #define DESC_FORMAT "\n{:>45}: {}"
-        spdlog::info(
-                "main fields of configor:"
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT
-                DESC_FORMAT,
-                DESC_FIELD(IMUTopics),
-                DESC_FIELD(RadarTopics),
-                DESC_FIELD(LiDARTopics),
-                DESC_FIELD(CameraTopics),
-                DESC_FIELD(DataStream::ReferIMU),
-                DESC_FIELD(DataStream::BagPath),
-                DESC_FIELD(DataStream::BeginTime),
-                DESC_FIELD(DataStream::Duration),
-                DESC_FIELD(DataStream::OutputPath),
-                DESC_FIELD(Prior::GravityNorm),
-                DESC_FIELD(Prior::OptTemporalParams),
-                DESC_FIELD(Prior::TimeOffsetPadding),
-                DESC_FIELD(Prior::ReadoutTimePadding),
-                DESC_FIELD(Prior::KnotTimeDist::SO3Spline),
-                DESC_FIELD(Prior::KnotTimeDist::ScaleSpline),
-                DESC_FIELD(Prior::NDTLiDAROdometer::Resolution),
-                DESC_FIELD(Prior::NDTLiDAROdometer::KeyFrameDownSample),
-                DESC_FIELD(Prior::LiDARDataAssociate::MapDownSample),
-                DESC_FIELD(Prior::LiDARDataAssociate::PointToSurfelMax),
-                DESC_FIELD(Prior::LiDARDataAssociate::PlanarityMin),
-                DESC_FIELD(Prior::CauchyLossForRadarFactor),
-                DESC_FIELD(Prior::CauchyLossForLiDARFactor),
-                DESC_FIELD(Prior::CauchyLossForLiDARFactor),
-                DESC_FIELD(Preference::UseCudaInSolving),
-                "Preference::OutputDataFormat", Preference::OutputDataFormatStr,
-                "Preference::Outputs", GetOptString(Preference::Outputs),
-                DESC_FIELD(Preference::ThreadsToUse)
-        );
+    spdlog::info(
+        "main fields of configor:" DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT
+            DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT
+                DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT
+                    DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT
+                        DESC_FORMAT,
+        DESC_FIELD(IMUTopics), DESC_FIELD(RadarTopics), DESC_FIELD(LiDARTopics),
+        DESC_FIELD(CameraTopics), DESC_FIELD(DataStream::ReferIMU), DESC_FIELD(DataStream::BagPath),
+        DESC_FIELD(DataStream::BeginTime), DESC_FIELD(DataStream::Duration),
+        DESC_FIELD(DataStream::OutputPath), DESC_FIELD(Prior::GravityNorm),
+        DESC_FIELD(Prior::OptTemporalParams), DESC_FIELD(Prior::TimeOffsetPadding),
+        DESC_FIELD(Prior::ReadoutTimePadding), DESC_FIELD(Prior::KnotTimeDist::SO3Spline),
+        DESC_FIELD(Prior::KnotTimeDist::ScaleSpline),
+        DESC_FIELD(Prior::NDTLiDAROdometer::Resolution),
+        DESC_FIELD(Prior::NDTLiDAROdometer::KeyFrameDownSample),
+        DESC_FIELD(Prior::LiDARDataAssociate::MapDownSample),
+        DESC_FIELD(Prior::LiDARDataAssociate::PointToSurfelMax),
+        DESC_FIELD(Prior::LiDARDataAssociate::PlanarityMin),
+        DESC_FIELD(Prior::CauchyLossForRadarFactor), DESC_FIELD(Prior::CauchyLossForLiDARFactor),
+        DESC_FIELD(Prior::CauchyLossForLiDARFactor), DESC_FIELD(Preference::UseCudaInSolving),
+        "Preference::OutputDataFormat", Preference::OutputDataFormatStr, "Preference::Outputs",
+        GetOptString(Preference::Outputs), DESC_FIELD(Preference::ThreadsToUse));
 
 #undef DESC_FIELD
 #undef DESC_FORMAT
+}
+
+void Configor::CheckConfigure() {
+    // one imu need to be involved in ikalibr
+    if (DataStream::IMUTopics.empty()) {
+        throw Status(
+            Status::ERROR,
+            "the imu topic num (i.e., DataStream::IMUTopic) should be larger equal than 1!");
+    }
+    if (!Configor::IsLiDARIntegrated() && !Configor::IsRadarIntegrated() &&
+        !Configor::IsCameraIntegrated() && DataStream::IMUTopics.size() < 2) {
+        throw Status(
+            Status::ERROR,
+            "performing multi-imu calibration requires imus that are more than or equal to 2!");
     }
 
-    void Configor::CheckConfigure() {
-        // one imu need to be involved in ikalibr
-        if (DataStream::IMUTopics.empty()) {
-            throw Status(
-                    Status::ERROR, "the imu topic num (i.e., DataStream::IMUTopic) should be larger equal than 1!"
-            );
+    // check empty topics
+    for (const auto &[topic, config] : DataStream::IMUTopics) {
+        if (topic.empty()) {
+            throw Status(Status::ERROR, "empty IMU topic exists!");
         }
-        if (!Configor::IsLiDARIntegrated() && !Configor::IsRadarIntegrated() && !Configor::IsCameraIntegrated()
-            && DataStream::IMUTopics.size() < 2) {
-            throw Status(
-                    Status::ERROR,
-                    "performing multi-imu calibration requires imus that are more than or equal to 2!"
-            );
+        if (config.AcceWeight <= 0.0) {
+            throw Status(Status::ERROR, "accelerator weight of IMU '{}' should be positive!",
+                         topic);
         }
-
-        // check empty topics
-        for (const auto &[topic, config]: DataStream::IMUTopics) {
-            if (topic.empty()) { throw Status(Status::ERROR, "empty IMU topic exists!"); }
-            if (config.AcceWeight <= 0.0) {
-                throw Status(Status::ERROR, "accelerator weight of IMU '{}' should be positive!", topic);
-            }
-            if (config.GyroWeight <= 0.0) {
-                throw Status(Status::ERROR, "gyroscope weight of IMU '{}' should be positive!", topic);
-            }
-            if (!std::filesystem::exists(config.Intrinsics)) {
-                throw Status(
-                        Status::ERROR, "IMU intrinsic file for '{}' dose not exist: '{}'", topic, config.Intrinsics
-                );
-            }
+        if (config.GyroWeight <= 0.0) {
+            throw Status(Status::ERROR, "gyroscope weight of IMU '{}' should be positive!", topic);
         }
-        for (const auto &[topic, config]: DataStream::RadarTopics) {
-            if (topic.empty()) { throw Status(Status::ERROR, "empty Radar topic exists!"); }
-            if (config.Weight <= 0.0) {
-                throw Status(Status::ERROR, "weight of Radar '{}' should be positive!", topic);
-            }
+        if (!std::filesystem::exists(config.Intrinsics)) {
+            throw Status(Status::ERROR, "IMU intrinsic file for '{}' dose not exist: '{}'", topic,
+                         config.Intrinsics);
         }
-        for (const auto &[topic, config]: DataStream::LiDARTopics) {
-            if (topic.empty()) { throw Status(Status::ERROR, "empty LiDAR topic exists!"); }
-            if (config.Weight <= 0.0) {
-                throw Status(Status::ERROR, "weight of LiDAR '{}' should be positive!", topic);
-            }
+    }
+    for (const auto &[topic, config] : DataStream::RadarTopics) {
+        if (topic.empty()) {
+            throw Status(Status::ERROR, "empty Radar topic exists!");
         }
-        for (const auto &[topic, config]: DataStream::CameraTopics) {
-            if (topic.empty()) { throw Status(Status::ERROR, "empty camera topic exists!"); }
-            if (config.Weight <= 0.0) {
-                throw Status(Status::ERROR, "weight of camera '{}' should be positive!", topic);
-            }
-            if (config.TrackLengthMin < 2) {
-                throw Status(Status::ERROR, "track length of camera '{}' should be larger than '1'!", topic);
-            }
-            if (!std::filesystem::exists(config.Intrinsics)) {
-                throw Status(
-                        Status::ERROR, "camera intrinsic file for '{}' dose not exist: '{}'", topic, config.Intrinsics
-                );
-            }
+        if (config.Weight <= 0.0) {
+            throw Status(Status::ERROR, "weight of Radar '{}' should be positive!", topic);
         }
-
-        // the reference imu should be one of multiple imus
-        if (DataStream::IMUTopics.find(DataStream::ReferIMU) == DataStream::IMUTopics.cend()) {
-            throw Status(Status::ERROR, "the reference IMU is not set, it should be one of the IMUs!");
+    }
+    for (const auto &[topic, config] : DataStream::LiDARTopics) {
+        if (topic.empty()) {
+            throw Status(Status::ERROR, "empty LiDAR topic exists!");
         }
-
-        if (!std::filesystem::exists(DataStream::BagPath)) {
-            throw Status(Status::ERROR, "can not find the ros bag (i.e., DataStream::BagPath)!");
+        if (config.Weight <= 0.0) {
+            throw Status(Status::ERROR, "weight of LiDAR '{}' should be positive!", topic);
         }
-        if (DataStream::OutputPath.empty()) {
-            throw Status(Status::ERROR, "the output path (i.e., DataStream::OutputPath) is empty!");
+    }
+    for (const auto &[topic, config] : DataStream::CameraTopics) {
+        if (topic.empty()) {
+            throw Status(Status::ERROR, "empty camera topic exists!");
         }
-        if (!std::filesystem::exists(DataStream::OutputPath) &&
-            !std::filesystem::create_directories(DataStream::OutputPath)) {
-            // if the output path doesn't exist and create it failed
-            throw Status(Status::ERROR, "the output path (i.e., DataStream::OutputPath) can not be created!");
+        if (config.Weight <= 0.0) {
+            throw Status(Status::ERROR, "weight of camera '{}' should be positive!", topic);
         }
-
-
-        if (Prior::TimeOffsetPadding <= 0.0) {
-            throw Status(
-                    Status::ERROR, "the time offset padding (i.e., Prior::TimeOffsetPadding) should be positive!"
-            );
+        if (config.TrackLengthMin < 2) {
+            throw Status(Status::ERROR, "track length of camera '{}' should be larger than '1'!",
+                         topic);
         }
-        if (Prior::ReadoutTimePadding <= 0.0) {
-            throw Status(
-                    Status::ERROR, "the readout time padding (i.e., Prior::ReadoutTimePadding) should be positive!"
-            );
-        }
-        if (Prior::KnotTimeDist::SO3Spline <= 0.0) {
-            throw Status(
-                    Status::ERROR,
-                    "the knot time distance of so3 spline (i.e., Prior::KnotTimeDist::SO3Spline) should be positive!"
-            );
-        }
-        if (Prior::KnotTimeDist::ScaleSpline <= 0.0) {
-            throw Status(
-                    Status::ERROR,
-                    "the knot time distance of scale spline (i.e., Prior::KnotTimeDist::ScaleSpline) should be positive!"
-            );
-        }
-        if (Prior::NDTLiDAROdometer::Resolution <= 0.0) {
-            throw Status(
-                    Status::ERROR,
-                    "the resolution for NDT LiDAR odometer (i.e., Prior::NDTLiDAROdometer::Resolution) should be positive!"
-            );
-        }
-        if (Prior::NDTLiDAROdometer::KeyFrameDownSample <= 0.0) {
-            throw Status(
-                    Status::ERROR,
-                    "the down sample rate for NDT LiDAR odometer (i.e., Prior::NDTLiDAROdometer::KeyFrameDownSample) should be positive!"
-            );
-        }
-
-        if (Prior::CauchyLossForRadarFactor <= 0.0) {
-            throw Status(
-                    Status::ERROR, "the Prior::CauchyLossForRadarFactor should be positive!"
-            );
-        }
-        if (Prior::CauchyLossForLiDARFactor <= 0.0) {
-            throw Status(
-                    Status::ERROR, "the Prior::CauchyLossForLiDARFactor should be positive!"
-            );
-        }
-        if (Prior::CauchyLossForCameraFactor <= 0.0) {
-            throw Status(
-                    Status::ERROR, "the Prior::CauchyLossForCameraFactor should be positive!"
-            );
-        }
-
-        if (Preference::SplineScaleInViewer <= 0.0) {
-            throw Status(Status::ERROR, "the scale of splines in visualization should be positive!");
-        }
-        if (Preference::CoordSScaleInViewer <= 0.0) {
-            throw Status(Status::ERROR, "the scale of coordinates in visualization should be positive!");
+        if (!std::filesystem::exists(config.Intrinsics)) {
+            throw Status(Status::ERROR, "camera intrinsic file for '{}' dose not exist: '{}'",
+                         topic, config.Intrinsics);
         }
     }
 
-    Configor::Ptr Configor::Create() {
-        return std::make_shared<Configor>();
+    // the reference imu should be one of multiple imus
+    if (DataStream::IMUTopics.find(DataStream::ReferIMU) == DataStream::IMUTopics.cend()) {
+        throw Status(Status::ERROR, "the reference IMU is not set, it should be one of the IMUs!");
     }
 
-    std::string Configor::GetFormatExtension() {
-        return Preference::FileExtension.at(Preference::OutputDataFormat);
+    if (!std::filesystem::exists(DataStream::BagPath)) {
+        throw Status(Status::ERROR, "can not find the ros bag (i.e., DataStream::BagPath)!");
+    }
+    if (DataStream::OutputPath.empty()) {
+        throw Status(Status::ERROR, "the output path (i.e., DataStream::OutputPath) is empty!");
+    }
+    if (!std::filesystem::exists(DataStream::OutputPath) &&
+        !std::filesystem::create_directories(DataStream::OutputPath)) {
+        // if the output path doesn't exist and create it failed
+        throw Status(Status::ERROR,
+                     "the output path (i.e., DataStream::OutputPath) can not be created!");
     }
 
-    bool Configor::LoadConfigure(const std::string &filename, CerealArchiveType::Enum archiveType) {
-        // load configure info
-        std::ifstream file(filename);
-        if (!file.is_open()) {
-            return false;
-        }
-        auto archive = GetInputArchiveVariant(file, archiveType);
-        auto configor = Configor::Create();
-        SerializeByInputArchiveVariant(archive, archiveType, cereal::make_nvp("Configor", *configor));
-
-        // perform internal data transformation
-        try {
-            Configor::Preference::OutputDataFormat = EnumCast::stringToEnum<CerealArchiveType::Enum>(
-                    Configor::Preference::OutputDataFormatStr
-            );
-        } catch (...) {
-            throw Status(
-                    Status::CRITICAL, "unsupported data format '{}' for io!!!",
-                    Configor::Preference::OutputDataFormatStr
-            );
-        }
-        for (const auto &output: Preference::OutputsStr) {
-            // when the enum is out of range of [MAGIC_ENUM_RANGE_MIN, MAGIC_ENUM_RANGE_MAX],
-            // magic_enum would not work
-            // try {
-            //     Configor::Preference::Outputs |= EnumCast::stringToEnum<OutputOption>(output);
-            // } catch (...) {
-            //     throw Status(Status::CRITICAL, "unsupported output context: '{}'!!!", output);
-            // }
-            if (auto iter = OutputOptionMap.find(output);iter == OutputOptionMap.cend()) {
-                throw Status(Status::CRITICAL, "unsupported output context: '{}'!!!", output);
-            } else {
-                Configor::Preference::Outputs |= iter->second;
-            }
-        }
-
-        // perform checking
-        configor->CheckConfigure();
-        return true;
+    if (Prior::TimeOffsetPadding <= 0.0) {
+        throw Status(
+            Status::ERROR,
+            "the time offset padding (i.e., Prior::TimeOffsetPadding) should be positive!");
+    }
+    if (Prior::ReadoutTimePadding <= 0.0) {
+        throw Status(
+            Status::ERROR,
+            "the readout time padding (i.e., Prior::ReadoutTimePadding) should be positive!");
+    }
+    if (Prior::KnotTimeDist::SO3Spline <= 0.0) {
+        throw Status(Status::ERROR,
+                     "the knot time distance of so3 spline (i.e., Prior::KnotTimeDist::SO3Spline) "
+                     "should be positive!");
+    }
+    if (Prior::KnotTimeDist::ScaleSpline <= 0.0) {
+        throw Status(Status::ERROR,
+                     "the knot time distance of scale spline (i.e., "
+                     "Prior::KnotTimeDist::ScaleSpline) should be positive!");
+    }
+    if (Prior::NDTLiDAROdometer::Resolution <= 0.0) {
+        throw Status(Status::ERROR,
+                     "the resolution for NDT LiDAR odometer (i.e., "
+                     "Prior::NDTLiDAROdometer::Resolution) should be positive!");
+    }
+    if (Prior::NDTLiDAROdometer::KeyFrameDownSample <= 0.0) {
+        throw Status(Status::ERROR,
+                     "the down sample rate for NDT LiDAR odometer (i.e., "
+                     "Prior::NDTLiDAROdometer::KeyFrameDownSample) should be positive!");
     }
 
-    bool Configor::SaveConfigure(const std::string &filename, CerealArchiveType::Enum archiveType) {
-        std::ofstream file(filename);
-        if (!file.is_open()) {
-            return false;
-        }
-        auto archive = GetOutputArchiveVariant(file, archiveType);
-        SerializeByOutputArchiveVariant(archive, archiveType, cereal::make_nvp("Configor", *this));
-        return true;
+    if (Prior::CauchyLossForRadarFactor <= 0.0) {
+        throw Status(Status::ERROR, "the Prior::CauchyLossForRadarFactor should be positive!");
+    }
+    if (Prior::CauchyLossForLiDARFactor <= 0.0) {
+        throw Status(Status::ERROR, "the Prior::CauchyLossForLiDARFactor should be positive!");
+    }
+    if (Prior::CauchyLossForCameraFactor <= 0.0) {
+        throw Status(Status::ERROR, "the Prior::CauchyLossForCameraFactor should be positive!");
     }
 
-    bool Configor::IsLiDARIntegrated() {
-        return !DataStream::LiDARTopics.empty();
+    if (Preference::SplineScaleInViewer <= 0.0) {
+        throw Status(Status::ERROR, "the scale of splines in visualization should be positive!");
     }
-
-    bool Configor::IsRadarIntegrated() {
-        return !DataStream::RadarTopics.empty();
-    }
-
-    bool Configor::IsCameraIntegrated() {
-        return !DataStream::CameraTopics.empty();
+    if (Preference::CoordSScaleInViewer <= 0.0) {
+        throw Status(Status::ERROR,
+                     "the scale of coordinates in visualization should be positive!");
     }
 }
+
+Configor::Ptr Configor::Create() { return std::make_shared<Configor>(); }
+
+std::string Configor::GetFormatExtension() {
+    return Preference::FileExtension.at(Preference::OutputDataFormat);
+}
+
+bool Configor::LoadConfigure(const std::string &filename, CerealArchiveType::Enum archiveType) {
+    // load configure info
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        return false;
+    }
+    auto archive = GetInputArchiveVariant(file, archiveType);
+    auto configor = Configor::Create();
+    SerializeByInputArchiveVariant(archive, archiveType, cereal::make_nvp("Configor", *configor));
+
+    // perform internal data transformation
+    try {
+        Configor::Preference::OutputDataFormat = EnumCast::stringToEnum<CerealArchiveType::Enum>(
+            Configor::Preference::OutputDataFormatStr);
+    } catch (...) {
+        throw Status(Status::CRITICAL, "unsupported data format '{}' for io!!!",
+                     Configor::Preference::OutputDataFormatStr);
+    }
+    for (const auto &output : Preference::OutputsStr) {
+        // when the enum is out of range of [MAGIC_ENUM_RANGE_MIN, MAGIC_ENUM_RANGE_MAX],
+        // magic_enum would not work
+        // try {
+        //     Configor::Preference::Outputs |= EnumCast::stringToEnum<OutputOption>(output);
+        // } catch (...) {
+        //     throw Status(Status::CRITICAL, "unsupported output context: '{}'!!!", output);
+        // }
+        if (auto iter = OutputOptionMap.find(output); iter == OutputOptionMap.cend()) {
+            throw Status(Status::CRITICAL, "unsupported output context: '{}'!!!", output);
+        } else {
+            Configor::Preference::Outputs |= iter->second;
+        }
+    }
+
+    // perform checking
+    configor->CheckConfigure();
+    return true;
+}
+
+bool Configor::SaveConfigure(const std::string &filename, CerealArchiveType::Enum archiveType) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        return false;
+    }
+    auto archive = GetOutputArchiveVariant(file, archiveType);
+    SerializeByOutputArchiveVariant(archive, archiveType, cereal::make_nvp("Configor", *this));
+    return true;
+}
+
+bool Configor::IsLiDARIntegrated() { return !DataStream::LiDARTopics.empty(); }
+
+bool Configor::IsRadarIntegrated() { return !DataStream::RadarTopics.empty(); }
+
+bool Configor::IsCameraIntegrated() { return !DataStream::CameraTopics.empty(); }
+}  // namespace ns_ikalibr

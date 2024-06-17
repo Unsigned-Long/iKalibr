@@ -35,104 +35,103 @@
 #include "nofree/data_collect_demo.h"
 #include "tiny-viewer/core/multi_viewer.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
-    void DataCollectionMotionDemo::Run() {
-        auto [poses, cams] = GeneratePoseSeq();
-        ns_viewer::MultiViewer viewer(
-                ns_viewer::MultiViewerConfigor({"GLOBAL", "FOLLOW"}, "iKalibr Data Collection Demo")
-        );
-        viewer.RunInMultiThread();
-        viewer.WaitForActive(-1.0);
+void DataCollectionMotionDemo::Run() {
+    auto [poses, cams] = GeneratePoseSeq();
+    ns_viewer::MultiViewer viewer(
+        ns_viewer::MultiViewerConfigor({"GLOBAL", "FOLLOW"}, "iKalibr Data Collection Demo"));
+    viewer.RunInMultiThread();
+    viewer.WaitForActive(-1.0);
 
-        std::vector<ns_viewer::Entity::Ptr> poseEntities(poses.size() - 1);
-        for (int i = 0; i < static_cast<int>(poses.size()) - 1; ++i) {
-            poseEntities.at(i) = ns_viewer::Line::Create(
-                    poses.at(i).translation, poses.at(i + 1).translation, ns_viewer::Colour::Black()
-            );
-        }
-        viewer.AddEntity(poseEntities, "GLOBAL");
-        viewer.AddEntity(poseEntities, "FOLLOW");
+    std::vector<ns_viewer::Entity::Ptr> poseEntities(poses.size() - 1);
+    for (int i = 0; i < static_cast<int>(poses.size()) - 1; ++i) {
+        poseEntities.at(i) = ns_viewer::Line::Create(
+            poses.at(i).translation, poses.at(i + 1).translation, ns_viewer::Colour::Black());
+    }
+    viewer.AddEntity(poseEntities, "GLOBAL");
+    viewer.AddEntity(poseEntities, "FOLLOW");
 
-        auto lastTime = std::chrono::steady_clock::now();
-        int curIdx = 0;
-        std::map<std::string, std::vector<std::size_t>> lastEntities;
+    auto lastTime = std::chrono::steady_clock::now();
+    int curIdx = 0;
+    std::map<std::string, std::vector<std::size_t>> lastEntities;
 
-        while (viewer.IsActive()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(int(Dt * 1E3 * 1E-1)));
-            std::chrono::duration<double, std::milli> curWaitTime = std::chrono::steady_clock::now() - lastTime;
-            if (curWaitTime.count() > Dt * 1E3) {
-                // reset time
-                lastTime = std::chrono::steady_clock::now();
+    while (viewer.IsActive()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(int(Dt * 1E3 * 1E-1)));
+        std::chrono::duration<double, std::milli> curWaitTime =
+            std::chrono::steady_clock::now() - lastTime;
+        if (curWaitTime.count() > Dt * 1E3) {
+            // reset time
+            lastTime = std::chrono::steady_clock::now();
 
-                // update viewer
-                viewer.RemoveEntity(lastEntities["GLOBAL"], "GLOBAL");
-                viewer.RemoveEntity(lastEntities["FOLLOW"], "FOLLOW");
-                const int minIdx = std::max(curIdx - KeepNum, 0);
-                const int maxIdx = curIdx, num = maxIdx - minIdx + 1;
-                std::vector<ns_viewer::Entity::Ptr> entities(num);
-                for (int i = minIdx; i <= curIdx; ++i) {
-                    entities.at(i - minIdx) = ns_viewer::Coordinate::Create(
-                            poses.at(i), CoordSizeMin + (float) (i - minIdx) / (float) num * CoordSizeRange
-                    );
-                }
-                lastEntities["FOLLOW"] = viewer.AddEntity(entities, "FOLLOW");
-                entities.push_back(ns_viewer::CubeCamera::Create(cams.at(curIdx)));
-                lastEntities["GLOBAL"] = viewer.AddEntity(entities, "GLOBAL");
+            // update viewer
+            viewer.RemoveEntity(lastEntities["GLOBAL"], "GLOBAL");
+            viewer.RemoveEntity(lastEntities["FOLLOW"], "FOLLOW");
+            const int minIdx = std::max(curIdx - KeepNum, 0);
+            const int maxIdx = curIdx, num = maxIdx - minIdx + 1;
+            std::vector<ns_viewer::Entity::Ptr> entities(num);
+            for (int i = minIdx; i <= curIdx; ++i) {
+                entities.at(i - minIdx) = ns_viewer::Coordinate::Create(
+                    poses.at(i), CoordSizeMin + (float)(i - minIdx) / (float)num * CoordSizeRange);
+            }
+            lastEntities["FOLLOW"] = viewer.AddEntity(entities, "FOLLOW");
+            entities.push_back(ns_viewer::CubeCamera::Create(cams.at(curIdx)));
+            lastEntities["GLOBAL"] = viewer.AddEntity(entities, "GLOBAL");
 
-                // camera
-                viewer.SetCamView(cams.at(curIdx), "FOLLOW");
+            // camera
+            viewer.SetCamView(cams.at(curIdx), "FOLLOW");
 
-                ++curIdx;
-                if (curIdx > int(poses.size() - 1)) { curIdx = 0; }
+            ++curIdx;
+            if (curIdx > int(poses.size() - 1)) {
+                curIdx = 0;
             }
         }
     }
-
-    std::array<std::vector<ns_viewer::Posef>, 2> DataCollectionMotionDemo::GeneratePoseSeq() {
-        std::vector<ns_viewer::Posef> poses(PoseSize), cams(PoseSize);
-        for (int i = 0; i < PoseSize; ++i) {
-            const float cTheta = std::cos(DTheta * (float) i);
-            const float sTheta = std::sin(DTheta * (float) i);
-
-            Eigen::Vector3f CircleInOrigin(Radius * cTheta, Radius * sTheta, 0.0f);
-            Eigen::Matrix3f CircleToOrigin;
-            CircleToOrigin.col(0) = Eigen::Vector3f(cTheta, sTheta, 0.0f);
-            CircleToOrigin.col(1) = Eigen::Vector3f(-sTheta, cTheta, 0.0f);
-            CircleToOrigin.col(2) = Eigen::Vector3f(0.0f, 0.0f, 1.0f);
-
-            Eigen::Vector3f EightInCircle;
-            const float alpha = std::fmod((float) i * Dt, EightTime) / EightTime * (2.0 * M_PI);
-            EightInCircle(0) = EightWidth * std::cos(alpha);
-            EightInCircle(1) = 0.0f;
-            EightInCircle(2) = EightHeight * std::sin(alpha) * std::cos(alpha);
-
-            auto &pose = poses.at(i);
-            pose.timeStamp = Dt * i;
-            pose.translation = CircleToOrigin * EightInCircle + CircleInOrigin;
-            pose.rotation.col(0) = pose.translation.normalized();
-            pose.rotation.col(1) = Eigen::Vector3f(
-                    -pose.translation(1), pose.translation(0), 0.0f
-            ).normalized();
-            pose.rotation.col(2) = pose.rotation.col(0).cross(pose.rotation.col(1));
-
-            // cameras
-            auto &cam = cams.at(i);
-            cam.timeStamp = Dt * i;
-            cam.translation = CircleInOrigin
-                              // z-axis bias
-                              + Eigen::Vector3f(0.0, 0.0, CameraZBias)
-                              // x-axis and y-axis bias
-                              + Eigen::Vector3f(sTheta, -cTheta, 0.0f) * CameraYBias;
-
-            cam.rotation.col(2) = (pose.translation - cam.translation).normalized();
-            cam.rotation.col(0) = Eigen::Vector3f(
-                    cam.rotation.col(2)(1), -cam.rotation.col(2)(0), 0.0f
-            ).normalized();
-            cam.rotation.col(1) = cam.rotation.col(2).cross(cam.rotation.col(0));
-        }
-        return {poses, cams};
-    }
 }
 
+std::array<std::vector<ns_viewer::Posef>, 2> DataCollectionMotionDemo::GeneratePoseSeq() {
+    std::vector<ns_viewer::Posef> poses(PoseSize), cams(PoseSize);
+    for (int i = 0; i < PoseSize; ++i) {
+        const float cTheta = std::cos(DTheta * (float)i);
+        const float sTheta = std::sin(DTheta * (float)i);
+
+        Eigen::Vector3f CircleInOrigin(Radius * cTheta, Radius * sTheta, 0.0f);
+        Eigen::Matrix3f CircleToOrigin;
+        CircleToOrigin.col(0) = Eigen::Vector3f(cTheta, sTheta, 0.0f);
+        CircleToOrigin.col(1) = Eigen::Vector3f(-sTheta, cTheta, 0.0f);
+        CircleToOrigin.col(2) = Eigen::Vector3f(0.0f, 0.0f, 1.0f);
+
+        Eigen::Vector3f EightInCircle;
+        const float alpha = std::fmod((float)i * Dt, EightTime) / EightTime * (2.0 * M_PI);
+        EightInCircle(0) = EightWidth * std::cos(alpha);
+        EightInCircle(1) = 0.0f;
+        EightInCircle(2) = EightHeight * std::sin(alpha) * std::cos(alpha);
+
+        auto &pose = poses.at(i);
+        pose.timeStamp = Dt * i;
+        pose.translation = CircleToOrigin * EightInCircle + CircleInOrigin;
+        pose.rotation.col(0) = pose.translation.normalized();
+        pose.rotation.col(1) =
+            Eigen::Vector3f(-pose.translation(1), pose.translation(0), 0.0f).normalized();
+        pose.rotation.col(2) = pose.rotation.col(0).cross(pose.rotation.col(1));
+
+        // cameras
+        auto &cam = cams.at(i);
+        cam.timeStamp = Dt * i;
+        cam.translation = CircleInOrigin
+                          // z-axis bias
+                          + Eigen::Vector3f(0.0, 0.0, CameraZBias)
+                          // x-axis and y-axis bias
+                          + Eigen::Vector3f(sTheta, -cTheta, 0.0f) * CameraYBias;
+
+        cam.rotation.col(2) = (pose.translation - cam.translation).normalized();
+        cam.rotation.col(0) =
+            Eigen::Vector3f(cam.rotation.col(2)(1), -cam.rotation.col(2)(0), 0.0f).normalized();
+        cam.rotation.col(1) = cam.rotation.col(2).cross(cam.rotation.col(0));
+    }
+    return {poses, cams};
+}
+}  // namespace ns_ikalibr

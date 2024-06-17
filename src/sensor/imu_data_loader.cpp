@@ -39,153 +39,136 @@
 #include "config/configor.h"
 #include "ikalibr/SbgImuData.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    IMUDataLoader::IMUDataLoader(IMUModelType imuModel) : _imuModel(imuModel) {}
+IMUDataLoader::IMUDataLoader(IMUModelType imuModel)
+    : _imuModel(imuModel) {}
 
-    IMUDataLoader::Ptr IMUDataLoader::GetLoader(const std::string &imuModelStr) {
-        // try extract radar model
-        IMUModelType imuModel;
-        try {
-            imuModel = EnumCast::stringToEnum<IMUModelType>(imuModelStr);
-        } catch (...) {
+IMUDataLoader::Ptr IMUDataLoader::GetLoader(const std::string &imuModelStr) {
+    // try extract radar model
+    IMUModelType imuModel;
+    try {
+        imuModel = EnumCast::stringToEnum<IMUModelType>(imuModelStr);
+    } catch (...) {
+        throw Status(
+            Status::WARNING,
+            "Unsupported IMU Type: '{}'. "
+            "Currently supported IMU types are: \n"
+            "1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html\n"
+            "2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git\n"
+            "3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html "
+            "(acce unit: G)\n"
+            "...\n"
+            "If you need to use other IMU types, "
+            "please 'Issues' us on the profile of the github repository.",
+            imuModelStr);
+    }
+    IMUDataLoader::Ptr imuDataLoader;
+    switch (imuModel) {
+        case IMUModelType::SENSOR_IMU:
+            imuDataLoader = SensorIMULoader::Create(imuModel);
+            break;
+        case IMUModelType::SBG_IMU:
+            imuDataLoader = SbgIMULoader::Create(imuModel);
+            break;
+        case IMUModelType::SENSOR_IMU_G:
+            imuDataLoader = SensorIMUGUnitLoader::Create(imuModel, Configor::Prior::GravityNorm);
+            break;
+        default:
             throw Status(
-                    Status::WARNING,
-                    "Unsupported IMU Type: '{}'. "
-                    "Currently supported IMU types are: \n"
-                    "1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html\n"
-                    "2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git\n"
-                    "3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)\n"
-                    "...\n"
-                    "If you need to use other IMU types, "
-                    "please 'Issues' us on the profile of the github repository.",
-                    imuModelStr
-            );
-        }
-        IMUDataLoader::Ptr imuDataLoader;
-        switch (imuModel) {
-            case IMUModelType::SENSOR_IMU:
-                imuDataLoader = SensorIMULoader::Create(imuModel);
-                break;
-            case IMUModelType::SBG_IMU:
-                imuDataLoader = SbgIMULoader::Create(imuModel);
-                break;
-            case IMUModelType::SENSOR_IMU_G:
-                imuDataLoader = SensorIMUGUnitLoader::Create(imuModel, Configor::Prior::GravityNorm);
-                break;
-            default:
-                throw Status(
-                        Status::WARNING,
-                        "Unsupported IMU Type: '{}'. "
-                        "Currently supported IMU types are: \n"
-                        "1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html\n"
-                        "2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git\n"
-                        "3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)\n"
-                        "...\n"
-                        "If you need to use other IMU types, "
-                        "please 'Issues' us on the profile of the github repository.",
-                        imuModelStr
-                );
-        }
-        return imuDataLoader;
+                Status::WARNING,
+                "Unsupported IMU Type: '{}'. "
+                "Currently supported IMU types are: \n"
+                "1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html\n"
+                "2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git\n"
+                "3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html "
+                "(acce unit: G)\n"
+                "...\n"
+                "If you need to use other IMU types, "
+                "please 'Issues' us on the profile of the github repository.",
+                imuModelStr);
     }
-
-    IMUModelType IMUDataLoader::GetIMUModel() const {
-        return _imuModel;
-    }
-
-    // ---------------
-    // SensorIMULoader
-    // ---------------
-    SensorIMULoader::SensorIMULoader(IMUModelType imuModel) : IMUDataLoader(imuModel) {}
-
-    SensorIMULoader::Ptr SensorIMULoader::Create(IMUModelType imuModel) {
-        return std::make_shared<SensorIMULoader>(imuModel);
-    }
-
-    IMUFrame::Ptr SensorIMULoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
-        // imu data item
-        sensor_msgs::ImuConstPtr msg = msgInstance.instantiate<sensor_msgs::Imu>();
-
-        CheckMessage<sensor_msgs::Imu>(msg);
-
-        Eigen::Vector3d acce = Eigen::Vector3d(
-                msg->linear_acceleration.x,
-                msg->linear_acceleration.y,
-                msg->linear_acceleration.z
-        );
-        Eigen::Vector3d gyro = Eigen::Vector3d(
-                msg->angular_velocity.x,
-                msg->angular_velocity.y,
-                msg->angular_velocity.z
-        );
-
-        return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
-    }
-
-    // ------------
-    // SbgIMULoader
-    // ------------
-    SbgIMULoader::SbgIMULoader(IMUModelType imuModel) : IMUDataLoader(imuModel) {}
-
-    SbgIMULoader::Ptr SbgIMULoader::Create(IMUModelType imuModel) {
-        return std::make_shared<SbgIMULoader>(imuModel);
-    }
-
-    IMUFrame::Ptr SbgIMULoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
-        // imu data item
-        ikalibr::SbgImuData::ConstPtr msg = msgInstance.instantiate<ikalibr::SbgImuData>();
-
-        CheckMessage<ikalibr::SbgImuData>(msg);
-
-        Eigen::Vector3d acce = Eigen::Vector3d(
-                msg->accel.x,
-                msg->accel.y,
-                msg->accel.z
-        );
-        Eigen::Vector3d gyro = Eigen::Vector3d(
-                msg->gyro.x,
-                msg->gyro.y,
-                msg->gyro.z
-        );
-
-        return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
-    }
-
-
-    // ---------------
-    // SensorIMUGUnitLoader
-    // ---------------
-    SensorIMUGUnitLoader::SensorIMUGUnitLoader(IMUModelType imuModel, double gNorm)
-            : IMUDataLoader(imuModel), g(gNorm) {}
-
-    SensorIMUGUnitLoader::Ptr SensorIMUGUnitLoader::Create(IMUModelType imuModel, double gNorm) {
-        return std::make_shared<SensorIMUGUnitLoader>(imuModel, gNorm);
-    }
-
-    IMUFrame::Ptr SensorIMUGUnitLoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
-        // imu data item
-        sensor_msgs::ImuConstPtr msg = msgInstance.instantiate<sensor_msgs::Imu>();
-
-        CheckMessage<sensor_msgs::Imu>(msg);
-
-        Eigen::Vector3d acce = Eigen::Vector3d(
-                msg->linear_acceleration.x,
-                msg->linear_acceleration.y,
-                msg->linear_acceleration.z
-        );
-
-        // special output of mid 360 IMU
-        acce *= g;
-
-        Eigen::Vector3d gyro = Eigen::Vector3d(
-                msg->angular_velocity.x,
-                msg->angular_velocity.y,
-                msg->angular_velocity.z
-        );
-
-        return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
-    }
+    return imuDataLoader;
 }
+
+IMUModelType IMUDataLoader::GetIMUModel() const { return _imuModel; }
+
+// ---------------
+// SensorIMULoader
+// ---------------
+SensorIMULoader::SensorIMULoader(IMUModelType imuModel)
+    : IMUDataLoader(imuModel) {}
+
+SensorIMULoader::Ptr SensorIMULoader::Create(IMUModelType imuModel) {
+    return std::make_shared<SensorIMULoader>(imuModel);
+}
+
+IMUFrame::Ptr SensorIMULoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
+    // imu data item
+    sensor_msgs::ImuConstPtr msg = msgInstance.instantiate<sensor_msgs::Imu>();
+
+    CheckMessage<sensor_msgs::Imu>(msg);
+
+    Eigen::Vector3d acce = Eigen::Vector3d(msg->linear_acceleration.x, msg->linear_acceleration.y,
+                                           msg->linear_acceleration.z);
+    Eigen::Vector3d gyro =
+        Eigen::Vector3d(msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z);
+
+    return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
+}
+
+// ------------
+// SbgIMULoader
+// ------------
+SbgIMULoader::SbgIMULoader(IMUModelType imuModel)
+    : IMUDataLoader(imuModel) {}
+
+SbgIMULoader::Ptr SbgIMULoader::Create(IMUModelType imuModel) {
+    return std::make_shared<SbgIMULoader>(imuModel);
+}
+
+IMUFrame::Ptr SbgIMULoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
+    // imu data item
+    ikalibr::SbgImuData::ConstPtr msg = msgInstance.instantiate<ikalibr::SbgImuData>();
+
+    CheckMessage<ikalibr::SbgImuData>(msg);
+
+    Eigen::Vector3d acce = Eigen::Vector3d(msg->accel.x, msg->accel.y, msg->accel.z);
+    Eigen::Vector3d gyro = Eigen::Vector3d(msg->gyro.x, msg->gyro.y, msg->gyro.z);
+
+    return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
+}
+
+// ---------------
+// SensorIMUGUnitLoader
+// ---------------
+SensorIMUGUnitLoader::SensorIMUGUnitLoader(IMUModelType imuModel, double gNorm)
+    : IMUDataLoader(imuModel),
+      g(gNorm) {}
+
+SensorIMUGUnitLoader::Ptr SensorIMUGUnitLoader::Create(IMUModelType imuModel, double gNorm) {
+    return std::make_shared<SensorIMUGUnitLoader>(imuModel, gNorm);
+}
+
+IMUFrame::Ptr SensorIMUGUnitLoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
+    // imu data item
+    sensor_msgs::ImuConstPtr msg = msgInstance.instantiate<sensor_msgs::Imu>();
+
+    CheckMessage<sensor_msgs::Imu>(msg);
+
+    Eigen::Vector3d acce = Eigen::Vector3d(msg->linear_acceleration.x, msg->linear_acceleration.y,
+                                           msg->linear_acceleration.z);
+
+    // special output of mid 360 IMU
+    acce *= g;
+
+    Eigen::Vector3d gyro =
+        Eigen::Vector3d(msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z);
+
+    return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
+}
+}  // namespace ns_ikalibr

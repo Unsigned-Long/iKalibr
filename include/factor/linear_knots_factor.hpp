@@ -43,83 +43,85 @@
 #include "ceres/ceres.h"
 #include "util/utils.h"
 
-_3_
-
-namespace ns_ikalibr {
-    struct RdLinearKnotsFactor {
-    private:
-        double weight;
-
-    public:
-        explicit RdLinearKnotsFactor(double weight) : weight(weight) {}
-
-        static auto Create(double weight) {
-            return new ceres::DynamicAutoDiffCostFunction<RdLinearKnotsFactor>(new RdLinearKnotsFactor(weight));
-        }
-
-        static std::size_t TypeHashCode() {
-            return typeid(RdLinearKnotsFactor).hash_code();
-        }
-
-    public:
-        /**
-         * param blocks:
-         * [ VEL | VEL | VEL ]
-         */
-        template<class T>
-        bool operator()(T const *const *parBlocks, T *sResiduals) const {
-            Eigen::Map<const Eigen::Vector3<T>> firKnot(parBlocks[0]);
-            Eigen::Map<const Eigen::Vector3<T>> sedKnot(parBlocks[1]);
-            Eigen::Map<const Eigen::Vector3<T>> thdKnot(parBlocks[2]);
-
-            Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
-            residuals = weight * (firKnot - 2.0 * sedKnot + thdKnot);
-
-            return true;
-        }
-
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    };
-
-    struct So3LinearKnotsFactor {
-    private:
-        double weight;
-
-    public:
-        explicit So3LinearKnotsFactor(double weight) : weight(weight) {}
-
-        static auto Create(double weight) {
-            return new ceres::DynamicAutoDiffCostFunction<So3LinearKnotsFactor>(new So3LinearKnotsFactor(weight));
-        }
-
-        static std::size_t TypeHashCode() {
-            return typeid(So3LinearKnotsFactor).hash_code();
-        }
-
-    public:
-        /**
-         * param blocks:
-         * [ SO3 | SO3 | SO3 ]
-         */
-        template<class T>
-        bool operator()(T const *const *parBlocks, T *sResiduals) const {
-            Eigen::Map<Sophus::SO3<T> const> const SO3_firToW(parBlocks[0]);
-            Eigen::Map<Sophus::SO3<T> const> const SO3_sedToW(parBlocks[1]);
-            Eigen::Map<Sophus::SO3<T> const> const SO3_thdToW(parBlocks[2]);
-
-            Sophus::SO3<T> SO3_firToSed = SO3_sedToW.inverse() * SO3_firToW;
-            Sophus::SO3<T> SO3_SedToThd = SO3_thdToW.inverse() * SO3_sedToW;
-
-            Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
-            residuals = weight * (SO3_SedToThd.inverse() * SO3_firToSed).log();
-
-            return true;
-        }
-
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_LINEAR_KNOTS_FACTOR_HPP
+namespace ns_ikalibr {
+struct RdLinearKnotsFactor {
+private:
+    double weight;
+
+public:
+    explicit RdLinearKnotsFactor(double weight)
+        : weight(weight) {}
+
+    static auto Create(double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<RdLinearKnotsFactor>(
+            new RdLinearKnotsFactor(weight));
+    }
+
+    static std::size_t TypeHashCode() { return typeid(RdLinearKnotsFactor).hash_code(); }
+
+public:
+    /**
+     * param blocks:
+     * [ VEL | VEL | VEL ]
+     */
+    template <class T>
+    bool operator()(T const *const *parBlocks, T *sResiduals) const {
+        Eigen::Map<const Eigen::Vector3<T>> firKnot(parBlocks[0]);
+        Eigen::Map<const Eigen::Vector3<T>> sedKnot(parBlocks[1]);
+        Eigen::Map<const Eigen::Vector3<T>> thdKnot(parBlocks[2]);
+
+        Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
+        residuals = weight * (firKnot - 2.0 * sedKnot + thdKnot);
+
+        return true;
+    }
+
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+struct So3LinearKnotsFactor {
+private:
+    double weight;
+
+public:
+    explicit So3LinearKnotsFactor(double weight)
+        : weight(weight) {}
+
+    static auto Create(double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<So3LinearKnotsFactor>(
+            new So3LinearKnotsFactor(weight));
+    }
+
+    static std::size_t TypeHashCode() { return typeid(So3LinearKnotsFactor).hash_code(); }
+
+public:
+    /**
+     * param blocks:
+     * [ SO3 | SO3 | SO3 ]
+     */
+    template <class T>
+    bool operator()(T const *const *parBlocks, T *sResiduals) const {
+        Eigen::Map<Sophus::SO3<T> const> const SO3_firToW(parBlocks[0]);
+        Eigen::Map<Sophus::SO3<T> const> const SO3_sedToW(parBlocks[1]);
+        Eigen::Map<Sophus::SO3<T> const> const SO3_thdToW(parBlocks[2]);
+
+        Sophus::SO3<T> SO3_firToSed = SO3_sedToW.inverse() * SO3_firToW;
+        Sophus::SO3<T> SO3_SedToThd = SO3_thdToW.inverse() * SO3_sedToW;
+
+        Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
+        residuals = weight * (SO3_SedToThd.inverse() * SO3_firToSed).log();
+
+        return true;
+    }
+
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_LINEAR_KNOTS_FACTOR_HPP

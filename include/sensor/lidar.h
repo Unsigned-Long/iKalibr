@@ -32,7 +32,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-
 #ifndef IKALIBR_LIDAR_H
 #define IKALIBR_LIDAR_H
 
@@ -40,44 +39,42 @@
 #include "util/cloud_define.hpp"
 #include "ctraj/utils/macros.hpp"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    struct LiDARFrame {
-    public:
-        using Ptr = std::shared_ptr<LiDARFrame>;
+struct LiDARFrame {
+public:
+    using Ptr = std::shared_ptr<LiDARFrame>;
 
-    private:
-        // the timestamp of this lidar scan
-        double _timestamp;
-        // the lidar scan [x, y, z, timestamp]
-        IKalibrPointCloud::Ptr _scan;
+private:
+    // the timestamp of this lidar scan
+    double _timestamp;
+    // the lidar scan [x, y, z, timestamp]
+    IKalibrPointCloud::Ptr _scan;
 
-    public:
+public:
+    // constructor
+    explicit LiDARFrame(double timestamp = INVALID_TIME_STAMP,
+                        IKalibrPointCloud::Ptr scan = boost::make_shared<IKalibrPointCloud>());
 
-        // constructor
-        explicit LiDARFrame(
-                double timestamp = INVALID_TIME_STAMP,
-                IKalibrPointCloud::Ptr scan = boost::make_shared<IKalibrPointCloud>()
-        );
+    // creator
+    static LiDARFrame::Ptr Create(
+        double timestamp = INVALID_TIME_STAMP,
+        const IKalibrPointCloud::Ptr &scan = boost::make_shared<IKalibrPointCloud>());
 
-        // creator
-        static LiDARFrame::Ptr Create(
-                double timestamp = INVALID_TIME_STAMP,
-                const IKalibrPointCloud::Ptr &scan = boost::make_shared<IKalibrPointCloud>()
-        );
+    // access
+    [[nodiscard]] IKalibrPointCloud::Ptr GetScan() const;
 
-        // access
-        [[nodiscard]] IKalibrPointCloud::Ptr GetScan() const;
+    [[nodiscard]] double GetTimestamp() const;
 
-        [[nodiscard]] double GetTimestamp() const;
+    void SetTimestamp(double timestamp);
 
-        void SetTimestamp(double timestamp);
+    friend std::ostream &operator<<(std::ostream &os, const LiDARFrame &frame);
+};
 
-        friend std::ostream &operator<<(std::ostream &os, const LiDARFrame &frame);
-    };
+}  // namespace ns_ikalibr
 
-}
-
-#endif // IKALIBR_LIDAR_H
+#endif  // IKALIBR_LIDAR_H

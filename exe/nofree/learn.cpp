@@ -41,7 +41,9 @@
 #include "nofree/data_collect_demo.h"
 #include "spdlog/fmt/bundled/color.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "ikalibr_learn");

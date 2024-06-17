@@ -38,59 +38,64 @@
 #include "sensor/radar.h"
 #include "opengv/sac/SampleConsensusProblem.hpp"
 
-_3_
-
-namespace ns_ikalibr {
-    class RadarVelocitySacProblem : public opengv::sac::SampleConsensusProblem<Eigen::Vector3d> {
-    public:
-        /** The model we are trying to fit (transformation) */
-        typedef Eigen::Vector3d model_t;
-
-    public:
-
-        /**
-         * \brief Constructor.
-         * \param[in] adapter Visitor holding bearing vectors, world points, etc.
-         * \param[in] algorithm The algorithm we want to use.
-         * \param[in] randomSeed Whether to seed the random number generator with
-         *            the current time.
-         */
-        explicit RadarVelocitySacProblem(const RadarTargetArray::Ptr &data, bool randomSeed = true) :
-                opengv::sac::SampleConsensusProblem<model_t>(randomSeed), _data(data) {
-            setUniformIndices(static_cast<int>(_data->GetTargets().size()));
-        };
-
-        /**
-         * Destructor.
-         */
-        ~RadarVelocitySacProblem() override = default;
-
-        /**
-         * \brief See parent-class.
-         */
-        bool computeModelCoefficients(const std::vector<int> &indices, model_t &outModel) const override;
-
-        /**
-         * \brief See parent-class.
-         */
-        void getSelectedDistancesToModel(const model_t &model, const std::vector<int> &indices,
-                                         std::vector<double> &scores) const override;
-
-        /**
-         * \brief See parent-class.
-         */
-        void optimizeModelCoefficients(const std::vector<int> &inliers, const model_t &model,
-                                       model_t &optimized_model) override;
-
-        /**
-         * \brief See parent-class.
-         */
-        [[nodiscard]] int getSampleSize() const override;
-
-    protected:
-        /** The adapter holding all input data */
-        const RadarTargetArray::Ptr &_data;
-    };
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-#endif //IKALIBR_RADAR_VELOCITY_SAC_H
+namespace ns_ikalibr {
+class RadarVelocitySacProblem : public opengv::sac::SampleConsensusProblem<Eigen::Vector3d> {
+public:
+    /** The model we are trying to fit (transformation) */
+    typedef Eigen::Vector3d model_t;
+
+public:
+    /**
+     * \brief Constructor.
+     * \param[in] adapter Visitor holding bearing vectors, world points, etc.
+     * \param[in] algorithm The algorithm we want to use.
+     * \param[in] randomSeed Whether to seed the random number generator with
+     *            the current time.
+     */
+    explicit RadarVelocitySacProblem(const RadarTargetArray::Ptr &data, bool randomSeed = true)
+        : opengv::sac::SampleConsensusProblem<model_t>(randomSeed),
+          _data(data) {
+        setUniformIndices(static_cast<int>(_data->GetTargets().size()));
+    };
+
+    /**
+     * Destructor.
+     */
+    ~RadarVelocitySacProblem() override = default;
+
+    /**
+     * \brief See parent-class.
+     */
+    bool computeModelCoefficients(const std::vector<int> &indices,
+                                  model_t &outModel) const override;
+
+    /**
+     * \brief See parent-class.
+     */
+    void getSelectedDistancesToModel(const model_t &model,
+                                     const std::vector<int> &indices,
+                                     std::vector<double> &scores) const override;
+
+    /**
+     * \brief See parent-class.
+     */
+    void optimizeModelCoefficients(const std::vector<int> &inliers,
+                                   const model_t &model,
+                                   model_t &optimized_model) override;
+
+    /**
+     * \brief See parent-class.
+     */
+    [[nodiscard]] int getSampleSize() const override;
+
+protected:
+    /** The adapter holding all input data */
+    const RadarTargetArray::Ptr &_data;
+};
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_RADAR_VELOCITY_SAC_H

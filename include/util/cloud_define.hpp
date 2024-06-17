@@ -41,7 +41,11 @@
 #include "pcl/point_types.h"
 #include "util/utils.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
+
+// clang-format off
 
 // -------------------------------
 // point cloud type for lidar data
@@ -56,12 +60,12 @@ struct EIGEN_ALIGN16 PointXYZIRT {
 };
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIRT,
-                                  (float, x, x)
-                                          (float, y, y)
-                                          (float, z, z)
-                                          (float, intensity, intensity)
-                                          (std::uint16_t, ring, ring)
-                                          (float, time, time))
+                                 (float, x, x)
+                                 (float, y, y)
+                                 (float, z, z)
+                                 (float, intensity, intensity)
+                                 (std::uint16_t, ring, ring)
+                                 (float, time, time))
 
 struct EIGEN_ALIGN16 PointXYZT {
     PCL_ADD_POINT4D;              // quad-word XYZ
@@ -70,10 +74,10 @@ struct EIGEN_ALIGN16 PointXYZT {
 };
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZT,
-                                  (float, x, x)
-                                          (float, y, y)
-                                          (float, z, z)
-                                          (double, timestamp, timestamp))
+                                 (float, x, x)
+                                 (float, y, y)
+                                 (float, z, z)
+                                 (double, timestamp, timestamp))
 
 struct EIGEN_ALIGN16 PointXYZIT {
     PCL_ADD_POINT4D;              // quad-word XYZ
@@ -83,11 +87,11 @@ struct EIGEN_ALIGN16 PointXYZIT {
 };
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIT,
-                                  (float, x, x)
-                                          (float, y, y)
-                                          (float, z, z)
-                                          (float, intensity, intensity)
-                                          (double, timestamp, timestamp))
+                                 (float, x, x)
+                                 (float, y, y)
+                                 (float, z, z)
+                                 (float, intensity, intensity)
+                                 (double, timestamp, timestamp))
 
 // OUSTER lidar
 struct EIGEN_ALIGN16 PointXYZIR8Y {
@@ -101,12 +105,12 @@ struct EIGEN_ALIGN16 PointXYZIR8Y {
 };
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIR8Y,
-                                  (float, x, x)
-                                          (float, y, y)
-                                          (float, z, z)
-                                          (float, intensity, intensity)
-                                          (std::uint8_t, ring, ring)
-                                          (std::uint32_t, t, t))
+                                 (float, x, x)
+                                 (float, y, y)
+                                 (float, z, z)
+                                 (float, intensity, intensity)
+                                 (std::uint8_t, ring, ring)
+                                 (std::uint32_t, t, t))
 
 struct EIGEN_ALIGN16 PointXYZITR {
     PCL_ADD_POINT4D;
@@ -118,12 +122,12 @@ struct EIGEN_ALIGN16 PointXYZITR {
 };
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZITR,
-                                  (float, x, x)
-                                          (float, y, y)
-                                          (float, z, z)
-                                          (float, intensity, intensity)
-                                          (double, timestamp, timestamp)
-                                          (std::uint16_t, ring, ring))
+                                 (float, x, x)
+                                 (float, y, y)
+                                 (float, z, z)
+                                 (float, intensity, intensity)
+                                 (double, timestamp, timestamp)
+                                 (std::uint16_t, ring, ring))
 // pcl
 using PosPoint = pcl::PointXYZ;
 using PosPointCloud = pcl::PointCloud<PosPoint>;
@@ -167,9 +171,11 @@ struct EIGEN_ALIGN16 RadarTargetPOSV {
     PCL_MAKE_ALIGNED_OPERATOR_NEW // ensure proper alignment
 };
 
-POINT_CLOUD_REGISTER_POINT_STRUCT(
-        RadarTargetPOSV,
-        (float, x, x)(float, y, y)(float, z, z)(float, velocity, velocity)
+POINT_CLOUD_REGISTER_POINT_STRUCT(RadarTargetPOSV,
+                                 (float, x, x)
+                                 (float, y, y)
+                                 (float, z, z)
+                                 (float, velocity, velocity)
 )
 using RadarPOSVCloud = pcl::PointCloud<RadarTargetPOSV>;
 
@@ -181,9 +187,12 @@ struct EIGEN_ALIGN16 RadarTargetPOSIV {
     PCL_MAKE_ALIGNED_OPERATOR_NEW // ensure proper alignment
 };
 
-POINT_CLOUD_REGISTER_POINT_STRUCT(
-        RadarTargetPOSIV,
-        (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(float, velocity, velocity)
+POINT_CLOUD_REGISTER_POINT_STRUCT(RadarTargetPOSIV,
+                                 (float, x, x)
+                                 (float, y, y)
+                                 (float, z, z)
+                                 (float, intensity, intensity)
+                                 (float, velocity, velocity)
 )
 using RadarPOSIVCloud = pcl::PointCloud<RadarTargetPOSIV>;
 
@@ -196,10 +205,14 @@ struct EIGEN_ALIGN16 RadarTargetXRIO {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-POINT_CLOUD_REGISTER_POINT_STRUCT(
-        RadarTargetXRIO,
-        (float, x, x)(float, y, y)(float, z, z)(float, snr_db, snr_db)(float, v_doppler_mps, v_doppler_mps)
-                (float, noise_db, noise_db)(float, range, range)
+POINT_CLOUD_REGISTER_POINT_STRUCT(RadarTargetXRIO,
+                                 (float, x, x)
+                                 (float, y, y)
+                                 (float, z, z)
+                                 (float, snr_db, snr_db)
+                                 (float, v_doppler_mps, v_doppler_mps)
+                                 (float, noise_db, noise_db)
+                                 (float, range, range)
 )
 using RadarXRIOCloud = pcl::PointCloud<RadarTargetXRIO>;
 

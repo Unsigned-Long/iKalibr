@@ -37,81 +37,87 @@
 #include "opencv2/imgproc.hpp"
 #include "sensor/camera.h"
 
-_3_
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 
-    VisualLinVelDrawer::VisualLinVelDrawer(std::string topic, ns_veta::Veta::Ptr veta,
-                                           SplineBundleType::Ptr splines, CalibParamManager::Ptr parMagr)
-            : _topic(std::move(topic)), _veta(std::move(veta)), _splines(std::move(splines)),
-              _parMagr(std::move(parMagr)) {
+VisualLinVelDrawer::VisualLinVelDrawer(std::string topic,
+                                       ns_veta::Veta::Ptr veta,
+                                       SplineBundleType::Ptr splines,
+                                       CalibParamManager::Ptr parMagr)
+    : _topic(std::move(topic)),
+      _veta(std::move(veta)),
+      _splines(std::move(splines)),
+      _parMagr(std::move(parMagr)) {
+    _intri = _parMagr->INTRI.Camera.at(_topic);
 
-        _intri = _parMagr->INTRI.Camera.at(_topic);
+    SE3_CmToBr = _parMagr->EXTRI.SE3_CmToBr(_topic);
+    TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(_topic);
+}
 
-        SE3_CmToBr = _parMagr->EXTRI.SE3_CmToBr(_topic);
-        TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(_topic);
-    }
+VisualLinVelDrawer::Ptr VisualLinVelDrawer::Create(const std::string &topic,
+                                                   const ns_veta::Veta::Ptr &veta,
+                                                   const SplineBundleType::Ptr &splines,
+                                                   const CalibParamManager::Ptr &parMagr) {
+    return std::make_shared<VisualLinVelDrawer>(topic, veta, splines, parMagr);
+}
 
-    VisualLinVelDrawer::Ptr
-    VisualLinVelDrawer::Create(const std::string &topic, const ns_veta::Veta::Ptr &veta,
-                               const SplineBundleType::Ptr &splines,
-                               const CalibParamManager::Ptr &parMagr) {
-        return std::make_shared<VisualLinVelDrawer>(topic, veta, splines, parMagr);
-    }
+cv::Mat VisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame, float scale) {
+    // undistorted gray image
+    cv::Mat undistImgColor, res;
+    undistImgColor = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
 
-    cv::Mat VisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame, float scale) {
-        // undistorted gray image
-        cv::Mat undistImgColor, res;
-        undistImgColor = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
-
-        // compute timestamp by reference IMU, we do not consider the readout time for RS cameras here
-        double timeByBr = frame->GetTimestamp() + TO_CmToBr;
-        const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
-        const auto &posSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
-        if (!so3Spline.TimeStampInRange(timeByBr) || !posSpline.TimeStampInRange(timeByBr)) { return undistImgColor; }
-
-        auto SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
-        Eigen::Vector3d POS_BrInBr0 = posSpline.Evaluate(timeByBr);
-        Sophus::SE3d SE3_BrToBr0(SO3_BrToBr0, POS_BrInBr0);
-        auto SE3_CmToBr0 = SE3_BrToBr0 * SE3_CmToBr;
-
-        Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * so3Spline.VelocityBody(timeByBr);
-        Eigen::Vector3d LIN_VEL_BrToBr0InBr0 = posSpline.Evaluate<1>(timeByBr);
-        Eigen::Vector3d LIN_VEL_CmToBr0InBr0 =
-                LIN_VEL_BrToBr0InBr0 - Sophus::SO3d::hat(SO3_BrToBr0 * SE3_CmToBr.translation()) * ANG_VEL_BrToBr0InBr0;
-
-        for (const auto &[lmId, lm]: _veta->structure) {
-            auto iter = lm.obs.find(frame->GetId());
-            if (iter == lm.obs.cend()) { continue; }
-
-            Eigen::Vector3d lmInCm = SE3_CmToBr0.inverse() * lm.X;
-            Eigen::Vector3d val1 = Sophus::SO3d::hat(SE3_CmToBr0.so3() * lmInCm) * ANG_VEL_BrToBr0InBr0
-                                   - LIN_VEL_CmToBr0InBr0;
-            Eigen::Vector3d val2 = SE3_CmToBr0.so3().inverse() * val1;
-
-            Eigen::Vector3d end = lmInCm + scale * val2;
-            Eigen::Vector2d endPixel = _intri->CamToImg({end(0) / end(2), end(1) / end(2)});
-
-            // we do not use extracted raw feature here to keep better consistency
-            Eigen::Vector2d feat = _intri->CamToImg({lmInCm(0) / lmInCm(2), lmInCm(1) / lmInCm(2)});
-
-            // square
-            cv::drawMarker(
-                    undistImgColor, cv::Point2d(feat(0), feat(1)), cv::Scalar(0, 255, 0),
-                    cv::MarkerTypes::MARKER_SQUARE, 10, 1
-            );
-
-            // key point
-            cv::drawMarker(
-                    undistImgColor, cv::Point2d(feat(0), feat(1)), cv::Scalar(0, 255, 0),
-                    cv::MarkerTypes::MARKER_SQUARE, 2, 2);
-
-            // tail
-            cv::line(
-                    undistImgColor, cv::Point2d(feat(0), feat(1)),
-                    cv::Point2d(endPixel(0), endPixel(1)), cv::Scalar(0, 255, 0), 1, cv::LINE_AA
-            );
-        }
+    // compute timestamp by reference IMU, we do not consider the readout time for RS cameras here
+    double timeByBr = frame->GetTimestamp() + TO_CmToBr;
+    const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    const auto &posSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+    if (!so3Spline.TimeStampInRange(timeByBr) || !posSpline.TimeStampInRange(timeByBr)) {
         return undistImgColor;
     }
+
+    auto SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
+    Eigen::Vector3d POS_BrInBr0 = posSpline.Evaluate(timeByBr);
+    Sophus::SE3d SE3_BrToBr0(SO3_BrToBr0, POS_BrInBr0);
+    auto SE3_CmToBr0 = SE3_BrToBr0 * SE3_CmToBr;
+
+    Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * so3Spline.VelocityBody(timeByBr);
+    Eigen::Vector3d LIN_VEL_BrToBr0InBr0 = posSpline.Evaluate<1>(timeByBr);
+    Eigen::Vector3d LIN_VEL_CmToBr0InBr0 =
+        LIN_VEL_BrToBr0InBr0 -
+        Sophus::SO3d::hat(SO3_BrToBr0 * SE3_CmToBr.translation()) * ANG_VEL_BrToBr0InBr0;
+
+    for (const auto &[lmId, lm] : _veta->structure) {
+        auto iter = lm.obs.find(frame->GetId());
+        if (iter == lm.obs.cend()) {
+            continue;
+        }
+
+        Eigen::Vector3d lmInCm = SE3_CmToBr0.inverse() * lm.X;
+        Eigen::Vector3d val1 =
+            Sophus::SO3d::hat(SE3_CmToBr0.so3() * lmInCm) * ANG_VEL_BrToBr0InBr0 -
+            LIN_VEL_CmToBr0InBr0;
+        Eigen::Vector3d val2 = SE3_CmToBr0.so3().inverse() * val1;
+
+        Eigen::Vector3d end = lmInCm + scale * val2;
+        Eigen::Vector2d endPixel = _intri->CamToImg({end(0) / end(2), end(1) / end(2)});
+
+        // we do not use extracted raw feature here to keep better consistency
+        Eigen::Vector2d feat = _intri->CamToImg({lmInCm(0) / lmInCm(2), lmInCm(1) / lmInCm(2)});
+
+        // square
+        cv::drawMarker(undistImgColor, cv::Point2d(feat(0), feat(1)), cv::Scalar(0, 255, 0),
+                       cv::MarkerTypes::MARKER_SQUARE, 10, 1);
+
+        // key point
+        cv::drawMarker(undistImgColor, cv::Point2d(feat(0), feat(1)), cv::Scalar(0, 255, 0),
+                       cv::MarkerTypes::MARKER_SQUARE, 2, 2);
+
+        // tail
+        cv::line(undistImgColor, cv::Point2d(feat(0), feat(1)),
+                 cv::Point2d(endPixel(0), endPixel(1)), cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    }
+    return undistImgColor;
 }
+}  // namespace ns_ikalibr
