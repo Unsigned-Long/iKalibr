@@ -43,16 +43,15 @@ Configor:
         value:
           Type: "AWR1843BOOST_CUSTOM"
           Weight: 10.0
-    # key: LiDAR topic, value: LiDAR type. Supported LiDAR types:
-    #   1.        Velodyne LiDARs: VLP_16_PACKET, VLP_16_SIMU, VLP_16_POINTS, VLP_32E_POINTS
-    #   2.          Ouster LiDARs: OUSTER_16_POINTS OUSTER_32_POINTS, OUSTER_64_POINTS, OUSTER_128_POINTS
-    #   3. Hesai Pandar XT LiDARs: PANDAR_XT_16, PANDAR_XT_32
-    #   4.           Livox LiDARs: LIVOX_MID_360, LIVOX_AVIA
+    #   1.        Velodyne LiDARs: VLP_16_PACKET, VLP_POINTS
+    #   2.          Ouster LiDARs: OUSTER_POINTS
+    #   3. Hesai Pandar XT LiDARs: PANDAR_XT_POINTS
+    #   4.           Livox LiDARs: LIVOX_CUSTOM (the official 'xfer_format'=1, mid-360 and avia is recommend)
     LiDARTopics:
       # if no LiDAR is integrated in your sensor suite, just comment out the following key items
       - key: "/lidar0/scan"
         value:
-          Type: "VLP_32E_POINTS"
+          Type: "VLP_POINTS"
           Weight: 100.0
       - key: "/lidar1/scan"
         value:

@@ -48,19 +48,13 @@ namespace ns_ikalibr {
 
 enum class LidarModelType {
     VLP_16_PACKET,
-    VLP_16_POINTS,
-    VLP_32E_POINTS,
+    VLP_POINTS,
 
-    OUSTER_16_POINTS,
-    OUSTER_32_POINTS,
-    OUSTER_64_POINTS,
-    OUSTER_128_POINTS,
+    OUSTER_POINTS,
 
-    PANDAR_XT_16,
-    PANDAR_XT_32,
+    PANDAR_XT_POINTS,
 
-    LIVOX_MID_360,
-    LIVOX_AVIA,
+    LIVOX_CUSTOM,
 };
 
 class LiDARDataLoader {
@@ -182,29 +176,7 @@ public:
 
     static VelodynePoints::Ptr Create(LidarModelType lidarModel);
 
-    static bool CheckCloudField(const sensor_msgs::PointCloud2::ConstPtr &cloud_msg,
-                                const std::string &desc);
-
-    static double ClockwiseAngle(double befAngle, double afterAngle);
-
-    static double RotationTravelledClockwise(double nowAngle, bool resetCnt = false);
-
-    bool InitScanParam(const sensor_msgs::PointCloud2::ConstPtr &lidarMsg);
-
     LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
-
-private:
-    int NUM_FIRING;
-    int NUM_LASERS;
-
-    bool FIRST_MSG;
-    bool HAS_TIME_FIELD;
-    bool HAS_RING_FIELD;
-
-    double HORIZON_RESOLUTION;
-    double ONE_SCAN_ANGLE;
-
-    int laserID_mapping[32]{};
 };
 
 class OusterLiDAR : public LiDARDataLoader {
@@ -217,9 +189,6 @@ public:
     static OusterLiDAR::Ptr Create(LidarModelType lidarModel);
 
     LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
-
-private:
-    int NUM_FIRING;
 };
 
 class PandarXTLiDAR : public LiDARDataLoader {
