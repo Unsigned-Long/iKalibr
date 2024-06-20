@@ -44,6 +44,13 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
+// ------------------------
+// static initialized filed
+// ------------------------
+const std::string CalibParamManager::Header::Software = "iKalibr";
+const std::string CalibParamManager::Header::Version = "1.0";
+const std::string CalibParamManager::Header::Address =
+    "https://github.com/Unsigned-Long/iKalibr.git";
 
 CalibParamManager::CalibParamManager(const std::vector<std::string> &imuTopics,
                                      const std::vector<std::string> &radarTopics,

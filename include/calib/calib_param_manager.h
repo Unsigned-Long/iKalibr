@@ -86,6 +86,18 @@ public:
     // trans radian angle to degree angle
     constexpr static double RAD_TO_DEG = 180.0 / M_PI;
 
+    static struct Header {
+        const static std::string Software;
+        const static std::string Version;
+        const static std::string Address;
+
+    public:
+        template <class Archive>
+        void serialize(Archive &ar) {
+            ar(CEREAL_NVP(Software), CEREAL_NVP(Version), CEREAL_NVP(Address));
+        }
+    } header;
+
     // ---------
     // extrinsic
     // ---------
@@ -259,7 +271,13 @@ public:
 public:
     // Serialization
     template <class Archive>
-    void serialize(Archive &archive) {
+    void save(Archive &archive) const {
+        archive(cereal::make_nvp("Header", header), CEREAL_NVP(EXTRI), CEREAL_NVP(TEMPORAL),
+                CEREAL_NVP(INTRI), CEREAL_NVP(GRAVITY));
+    }
+
+    template <class Archive>
+    void load(Archive &archive) {
         archive(CEREAL_NVP(EXTRI), CEREAL_NVP(TEMPORAL), CEREAL_NVP(INTRI), CEREAL_NVP(GRAVITY));
     }
 
