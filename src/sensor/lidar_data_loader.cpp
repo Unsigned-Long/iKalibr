@@ -470,7 +470,7 @@ LiDARFrame::Ptr LivoxLiDAR::UnpackScan(const rosbag::MessageInstance &msgInstanc
     CheckMessage<ikalibr::LivoxCustomMsg>(lidarMsg);
 
     // from nanosecond to second
-    double timebase = static_cast<double>(lidarMsg->timebase) * 1E-9;
+    double timebase = lidarMsg->header.stamp.toSec();
 
     IKalibrPointCloud::Ptr cloud(new IKalibrPointCloud);
     cloud->resize(lidarMsg->point_num);

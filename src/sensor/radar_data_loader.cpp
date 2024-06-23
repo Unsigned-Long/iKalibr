@@ -167,12 +167,16 @@ RadarTargetArray::Ptr AWR1843BOOSTRawLoader::UnpackScan(
 
     CheckMessage<ikalibr::AWR1843RadarScan>(msg);
 
-    if (msg->range < 0.5) {
-        return nullptr;
-    }
-
     auto target =
         RadarTarget::Create(msg->header.stamp.toSec(), {msg->x, msg->y, msg->z}, msg->velocity);
+
+    // attention: for some sensor kit, this value is not valid (always be zero)
+    // if (msg->range < 0.5) {
+    //     return nullptr;
+    // }
+    if (target->GetRange() < 0.5) {
+        return nullptr;
+    }
 
     return RadarTargetArray::Create(msg->header.stamp.toSec(), {target});
 }
@@ -274,12 +278,16 @@ RadarTargetArray::Ptr AWR1843BOOSTCustomLoader::UnpackScan(
 
     CheckMessage<ikalibr::AWR1843RadarScanCustom>(msg);
 
-    if (msg->range < 0.5) {
-        return nullptr;
-    }
-
     auto target =
         RadarTarget::Create(msg->header.stamp.toSec(), {msg->x, msg->y, msg->z}, msg->velocity);
+
+    // attention: for some sensor kit, this value is not valid (always be zero)
+    // if (msg->range < 0.5) {
+    //     return nullptr;
+    // }
+    if (target->GetRange() < 0.5) {
+        return nullptr;
+    }
 
     return RadarTargetArray::Create(msg->header.stamp.toSec(), {target});
 }
