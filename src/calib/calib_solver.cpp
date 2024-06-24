@@ -633,6 +633,14 @@ CalibSolver::Initialization() {
     // Step 4: initialize other spatial parameters using inertial-sensor alignment
     // ---------------------------------------------------------------------------
     spdlog::info("performing inertial alignment to initialize other spatial parameters...");
+
+    // assign the gravity roughly, f = a - g, g = a - f
+    Eigen::Vector3d firRefAcce =
+        _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU).front()->GetAcce();
+    _parMagr->GRAVITY = -firRefAcce.normalized() * Configor::Prior::GravityNorm;
+    spdlog::info("rough assigned gravity in world frame: ['{:.3f}', '{:.3f}', '{:.3f}']",
+                 _parMagr->GRAVITY(0), _parMagr->GRAVITY(1), _parMagr->GRAVITY(2));
+
     estimator = Estimator::Create(_splines, _parMagr);
 
     // we do not optimization the already initialized extrinsic rotations (IMUs', Cameras', and
@@ -659,28 +667,28 @@ CalibSolver::Initialization() {
         auto &curLidarLinVelSeq = linVelSeqLk.at(lidarTopic);
         double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
 
-        for (const auto &[imuTopic, imuFrames] : _dataMagr->GetIMUMeasurements()) {
-            spdlog::info("add lidar-inertial alignment factors for '{}' and '{}'...", lidarTopic,
-                         imuTopic);
+        const auto &imuFrames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+        spdlog::info("add lidar-inertial alignment factors for '{}' and '{}'...", lidarTopic,
+                     Configor::DataStream::ReferIMU);
 
-            static constexpr int STEP = 5;
-            for (int i = 0; i < static_cast<int>(poseSeq.size()) - STEP; ++i) {
-                const auto &sPose = poseSeq.at(i), ePose = poseSeq.at(i + STEP);
-                // we throw the head and tail data as the rotations from the fitted SO3 Spline in
-                // that range are poor
-                if (sPose.timeStamp + TO_LkToBr < st || ePose.timeStamp + TO_LkToBr > et) {
-                    continue;
-                }
-
-                if (ePose.timeStamp - sPose.timeStamp < 1E-3 ||
-                    ePose.timeStamp - sPose.timeStamp > 1.0) {
-                    continue;
-                }
-
-                estimator->AddLiDARInertialAlignment(
-                    imuFrames, lidarTopic, imuTopic, sPose, ePose, odometer->GetMapTime(),
-                    &curLidarLinVelSeq.at(i), &curLidarLinVelSeq.at(i + STEP), optOption, weight);
+        static constexpr int STEP = 5;
+        for (int i = 0; i < static_cast<int>(poseSeq.size()) - STEP; ++i) {
+            const auto &sPose = poseSeq.at(i), ePose = poseSeq.at(i + STEP);
+            // we throw the head and tail data as the rotations from the fitted SO3 Spline in
+            // that range are poor
+            if (sPose.timeStamp + TO_LkToBr < st || ePose.timeStamp + TO_LkToBr > et) {
+                continue;
             }
+
+            if (ePose.timeStamp - sPose.timeStamp < 1E-3 ||
+                ePose.timeStamp - sPose.timeStamp > 1.0) {
+                continue;
+            }
+
+            estimator->AddLiDARInertialAlignment(
+                imuFrames, lidarTopic, Configor::DataStream::ReferIMU, sPose, ePose,
+                odometer->GetMapTime(), &curLidarLinVelSeq.at(i), &curLidarLinVelSeq.at(i + STEP),
+                optOption, weight);
         }
     }
 
@@ -737,28 +745,27 @@ CalibSolver::Initialization() {
         visualScaleSeq[camTopic] = 1.0;
         auto &scale = visualScaleSeq.at(camTopic);
 
-        for (const auto &[imuTopic, imuFrames] : _dataMagr->GetIMUMeasurements()) {
-            spdlog::info("add visual-inertial alignment factors for '{}' and '{}'...", camTopic,
-                         imuTopic);
+        const auto &imuFrames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+        spdlog::info("add visual-inertial alignment factors for '{}' and '{}'...", camTopic,
+                     Configor::DataStream::ReferIMU);
 
-            static constexpr int STEP = 5;
-            for (int i = 0; i < static_cast<int>(constructedFrames.size()) - STEP; ++i) {
-                const auto &sPose = constructedFrames.at(i), ePose = constructedFrames.at(i + STEP);
-                // we throw the head and tail data as the rotations from the fitted SO3 Spline in
-                // that range are poor
-                if (sPose.timeStamp + TO_CmToBr < st || ePose.timeStamp + TO_CmToBr > et) {
-                    continue;
-                }
-
-                if (ePose.timeStamp - sPose.timeStamp < 1E-3 ||
-                    ePose.timeStamp - sPose.timeStamp > 1.0) {
-                    continue;
-                }
-
-                estimator->AddVisualInertialAlignment(
-                    imuFrames, camTopic, imuTopic, sPose, ePose, firCTime, &curCamLinVelSeq.at(i),
-                    &curCamLinVelSeq.at(i + STEP), &scale, optOption, weight);
+        static constexpr int STEP = 5;
+        for (int i = 0; i < static_cast<int>(constructedFrames.size()) - STEP; ++i) {
+            const auto &sPose = constructedFrames.at(i), ePose = constructedFrames.at(i + STEP);
+            // we throw the head and tail data as the rotations from the fitted SO3 Spline in
+            // that range are poor
+            if (sPose.timeStamp + TO_CmToBr < st || ePose.timeStamp + TO_CmToBr > et) {
+                continue;
             }
+
+            if (ePose.timeStamp - sPose.timeStamp < 1E-3 ||
+                ePose.timeStamp - sPose.timeStamp > 1.0) {
+                continue;
+            }
+
+            estimator->AddVisualInertialAlignment(
+                imuFrames, camTopic, Configor::DataStream::ReferIMU, sPose, ePose, firCTime,
+                &curCamLinVelSeq.at(i), &curCamLinVelSeq.at(i + STEP), &scale, optOption, weight);
         }
     }
 
@@ -786,30 +793,29 @@ CalibSolver::Initialization() {
         double weight = Configor::DataStream::RadarTopics.at(radarTopic).Weight;
         double TO_RjToBr = _parMagr->TEMPORAL.TO_RjToBr.at(radarTopic);
 
-        for (const auto &[imuTopic, frames] : _dataMagr->GetIMUMeasurements()) {
-            spdlog::info("add radar-inertial alignment factors for '{}' and '{}'...", radarTopic,
-                         imuTopic);
+        const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+        spdlog::info("add radar-inertial alignment factors for '{}' and '{}'...", radarTopic,
+                     Configor::DataStream::ReferIMU);
 
-            for (int i = 0; i < static_cast<int>(radarMes.size()) - 1; ++i) {
-                const auto &sArray = radarMes.at(i), eArray = radarMes.at(i + 1);
+        for (int i = 0; i < static_cast<int>(radarMes.size()) - 1; ++i) {
+            const auto &sArray = radarMes.at(i), eArray = radarMes.at(i + 1);
 
-                // spdlog::info("sAry count: {}, eAry count: {}",
-                //              sArray->GetTargets().size(), eArray->GetTargets().size());
+            // spdlog::info("sAry count: {}, eAry count: {}",
+            //              sArray->GetTargets().size(), eArray->GetTargets().size());
 
-                // to estimate the radar velocity by linear least-squares solver
-                // the minim targets number required is 3
-                if (sArray->GetTargets().size() < 10 || eArray->GetTargets().size() < 10) {
-                    continue;
-                }
-
-                if (sArray->GetTimestamp() + TO_RjToBr < st ||
-                    eArray->GetTimestamp() + TO_RjToBr > et) {
-                    continue;
-                }
-
-                estimator->AddRadarInertialAlignment(frames, imuTopic, radarTopic, sArray, eArray,
-                                                     optOption, weight);
+            // to estimate the radar velocity by linear least-squares solver
+            // the minim targets number required is 3
+            if (sArray->GetTargets().size() < 10 || eArray->GetTargets().size() < 10) {
+                continue;
             }
+
+            if (sArray->GetTimestamp() + TO_RjToBr < st ||
+                eArray->GetTimestamp() + TO_RjToBr > et) {
+                continue;
+            }
+
+            estimator->AddRadarInertialAlignment(frames, Configor::DataStream::ReferIMU, radarTopic,
+                                                 sArray, eArray, optOption, weight);
         }
     }
 
