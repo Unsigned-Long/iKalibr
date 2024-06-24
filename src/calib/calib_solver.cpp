@@ -267,7 +267,7 @@ CalibSolver::Initialization() {
     // --------------------------------------------------------------------
     // Step 2.1: perform rotation-only visual odometer to recover rotations
     // --------------------------------------------------------------------
-    std::shared_ptr<tqdm> bar = nullptr;
+    std::shared_ptr<tqdm> bar;
     std::map<std::string, RotOnlyVisualOdometer::Ptr> rotOnlyOdom;
     if (Configor::IsCameraIntegrated()) {
         // how many features to maintain in each image
@@ -650,8 +650,9 @@ CalibSolver::Initialization() {
         OptOption::Option::OPT_POS_LkInBr |
         // camera extrinsic translations and visual scale
         OptOption::Option::OPT_POS_CmInBr | OptOption::Option::OPT_VISUAL_GLOBAL_SCALE |
-        // radar extrinsics
-        OptOption::Option::OPT_SO3_RjToBr | OptOption::Option::OPT_POS_RjInBr |
+        // radar extrinsics quantities 'OptOption::Option::OPT_POS_RjInBr' would be solved after
+        // 'OptOption::Option::OPT_SO3_RjToBr' are initialized
+        OptOption::Option::OPT_SO3_RjToBr |
         // imu extrinsic translations and gravity
         OptOption::Option::OPT_POS_BiInBr | OptOption::Option::OPT_GRAVITY;
 
@@ -824,6 +825,14 @@ CalibSolver::Initialization() {
     estimator->SetRefIMUParamsConstant();
 
     sum = estimator->Solve(_ceresOption);
+    if (Configor::IsRadarIntegrated()) {
+        for (auto &POS_RjInBr : _parMagr->EXTRI.POS_RjInBr) {
+            // radar extrinsics quantities 'OptOption::Option::OPT_POS_RjInBr' would be solved
+            estimator->SetParameterBlockVariable(POS_RjInBr.second.data());
+        }
+        sum = estimator->Solve(_ceresOption);
+    }
+
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
     if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
@@ -1125,7 +1134,7 @@ CalibSolver::BuildGlobalMapOfLiDAR() {
         undistFrames[topic] =
             undistHelper->UndistortToRef(data, topic, ScanUndistortion::Option::ALL);
 
-        spdlog::info("marge scans to map...");
+        spdlog::info("marge scans from lidar '{}' to map...", topic);
         for (auto &frame : undistFrames.at(topic)) {
             if (frame == nullptr) {
                 continue;
@@ -1210,7 +1219,6 @@ std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> CalibSolver::DataAsso
     // ------------------------------------------------
     // Step 2: perform data association for each frames
     // ------------------------------------------------
-    spdlog::info("perform point to surfel association...");
     auto associator = PointToSurfelAssociator::Create(
         // we use the dense map to create data associator for high-perform point-to-surfel search
         map, Configor::Prior::LiDARDataAssociate::MapResolution,
@@ -1227,9 +1235,10 @@ std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> CalibSolver::DataAsso
     std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> pointToSurfel;
 
     std::size_t count = 0;
-    std::shared_ptr<tqdm> bar = nullptr;
+    std::shared_ptr<tqdm> bar;
     for (const auto &[topic, framesInMap] : undistFrames) {
         const auto &rawFrames = _dataMagr->GetLiDARMeasurements(topic);
+        spdlog::info("perform point to surfel association for lidar '{}'...", topic);
 
         // for each scan, we keep 'ptsCountInEachScan' point to surfel corrs
         pointToSurfel[topic] = {};
