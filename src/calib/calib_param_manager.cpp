@@ -38,6 +38,7 @@
 #include "opencv2/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "spdlog/spdlog.h"
+#include "sensor/lidar_data_loader.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -377,14 +378,22 @@ std::vector<ns_viewer::Entity::Ptr> CalibParamManager::EntitiesForVisualization(
 
     for (const auto &[topic, _] : CalibParamManager::EXTRI.SO3_LkToBr) {
         auto SE3_LkToBr = EXTRI.SE3_LkToBr(topic).cast<float>();
-        auto lidar = ns_viewer::LiDAR::Create(
-            ns_viewer::Posef(SE3_LkToBr.so3().matrix(), SE3_LkToBr.translation()), LiDAR_SIZE,
-            ns_viewer::Colour(1.0f, 0.5f, 0.0f, 1.0f));
         auto line =
             ns_viewer::Line::Create(Eigen::Vector3f::Zero(), SE3_LkToBr.translation().cast<float>(),
                                     ns_viewer::Colour::Black());
-        entities.push_back(lidar);
         entities.push_back(line);
+        ns_viewer::Entity::Ptr lidar;
+        if (EnumCast::stringToEnum<LidarModelType>(
+                Configor::DataStream::LiDARTopics.at(topic).Type) == LidarModelType::LIVOX_CUSTOM) {
+            lidar = ns_viewer::LivoxLiDAR::Create(
+                ns_viewer::Posef(SE3_LkToBr.so3().matrix(), SE3_LkToBr.translation()), LiDAR_SIZE,
+                ns_viewer::Colour(0.33f, 0.33f, 0.5f, 1.0f));
+        } else {
+            lidar = ns_viewer::LiDAR::Create(
+                ns_viewer::Posef(SE3_LkToBr.so3().matrix(), SE3_LkToBr.translation()), LiDAR_SIZE,
+                ns_viewer::Colour(0.33f, 0.33f, 0.5f, 1.0f));
+        }
+        entities.push_back(lidar);
     }
 
     for (const auto &[topic, _] : CalibParamManager::EXTRI.SO3_CmToBr) {
