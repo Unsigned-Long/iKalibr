@@ -650,9 +650,8 @@ CalibSolver::Initialization() {
         OptOption::Option::OPT_POS_LkInBr |
         // camera extrinsic translations and visual scale
         OptOption::Option::OPT_POS_CmInBr | OptOption::Option::OPT_VISUAL_GLOBAL_SCALE |
-        // radar extrinsics quantities 'OptOption::Option::OPT_POS_RjInBr' would be solved after
-        // 'OptOption::Option::OPT_SO3_RjToBr' are initialized
-        OptOption::Option::OPT_SO3_RjToBr |
+        // radar extrinsics
+        OptOption::Option::OPT_SO3_RjToBr | OptOption::Option::OPT_POS_RjInBr |
         // imu extrinsic translations and gravity
         OptOption::Option::OPT_POS_BiInBr | OptOption::Option::OPT_GRAVITY;
 
@@ -815,8 +814,9 @@ CalibSolver::Initialization() {
                 continue;
             }
 
-            estimator->AddRadarInertialAlignment(frames, Configor::DataStream::ReferIMU, radarTopic,
-                                                 sArray, eArray, optOption, weight);
+            estimator->AddRadarInertialRotRoughAlignment(frames, Configor::DataStream::ReferIMU,
+                                                         radarTopic, sArray, eArray, optOption,
+                                                         weight);
         }
     }
 
@@ -825,15 +825,44 @@ CalibSolver::Initialization() {
     estimator->SetRefIMUParamsConstant();
 
     sum = estimator->Solve(_ceresOption);
-    if (Configor::IsRadarIntegrated()) {
-        for (auto &POS_RjInBr : _parMagr->EXTRI.POS_RjInBr) {
-            // radar extrinsics quantities 'OptOption::Option::OPT_POS_RjInBr' would be solved
-            estimator->SetParameterBlockVariable(POS_RjInBr.second.data());
-        }
-        sum = estimator->Solve(_ceresOption);
-    }
-
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
+
+    if (Configor::IsRadarIntegrated()) {
+        estimator = Estimator::Create(_splines, _parMagr);
+        // radar-inertial alignment
+        for (const auto &[radarTopic, radarMes] : _dataMagr->GetRadarMeasurements()) {
+            double weight = Configor::DataStream::RadarTopics.at(radarTopic).Weight;
+            double TO_RjToBr = _parMagr->TEMPORAL.TO_RjToBr.at(radarTopic);
+
+            const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+            spdlog::info("add radar-inertial alignment factors for '{}' and '{}'...", radarTopic,
+                         Configor::DataStream::ReferIMU);
+
+            for (int i = 0; i < static_cast<int>(radarMes.size()) - 1; ++i) {
+                const auto &sArray = radarMes.at(i), eArray = radarMes.at(i + 1);
+
+                // spdlog::info("sAry count: {}, eAry count: {}",
+                //              sArray->GetTargets().size(), eArray->GetTargets().size());
+
+                // to estimate the radar velocity by linear least-squares solver
+                // the minim targets number required is 3
+                if (sArray->GetTargets().size() < 10 || eArray->GetTargets().size() < 10) {
+                    continue;
+                }
+
+                if (sArray->GetTimestamp() + TO_RjToBr < st ||
+                    eArray->GetTimestamp() + TO_RjToBr > et) {
+                    continue;
+                }
+
+                estimator->AddRadarInertialAlignment(frames, Configor::DataStream::ReferIMU,
+                                                     radarTopic, sArray, eArray, optOption, weight);
+            }
+        }
+        estimator->SetRefIMUParamsConstant();
+        sum = estimator->Solve(_ceresOption);
+        spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
+    }
 
     if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
         SaveStageCalibParam(_parMagr, "stage_2_align");

@@ -344,6 +344,14 @@ public:
                                    Estimator::Opt option,
                                    double weight);
 
+    void AddRadarInertialRotRoughAlignment(const std::vector<IMUFrame::Ptr> &data,
+                                           const std::string &imuTopic,
+                                           const std::string &radarTopic,
+                                           const RadarTargetArray::Ptr &sRadarAry,
+                                           const RadarTargetArray::Ptr &eRadarAry,
+                                           Estimator::Opt option,
+                                           double weight);
+
     void AddHandEyeRotationAlignmentForLiDAR(const std::string &lidarTopic,
                                              double tLastByLk,
                                              double tCurByLk,

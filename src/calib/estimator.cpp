@@ -38,6 +38,7 @@
 #include "factor/lidar_inertial_align_factor.hpp"
 #include "factor/visual_inertial_align_factor.hpp"
 #include "factor/radar_inertial_align_factor.hpp"
+#include "factor/radar_inertial_rot_align_factor.hpp"
 #include "factor/hand_eye_rot_align_factor.hpp"
 #include "factor/so3_factor.hpp"
 #include "factor/visual_proj_factor.hpp"
@@ -574,6 +575,70 @@ void Estimator::AddRadarInertialAlignment(const std::vector<IMUFrame::Ptr> &data
     }
     if (!IsOptionWith(Opt::OPT_POS_RjInBr, option)) {
         this->SetParameterBlockConstant(POS_RjInBr);
+    }
+}
+
+/**
+ * param blocks:
+ * [ POS_BiInBr | SO3_RjToBr | GRAVITY ]
+ */
+void Estimator::AddRadarInertialRotRoughAlignment(const std::vector<IMUFrame::Ptr> &data,
+                                                  const std::string &imuTopic,
+                                                  const std::string &radarTopic,
+                                                  const RadarTargetArray::Ptr &sRadarAry,
+                                                  const RadarTargetArray::Ptr &eRadarAry,
+                                                  Estimator::Opt option,
+                                                  double weight) {
+    const auto &so3Spline = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    double st = sRadarAry->GetTimestamp(), et = eRadarAry->GetTimestamp();
+    double TO_RjToBr = parMagr->TEMPORAL.TO_RjToBr.at(radarTopic);
+
+    if (!so3Spline.TimeStampInRange(st + TO_RjToBr) ||
+        !so3Spline.TimeStampInRange(et + TO_RjToBr)) {
+        return;
+    }
+
+    double TO_RjToBi = TO_RjToBr - parMagr->TEMPORAL.TO_BiToBr.at(imuTopic);
+    auto velVecMat = InertialVelIntegration(data, imuTopic, st + TO_RjToBi, et + TO_RjToBi);
+
+    // create a cost function
+    auto helper = RadarInertialRotRoughAlignHelper<Configor::Prior::SplineOrder>(
+        so3Spline, sRadarAry, eRadarAry, TO_RjToBr, velVecMat);
+    auto costFunc =
+        RadarInertialRotRoughAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
+
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(4);
+    costFunc->AddParameterBlock(3);
+
+    costFunc->SetNumResiduals(1);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // POS_BiInBc
+    auto POS_BiInBr = parMagr->EXTRI.POS_BiInBr.at(imuTopic).data();
+    paramBlockVec.push_back(POS_BiInBr);
+    // SO3_RjToBc
+    auto SO3_RjToBr = parMagr->EXTRI.SO3_RjToBr.at(radarTopic).data();
+    paramBlockVec.push_back(SO3_RjToBr);
+    // GRAVITY
+    auto gravity = parMagr->GRAVITY.data();
+    paramBlockVec.push_back(gravity);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+    this->SetManifold(gravity, GRAVITY_MANIFOLD.get());
+    this->SetManifold(SO3_RjToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_GRAVITY, option)) {
+        this->SetParameterBlockConstant(gravity);
+    }
+    if (!IsOptionWith(Opt::OPT_POS_BiInBr, option)) {
+        this->SetParameterBlockConstant(POS_BiInBr);
+    }
+    if (!IsOptionWith(Opt::OPT_SO3_RjToBr, option)) {
+        this->SetParameterBlockConstant(SO3_RjToBr);
     }
 }
 
