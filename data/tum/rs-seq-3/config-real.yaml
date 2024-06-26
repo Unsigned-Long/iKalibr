@@ -29,6 +29,10 @@ Configor:
     #   2. SENSOR_IMAGE_RS_FIRST: first-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
     #   3. SENSOR_IMAGE_RS_MID: middle-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
     #   4. SENSOR_IMAGE_RS_LAST: last-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    #   5. SENSOR_IMAGE_COMP_GS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+    #   6. SENSOR_IMAGE_COMP_RS_FIRST: first-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+    #   7. SENSOR_IMAGE_COMP_RS_MID: middle-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+    #   8. SENSOR_IMAGE_COMP_RS_LAST: last-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
     CameraTopics:
       - key: "/cam0/frame"
         value:

@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <launch>
 
+    <arg name="config_path" default="$(find ikalibr)/config/ikalibr-config.yaml"/>
+
     <node pkg="ikalibr" type="ikalibr_prog" name="ikalibr_prog" output="screen">
         <!-- change the value of this field to the path of your self-defined config file -->
-        <param name="config_path" value="/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world-old/data_202392616822/config-real.yaml" type="string"/>
+        <param name="config_path" value="$(arg config_path)" type="string"/>
     </node>
 
     <!--

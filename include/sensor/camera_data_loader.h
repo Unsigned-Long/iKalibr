@@ -58,12 +58,18 @@ enum class CameraModelType : std::uint32_t {
     LAST_EXPOSURE = 1 << 5,
 
     SENSOR_IMAGE = 1 << 6,
+    SENSOR_IMAGE_COMP = 1 << 7,
 
     SENSOR_IMAGE_GS = SENSOR_IMAGE | GS,
+    SENSOR_IMAGE_COMP_GS = SENSOR_IMAGE_COMP | GS,
 
     SENSOR_IMAGE_RS_FIRST = SENSOR_IMAGE | RS | FIRST_EXPOSURE,
     SENSOR_IMAGE_RS_MID = SENSOR_IMAGE | RS | MID_EXPOSURE,
     SENSOR_IMAGE_RS_LAST = SENSOR_IMAGE | RS | LAST_EXPOSURE,
+
+    SENSOR_IMAGE_COMP_RS_FIRST = SENSOR_IMAGE_COMP_GS | RS | FIRST_EXPOSURE,
+    SENSOR_IMAGE_COMP_RS_MID = SENSOR_IMAGE_COMP_GS | RS | MID_EXPOSURE,
+    SENSOR_IMAGE_COMP_RS_LAST = SENSOR_IMAGE_COMP_GS | RS | LAST_EXPOSURE,
 };
 
 class CameraDataLoader {
@@ -101,6 +107,18 @@ public:
     explicit SensorImageLoader(CameraModelType model);
 
     static SensorImageLoader::Ptr Create(CameraModelType model);
+
+    CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
+};
+
+class SensorImageCompLoader : public CameraDataLoader {
+public:
+    using Ptr = std::shared_ptr<SensorImageCompLoader>;
+
+public:
+    explicit SensorImageCompLoader(CameraModelType model);
+
+    static SensorImageCompLoader::Ptr Create(CameraModelType model);
 
     CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
 };

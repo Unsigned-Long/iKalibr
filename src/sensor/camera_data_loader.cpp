@@ -34,8 +34,10 @@
 
 #include "sensor/camera_data_loader.h"
 #include "sensor_msgs/Image.h"
+#include "sensor_msgs/CompressedImage.h"
 #include "cv_bridge/cv_bridge.h"
 #include "util/status.hpp"
+#include "opencv2/highgui.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -76,22 +78,37 @@ CameraDataLoader::Ptr CameraDataLoader::GetLoader(const std::string &modelStr) {
         case CameraModelType::SENSOR_IMAGE_RS_LAST:
             imuDataLoader = SensorImageLoader::Create(model);
             break;
+        case CameraModelType::SENSOR_IMAGE_COMP_GS:
+        case CameraModelType::SENSOR_IMAGE_COMP_RS_FIRST:
+        case CameraModelType::SENSOR_IMAGE_COMP_RS_MID:
+        case CameraModelType::SENSOR_IMAGE_COMP_RS_LAST:
+            imuDataLoader = SensorImageCompLoader::Create(model);
+            break;
         default:
-            throw Status(Status::WARNING,
-                         "Unsupported camera Type: '{}'. "
-                         "Currently supported camera types are: \n"
-                         "1. SENSOR_IMAGE_GS: "
-                         "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                         "2. SENSOR_IMAGE_RS_FIRST: first-row exposure, "
-                         "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                         "3. SENSOR_IMAGE_RS_MID: middle-row exposure, "
-                         "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                         "4. SENSOR_IMAGE_RS_LAST: last-row exposure, "
-                         "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                         "...\n"
-                         "If you need to use other camera types, "
-                         "please 'Issues' us on the profile of the github repository.",
-                         modelStr);
+            throw Status(
+                Status::WARNING,
+                "Unsupported camera Type: '{}'. "
+                "Currently supported camera types are: \n"
+                "1. SENSOR_IMAGE_GS: "
+                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                "2. SENSOR_IMAGE_RS_FIRST: first-row exposure, "
+                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                "3. SENSOR_IMAGE_RS_MID: middle-row exposure, "
+                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                "4. SENSOR_IMAGE_RS_LAST: last-row exposure, "
+                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+                "5. SENSOR_IMAGE_COMP_GS: "
+                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+                "6. SENSOR_IMAGE_COMP_RS_FIRST: first-row exposure, "
+                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+                "7. SENSOR_IMAGE_COMP_RS_MID: middle-row exposure, "
+                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+                "8. SENSOR_IMAGE_COMP_RS_LAST: last-row exposure, "
+                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+                "...\n"
+                "If you need to use other camera types, "
+                "please 'Issues' us on the profile of the github repository.",
+                modelStr);
     }
     return imuDataLoader;
 }
@@ -114,28 +131,36 @@ CameraFrame::Ptr SensorImageLoader::UnpackFrame(const rosbag::MessageInstance &m
 
     CheckMessage<sensor_msgs::Image>(msg);
 
-    cv::Mat img, gImg, cImg;
-    cv_bridge::toCvCopy(msg, msg->encoding)->image.copyTo(img);
-    if (msg->encoding == sensor_msgs::image_encodings::BGR8 ||
-        msg->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
-        // color image
-        cImg = img;
-        cv::cvtColor(img, gImg, cv::COLOR_BGR2GRAY);
-    } else if (msg->encoding == sensor_msgs::image_encodings::MONO8 ||
-               msg->encoding == sensor_msgs::image_encodings::TYPE_8UC1) {
-        // grey image
-        gImg = img;
-        cv::cvtColor(img, cImg, cv::COLOR_GRAY2BGR);
-    } else {
-        throw Status(
-            Status::CRITICAL,
-            "Unsupported sensor_msgs::image_encodings type: '{}'."
-            "Only 'sensor_msgs::image_encodings::BGR8|TYPE_8UC3' and "
-            "'sensor_msgs::image_encodings::MONO8|TYPE_8UC1' "
-            "are supported currently! To decode more type images, please contact us or add code "
-            "by yourself at: line-'{}' in file-'{}'",
-            msg->encoding, __LINE__, __FILE__);
-    }
+    cv::Mat cImg, gImg;
+    cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image.copyTo(cImg);
+    cv::cvtColor(cImg, gImg, cv::COLOR_BGR2GRAY);
+
+    return CameraFrame::Create(msg->header.stamp.toSec(), gImg, cImg);
+}
+
+// ---------------------
+// SensorImageCompLoader
+// ---------------------
+SensorImageCompLoader::SensorImageCompLoader(CameraModelType model)
+    : CameraDataLoader(model) {}
+
+SensorImageCompLoader::Ptr SensorImageCompLoader::Create(CameraModelType model) {
+    return std::make_shared<SensorImageCompLoader>(model);
+}
+
+CameraFrame::Ptr SensorImageCompLoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
+    // imu data item
+    sensor_msgs::CompressedImageConstPtr msg =
+        msgInstance.instantiate<sensor_msgs::CompressedImage>();
+
+    CheckMessage<sensor_msgs::CompressedImage>(msg);
+
+    cv::Mat cImg, gImg;
+    cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image.copyTo(cImg);
+    cv::cvtColor(cImg, gImg, cv::COLOR_BGR2GRAY);
+    cv::imshow("gImg", gImg);
+    cv::imshow("cImg", cImg);
+    cv::waitKey();
 
     return CameraFrame::Create(msg->header.stamp.toSec(), gImg, cImg);
 }

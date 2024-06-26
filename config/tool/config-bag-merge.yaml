@@ -35,22 +35,46 @@
 # extract ros data of topics in rosbags and merge them as a rosbag
 MergeConfigor:
   Bags:
-    - BagPath: /home/csl/dataset/tum/rolling-shutter/dataset-seq10/cam0.bag
+    - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/livox_avia.bag
       TopicsToMerge:
         # key: source topic, value: new destination topic
-        - key: /cam0/frame
-          value: /cam0/frame
-    - BagPath: /home/csl/dataset/tum/rolling-shutter/dataset-seq10/cam1.bag
+        - key: /livox_avia/imu
+          value: /livox_avia/imu
+        - key: /livox_avia/lidar
+          value: /livox_avia/lidar
+    - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/imu_mti.bag
       TopicsToMerge:
-        - key: /cam1/frame
-          value: /cam1/frame
-    - BagPath: /home/csl/dataset/tum/rolling-shutter/dataset-seq10/imu.bag
+        # key: source topic, value: new destination topic
+        - key: /imu/data
+          value: /mti/imu
+    - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/vlp_32c.bag
       TopicsToMerge:
-        - key: /imu/frame
-          value: /imu/frame
+        # key: source topic, value: new destination topic
+        - key: /vlp_32c/velodyne_points
+          value: /vlp_32c/lidar
+    - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/radar_0.bag
+      TopicsToMerge:
+        # key: source topic, value: new destination topic
+        - key: /ti_mmwave/radar_0
+          value: /ti_mmwave/radar_0
+    - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/radar_1.bag
+      TopicsToMerge:
+        # key: source topic, value: new destination topic
+        - key: /ti_mmwave/radar_1
+          value: /ti_mmwave/radar_1
+    - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/cam_gs.bag
+      TopicsToMerge:
+        # key: source topic, value: new destination topic
+        - key: /stereo/right/image_color/compressed
+          value: /cam_gs/image_compressed
+    - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/cam_rs.bag
+      TopicsToMerge:
+        # key: source topic, value: new destination topic
+        - key: /stereo/left/image_color/compressed
+          value: /cam_rs/image_compressed
   # filter data after bags are merged, note that this is different from the timestamps in the rosbag.
   # here, the time means the period, i.e., 'BagBeginTime' starts from 0.
   # negative values means do not perform filtering
   BagBeginTime: -1
   BagEndTime: -1
-  OutputBagPath: /home/csl/dataset/tum/rolling-shutter/dataset-seq10/cams_imu.bag
+  OutputBagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/ikalibr-data.bag
