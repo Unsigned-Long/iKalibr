@@ -46,11 +46,11 @@ Intrinsics:
     data:
       img_width: 200
       img_height: 100
-      # cx, cy
+      # fx, fy
       focal_length:
         - 160
         - 140
-      # fx, fy
+      # cx, cy
       principal_point:
         - 100
         - 50

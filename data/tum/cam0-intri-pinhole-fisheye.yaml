@@ -12,11 +12,11 @@ Intrinsics:
     data:
       img_width: 1280
       img_height: 1024
-      # cx, cy
+      # fx, fy
       focal_length:
         - 743.4286936207343
         - 743.5545205462922
-      # fx, fy
+      # cx, cy
       principal_point:
         - 618.7186883884866
         - 506.7275058699658
