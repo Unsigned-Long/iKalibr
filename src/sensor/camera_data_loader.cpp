@@ -37,7 +37,6 @@
 #include "sensor_msgs/CompressedImage.h"
 #include "cv_bridge/cv_bridge.h"
 #include "util/status.hpp"
-#include "opencv2/highgui.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -158,9 +157,6 @@ CameraFrame::Ptr SensorImageCompLoader::UnpackFrame(const rosbag::MessageInstanc
     cv::Mat cImg, gImg;
     cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image.copyTo(cImg);
     cv::cvtColor(cImg, gImg, cv::COLOR_BGR2GRAY);
-    cv::imshow("gImg", gImg);
-    cv::imshow("cImg", cImg);
-    cv::waitKey();
 
     return CameraFrame::Create(msg->header.stamp.toSec(), gImg, cImg);
 }
