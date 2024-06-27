@@ -131,16 +131,23 @@ protected:
 
     static std::vector<Opt> MergeOptions(const std::vector<Opt> &optVec1,
                                          const std::vector<Opt> &optVec2) {
+        if (optVec1.empty()) {
+            return optVec2;
+        }
+        if (optVec2.empty()) {
+            return optVec1;
+        }
         std::vector<Opt> vec(std::max(optVec1.size(), optVec2.size()));
-        for (int i = 0; i < static_cast<int>(vec.size()); ++i) {
-            Opt op1 = Opt::NONE, op2 = Opt::NONE;
-            if (i < static_cast<int>(optVec1.size())) {
-                op1 |= optVec1.at(i);
+        int idx1 = 0, idx2 = 0;
+        for (auto &item : vec) {
+            Opt op1 = optVec1.at(idx1), op2 = optVec2.at(idx2);
+            item = op1 | op2;
+            if (idx1 < static_cast<int>(optVec1.size()) - 1) {
+                ++idx1;
             }
-            if (i < static_cast<int>(optVec2.size())) {
-                op2 |= optVec2.at(i);
+            if (idx2 < static_cast<int>(optVec2.size()) - 1) {
+                ++idx2;
             }
-            vec.at(i) = op1 | op2;
         }
         return vec;
     }

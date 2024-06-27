@@ -179,10 +179,7 @@ void CalibSolver::Process() {
             // 'curGlobalMap' and 'curUndistFramesInMap' would be deconstructed here
         }
 
-        // align states to the gravity
-        AlignStatesToGravity();
         _viewer->UpdateSplineViewer();
-
         _parMagr->ShowParamStatus();
 
         if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
@@ -1404,6 +1401,9 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     auto sum = estimator->Solve(_ceresOption);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
+    // align states to the gravity
+    AlignStatesToGravity();
+
     // for better map consistency in visualization, we update the veta every time
     for (const auto &[topic, reprojCorrVec] : visualCorrs) {
         auto &veta = _dataMagr->GetSfMData(topic);
@@ -1556,7 +1556,7 @@ void CalibSolver::AlignStatesToGravity() {
     }
     for (int i = 0; i < static_cast<int>(scaleSpline.GetKnots().size()); ++i) {
         // attention: for three kinds of scale splines, this holds
-        scaleSpline.GetKnot(i) = SO3_RefToW * scaleSpline.GetKnot(i);
+        scaleSpline.GetKnot(i) = SO3_RefToW * scaleSpline.GetKnot(i) /* + Eigen::Vector3d::Zero()*/;
     }
 }
 
