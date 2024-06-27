@@ -39,6 +39,8 @@
 #include "string"
 #include "util/enum_cast.hpp"
 #include "spdlog/fmt/fmt.h"
+#include "spdlog/fmt/bundled/color.h"
+#include "spdlog/spdlog.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
