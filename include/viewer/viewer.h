@@ -37,6 +37,8 @@
 
 #include "config/configor.h"
 #include "tiny-viewer/core/multi_viewer.h"
+#include "tiny-viewer/entity/point_cloud.hpp"
+#include "cereal/types/polymorphic.hpp"
 #include "ctraj/core/spline_bundle.h"
 #include "util/cloud_define.hpp"
 #include "veta/veta.h"
@@ -233,5 +235,8 @@ public:
 }  // namespace ns_viewer
 CEREAL_REGISTER_TYPE_WITH_NAME(ns_viewer::Cloud<IKalibrPoint>, "Cloud::IKalibrPoint")
 CEREAL_REGISTER_POLYMORPHIC_RELATION(ns_viewer::Entity, ns_viewer::Cloud<IKalibrPoint>)
+
+CEREAL_REGISTER_TYPE_WITH_NAME(ns_viewer::AlignedCloud<IKalibrPoint>, "AlignedCloud::IKalibrPoint")
+CEREAL_REGISTER_POLYMORPHIC_RELATION(ns_viewer::Entity, ns_viewer::AlignedCloud<IKalibrPoint>)
 
 #endif  // IKALIBR_VIEWER_H

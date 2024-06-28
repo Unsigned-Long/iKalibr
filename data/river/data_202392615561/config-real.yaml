@@ -76,7 +76,7 @@ Configor:
     LiDARDataAssociate:
       # leaf size when down sample the map using 'pcl::VoxelGrid' filter
       # note that this field just for visualization, no connection with calibration
-      # for outdoor, 0.05 is suggested, and for indoor: 0.1 is suggested
+      # for outdoor, 0.1 is suggested, and for indoor: 0.05 is suggested
       MapDownSample: 0.05
       # associate point and surfel when distance is less than this value
       PointToSurfelMax: 0.1

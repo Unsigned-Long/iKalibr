@@ -1210,7 +1210,7 @@ IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() {
     // ---------------------------
     pcl::VoxelGrid<IKalibrPoint> filter;
     filter.setInputCloud(radarCloud);
-    auto size = static_cast<float>(Configor::Prior::LiDARDataAssociate::MapDownSample);
+    auto size = static_cast<float>(Configor::Prior::LiDARDataAssociate::MapDownSample * 2.0);
     filter.setLeafSize(size, size, size);
 
     IKalibrPointCloud::Ptr radarCloudSampled(new IKalibrPointCloud);
