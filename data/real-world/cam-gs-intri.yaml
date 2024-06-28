@@ -1,0 +1,67 @@
+# iKalibr: Unified Targetless Spatiotemporal Calibration Framework
+# Copyright 2024, the School of Geodesy and Geomatics (SGG), Wuhan University, China
+# https://github.com/Unsigned-Long/iKalibr.git
+#
+# Author: Shuolong Chen (shlchen@whu.edu.cn)
+# GitHub: https://github.com/Unsigned-Long
+#  ORCID: 0000-0002-5283-9057
+#
+# Purpose: See .h/.hpp file.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice,
+#   this list of conditions and the following disclaimer.
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+# * The names of its contributors can not be
+#   used to endorse or promote products derived from this software without
+#   specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+Intrinsics:
+  # polymorphic pointers point to a base class and also point to objects of derived classes
+  # don't care about this field
+  polymorphic_id: 2147483649
+  # the camera model type, supported models are:
+  # (1) pinhole_brown_t2: k1, k2, k3, t1, t2
+  # (2)  pinhole_fisheye: k1, k2, k3, k4
+  polymorphic_name: pinhole_brown_t2
+  ptr_wrapper:
+    # don't care about this field
+    id: 2147483649
+    data:
+      img_width: 2048
+      img_height: 1536
+      # fx, fy
+      # we have to admit that these intrinsic parameters are poorly calibrated due to our
+      # careless operation, however, these intrinsics would be refined in ikalibr
+      focal_length:
+        - 1821.351294004135
+        - 1825.180988215581
+      # cx, cy
+      principal_point:
+        # we have to admit that these intrinsic parameters are poorly calibrated due to our
+        # careless operation, however, these intrinsics would be refined in ikalibr
+        - 1041.118422676346
+        - 0769.287723694903
+      # k1, k2, k3, t1, t2
+      disto_param:
+        - -0.08217108948212395
+        - +0.23943279597745054
+        - +0.00000000000000000
+        - +0.00127338068515186
+        - -0.00052250710675243

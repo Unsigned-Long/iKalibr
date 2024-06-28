@@ -434,6 +434,22 @@ IMUIntrinsics::Ptr CalibParamManager::ParIntri::LoadIMUIntri(const std::string &
     return intri;
 }
 
+void CalibParamManager::ParIntri::SaveCameraIntri(const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                                  const std::string &filename,
+                                                  CerealArchiveType::Enum archiveType) {
+    std::ofstream file(filename, std::ios::out);
+    auto ar = GetOutputArchiveVariant(file, archiveType);
+    SerializeByOutputArchiveVariant(ar, archiveType, cereal::make_nvp("Intrinsics", intri));
+}
+
+void CalibParamManager::ParIntri::SaveIMUIntri(const IMUIntrinsics::Ptr &intri,
+                                               const std::string &filename,
+                                               CerealArchiveType::Enum archiveType) {
+    std::ofstream file(filename, std::ios::out);
+    auto ar = GetOutputArchiveVariant(file, archiveType);
+    SerializeByOutputArchiveVariant(ar, archiveType, cereal::make_nvp("Intrinsics", intri));
+}
+
 cv::Mat CalibParamManager::ParIntri::UndistortImage(const ns_veta::PinholeIntrinsic::Ptr &intri,
                                                     const cv::Mat &src) {
     auto [K, D] = ObtainKDMatForUndisto(intri);

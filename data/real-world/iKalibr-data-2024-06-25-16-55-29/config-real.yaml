@@ -1,0 +1,143 @@
+Configor:
+  DataStream:
+    # key: IMU topic, value: IMU type. Supported IMU types are:
+    #   1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html
+    #   2. SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git
+    #   3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)
+    #   4. ...
+    IMUTopics:
+      - key: "/livox_avia/imu"
+        value:
+          Type: "SENSOR_IMU_G"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-16-55-29/livox-imu-intri.yaml"
+          AcceWeight: 09.00
+          GyroWeight: 29.00
+      - key: "/mti/imu"
+        value:
+          Type: "SENSOR_IMU"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-16-55-29/mti-imu-intri.yaml"
+          AcceWeight: 17.68
+          GyroWeight: 57.66
+    # key: radar topic, value: radar type. Supported radar types are:
+    #   1.         AINSTEIN_RADAR: https://github.com/AinsteinAI/ainstein_radar.git
+    #   2.       AWR1843BOOST_RAW: https://github.com/Unsigned-Long/ti_mmwave_rospkg.git
+    #   3.    AWR1843BOOST_CUSTOM: https://github.com/Unsigned-Long/ti_mmwave_rospkg.git
+    #   4.       POINTCLOUD2_POSV: 'sensor_msgs/PointCloud2' with point format: [x, y, z, velocity]
+    #   5.      POINTCLOUD2_POSIV: 'sensor_msgs/PointCloud2' with point format: [x, y, z, intensity, velocity]
+    #   6. ...
+    RadarTopics:
+      - key: "/ti_mmwave/radar_0"
+        value:
+          Type: "AWR1843BOOST_CUSTOM"
+          Weight: 10.0
+      - key: "/ti_mmwave/radar_1"
+        value:
+          Type: "AWR1843BOOST_CUSTOM"
+          Weight: 10.0
+    # key: LiDAR topic, value: LiDAR type. Supported LiDAR types:
+    #   1.        Velodyne LiDARs: VLP_16_PACKET, VLP_POINTS
+    #   2.          Ouster LiDARs: OUSTER_POINTS
+    #   3. Hesai Pandar XT LiDARs: PANDAR_XT_POINTS
+    #   4.           Livox LiDARs: LIVOX_CUSTOM (the official 'xfer_format'=1)
+    LiDARTopics:
+      - key: "/livox_avia/lidar"
+        value:
+          Type: "LIVOX_CUSTOM"
+          Weight: 100.0
+    # key: camera topic, value: camera type. Supported camera types:
+    #   1. SENSOR_IMAGE_GS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    #   2. SENSOR_IMAGE_RS_FIRST: first-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    #   3. SENSOR_IMAGE_RS_MID: middle-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    #   4. SENSOR_IMAGE_RS_LAST: last-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+    #   5. SENSOR_IMAGE_COMP_GS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+    #   6. SENSOR_IMAGE_COMP_RS_FIRST: first-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+    #   7. SENSOR_IMAGE_COMP_RS_MID: middle-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+    #   8. SENSOR_IMAGE_COMP_RS_LAST: last-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+    CameraTopics:
+      #----------------------------------------------------------------------------------------------
+      # Performing SfM for the GS camera using Colmap does not work in this dataset, thus the
+      # GS camera is not recommended to be involved in calibration (perhaps cased by the motion blur)
+      #----------------------------------------------------------------------------------------------
+      - key: "/cam_rs/image_compressed"
+        value:
+          Type: "SENSOR_IMAGE_COMP_RS_FIRST"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/cam-rs-intri.yaml"
+          Weight: 50.0
+          TrackLengthMin: 10
+    ReferIMU: "/mti/imu"
+    BagPath: "/home/csl/dataset/ikalibr-data/iKalibr-data-2024-06-25-16-55-29/ikalibr-data.bag"
+    # the time piece: [BegTime, BegTime + Duration], unit: second(s)
+    # if you want to use all time data for calibration, please set them to negative numbers
+    # Note that the 'BegTime' here is measured from the start time of bag
+    # and is not related to the timestamp of the data recorded in the package.
+    # [8, 58]
+    BeginTime: 8
+    Duration: 50
+    OutputPath: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-16-55-29"
+  Prior:
+    GravityNorm: 9.8
+    # if sensor are hardware-synchronized, you could choose to fix temporal parameters by setting this field to 'false'
+    OptTemporalParams: true
+    # the range where the time offsets would be optimized.
+    # make sure this range contains the ground truth of time offsets
+    # If you're not sure, make this field large, but this could lead to longer optimization time
+    TimeOffsetPadding: 0.15
+    # readout time padding for RS camera
+    ReadoutTimePadding: 0.01
+    # the time distance of two neighbor control points, which determines the accuracy
+    # of the representation of the B-splines. Smaller distance would lead to longer optimization time
+    # common choices: from '0.01' to '0.10'
+    KnotTimeDist:
+      SO3Spline: 0.05
+      ScaleSpline: 0.05
+    # when lidar is involved in the calibration framework, the ndt odometer is employed to recover pose roughly
+    NDTLiDAROdometer:
+      # 0.5 for indoor case and 1.0 for outdoor case
+      Resolution: 0.5
+      KeyFrameDownSample: 0.1
+    LiDARDataAssociate:
+      # leaf size when down sample the map using 'pcl::VoxelGrid' filter
+      # note that this field just for visualization, no connection with calibration
+      # for outdoor, 0.1 is suggested, and for indoor: 0.05 is suggested
+      MapDownSample: 0.1
+      # associate point and surfel when distance is less than this value
+      PointToSurfelMax: 0.1
+      # chose plane as a surfel for data association when planarity is larger than this value
+      PlanarityMin: 0.6
+    # the loss function used for radar factor (m/s)
+    CauchyLossForRadarFactor: 0.1
+    # the loss function used for lidar factor (m)
+    CauchyLossForLiDARFactor: 0.5
+    # the loss function used for visual reprojection factor (pixel)
+    CauchyLossForCameraFactor: 1.0
+  Preference:
+    # whether using cuda to speed up when solving least-squares problems
+    UseCudaInSolving: true
+    # currently available output content:
+    # ParamInEachIter, BSplines, LiDARMaps, VisualMaps, RadarMaps, HessianMat,
+    # VisualLiDARCovisibility, VisualKinematics, ColorizedLiDARMap
+    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors
+    # NONE, ALL
+    Outputs:
+      - ParamInEachIter
+      - LiDARMaps
+      - VisualMaps
+      - RadarMaps
+      - VisualLiDARCovisibility
+      - VisualKinematics
+      - ColorizedLiDARMap
+      - AlignedInertialMes
+      - VisualReprojErrors
+      - RadarDopplerErrors
+    # supported data output format:
+    # 0. JSON
+    # 1. XML
+    # 2. YAML
+    # 3. BINARY (not recommended)
+    OutputDataFormat: "YAML"
+    # number of thread to use for solving, negative value means use all valid thread to perform solving
+    ThreadsToUse: -1
+    # scale of splines in viewer, you can also use 'a' and 'd' keys to zoom out and in splines in run time
+    SplineScaleInViewer: 3.0
+    # scale of coordinates in viewer, you can also use 's' and 'w' keys to zoom out and in coordinates in run time
+    CoordSScaleInViewer: 0.3

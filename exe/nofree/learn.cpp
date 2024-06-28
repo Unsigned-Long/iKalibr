@@ -40,6 +40,7 @@
 #include "nofree/logo_svg.h"
 #include "nofree/data_collect_demo.h"
 #include "spdlog/fmt/bundled/color.h"
+#include "nofree/extract_intri.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -52,6 +53,25 @@ int main(int argc, char **argv) {
 
         ns_ikalibr::PrintIKalibrLibInfo();
 
+        // std::vector<std::string> wsVec = {
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-14-52-11",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-14-55-10",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-15-22-04",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-15-30-05",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-16-34-01",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-16-42-32",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-16-44-05",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-16-49-39",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-16-55-29",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-17-10-20",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-17-12-05",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-17-17-17",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-17-33-29",
+        //     "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/"
+        //     "iKalibr-data-2024-06-25-17-37-20"};
+        // ns_ikalibr::ExtractIntriParam::ToDisk(wsVec, false, true);
+
+        // such demo is not suitable for livox lidar!!!
         ns_ikalibr::DataCollectionMotionDemo::Run();
 
         // ns_ikalibr::LoGoMaker::SaveToFile("/home/csl/ros_ws/iKalibr/src/ikalibr/docs/img/logo.svg");

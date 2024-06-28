@@ -195,6 +195,16 @@ public:
             const std::string &filename,
             CerealArchiveType::Enum archiveType = CerealArchiveType::Enum::YAML);
 
+        static void SaveCameraIntri(
+            const ns_veta::PinholeIntrinsic::Ptr &intri,
+            const std::string &filename,
+            CerealArchiveType::Enum archiveType = CerealArchiveType::Enum::YAML);
+
+        static void SaveIMUIntri(
+            const IMUIntrinsics::Ptr &intri,
+            const std::string &filename,
+            CerealArchiveType::Enum archiveType = CerealArchiveType::Enum::YAML);
+
         static cv::Mat UndistortImage(const ns_veta::PinholeIntrinsic::Ptr &intri,
                                       const cv::Mat &src);
 
