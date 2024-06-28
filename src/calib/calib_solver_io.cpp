@@ -813,10 +813,13 @@ void CalibSolverIO::SaveRadarDopplerError() {
         for (const auto &ary : data) {
             for (const auto &tar : ary->GetTargets()) {
                 double timeByBr = tar->GetTimestamp() + TO_RjToBr;
+                if (!so3Spline.TimeStampInRange(timeByBr) ||
+                    !scaleSpline.TimeStampInRange(timeByBr)) {
+                    continue;
+                }
                 // query
                 Sophus::SO3d SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
                 Eigen::Vector3d ANG_VEL_BrToBr0InBr = so3Spline.VelocityBody(timeByBr);
-                ;
                 Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * ANG_VEL_BrToBr0InBr;
 
                 Eigen::Vector3d LIN_VEL_BrInBr0;
