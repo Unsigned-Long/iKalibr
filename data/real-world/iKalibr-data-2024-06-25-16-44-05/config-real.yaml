@@ -64,7 +64,9 @@ Configor:
           TrackLengthMin: 10
       - key: "/cam_rs/image_compressed"
         value:
-          Type: "SENSOR_IMAGE_COMP_RS_FIRST"
+          # though this is a RS camera, its exposure mode is set to GS mode
+          # if you are interested in RS cameras, the TUM RS datasets are recommended
+          Type: "SENSOR_IMAGE_COMP_GS"
           Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/cam-rs-intri.yaml"
           Weight: 50.0
           TrackLengthMin: 10
