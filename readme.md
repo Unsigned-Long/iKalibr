@@ -53,6 +53,17 @@ More details, please refer to our article :point_down::
 + rosbag assembly before solving, such as raw inertial csv file or images to rosbag, merge or split rosbag.
 + data format transformation after solving, some visualization scripts.
 
+<p align="left">
+    <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/dataset.md"><strong>Dataset Utilized in iKalibr for Evaluation »</strong></a>
+</p> 
+
+
+
++ our dataset: two cameras, a Livox Avia lidar (with built-in IMU), a velodyne VLP-32C lidars, two mmWave 3D radars, a MTI IMU.
++ [LI-Calib (OA-Calib)](https://github.com/APRIL-ZJU/lidar_IMU_calib.git) dataset: a velodyne VLP-16 lidars, three IMUs.
++ [River](https://github.com/Unsigned-Long/River.git) dataset: two mmWave 3D radars, a MTI IMU.
++ [TUM GS-RS](https://cvg.cit.tum.de/data/datasets/rolling-shutter-dataset) dataset: a GS camera, a RS camera, a Bosch IMU.
+
 ---
 
 <h5 align="center">Copyright</h5>

@@ -43,13 +43,13 @@ A template of configure file has been provided [here](config_template_note.md). 
 
 Finally, we can launch the `ikalibr` ros node to perform spatiotemporal determination for a given sensor suite. Just run the following command:
 
-+ ***way** **one***: use `rosrun`, the `roscore` should be ready. The `path_of_your_config_file` is the filename pointing to your own `yaml`-format configure file.
++ The **first** way: use `rosrun`, the `roscore` should be ready. The `path_of_your_config_file` is the filename pointing to your own `yaml`-format configure file.
 
   ```sh
   rosrun ikalibr ikalibr_prog _config_path:="path_of_your_config_file"
   ```
 
-+ ***way** **two***: use `roslaunch`. Before launch, you have to pass the filename of your own `yaml`-format configure file to `ikalibr-prog.launch` in directory `ikalibr/launch/solver`.
++ The **second** way: use `roslaunch`. Before launch, you have to pass the filename of your own `yaml`-format configure file to `ikalibr-prog.launch` in directory `ikalibr/launch/solver`.
 
   ```sh
   roslaunch ikalibr ikalibr-prog.launch
@@ -60,17 +60,28 @@ Finally, we can launch the `ikalibr` ros node to perform spatiotemporal determin
   ```xml
   <?xml version="1.0" encoding="UTF-8" ?>
   <launch>
+      <arg name="config_path" default="$(find ikalibr)/config/ikalibr-config.yaml"/>
+  
       <node pkg="ikalibr" type="ikalibr_prog" name="ikalibr_prog" output="screen">
           <!-- change the value of this field to the path of your self-defined config file -->
-          <param name="config_path" value="path_of_your_config_file" type="string"/>
+          <param name="config_path" value="$(arg config_path)" type="string"/>
       </node>
   </launch>
   ```
+
++ The third way: use `roslaunch`, but passing in the config path in command Line:
+
+  ```sh
+  roslaunch ikalibr ikalibr-prog.launch config_path:="path_of_your_config_file"
+  ```
+
+  
 
 
 <p align="left">
     <a><strong>Perform SfM Using Colmap »</strong></a>
 </p> 
+
 
 If cameras are integrated in your sensor suite, and you want to calibrate their spatiotemporal parameters in `iKalibr`, structure from motion (SfM) is required for each camera, which can be conducted by the well-known SfM toolkit [colmap](https://github.com/colmap/colmap.git).
 
