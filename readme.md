@@ -19,7 +19,7 @@
 
 More details, please refer to our article :point_down::
 
-+ **S. Chen**, X. Li*, S. Li, and Y. Zhou. iKalibr: Unified Targetless Spatiotemporal Calibration for Resilient Integrated Inertial Systems[J]. arXiv e-prints, 2024. [[arxiv]()] [[code]()] [[video]()]
++ **S. Chen**, X. Li*, S. Li, Y. Zhou, and X. Yang. iKalibr: Unified Targetless Spatiotemporal Calibration for Resilient Integrated Inertial Systems[J]. arXiv e-prints, 2024. [[arxiv]()] [[code]()] [[video]()]
 
 ---
 

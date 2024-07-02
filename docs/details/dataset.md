@@ -61,8 +61,9 @@ This dataset contains three data sequences collected handheld in indoor scenario
 You can find the corresponding origin data [here](https://drive.google.com/drive/folders/1olNgh9i_lmJ96gZB6oxYUSqACBpOzY7u?usp=sharing).
 
 <p align="left">
-    <a><strong>River Dataset »</strong></a>
+    <a><strong>TUM GS-RS Dataset »</strong></a>
 </p> 
+
 
 
 
