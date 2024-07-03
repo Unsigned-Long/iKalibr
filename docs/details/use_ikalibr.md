@@ -15,15 +15,19 @@
 
 Sufficiently excited motion is required for accurate spatiotemporal calibration in `iKalibr` (to ensure the observability of spatiotemporal parameters). This is a less noticeable but more important point, and we have to be ready at the starting line.
 
-Here we give a guiding data collection motion incentive method, see the following demo video. The key is to make a circular motion, shaking your sensor in a 8-shape pattern as you go. **Be careful not to shake too fast or too slow**. 
+Here we give a guiding data collection motion incentive method, see the following demo videos. The key is to make a circular motion, shaking your sensor in a 8-shape pattern as you go. **Be careful not to shake too fast or too slow**. 
+
+https://github.com/Unsigned-Long/iKalibr/assets/76953144/66bccd20-3aaa-4c76-8d32-b49a211f3c92
+
+If you are calibrating a Livox LiDAR (**small Fov solid-state LiDAR**, such as Livox Avia, not for Livox Mid-360, it has large FoV and can support the above data collection motion), you are recommended to follow the following motion to collect your data, as such motion is helpful for NDT-based LiDAR-only odometer in initialization in `iKalibr`:
 
 
 
-https://github.com/Unsigned-Long/iKalibr/assets/76953144/b8481efe-0d07-42b3-9bc7-f4f119465313
+https://github.com/Unsigned-Long/iKalibr/assets/76953144/3b5cd230-fb6e-491f-baf4-cec8872c54a7
 
 
 
-In fact, this animation can be generated and viewed on your computer through [ikalibr-learn.launch](../../launch/nofree/ikalibr-learn.launch). Just run:
+In fact, these animations can be generated and viewed on your computer through [ikalibr-learn.launch](../../launch/nofree/ikalibr-learn.launch). Just run:
 
 ```sh
 roslaunch ikalibr ikalibr-learn.launch
@@ -36,6 +40,7 @@ Of course, this is not the only way. You can do it according to your way, as lon
 </p> 
 
 A template of configure file has been provided [here](config_template_note.md). The detailed notes are also provided. We highly recommend you to read it before performing configuring and further solving, if it's your first time.
+Of course, you can also find any configuration file corresponding to our open-source dataset directly in the `ikalibr/data` folder and modify it to adapt your own sensor kit, which may help you get started faster.
 
 <p align="left">
     <a><strong>Perform Calibration Using iKalibr »</strong></a>
