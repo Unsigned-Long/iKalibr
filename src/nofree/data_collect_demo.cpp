@@ -34,18 +34,32 @@
 
 #include "nofree/data_collect_demo.h"
 #include "tiny-viewer/core/multi_viewer.h"
+#include "ros/package.h"
+#include "filesystem"
+#include "spdlog/spdlog.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-void DataCollectionMotionDemo::Run() {
-    auto [poses, cams] = GeneratePoseSeq();
-    ns_viewer::MultiViewer viewer(
-        ns_viewer::MultiViewerConfigor({"GLOBAL", "FOLLOW"}, "iKalibr Data Collection Demo"));
+void DataCollectionMotionDemo::Run(const std::array<std::vector<ns_viewer::Posef>, 2> &poseSeq) {
+    auto [poses, views] = poseSeq;
+    auto config =
+        ns_viewer::MultiViewerConfigor({"GLOBAL", "FOLLOW"}, "iKalibr Data Collection Demo");
+    config.grid.at("GLOBAL").showGrid = false;
+    config.grid.at("FOLLOW").showGrid = false;
+    config.camera.at("GLOBAL").initPos = {4.0f, 4.0f, 2.0f};
+    ns_viewer::MultiViewer viewer(config);
     viewer.RunInMultiThread();
     viewer.WaitForActive(-1.0);
+    auto modelPath = ros::package::getPath("ikalibr") + "/model/ikalibr.obj";
+    if (std::filesystem::exists(modelPath)) {
+        viewer.AddObjEntity(modelPath, "GLOBAL");
+        viewer.AddObjEntity(modelPath, "FOLLOW");
+    } else {
+        spdlog::warn("can not load models from '{}'!", modelPath);
+    }
 
     std::vector<ns_viewer::Entity::Ptr> poseEntities(poses.size() - 1);
     for (int i = 0; i < static_cast<int>(poses.size()) - 1; ++i) {
@@ -70,6 +84,7 @@ void DataCollectionMotionDemo::Run() {
             // update viewer
             viewer.RemoveEntity(lastEntities["GLOBAL"], "GLOBAL");
             viewer.RemoveEntity(lastEntities["FOLLOW"], "FOLLOW");
+
             const int minIdx = std::max(curIdx - KeepNum, 0);
             const int maxIdx = curIdx, num = maxIdx - minIdx + 1;
             std::vector<ns_viewer::Entity::Ptr> entities(num);
@@ -77,12 +92,13 @@ void DataCollectionMotionDemo::Run() {
                 entities.at(i - minIdx) = ns_viewer::Coordinate::Create(
                     poses.at(i), CoordSizeMin + (float)(i - minIdx) / (float)num * CoordSizeRange);
             }
-            lastEntities["FOLLOW"] = viewer.AddEntity(entities, "FOLLOW");
-            entities.push_back(ns_viewer::CubeCamera::Create(cams.at(curIdx)));
+            entities.push_back(ns_viewer::IMU::Create(poses.at(curIdx)));
             lastEntities["GLOBAL"] = viewer.AddEntity(entities, "GLOBAL");
 
-            // camera
-            viewer.SetCamView(cams.at(curIdx), "FOLLOW");
+            // view
+            lastEntities["FOLLOW"] = {
+                viewer.AddEntity(ns_viewer::IMU::Create(poses.at(curIdx)), "FOLLOW")};
+            viewer.SetCamView(views.at(curIdx), "FOLLOW");
 
             ++curIdx;
             if (curIdx > int(poses.size() - 1)) {
@@ -93,7 +109,7 @@ void DataCollectionMotionDemo::Run() {
 }
 
 std::array<std::vector<ns_viewer::Posef>, 2> DataCollectionMotionDemo::GeneratePoseSeq() {
-    std::vector<ns_viewer::Posef> poses(PoseSize), cams(PoseSize);
+    std::vector<ns_viewer::Posef> poses(PoseSize), views(PoseSize);
     for (int i = 0; i < PoseSize; ++i) {
         const float cTheta = std::cos(DTheta * (float)i);
         const float sTheta = std::sin(DTheta * (float)i);
@@ -113,25 +129,73 @@ std::array<std::vector<ns_viewer::Posef>, 2> DataCollectionMotionDemo::GenerateP
         auto &pose = poses.at(i);
         pose.timeStamp = Dt * i;
         pose.translation = CircleToOrigin * EightInCircle + CircleInOrigin;
-        pose.rotation.col(0) = pose.translation.normalized();
-        pose.rotation.col(1) =
-            Eigen::Vector3f(-pose.translation(1), pose.translation(0), 0.0f).normalized();
-        pose.rotation.col(2) = pose.rotation.col(0).cross(pose.rotation.col(1));
+        pose.rotation.col(1) = CircleToOrigin.col(1);
+        Eigen::Vector3f midHeader =
+            CircleInOrigin + Eigen::Vector3f(0.0f, 0.0f, 5.0f * EightHeight);
+        pose.rotation.col(2) = (midHeader - pose.translation).normalized();
+        pose.rotation.col(0) = pose.rotation.col(1).cross(pose.rotation.col(2));
 
-        // cameras
-        auto &cam = cams.at(i);
-        cam.timeStamp = Dt * i;
-        cam.translation = CircleInOrigin
-                          // z-axis bias
-                          + Eigen::Vector3f(0.0, 0.0, CameraZBias)
-                          // x-axis and y-axis bias
-                          + Eigen::Vector3f(sTheta, -cTheta, 0.0f) * CameraYBias;
+        // views
+        auto &view = views.at(i);
+        view.timeStamp = Dt * i;
 
-        cam.rotation.col(2) = (pose.translation - cam.translation).normalized();
-        cam.rotation.col(0) =
-            Eigen::Vector3f(cam.rotation.col(2)(1), -cam.rotation.col(2)(0), 0.0f).normalized();
-        cam.rotation.col(1) = cam.rotation.col(2).cross(cam.rotation.col(0));
+        view.rotation.col(0) = pose.rotation.col(0);
+        view.rotation.col(1) = -pose.rotation.col(2);
+        view.rotation.col(2) = pose.rotation.col(1);
+        view.translation = pose.translation - 0.2f * view.rotation.col(2);
     }
-    return {poses, cams};
+    return {poses, views};
+}
+
+std::array<std::vector<ns_viewer::Posef>, 2> DataCollectionMotionDemo::GeneratePoseSeqLivox() {
+    std::vector<ns_viewer::Posef> poses(PoseSize), views(PoseSize);
+    for (int i = 0; i < PoseSize; ++i) {
+        auto &pose = poses.at(i);
+        pose.timeStamp = Dt * i;
+
+        const float sTheta = std::sin((M_PI * 6 / (PoseSize * 0.17f)) * (float)i);
+        const float cTheta = std::cos((M_PI * 6 / (PoseSize * 0.17f)) * (float)i);
+
+        const float theta = sTheta * M_PI / 6;
+
+        if (i < PoseSize * 0.17f * 1.0f) {
+            pose.translation = Eigen::Vector3f ::Zero();
+            pose.rotation.col(0) = Eigen::Vector3f::UnitX();
+            pose.rotation.col(1) =
+                Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX()) * Eigen::Vector3f::UnitY();
+            pose.rotation.col(2) = pose.rotation.col(0).cross(pose.rotation.col(1));
+        } else if (i < PoseSize * 0.17f * 2.0f) {
+            pose.translation = Eigen::Vector3f ::Zero();
+            pose.rotation.col(1) = Eigen::Vector3f::UnitY();
+            pose.rotation.col(0) =
+                Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitY()) * Eigen::Vector3f::UnitX();
+            pose.rotation.col(2) = pose.rotation.col(0).cross(pose.rotation.col(1));
+        } else if (i < PoseSize * 0.17f * 3.0f) {
+            pose.translation = Eigen::Vector3f ::Zero();
+            pose.rotation.col(2) = Eigen::Vector3f::UnitZ();
+            pose.rotation.col(0) =
+                Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitZ()) * Eigen::Vector3f::UnitX();
+            pose.rotation.col(1) = pose.rotation.col(2).cross(pose.rotation.col(0));
+        } else if (i < PoseSize * 0.17f * 4.0f) {
+            pose.rotation = Eigen::Matrix3f ::Identity();
+            pose.translation = Eigen::Vector3f(0.0f, cTheta, sTheta);
+        } else if (i < PoseSize * 0.17f * 5.0f) {
+            pose.rotation = Eigen::Matrix3f ::Identity();
+            pose.translation = Eigen::Vector3f(cTheta, 0.0f, sTheta);
+        } else {
+            pose.rotation = Eigen::Matrix3f ::Identity();
+            pose.translation = Eigen::Vector3f(cTheta, sTheta, 0.0f);
+        }
+
+        // views
+        auto &view = views.at(i);
+        view.timeStamp = Dt * i;
+
+        view.rotation.col(0) = pose.rotation.col(0);
+        view.rotation.col(1) = -pose.rotation.col(2);
+        view.rotation.col(2) = pose.rotation.col(1);
+        view.translation = pose.translation - 0.2f * view.rotation.col(2);
+    }
+    return {poses, views};
 }
 }  // namespace ns_ikalibr

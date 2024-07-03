@@ -67,10 +67,11 @@ private:
     constexpr static float DTheta = 2 * M_PI / PoseSize;
 
 public:
-    static void Run();
+    static void Run(const std::array<std::vector<ns_viewer::Posef>, 2>& poseSeq);
 
-protected:
     static std::array<std::vector<ns_viewer::Posef>, 2> GeneratePoseSeq();
+
+    static std::array<std::vector<ns_viewer::Posef>, 2> GeneratePoseSeqLivox();
 };
 }  // namespace ns_ikalibr
 

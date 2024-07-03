@@ -71,8 +71,10 @@ int main(int argc, char **argv) {
         //     "iKalibr-data-2024-06-25-17-37-20"};
         // ns_ikalibr::ExtractIntriParam::ToDisk(wsVec, false, true);
 
-        // such demo is not suitable for livox lidar!!!
-        ns_ikalibr::DataCollectionMotionDemo::Run();
+        ns_ikalibr::DataCollectionMotionDemo::Run(
+            ns_ikalibr::DataCollectionMotionDemo::GeneratePoseSeq());
+        ns_ikalibr::DataCollectionMotionDemo::Run(
+            ns_ikalibr::DataCollectionMotionDemo::GeneratePoseSeqLivox());
 
         // ns_ikalibr::LoGoMaker::SaveToFile("/home/csl/ros_ws/iKalibr/src/ikalibr/docs/img/logo.svg");
 
