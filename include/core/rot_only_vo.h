@@ -59,15 +59,25 @@ class RotOnlyVisualOdometer {
 public:
     using Ptr = std::shared_ptr<RotOnlyVisualOdometer>;
 
+    struct Feat {
+        cv::Point2f raw;
+        cv::Point2f undistorted;
+
+        Feat(cv::Point2f raw, cv::Point2f undistorted);
+    };
+
 private:
     const int FEAT_NUM_PER_IMG;
     const int MIN_DIST;
     ns_veta::PinholeIntrinsic::Ptr _intri;
 
     CameraFramePtr _lastFrame;
-    std::vector<cv::Point2f> _ptsInLast;
-    std::vector<int> _ptsTrackCount;
-    std::vector<cv::Point2f> _ptsUndistInLast;
+    // feature id, raw feature, undistorted feature
+    std::map<int, Feat> _ptsInLast;
+
+    // landmark id, track lists [camera frame, feature point]
+    std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feat>>> _lmTrackInfo;
+    std::map<int, ns_veta::IndexT> _featId2lmIdInLast;
 
     std::vector<std::pair<double, Sophus::SO3d>> _rotations;
 
@@ -88,7 +98,20 @@ public:
 
     virtual ~RotOnlyVisualOdometer();
 
+    [[nodiscard]] const std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feat>>> &
+    GetLmTrackInfo() const;
+
+    void ShowLmTrackInfo() const;
+
 protected:
+    static std::pair<std::vector<int>, std::vector<cv::Point2f>> ExtractFeatMapAsRawFeatVec(
+        const std::map<int, Feat> &featMap, const std::vector<int> &desiredIds = {});
+
+    static std::pair<std::vector<int>, std::vector<cv::Point2f>> ExtractFeatMapAsUndistoFeatVec(
+        const std::map<int, Feat> &featMap, const std::vector<int> &desiredIds = {});
+
+    static ns_veta::IndexT GenNewLmId();
+
     static bool InImageBorder(const cv::Point2f &pt,
                               const CameraFramePtr &frame,
                               int borderSize = 1);
@@ -104,12 +127,10 @@ protected:
         v.resize(j);
     }
 
-    std::vector<cv::Point2f> UndistortedPoints(const std::vector<cv::Point2f> &pts);
-
-    [[nodiscard]] std::tuple<cv::Mat, std::vector<cv::Point2f>, std::vector<int>, std::vector<int>>
-    ComputeMaskAndFilterPts(const CameraFramePtr &frame,
-                            const std::vector<cv::Point2f> &pts,
-                            const std::vector<int> &trackCount) const;
+    [[nodiscard]] std::pair<cv::Mat, std::set<int>> ComputeMaskAndFilterPts(
+        const CameraFramePtr &frame,
+        const std::map<int, Feat> &featMap,
+        std::vector<std::pair<int, int>> trackCount) const;
 
     template <class Type>
     std::vector<Type> FindElements(const std::vector<Type> &vec, const std::vector<int> &idx) {
@@ -122,12 +143,13 @@ protected:
 
     void ShowCurrentFrame() const;
 
-    static void ShowFeatureTracking(const CameraFramePtr &lastFrame,
-                                    const std::vector<cv::Point2f> &ptsInLast,
-                                    const CameraFramePtr &curFrame,
-                                    const std::vector<cv::Point2f> &ptsInCur,
-                                    const std::vector<int> &inliers,
-                                    const std::string &winName);
+    static void ShowFeatureTracking(const std::map<int, Feat> &ptsInLast,
+                                    const std::map<int, Feat> &ptsInCur,
+                                    const std::map<int, int> &matches,
+                                    cv::Mat matImg,
+                                    const cv::Point2f &bias,
+                                    const std::string &winName,
+                                    const cv::Scalar &color = cv::Scalar(0, 255, 0));
 
     static std::vector<uchar> RejectUsingFMat(const std::vector<cv::Point2f> &undistPtsInLast,
                                               const std::vector<cv::Point2f> &undistPtsInCur);

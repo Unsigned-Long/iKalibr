@@ -274,6 +274,12 @@ struct RetrieveKey {
         return keyValuePair.first;
     }
 };
+struct RetrieveVal {
+    template <typename T>
+    typename T::first_type operator()(T keyValuePair) const {
+        return keyValuePair.second;
+    }
+};
 
 template <typename KeyType, typename ValueType>
 std::vector<KeyType> ExtractKeysAsVec(const std::map<KeyType, ValueType> &inputMap) {
@@ -288,6 +294,21 @@ std::set<KeyType> ExtractKeysAsSet(const std::map<KeyType, ValueType> &inputMap)
     std::transform(inputMap.begin(), inputMap.end(), std::inserter(keys, keys.end()),
                    RetrieveKey());
     return keys;
+}
+
+template <typename KeyType, typename ValueType>
+std::vector<ValueType> ExtractValsAsVec(const std::map<KeyType, ValueType> &inputMap) {
+    std::vector<ValueType> vals;
+    std::transform(inputMap.begin(), inputMap.end(), std::back_inserter(vals), RetrieveVal());
+    return vals;
+}
+
+template <typename KeyType, typename ValueType>
+std::set<ValueType> ExtractValsAsSet(const std::map<KeyType, ValueType> &inputMap) {
+    std::set<ValueType> vals;
+    std::transform(inputMap.begin(), inputMap.end(), std::inserter(vals, vals.end()),
+                   RetrieveVal());
+    return vals;
 }
 
 template <typename ScaleType>
