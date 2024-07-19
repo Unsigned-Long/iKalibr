@@ -183,12 +183,6 @@ add_definitions(-DMAGIC_ENUM_RANGE_MIN=0)
 # 1024 = 2^10
 add_definitions(-DMAGIC_ENUM_RANGE_MAX=1023)
 find_package(yaml-cpp)
-
-# solve pcl warning
-if(NOT DEFINED CMAKE_SUPPRESS_DEVELOPER_WARNINGS)
-    set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "No dev warnings")
-endif()
-
 find_package(PCL REQUIRED)
 
 #define PCL_NO_PRECOMPILE [it's very important for Custom pcl Point type]
@@ -354,6 +348,7 @@ target_link_libraries(
         ctraj
         veta
         opengv
+        UFO::Map
 )
 
 ###################################
@@ -498,6 +493,7 @@ target_link_libraries(
 
         # thirdparty
         ${PROJECT_NAME}_util
+        UFO::Map
 )
 ######################################
 # libikalibr_data_format_transformer #
