@@ -43,6 +43,13 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
 **Key point**: both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`.
 
++ install ros packages:
+
+  ```sh
+  sudo apt-get install ros-noetic-cv-bridge
+  sudo apt-get install ros-noetic-velodyne
+  ```
+
 <p align="left">
     <a><strong>Clone iKalibr and Its Modules »</strong></a>
 </p> 
