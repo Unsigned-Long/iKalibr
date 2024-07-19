@@ -41,14 +41,14 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   sudo apt-get install colmap
   ```
 
-**Key point**: both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`.
-
 + install ros packages:
 
   ```sh
   sudo apt-get install ros-noetic-cv-bridge
   sudo apt-get install ros-noetic-velodyne
   ```
+
+**Key point**: both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`.
 
 <p align="left">
     <a><strong>Clone iKalibr and Its Modules »</strong></a>
@@ -94,5 +94,5 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   catkin_make -j8
   ```
 
-Congratulations :clap: , if everything goes well and no error happened. At the end, you would obtain several binary programs, such as `ikalibr_prog`, `ikalibr_imu_intri_calib`, etc. Each program is exactly an executable ros node, and can be launched by `rosrun` or provided `roslaunch` (recommend).
+Congratulations :clap:, if everything goes well and no error happened. At the end, you would obtain several binary programs, such as `ikalibr_prog`, `ikalibr_imu_intri_calib`, etc. Each program is exactly an executable ros node, and can be launched by `rosrun` or provided `roslaunch` (recommend).
 
