@@ -67,6 +67,8 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   ```
 
   this would build sub module libraries, namely `tiny-viewer`, `ctraj`, `ufomap`, `veta`, and `opengv`.
+  
+  **Key point**: the sub module `ufomap` would be checkout to `origin/devel_surfel` branch in `build_thirdparty.sh`. If errors about `ufomap` happen when compiling `iKalibr`, make sure the branch of `ufomap` is correct.
 
 <p align="left">
     <a><strong>Compile iKalibr »</strong></a>

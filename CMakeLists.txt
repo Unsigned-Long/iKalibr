@@ -60,6 +60,8 @@ find_package(catkin REQUIRED COMPONENTS
         rosbag
         cv_bridge
         message_generation
+        velodyne_msgs
+        velodyne_pointcloud
 )
 
 ## System dependencies are found with CMake's conventions
