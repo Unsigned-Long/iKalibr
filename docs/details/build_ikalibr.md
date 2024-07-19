@@ -72,9 +72,10 @@ The following libraries need to be installed to support `iKalibr`. If you have a
     <a><strong>Compile iKalibr »</strong></a>
 </p> 
 
-+ generate the ros self-defined messages in `ikalibr`:
++ change directory to catkin workspace, and generate the ros self-defined messages in `ikalibr`:
 
   ```sh
+  cd ../..
   catkin_make ikalibr_generate_messages
   ```
 
