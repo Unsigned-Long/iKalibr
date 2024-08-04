@@ -44,6 +44,10 @@
 #include "factor/visual_proj_factor.hpp"
 #include "factor/linear_knots_factor.hpp"
 #include "ctraj/core/trajectory_estimator.h"
+#include "factor/prior_extri_so3_factor.hpp"
+#include "factor/prior_extri_pos_factor.hpp"
+#include "factor/prior_time_offset_factor.hpp"
+#include "calib/spat_temp_priori.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -81,7 +85,11 @@ Estimator::Ptr Estimator::Create(const SplineBundleType::Ptr &splines,
     return std::make_shared<Estimator>(splines, calibParamManager);
 }
 
-ceres::Solver::Summary Estimator::Solve(const ceres::Solver::Options &options) {
+ceres::Solver::Summary Estimator::Solve(const ceres::Solver::Options &options,
+                                        const SpatialTemporalPriori::Ptr &priori) {
+    if (priori != nullptr) {
+        priori->AddSpatTempPrioriConstraint(*this, *parMagr);
+    }
     ceres::Solver::Summary summary;
     ceres::Solve(options, this, &summary);
     return summary;
@@ -1139,5 +1147,105 @@ void Estimator::AddSO3HeadConstraint(Estimator::Opt option, double weight, int c
             }
         }
     }
+}
+/**
+ * param blocks:
+ * [ SO3_Sen1ToRef | SO3_Sen2ToRef ]
+ */
+void Estimator::AddPriorExtriSO3Constraint(const Sophus::SO3d &SO3_Sen1ToSen2,
+                                           Sophus::SO3d *SO3_Sen1ToRef,
+                                           Sophus::SO3d *SO3_Sen2ToRef,
+                                           double weight) {
+    // create a cost function
+    auto costFunc = PriorExtriSO3Factor::Create(SO3_Sen1ToSen2, weight);
+
+    // SO3_Sen1ToRef
+    costFunc->AddParameterBlock(4);
+    // SO3_Sen2ToRef
+    costFunc->AddParameterBlock(4);
+
+    // set Residuals
+    costFunc->SetNumResiduals(3);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // SO3_Sen1ToRef
+    paramBlockVec.push_back(SO3_Sen1ToRef->data());
+    // SO3_Sen2ToRef
+    paramBlockVec.push_back(SO3_Sen2ToRef->data());
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+
+    this->SetManifold(SO3_Sen1ToRef->data(), QUATER_MANIFOLD.get());
+    this->SetManifold(SO3_Sen2ToRef->data(), QUATER_MANIFOLD.get());
+}
+/**
+ * param blocks:
+ * [ POS_Sen1InRef | SO3_Sen2ToRef | POS_Sen2InRef ]
+ */
+void Estimator::AddPriorExtriPOSConstraint(const Eigen::Vector3d &POS_Sen1InSen2,
+                                           Eigen::Vector3d *POS_Sen1InRef,
+                                           Sophus::SO3d *SO3_Sen2ToRef,
+                                           Eigen::Vector3d *POS_Sen2InRef,
+                                           double weight) {
+    // create a cost function
+    auto costFunc = PriorExtriPOSFactor::Create(POS_Sen1InSen2, weight);
+
+    // POS_Sen1InRef
+    costFunc->AddParameterBlock(3);
+    // SO3_Sen2ToRef
+    costFunc->AddParameterBlock(4);
+    // POS_Sen2InRef
+    costFunc->AddParameterBlock(3);
+
+    // set Residuals
+    costFunc->SetNumResiduals(3);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // POS_Sen1InRef
+    paramBlockVec.push_back(POS_Sen1InRef->data());
+    // SO3_Sen2ToRef
+    paramBlockVec.push_back(SO3_Sen2ToRef->data());
+    // POS_Sen2InRef
+    paramBlockVec.push_back(POS_Sen2InRef->data());
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+
+    this->SetManifold(SO3_Sen2ToRef->data(), QUATER_MANIFOLD.get());
+}
+/**
+ * param blocks:
+ * [ TO_Sen1ToRef | TO_Sen2ToRef ]
+ */
+void Estimator::AddPriorTimeOffsetConstraint(const double &TO_Sen1ToSen2,
+                                             double *TO_Sen1ToRef,
+                                             double *TO_Sen2ToRef,
+                                             double weight) {
+    // create a cost function
+    auto costFunc = PriorTimeOffsetFactor::Create(TO_Sen1ToSen2, weight);
+
+    // TO_Sen1ToRef
+    costFunc->AddParameterBlock(1);
+    // TO_Sen2ToRef
+    costFunc->AddParameterBlock(1);
+
+    // set Residuals
+    costFunc->SetNumResiduals(1);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // TO_Sen1ToRef
+    paramBlockVec.push_back(TO_Sen1ToRef);
+    // TO_Sen2ToRef
+    paramBlockVec.push_back(TO_Sen2ToRef);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
 }
 }  // namespace ns_ikalibr

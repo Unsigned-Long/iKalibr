@@ -1,0 +1,50 @@
+# For a multi-sensor kit to be calibrated, if the user already knows any
+# spatiotemporal parameters between some sensors, the user can pass these
+# parameters into iKalibr by configuring this file, and this would treat
+# the spatiotemporal calibration problem in iKalibr as an equality constraint
+# optimization problem with prior information, to ensure that the solution
+# meets the prior spatiotemporal parameters.
+#
+# Please note that this prior knowledge is not necessary in iKalibr. If you
+# have them and are very sure that they are correct, then provide it to iKalibr
+# through this file. If you don't have them, don't configure this file.
+#
+# A typical example of using this file is to calibrate a multi-sensor kit
+# containing Livox Avia. Since the manufacturer has provided the extrinsics of
+# the IMU relative to the LiDAR in Avia, these extrinsics can be passed into
+# ikalibr as a priori.
+
+# This is a prior config file for Livox Avia LiDAR
+SpatialTemporalPriori:
+  SO3_Sen1ToSen2:
+    # extrinsic rotation of sensor 'first' with respect to 'second'
+    - key:
+        first: "/livox_avia/imu"
+        second: "/livox_avia/lidar"
+      value:
+        qx: 0.0
+        qy: 0.0
+        qz: 0.0
+        qw: 1.0
+  POS_Sen1InSen2:
+    # extrinsic translation of sensor 'first' in 'second'
+    - key:
+        first: "/livox_avia/imu"
+        second: "/livox_avia/lidar"
+      value:
+        r0c0: -0.04165
+        r1c0: -0.02326
+        r2c0: 0.02840
+  TO_Sen1ToSen2:
+  # time offset of sensor 'first' with respect to 'second'
+  # - key:
+  #     first: /sensor1/topic
+  #     second: /sensor2/topic
+  #   value: 0.025
+  RS_READOUT:
+  # readout time of a rs camera
+  # - key: /sensor1/topic
+  #   value: 0.03
+  # readout time of another rs camera
+  # - key: /sensor2/topic
+  #   value: 0.02

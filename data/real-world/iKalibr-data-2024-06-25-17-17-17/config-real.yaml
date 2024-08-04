@@ -64,6 +64,8 @@ Configor:
     OutputPath: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world/iKalibr-data-2024-06-25-17-17-17"
   Prior:
     GravityNorm: 9.8
+    # priori about spatiotemporal parameters, given by corresponding config file path
+    SpatTempPrioriPath: ""
     # if sensor are hardware-synchronized, you could choose to fix temporal parameters by setting this field to 'false'
     OptTemporalParams: true
     # the range where the time offsets would be optimized.

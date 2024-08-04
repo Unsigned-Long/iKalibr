@@ -41,6 +41,7 @@
 #include "calib/calib_solver_io.h"
 #include "core/vision_only_sfm.h"
 #include "viewer/viewer.h"
+#include "calib/spat_temp_priori.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -106,6 +107,8 @@ public:
 private:
     CalibDataManager::Ptr _dataMagr;
     CalibParamManager::Ptr _parMagr;
+
+    SpatialTemporalPriori::Ptr _priori;
 
     SplineBundleType::Ptr _splines;
     ceres::Solver::Options _ceresOption;

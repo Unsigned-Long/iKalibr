@@ -180,6 +180,7 @@ public:
     } dataStream;
 
     static struct Prior {
+        static std::string SpatTempPrioriPath;
         static double GravityNorm;
         static constexpr int SplineOrder = 4;
         static bool OptTemporalParams;
@@ -238,9 +239,9 @@ public:
     public:
         template <class Archive>
         void serialize(Archive &ar) {
-            ar(CEREAL_NVP(GravityNorm), CEREAL_NVP(OptTemporalParams),
-               CEREAL_NVP(TimeOffsetPadding), CEREAL_NVP(ReadoutTimePadding),
-               cereal::make_nvp("KnotTimeDist", knotTimeDist),
+            ar(CEREAL_NVP(SpatTempPrioriPath), CEREAL_NVP(GravityNorm),
+               CEREAL_NVP(OptTemporalParams), CEREAL_NVP(TimeOffsetPadding),
+               CEREAL_NVP(ReadoutTimePadding), cereal::make_nvp("KnotTimeDist", knotTimeDist),
                cereal::make_nvp("NDTLiDAROdometer", ndtLiDAROdometer),
                cereal::make_nvp("LiDARDataAssociate", lidarDataAssociate),
                CEREAL_NVP(CauchyLossForRadarFactor), CEREAL_NVP(CauchyLossForLiDARFactor),

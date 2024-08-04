@@ -157,7 +157,7 @@ CalibSolver::Initialization() {
     auto estimator = Estimator::Create(_splines, _parMagr);
     this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU,
                         OptOption::Option::OPT_SO3_SPLINE);
-    auto sum = estimator->Solve(_ceresOption);
+    auto sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
     estimator = Estimator::Create(_splines, _parMagr);
@@ -172,7 +172,7 @@ CalibSolver::Initialization() {
     estimator->SetRefIMUParamsConstant();
     // estimator->FixFirSO3ControlPoint();
 
-    sum = estimator->Solve(_ceresOption);
+    sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
     if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
@@ -279,7 +279,7 @@ CalibSolver::Initialization() {
             }
         }
 
-        sum = estimator->Solve(_ceresOption);
+        sum = estimator->Solve(_ceresOption, this->_priori);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
     }
 
@@ -389,7 +389,7 @@ CalibSolver::Initialization() {
             }
         }
 
-        sum = estimator->Solve(_ceresOption);
+        sum = estimator->Solve(_ceresOption, this->_priori);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
     }
 
@@ -540,7 +540,7 @@ CalibSolver::Initialization() {
             }
         }
 
-        sum = estimator->Solve(_ceresOption);
+        sum = estimator->Solve(_ceresOption, this->_priori);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
     }
 
@@ -739,7 +739,7 @@ CalibSolver::Initialization() {
     // make this problem full rank
     estimator->SetRefIMUParamsConstant();
 
-    sum = estimator->Solve(_ceresOption);
+    sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
     if (Configor::IsRadarIntegrated()) {
@@ -775,7 +775,7 @@ CalibSolver::Initialization() {
             }
         }
         estimator->SetRefIMUParamsConstant();
-        sum = estimator->Solve(_ceresOption);
+        sum = estimator->Solve(_ceresOption, this->_priori);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
     }
 
@@ -978,7 +978,7 @@ CalibSolver::Initialization() {
             }
         } break;
     }
-    sum = estimator->Solve(_ceresOption);
+    sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
     if (GetScaleType() == TimeDeriv::LIN_POS_SPLINE && Configor::IsRadarIntegrated() &&
@@ -989,7 +989,7 @@ CalibSolver::Initialization() {
             this->AddRadarFactor<TimeDeriv::LIN_POS_SPLINE>(estimator, topic,
                                                             OptOption::Option::OPT_TO_RjToBr);
         }
-        sum = estimator->Solve(_ceresOption);
+        sum = estimator->Solve(_ceresOption, this->_priori);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
     }
 
@@ -1316,7 +1316,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     estimator->SetRefIMUParamsConstant();
     // estimator->FixFirSO3ControlPoint();
 
-    auto sum = estimator->Solve(_ceresOption);
+    auto sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
     // align states to the gravity

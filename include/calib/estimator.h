@@ -128,6 +128,9 @@ struct TimeDeriv {
     }
 };
 
+struct SpatialTemporalPriori;
+using SpatialTemporalPrioriPtr = std::shared_ptr<SpatialTemporalPriori>;
+
 class Estimator : public ceres::Problem {
 public:
     using Ptr = std::shared_ptr<Estimator>;
@@ -156,7 +159,8 @@ public:
                                                        bool useCUDA = false);
 
     ceres::Solver::Summary Solve(
-        const ceres::Solver::Options &options = Estimator::DefaultSolverOptions());
+        const ceres::Solver::Options &options = Estimator::DefaultSolverOptions(),
+        const SpatialTemporalPrioriPtr &priori = nullptr);
 
     Eigen::MatrixXd GetHessianMatrix(const std::vector<double *> &consideredParBlocks,
                                      int numThread = 1);
@@ -853,6 +857,22 @@ public:
                                    int count = Configor::Prior::SplineOrder);
 
     void AddSO3HeadConstraint(Opt option, double weight, int count = Configor::Prior::SplineOrder);
+
+    void AddPriorExtriSO3Constraint(const Sophus::SO3d &SO3_Sen1ToSen2,
+                                    Sophus::SO3d *SO3_Sen1ToRef,
+                                    Sophus::SO3d *SO3_Sen2ToRef,
+                                    double weight);
+
+    void AddPriorExtriPOSConstraint(const Eigen::Vector3d &POS_Sen1InSen2,
+                                    Eigen::Vector3d *POS_Sen1InRef,
+                                    Sophus::SO3d *SO3_Sen2ToRef,
+                                    Eigen::Vector3d *POS_Sen2InRef,
+                                    double weight);
+
+    void AddPriorTimeOffsetConstraint(const double &TO_Sen1ToSen2,
+                                      double *TO_Sen1ToRef,
+                                      double *TO_Sen2ToRef,
+                                      double weight);
 
 protected:
     void AddSo3KnotsData(std::vector<double *> &paramBlockVec,

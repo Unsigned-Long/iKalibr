@@ -58,6 +58,8 @@ Configor:
     OutputPath: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/tum/rs-seq-5"
   Prior:
     GravityNorm: 9.8
+    # priori about spatiotemporal parameters, given by corresponding config file path
+    SpatTempPrioriPath: ""
     # if sensor are hardware-synchronized, you could choose to fix temporal parameters by setting this field to 'false'
     OptTemporalParams: false
     # the range where the time offsets would be optimized.

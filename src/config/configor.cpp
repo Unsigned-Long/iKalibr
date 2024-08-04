@@ -82,6 +82,7 @@ std::string Configor::DataStream::OutputPath = {};
 const std::string Configor::DataStream::PkgPath = ros::package::getPath("ikalibr");
 const std::string Configor::DataStream::DebugPath = PkgPath + "/debug/";
 
+std::string Configor::Prior::SpatTempPrioriPath = {};
 double Configor::Prior::GravityNorm = {};
 double Configor::Prior::TimeOffsetPadding = {};
 double Configor::Prior::ReadoutTimePadding = {};

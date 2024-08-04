@@ -100,6 +100,8 @@ Configor:
   Prior:
     # unit: m/s^2
     GravityNorm: 9.8
+    # priori about spatiotemporal parameters, given by corresponding config file path
+    SpatTempPrioriPath: ""
     # if sensor are hardware-synchronized, you could choose to fix temporal parameters
     # by setting this field to 'false'
     OptTemporalParams: true

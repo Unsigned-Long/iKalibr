@@ -87,6 +87,7 @@ CalibSolver::CalibSolver(CalibDataManager::Ptr calibDataManager,
                          CalibParamManager::Ptr calibParamManager)
     : _dataMagr(std::move(calibDataManager)),
       _parMagr(std::move(calibParamManager)),
+      _priori(nullptr),
       _ceresOption(Estimator::DefaultSolverOptions(
           Configor::Preference::AvailableThreads(), true, Configor::Preference::UseCudaInSolving)),
       _viewer(nullptr),
@@ -116,6 +117,14 @@ CalibSolver::CalibSolver(CalibDataManager::Ptr calibDataManager,
     // output spatiotemporal parameters after each iteration if needed
     if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
         _ceresOption.callbacks.push_back(new CeresDebugCallBack(_parMagr));
+    }
+
+    // spatial and temporal priori
+    if (std::filesystem::exists(Configor::Prior::SpatTempPrioriPath)) {
+        _priori = SpatialTemporalPriori::Load(Configor::Prior::SpatTempPrioriPath);
+        _priori->CheckValidityWithConfigor();
+        spdlog::info("priori about spatial and temporal parameters are given: '{}'",
+                     Configor::Prior::SpatTempPrioriPath);
     }
 }
 
