@@ -7,6 +7,9 @@
     <a href="https://github.com/Unsigned-Long"><strong>Author » Shuolong Chen</strong></a>
 </p>
 <p align="center"><i>"The naming of <strong>iKalibr</strong> is inspired by <a href="https://github.com/ethz-asl/kalibr.git">Kalibr</a>, but not an extension of it. Wonder <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/why_ikalibr.md">why</a>?"</i></p>
+<p align="center">
+    :tada: <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/news.md"><i><strong>News »</strong> sopport spatial & temporal priori constraints, if needed</i></a>
+</p>
 
 ---
 

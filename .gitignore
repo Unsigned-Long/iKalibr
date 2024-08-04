@@ -164,3 +164,6 @@ add_gitmodules.sh
 /data/real-world/iKalibr-data-2024-06-25-17-37-20/*
 !/data/real-world/iKalibr-data-2024-06-25-17-37-20/config-real.yaml
 !/data/real-world/iKalibr-data-2024-06-25-17-37-20/*-imu-intri.yaml
+
+/docs/img/priori_constraints.drawio
+/docs/img/priori_constraints.png
