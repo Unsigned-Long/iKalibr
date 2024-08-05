@@ -12,6 +12,27 @@
 ---
 
 <p align="left">
+    <a><strong>Version 1.2.0 » Compatible With GLOMAP For SfM Reconstruction</strong></a>
+</p>
+
+`GLOMAP` is a general purpose global structure-from-motion pipeline for image-based reconstruction. `GLOMAP` requires a `COLMAP` database as input and outputs a `COLMAP` sparse reconstruction. As compared to `COLMAP`, this project provides a much more efficient and scalable reconstruction process, *typically 1-2 orders of magnitude faster, with on-par or superior reconstruction quality*.
+
+Below is a comparison of SfM reconstruction between colmap mapper and glomap mapper, focusing on reconstruction effect and reconstruction speed.
+
+|     300 IMAGES |              COLMAP MAPPER              |        GLOMAP MAPPER (RECOMMAND)        |
+| -------------: | :-------------------------------------: | :-------------------------------------: |
+| **START TIME** |             17:04:09.440652             |             16:56:57.489804             |
+|   **END TIME** |             17:21:00.542973             |             17:00:54.970989             |
+|   **RUN TIME** |            16.852 [minutes]             |           **3.570 [minutes]**           |
+|  **FINAL MAP** | ![COLMAP MAPPER](../img/colmap_sfm.png) | ![GLOMAP MAPPER](../img/glomap_sfm.png) |
+
+
+
+**Attention:** If cameras are integrated in sensor suite to be calibrated by `iKalibr`, structure from motion (SfM) is required for each camera.
+
+
+
+<p align="left">
     <a><strong>Version 1.1.0 » Support Spatial & Temporal Priori Constraints</strong></a>
 </p>
 

@@ -324,25 +324,27 @@ void CalibSolver::StoreImagesForSfM(const std::string &topic, const std::set<Ind
         "--match_type pairs\n",
         topic, database_path, match_list_path);
 
-    logger->info("------------------------------------------------------------------------------");
-    logger->info("-  SfM Reconstruction in COLMAP [colmap gui] (recommend) or [colmap mapper]  -");
-    logger->info("------------------------------------------------------------------------------");
     logger->info(
-        "performing SfM using [colmap gui] is suggested, rather than the command line, "
-        "which is very strict in initialization (finding initial image pair) and would cost lots "
-        "of time!!!");
+        "---------------------------------------------------------------------------------");
+    logger->info(
+        "- SfM Reconstruction in [COLMAP GUI | COLMAP MAPPER | GLOMAP MAPPER (RECOMMEND)]-");
+    logger->info(
+        "---------------------------------------------------------------------------------");
+    logger->info("- Way 1: COLMAP GUI -");
     // reconstruction
     logger->info(
-        "command line for 'colmap gui' for topic '{}':\n"
+        "---------------------\n"
         "colmap gui "
         "--database_path {} "
         "--image_path {}",
-        topic, database_path, image_path, output_path);
-    logger->info("------------------------------------------------------------------------------");
+        database_path, image_path, output_path);
+    logger->info(
+        "---------------------------------------------------------------------------------");
+    logger->info("- Way 2: COLMAP MAPPER -");
     double init_max_error = IsRSCamera(topic) ? 2.0 : 1.0;
     // reconstruction
     logger->info(
-        "command line for 'colmap mapper' for topic '{}':\n"
+        "------------------------\n"
         "colmap mapper "
         "--database_path {} "
         "--image_path {} "
@@ -352,9 +354,19 @@ void CalibSolver::StoreImagesForSfM(const std::string &topic, const std::set<Ind
         "--Mapper.tri_min_angle 3 "
         "--Mapper.ba_refine_focal_length 0 "
         "--Mapper.ba_refine_principal_point 0",
-        topic, database_path, image_path, output_path, init_max_error);
+        database_path, image_path, output_path, init_max_error);
     logger->info(
-        "------------------------------------------------------------------------------\n");
+        "---------------------------------------------------------------------------------");
+    logger->info("- Way 3: GLOMAP MAPPER (RECOMMEND) -");
+    logger->info(
+        "------------------------------------\n"
+        "glomap mapper "
+        "--database_path {} "
+        "--image_path {} "
+        "--output_path {}",
+        database_path, image_path, output_path);
+    logger->info(
+        "---------------------------------------------------------------------------------\n");
 
     // format convert
     logger->info(
