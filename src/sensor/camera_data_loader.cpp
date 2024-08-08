@@ -114,6 +114,58 @@ CameraDataLoader::Ptr CameraDataLoader::GetLoader(const std::string &modelStr) {
 
 CameraModelType CameraDataLoader::GetCameraModel() const { return _model; }
 
+void CameraDataLoader::RefineImgMsgWrongEncoding(const sensor_msgs::Image::Ptr &msg) {
+    if (msg->encoding == sensor_msgs::image_encodings::TYPE_8UC1) {
+        msg->encoding = sensor_msgs::image_encodings::MONO8;
+        static bool warn = false;
+        if (!warn) {
+            spdlog::warn("encoding type of images is wrong: '{}', change encoding type to '{}'",
+                         sensor_msgs::image_encodings::TYPE_8UC1, msg->encoding);
+            warn = true;
+        }
+    } else if (msg->encoding == sensor_msgs::image_encodings::TYPE_16UC1) {
+        msg->encoding = sensor_msgs::image_encodings::MONO16;
+        static bool warn = false;
+        if (!warn) {
+            spdlog::warn("encoding type of images is wrong: '{}', change encoding type to '{}'",
+                         sensor_msgs::image_encodings::TYPE_16UC1, msg->encoding);
+            warn = true;
+        }
+    } else if (msg->encoding == sensor_msgs::image_encodings::TYPE_8UC3) {
+        msg->encoding = sensor_msgs::image_encodings::BGR8;
+        static bool warn = false;
+        if (!warn) {
+            spdlog::warn("encoding type of images is wrong: '{}', change encoding type to '{}'",
+                         sensor_msgs::image_encodings::TYPE_8UC3, msg->encoding);
+            warn = true;
+        }
+    } else if (msg->encoding == sensor_msgs::image_encodings::TYPE_8UC4) {
+        msg->encoding = sensor_msgs::image_encodings::BGRA8;
+        static bool warn = false;
+        if (!warn) {
+            spdlog::warn("encoding type of images is wrong: '{}', change encoding type to '{}'",
+                         sensor_msgs::image_encodings::TYPE_8UC4, msg->encoding);
+            warn = true;
+        }
+    } else if (msg->encoding == sensor_msgs::image_encodings::TYPE_16UC3) {
+        msg->encoding = sensor_msgs::image_encodings::BGR16;
+        static bool warn = false;
+        if (!warn) {
+            spdlog::warn("encoding type of images is wrong: '{}', change encoding type to '{}'",
+                         sensor_msgs::image_encodings::TYPE_16UC3, msg->encoding);
+            warn = true;
+        }
+    } else if (msg->encoding == sensor_msgs::image_encodings::TYPE_16UC4) {
+        msg->encoding = sensor_msgs::image_encodings::BGRA16;
+        static bool warn = false;
+        if (!warn) {
+            spdlog::warn("encoding type of images is wrong: '{}', change encoding type to '{}'",
+                         sensor_msgs::image_encodings::TYPE_16UC4, msg->encoding);
+            warn = true;
+        }
+    }
+}
+
 // -----------------
 // SensorImageLoader
 // -----------------
@@ -125,10 +177,10 @@ SensorImageLoader::Ptr SensorImageLoader::Create(CameraModelType model) {
 }
 
 CameraFrame::Ptr SensorImageLoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
-    // imu data item
-    sensor_msgs::ImageConstPtr msg = msgInstance.instantiate<sensor_msgs::Image>();
+    sensor_msgs::ImagePtr msg = msgInstance.instantiate<sensor_msgs::Image>();
 
     CheckMessage<sensor_msgs::Image>(msg);
+    RefineImgMsgWrongEncoding(msg);
 
     cv::Mat cImg, gImg;
     cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image.copyTo(cImg);
@@ -148,7 +200,6 @@ SensorImageCompLoader::Ptr SensorImageCompLoader::Create(CameraModelType model) 
 }
 
 CameraFrame::Ptr SensorImageCompLoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
-    // imu data item
     sensor_msgs::CompressedImageConstPtr msg =
         msgInstance.instantiate<sensor_msgs::CompressedImage>();
 

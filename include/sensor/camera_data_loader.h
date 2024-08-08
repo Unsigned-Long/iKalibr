@@ -38,6 +38,7 @@
 #include "sensor/camera.h"
 #include "rosbag/message_instance.h"
 #include "util/enum_cast.hpp"
+#include "sensor_msgs/Image.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -97,6 +98,8 @@ protected:
                 std::string(EnumCast::enumToString(GetCameraModel())));
         }
     }
+
+    static void RefineImgMsgWrongEncoding(const sensor_msgs::Image::Ptr &msg);
 };
 
 class SensorImageLoader : public CameraDataLoader {
