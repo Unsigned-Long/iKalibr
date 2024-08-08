@@ -4,7 +4,7 @@ Configor:
     #   1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html
     #   2. SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git
     #   3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)
-    #   4. ...
+    #   4. SENSOR_IMU_G_NEG: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: -G)
     IMUTopics:
       - key: "/mti/imu"
         value:

@@ -78,6 +78,9 @@ IMUDataLoader::Ptr IMUDataLoader::GetLoader(const std::string &imuModelStr) {
         case IMUModelType::SENSOR_IMU_G:
             imuDataLoader = SensorIMUGUnitLoader::Create(imuModel, Configor::Prior::GravityNorm);
             break;
+        case IMUModelType::SENSOR_IMU_G_NEG:
+            imuDataLoader = SensorIMUGUnitLoader::Create(imuModel, -Configor::Prior::GravityNorm);
+            break;
         default:
             throw Status(
                 Status::WARNING,
@@ -87,6 +90,8 @@ IMUDataLoader::Ptr IMUDataLoader::GetLoader(const std::string &imuModelStr) {
                 "2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git\n"
                 "3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html "
                 "(acce unit: G)\n"
+                "4. SENSOR_IMU_G_NEG: "
+                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: -G)\n"
                 "...\n"
                 "If you need to use other IMU types, "
                 "please 'Issues' us on the profile of the github repository.",
@@ -143,9 +148,9 @@ IMUFrame::Ptr SbgIMULoader::UnpackFrame(const rosbag::MessageInstance &msgInstan
     return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
 }
 
-// ---------------
+// --------------------
 // SensorIMUGUnitLoader
-// ---------------
+// --------------------
 SensorIMUGUnitLoader::SensorIMUGUnitLoader(IMUModelType imuModel, double gNorm)
     : IMUDataLoader(imuModel),
       g(gNorm) {}

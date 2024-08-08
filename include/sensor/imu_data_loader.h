@@ -46,7 +46,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-enum class IMUModelType { SENSOR_IMU, SBG_IMU, SENSOR_IMU_G };
+enum class IMUModelType { SENSOR_IMU, SBG_IMU, SENSOR_IMU_G, SENSOR_IMU_G_NEG };
 
 class IMUDataLoader {
 public:
