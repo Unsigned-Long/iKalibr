@@ -22,6 +22,7 @@ Configor:
     #   1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: m/s^2)
     #   2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git (acce unit: m/s^2)
     #   3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)
+    #   4. SENSOR_IMU_G_NEG: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: -G)
     IMUTopics:
       # at least one IMU is integrated in the sensor suite
       - key: "/imu0/frame"
