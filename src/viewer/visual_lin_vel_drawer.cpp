@@ -101,6 +101,11 @@ cv::Mat VisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame, float
         Eigen::Vector3d val2 = SE3_CmToBr0.so3().inverse() * val1;
 
         Eigen::Vector3d end = lmInCm + scale * val2;
+
+        if (end(2) < 1E-3 || lmInCm(2) < 1E-3) {
+            continue;
+        }
+
         Eigen::Vector2d endPixel = _intri->CamToImg({end(0) / end(2), end(1) / end(2)});
 
         // we do not use extracted raw feature here to keep better consistency

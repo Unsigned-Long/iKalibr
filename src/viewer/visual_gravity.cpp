@@ -92,6 +92,11 @@ cv::Mat VisualGravityDrawer::CreateGravityImg(const CameraFrame::Ptr &frame, flo
         Eigen::Vector3d gravityInCm = SE3_Br0ToCm.so3() * _parMagr->GRAVITY;
 
         Eigen::Vector3d end = lmInCm + scale * gravityInCm;
+
+        if (end(2) < 1E-3 || lmInCm(2) < 1E-3) {
+            continue;
+        }
+
         Eigen::Vector2d endPixel = _intri->CamToImg({end(0) / end(2), end(1) / end(2)});
 
         // we do not use extracted raw feature here to keep better consistency

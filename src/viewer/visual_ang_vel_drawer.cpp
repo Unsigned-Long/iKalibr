@@ -94,6 +94,11 @@ cv::Mat VisualAngVelDrawer::CreateAngVelImg(const CameraFrame::Ptr &frame, float
         Eigen::Vector3d lmInCm = SE3_Br0ToCm * lm.X;
 
         Eigen::Vector3d end = lmInCm + scale * ANG_VEL_CmToBr0InCm;
+
+        if (end(2) < 1E-3 || lmInCm(2) < 1E-3) {
+            continue;
+        }
+
         Eigen::Vector2d endPixel = _intri->CamToImg({end(0) / end(2), end(1) / end(2)});
 
         // we do not use extracted raw feature here to keep better consistency
