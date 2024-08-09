@@ -12,13 +12,39 @@
 ---
 
 <p align="center">
-    <a><strong>Version 1.2.1 » Refinement For Sensor Data IO</strong></a>
+    <a><strong>Version 1.2.1 » Refinement For Sensor Data IO & Open Discussion</strong></a>
 </p>
+
 
 The main changes in this version are:
 
 + Add function `RefineImgMsgWrongEncoding`, to refine encoding type of images. Although the encoding type is clear, we found that some users set unreasonable encoding types for images, such as `8UC3` (which is an image storage format in `OpenCV`, different from the encoding type). Therefore, we added this function to correct this oversight to avoid users from making additional encoding type adjustments.
+
 + Add inertial data type `SENSOR_IMU_G_NEG` for IMU. Some users store acceleration in `G`, but interestingly, some use `-G`. To save users from doing extra work, we support reading acceleration in `-G`.
+
++ Add many examples of sensor kits calibrated with `iKalibr` to the [Discussion](https://github.com/Unsigned-Long/iKalibr/discussions) module.
+
++ Add `ikalibr-bag-topic-downsample` to downsample messages of a certain ros topic, and store them to a new rosbag.
+
+  ```xml
+  <launch>
+      <!-- downsample messages of a rostopic and store them to a new rosbag -->
+      <node pkg="ikalibr" type="ikalibr_bag_topic_downsample" name="ikalibr_bag_topic_downsample" output="screen">
+          <!-- the input rosbag -->
+          <param name="input_bag_path" value="/home/csl/dataset/vector/desk_fast/desk_fast1.synced.left_camera.bag"
+                 type="string"/>
+          <!-- the rostopic to down sampled -->
+          <param name="topic_to_downsample" value="/camera/left/image_mono" type="string"/>
+          <!-- the desired ros topic frequency -->
+          <param name="desired_frequency" value="10" type="double"/>
+          <!-- the output rosbag -->
+          <param name="output_bag_path" value="/home/csl/dataset/vector/desk_fast/desk_fast1.synced.left_camera_10hz.bag"
+                 type="string"/>
+      </node>
+  </launch>
+  ```
+
+  
 
 <p align="center">
     <a><strong>Version 1.2.0 » Compatible With GLOMAP For SfM Reconstruction</strong></a>

@@ -61,6 +61,16 @@ roslaunch ikalibr ikalibr-bag-merge.launch
 ```
 
 <p align="left">
+    <a><strong>Downsample Ros Messages »</strong></a>
+</p>
+
+You have recorded a rosbag and want to use `iKalibr` for calibration. However, due to the high frequency of images, it takes a lot of time to perform `SfM` in calibration. At this time, you can use this tool to down sample the messages.
+
+```sh
+roslaunch ikalibr ikalibr-bag-topic-downsample.launch
+```
+
+<p align="left">
     <a><strong>Images To Rosbag »</strong></a>
 </p> 
 

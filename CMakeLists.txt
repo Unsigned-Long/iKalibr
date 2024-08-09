@@ -406,6 +406,10 @@ add_executable(
         src/nofree/bag_merge.cpp
 )
 add_executable(
+        ${PROJECT_NAME}_bag_topic_downsample
+        exe/tool/bag_topic_downsample.cpp
+)
+add_executable(
         ${PROJECT_NAME}_imgs_to_bag
         exe/tool/imgs_to_bag.cpp
 )
@@ -529,6 +533,22 @@ target_include_directories(
 )
 target_link_libraries(
         ${PROJECT_NAME}_bag_merge PRIVATE
+
+        # thirdparty
+        ${PROJECT_NAME}_util
+        ${YAML_CPP_LIBRARIES}
+)
+###################################
+# libikalibr_bag_topic_downsample #
+###################################
+target_include_directories(
+        ${PROJECT_NAME}_bag_topic_downsample PUBLIC
+        # include
+        ${catkin_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(
+        ${PROJECT_NAME}_bag_topic_downsample PRIVATE
 
         # thirdparty
         ${PROJECT_NAME}_util
