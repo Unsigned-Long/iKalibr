@@ -48,6 +48,8 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_ikalibr {
 enum class IMUModelType { SENSOR_IMU, SBG_IMU, SENSOR_IMU_G, SENSOR_IMU_G_NEG };
 
+std::string UnsupportedIMUModelMsg(const std::string &modelStr);
+
 class IMUDataLoader {
 public:
     using Ptr = std::shared_ptr<IMUDataLoader>;
@@ -69,8 +71,8 @@ protected:
     void CheckMessage(typename MsgType::ConstPtr msg) {
         if (msg == nullptr) {
             throw std::runtime_error(
-                "message type of some IMUs was set incorrectly!!! Wrong type: " +
-                std::string(EnumCast::enumToString(GetIMUModel())));
+                "Wrong sensor model: '" + std::string(EnumCast::enumToString(GetIMUModel())) +
+                "' for IMUs! It's incompatible with the type of ros message to load in!");
         }
     }
 };

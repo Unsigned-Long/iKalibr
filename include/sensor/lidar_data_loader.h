@@ -57,6 +57,8 @@ enum class LidarModelType {
     LIVOX_CUSTOM,
 };
 
+std::string UnsupportedLiDARModelMsg(const std::string &modelStr);
+
 class LiDARDataLoader {
 public:
     using Ptr = std::shared_ptr<LiDARDataLoader>;
@@ -79,8 +81,8 @@ protected:
     void CheckMessage(typename MsgType::ConstPtr msg) {
         if (msg == nullptr) {
             throw std::runtime_error(
-                "message type of some LiDARs was set incorrectly!!! Wrong type: " +
-                std::string(EnumCast::enumToString(GetLiDARModel())));
+                "Wrong sensor model: '" + std::string(EnumCast::enumToString(GetLiDARModel())) +
+                "' for LiDARs! It's incompatible with the type of ros message to load in!");
         }
     }
 };

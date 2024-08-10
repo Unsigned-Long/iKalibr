@@ -32,44 +32,65 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IKALIBR_CAMERA_H
-#define IKALIBR_CAMERA_H
+#ifndef IKALIBR_RGBD_H
+#define IKALIBR_RGBD_H
 
-#include "util/utils.h"
-#include "ctraj/utils/macros.hpp"
-#include "opencv4/opencv2/core.hpp"
+#include "sensor/camera.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-
-class CameraFrame {
+class RGBDFrame : public CameraFrame {
 public:
-    using Ptr = std::shared_ptr<CameraFrame>;
+    using Ptr = std::shared_ptr<RGBDFrame>;
+
+protected:
+    cv::Mat _depthImg;
+
+public:
+    // constructor
+    explicit RGBDFrame(double timestamp = INVALID_TIME_STAMP,
+                       const cv::Mat &greyImg = cv::Mat(),
+                       const cv::Mat &colorImg = cv::Mat(),
+                       cv::Mat depthImg = cv::Mat(),
+                       ns_veta::IndexT id = ns_veta::UndefinedIndexT);
+
+    // creator
+    static RGBDFrame::Ptr Create(double timestamp = INVALID_TIME_STAMP,
+                                 const cv::Mat &greyImg = cv::Mat(),
+                                 const cv::Mat &colorImg = cv::Mat(),
+                                 const cv::Mat &depthImg = cv::Mat(),
+                                 ns_veta::IndexT id = ns_veta::UndefinedIndexT);
+
+    cv::Mat &GetDepthImage();
+
+    // release the image mat data to save memory when needed
+    void ReleaseMat() override;
+};
+
+class DepthFrame {
+public:
+    using Ptr = std::shared_ptr<DepthFrame>;
 
 protected:
     double _timestamp;
-    cv::Mat _greyImg, _colorImg;
+    cv::Mat _depthImg;
     ns_veta::IndexT _id;
 
 public:
     // constructor
-    explicit CameraFrame(double timestamp = INVALID_TIME_STAMP,
-                         cv::Mat greyImg = cv::Mat(),
-                         cv::Mat colorImg = cv::Mat(),
-                         ns_veta::IndexT id = ns_veta::UndefinedIndexT);
+    explicit DepthFrame(double timestamp = INVALID_TIME_STAMP,
+                        cv::Mat depthImg = cv::Mat(),
+                        ns_veta::IndexT id = ns_veta::UndefinedIndexT);
 
     // creator
-    static CameraFrame::Ptr Create(double timestamp = INVALID_TIME_STAMP,
-                                   const cv::Mat &greyImg = cv::Mat(),
-                                   const cv::Mat &colorImg = cv::Mat(),
-                                   ns_veta::IndexT id = ns_veta::UndefinedIndexT);
+    static DepthFrame::Ptr Create(double timestamp = INVALID_TIME_STAMP,
+                                  const cv::Mat &depthImg = cv::Mat(),
+                                  ns_veta::IndexT id = ns_veta::UndefinedIndexT);
 
-    cv::Mat &GetImage();
-
-    cv::Mat &GetColorImage();
+    cv::Mat &GetDepthImage();
 
     // release the image mat data to save memory when needed
     virtual void ReleaseMat();
@@ -82,8 +103,8 @@ public:
 
     void SetId(ns_veta::IndexT id);
 
-    friend std::ostream &operator<<(std::ostream &os, const CameraFrame &frame);
+    friend std::ostream &operator<<(std::ostream &os, const DepthFrame &frame);
 };
 }  // namespace ns_ikalibr
 
-#endif  // IKALIBR_CAMERA_H
+#endif  // IKALIBR_RGBD_H

@@ -32,12 +32,11 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IKALIBR_CAMERA_H
-#define IKALIBR_CAMERA_H
+#ifndef IKALIBR_DEPTH_DATA_LOADER_H
+#define IKALIBR_DEPTH_DATA_LOADER_H
 
-#include "util/utils.h"
-#include "ctraj/utils/macros.hpp"
-#include "opencv4/opencv2/core.hpp"
+#include "sensor/camera_data_loader.h"
+#include "sensor/rgbd.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -45,45 +44,57 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-class CameraFrame {
+class DepthDataLoader {
 public:
-    using Ptr = std::shared_ptr<CameraFrame>;
+    using Ptr = std::shared_ptr<DepthDataLoader>;
 
 protected:
-    double _timestamp;
-    cv::Mat _greyImg, _colorImg;
-    ns_veta::IndexT _id;
+    CameraModelType _model;
 
 public:
-    // constructor
-    explicit CameraFrame(double timestamp = INVALID_TIME_STAMP,
-                         cv::Mat greyImg = cv::Mat(),
-                         cv::Mat colorImg = cv::Mat(),
-                         ns_veta::IndexT id = ns_veta::UndefinedIndexT);
+    explicit DepthDataLoader(CameraModelType model);
 
-    // creator
-    static CameraFrame::Ptr Create(double timestamp = INVALID_TIME_STAMP,
-                                   const cv::Mat &greyImg = cv::Mat(),
-                                   const cv::Mat &colorImg = cv::Mat(),
-                                   ns_veta::IndexT id = ns_veta::UndefinedIndexT);
+    virtual DepthFrame ::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) = 0;
 
-    cv::Mat &GetImage();
+    static DepthDataLoader::Ptr GetLoader(const std::string &modelStr);
 
-    cv::Mat &GetColorImage();
+    [[nodiscard]] CameraModelType GetCameraModel() const;
 
-    // release the image mat data to save memory when needed
-    virtual void ReleaseMat();
-
-    [[nodiscard]] double GetTimestamp() const;
-
-    void SetTimestamp(double timestamp);
-
-    [[nodiscard]] ns_veta::IndexT GetId() const;
-
-    void SetId(ns_veta::IndexT id);
-
-    friend std::ostream &operator<<(std::ostream &os, const CameraFrame &frame);
+protected:
+    template <class MsgType>
+    void CheckMessage(typename MsgType::ConstPtr msg) {
+        if (msg == nullptr) {
+            throw std::runtime_error(
+                "Wrong sensor model: '" + std::string(EnumCast::enumToString(GetCameraModel())) +
+                "' for rgbd cameras! It's incompatible with the type of ros message to load in!");
+        }
+    }
 };
+
+class DepthSensorImageLoader : public DepthDataLoader {
+public:
+    using Ptr = std::shared_ptr<DepthSensorImageLoader>;
+
+public:
+    explicit DepthSensorImageLoader(CameraModelType model);
+
+    static DepthSensorImageLoader::Ptr Create(CameraModelType model);
+
+    DepthFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
+};
+
+class DepthSensorImageCompLoader : public DepthDataLoader {
+public:
+    using Ptr = std::shared_ptr<DepthSensorImageCompLoader>;
+
+public:
+    explicit DepthSensorImageCompLoader(CameraModelType model);
+
+    static DepthSensorImageCompLoader::Ptr Create(CameraModelType model);
+
+    DepthFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
+};
+
 }  // namespace ns_ikalibr
 
-#endif  // IKALIBR_CAMERA_H
+#endif  // IKALIBR_DEPTH_DATA_LOADER_H

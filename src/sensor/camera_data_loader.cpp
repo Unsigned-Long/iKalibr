@@ -37,12 +37,39 @@
 #include "sensor_msgs/CompressedImage.h"
 #include "cv_bridge/cv_bridge.h"
 #include "util/status.hpp"
+#include "spdlog/fmt/fmt.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
+
+std::string UnsupportedCameraModelMsg(const std::string &modelStr) {
+    return fmt::format(
+        "Unsupported camera Type: '{}'. "
+        "Currently supported camera types are: \n"
+        "1. SENSOR_IMAGE_GS: "
+        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+        "2. SENSOR_IMAGE_RS_FIRST: first-row exposure, "
+        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+        "3. SENSOR_IMAGE_RS_MID: middle-row exposure, "
+        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+        "4. SENSOR_IMAGE_RS_LAST: last-row exposure, "
+        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
+        "5. SENSOR_IMAGE_COMP_GS: "
+        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+        "6. SENSOR_IMAGE_COMP_RS_FIRST: first-row exposure, "
+        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+        "7. SENSOR_IMAGE_COMP_RS_MID: middle-row exposure, "
+        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+        "8. SENSOR_IMAGE_COMP_RS_LAST: last-row exposure, "
+        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
+        "...\n"
+        "If you need to use other camera types, "
+        "please 'Issues' us on the profile of the github repository.",
+        modelStr);
+}
 
 CameraDataLoader::CameraDataLoader(CameraModelType model)
     : _model(model) {}
@@ -53,63 +80,26 @@ CameraDataLoader::Ptr CameraDataLoader::GetLoader(const std::string &modelStr) {
     try {
         model = EnumCast::stringToEnum<CameraModelType>(modelStr);
     } catch (...) {
-        throw Status(Status::WARNING,
-                     "Unsupported camera Type: '{}'. "
-                     "Currently supported camera types are: \n"
-                     "1. SENSOR_IMAGE_GS: "
-                     "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                     "2. SENSOR_IMAGE_RS_FIRST: first-row exposure, "
-                     "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                     "3. SENSOR_IMAGE_RS_MID: middle-row exposure, "
-                     "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                     "4. SENSOR_IMAGE_RS_LAST: last-row exposure, "
-                     "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                     "...\n"
-                     "If you need to use other camera types, "
-                     "please 'Issues' us on the profile of the github repository.",
-                     modelStr);
+        throw Status(Status::ERROR, UnsupportedCameraModelMsg(modelStr));
     }
-    CameraDataLoader::Ptr imuDataLoader;
+    CameraDataLoader::Ptr dataLoader;
     switch (model) {
         case CameraModelType::SENSOR_IMAGE_GS:
         case CameraModelType::SENSOR_IMAGE_RS_FIRST:
         case CameraModelType::SENSOR_IMAGE_RS_MID:
         case CameraModelType::SENSOR_IMAGE_RS_LAST:
-            imuDataLoader = SensorImageLoader::Create(model);
+            dataLoader = SensorImageLoader::Create(model);
             break;
         case CameraModelType::SENSOR_IMAGE_COMP_GS:
         case CameraModelType::SENSOR_IMAGE_COMP_RS_FIRST:
         case CameraModelType::SENSOR_IMAGE_COMP_RS_MID:
         case CameraModelType::SENSOR_IMAGE_COMP_RS_LAST:
-            imuDataLoader = SensorImageCompLoader::Create(model);
+            dataLoader = SensorImageCompLoader::Create(model);
             break;
         default:
-            throw Status(
-                Status::WARNING,
-                "Unsupported camera Type: '{}'. "
-                "Currently supported camera types are: \n"
-                "1. SENSOR_IMAGE_GS: "
-                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                "2. SENSOR_IMAGE_RS_FIRST: first-row exposure, "
-                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                "3. SENSOR_IMAGE_RS_MID: middle-row exposure, "
-                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                "4. SENSOR_IMAGE_RS_LAST: last-row exposure, "
-                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-                "5. SENSOR_IMAGE_COMP_GS: "
-                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
-                "6. SENSOR_IMAGE_COMP_RS_FIRST: first-row exposure, "
-                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
-                "7. SENSOR_IMAGE_COMP_RS_MID: middle-row exposure, "
-                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
-                "8. SENSOR_IMAGE_COMP_RS_LAST: last-row exposure, "
-                "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
-                "...\n"
-                "If you need to use other camera types, "
-                "please 'Issues' us on the profile of the github repository.",
-                modelStr);
+            throw Status(Status::ERROR, UnsupportedCameraModelMsg(modelStr));
     }
-    return imuDataLoader;
+    return dataLoader;
 }
 
 CameraModelType CameraDataLoader::GetCameraModel() const { return _model; }
@@ -211,5 +201,4 @@ CameraFrame::Ptr SensorImageCompLoader::UnpackFrame(const rosbag::MessageInstanc
 
     return CameraFrame::Create(msg->header.stamp.toSec(), gImg, cImg);
 }
-
 }  // namespace ns_ikalibr

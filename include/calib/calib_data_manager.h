@@ -41,6 +41,7 @@
 #include "sensor/radar.h"
 #include "sensor/lidar.h"
 #include "sensor/camera.h"
+#include "sensor/rgbd.h"
 #include "veta/veta.h"
 
 namespace {

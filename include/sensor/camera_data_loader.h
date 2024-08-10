@@ -73,6 +73,8 @@ enum class CameraModelType : std::uint32_t {
     SENSOR_IMAGE_COMP_RS_LAST = SENSOR_IMAGE_COMP_GS | RS | LAST_EXPOSURE,
 };
 
+std::string UnsupportedCameraModelMsg(const std::string &modelStr);
+
 class CameraDataLoader {
 public:
     using Ptr = std::shared_ptr<CameraDataLoader>;
@@ -94,8 +96,8 @@ protected:
     void CheckMessage(typename MsgType::ConstPtr msg) {
         if (msg == nullptr) {
             throw std::runtime_error(
-                "message type of some cameras was set incorrectly!!! Wrong type: " +
-                std::string(EnumCast::enumToString(GetCameraModel())));
+                "Wrong sensor model: '" + std::string(EnumCast::enumToString(GetCameraModel())) +
+                "' for cameras! It's incompatible with the type of ros message to load in!");
         }
     }
 

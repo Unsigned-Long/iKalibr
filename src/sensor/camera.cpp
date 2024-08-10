@@ -33,6 +33,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "sensor/camera.h"
+#include "spdlog/spdlog.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -44,7 +45,14 @@ CameraFrame::CameraFrame(double timestamp, cv::Mat greyImg, cv::Mat colorImg, ns
     : _timestamp(timestamp),
       _greyImg(std::move(greyImg)),
       _colorImg(std::move(colorImg)),
-      _id(id) {}
+      _id(id) {
+    if (!greyImg.empty() && !colorImg.empty() && greyImg.size() != colorImg.size()) {
+        spdlog::warn(
+            "the size of grey image ({}x{}) is not the same as the one of color image ({}x{})!",
+            greyImg.size().width, greyImg.size().height, colorImg.size().width,
+            colorImg.size().height);
+    }
+}
 
 CameraFrame::Ptr CameraFrame::Create(double timestamp,
                                      const cv::Mat &greyImg,

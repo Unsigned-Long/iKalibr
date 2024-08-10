@@ -37,7 +37,6 @@
 //
 
 #include "sensor/lidar_data_loader.h"
-
 #include "ikalibr/LivoxCustomMsg.h"
 #include "sensor_msgs/PointCloud2.h"
 #include "spdlog/spdlog.h"
@@ -51,6 +50,20 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
+std::string UnsupportedLiDARModelMsg(const std::string &modelStr) {
+    return fmt::format(
+        "Unsupported LiDAR Type: '{}'. "
+        "Currently supported LiDAR types are: \n"
+        "1.        Velodyne LiDARs: VLP_16_PACKET, VLP_POINTS\n"
+        "2.          Ouster LiDARs: OUSTER_POINTS\n"
+        "3. Hesai Pandar XT LiDARs: PANDAR_XT_POINTS\n"
+        "4.           Livox LiDARs: LIVOX_CUSTOM (the official 'xfer_format'=1, "
+        "mid-360 and avia is recommend)\n"
+        "...\n"
+        "If you need to use other IMU types, "
+        "please 'Issues' us on the profile of the github repository.",
+        modelStr);
+}
 
 LiDARDataLoader::Ptr LiDARDataLoader::GetLoader(const std::string &lidarModelStr) {
     // try extract lidar model
@@ -58,47 +71,29 @@ LiDARDataLoader::Ptr LiDARDataLoader::GetLoader(const std::string &lidarModelStr
     try {
         lidarModel = EnumCast::stringToEnum<LidarModelType>(lidarModelStr);
     } catch (...) {
-        throw Status(Status::WARNING,
-                     "Unsupported LiDAR Type: '{}'. "
-                     "Currently supported LiDAR types are: \n"
-                     "1.        Velodyne LiDARs: VLP_16_PACKET, VLP_POINTS\n"
-                     "2.          Ouster LiDARs: OUSTER_POINTS\n"
-                     "3. Hesai Pandar XT LiDARs: PANDAR_XT_POINTS\n"
-                     "4.           Livox LiDARs: LIVOX_CUSTOM (the official 'xfer_format'=1, "
-                     "mid-360 and avia is recommend)\n"
-                     "...\n",
-                     lidarModelStr);
+        throw Status(Status::WARNING, UnsupportedLiDARModelMsg(lidarModelStr));
     }
-    LiDARDataLoader::Ptr lidarDataLoader;
+    LiDARDataLoader::Ptr dataLoader;
     switch (lidarModel) {
         case LidarModelType::VLP_16_PACKET:
-            lidarDataLoader = Velodyne16::Create(lidarModel);
+            dataLoader = Velodyne16::Create(lidarModel);
             break;
         case LidarModelType::VLP_POINTS:
-            lidarDataLoader = VelodynePoints::Create(lidarModel);
+            dataLoader = VelodynePoints::Create(lidarModel);
             break;
         case LidarModelType::OUSTER_POINTS:
-            lidarDataLoader = OusterLiDAR::Create(lidarModel);
+            dataLoader = OusterLiDAR::Create(lidarModel);
             break;
         case LidarModelType::PANDAR_XT_POINTS:
-            lidarDataLoader = PandarXTLiDAR::Create(lidarModel);
+            dataLoader = PandarXTLiDAR::Create(lidarModel);
             break;
         case LidarModelType::LIVOX_CUSTOM:
-            lidarDataLoader = LivoxLiDAR::Create(lidarModel);
+            dataLoader = LivoxLiDAR::Create(lidarModel);
             break;
         default:
-            throw Status(Status::WARNING,
-                         "Unsupported LiDAR Type: '{}'. "
-                         "Currently supported LiDAR types are: \n"
-                         "1.        Velodyne LiDARs: VLP_16_PACKET, VLP_POINTS\n"
-                         "2.          Ouster LiDARs: OUSTER_POINTS\n"
-                         "3. Hesai Pandar XT LiDARs: PANDAR_XT_POINTS\n"
-                         "4.           Livox LiDARs: LIVOX_CUSTOM (the official 'xfer_format'=1, "
-                         "mid-360 and avia is recommend)\n"
-                         "...\n",
-                         lidarModelStr);
+            throw Status(Status::WARNING, UnsupportedLiDARModelMsg(lidarModelStr));
     }
-    return lidarDataLoader;
+    return dataLoader;
 }
 
 LidarModelType LiDARDataLoader::GetLiDARModel() const { return _lidarModel; }
@@ -216,7 +211,6 @@ LiDARFrame::Ptr Velodyne16::UnpackScan(
                         double point_timestamp =
                             scanTimestamp + GetExactTime(dsr, 2 * blockCounter + firing);
 
-                        // TODO: using macro 'set post point nan'
                         IKalibrPoint point_xyz;
                         point_xyz.timestamp = point_timestamp;
 
