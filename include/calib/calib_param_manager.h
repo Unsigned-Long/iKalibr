@@ -107,12 +107,14 @@ public:
         std::map<std::string, Sophus::SO3d> SO3_RjToBr;
         std::map<std::string, Sophus::SO3d> SO3_LkToBr;
         std::map<std::string, Sophus::SO3d> SO3_CmToBr;
+        std::map<std::string, Sophus::SO3d> SO3_DnToBr;
 
         // topic, POS
         std::map<std::string, Eigen::Vector3d> POS_BiInBr;
         std::map<std::string, Eigen::Vector3d> POS_RjInBr;
         std::map<std::string, Eigen::Vector3d> POS_LkInBr;
         std::map<std::string, Eigen::Vector3d> POS_CmInBr;
+        std::map<std::string, Eigen::Vector3d> POS_DnInBr;
 
         SE3_SEN_TO_REF(B, i, B, r)
 
@@ -122,6 +124,8 @@ public:
 
         SE3_SEN_TO_REF(C, m, B, r)
 
+        SE3_SEN_TO_REF(D, n, B, r)
+
         Q_SEN_TO_REF(B, i, B, r)
 
         Q_SEN_TO_REF(R, j, B, r)
@@ -129,6 +133,8 @@ public:
         Q_SEN_TO_REF(L, k, B, r)
 
         Q_SEN_TO_REF(C, m, B, r)
+
+        Q_SEN_TO_REF(D, n, B, r)
 
         EULER_SEN_TO_REF_RAD(B, i, B, r)
 
@@ -138,6 +144,8 @@ public:
 
         EULER_SEN_TO_REF_RAD(C, m, B, r)
 
+        EULER_SEN_TO_REF_RAD(D, n, B, r)
+
         EULER_SEN_TO_REF_DEG(B, i, B, r)
 
         EULER_SEN_TO_REF_DEG(R, j, B, r)
@@ -146,13 +154,16 @@ public:
 
         EULER_SEN_TO_REF_DEG(C, m, B, r)
 
+        EULER_SEN_TO_REF_DEG(D, n, B, r)
+
     public:
         // Serialization
         template <class Archive>
         void serialize(Archive &archive) {
-            archive(CEREAL_NVP(SO3_BiToBr), CEREAL_NVP(SO3_RjToBr), CEREAL_NVP(SO3_LkToBr),
-                    CEREAL_NVP(SO3_CmToBr), CEREAL_NVP(POS_BiInBr), CEREAL_NVP(POS_RjInBr),
-                    CEREAL_NVP(POS_LkInBr), CEREAL_NVP(POS_CmInBr));
+            archive(CEREAL_NVP(SO3_BiToBr), CEREAL_NVP(POS_BiInBr), CEREAL_NVP(SO3_RjToBr),
+                    CEREAL_NVP(POS_RjInBr), CEREAL_NVP(SO3_LkToBr), CEREAL_NVP(POS_LkInBr),
+                    CEREAL_NVP(SO3_CmToBr), CEREAL_NVP(POS_CmInBr), CEREAL_NVP(SO3_DnToBr),
+                    CEREAL_NVP(POS_DnInBr));
         }
 
     public:
@@ -168,6 +179,7 @@ public:
         std::map<std::string, double> TO_RjToBr;
         std::map<std::string, double> TO_LkToBr;
         std::map<std::string, double> TO_CmToBr;
+        std::map<std::string, double> TO_DnToBr;
         std::map<std::string, double> RS_READOUT;
 
     public:
@@ -175,7 +187,7 @@ public:
         template <class Archive>
         void serialize(Archive &ar) {
             ar(CEREAL_NVP(TO_BiToBr), CEREAL_NVP(TO_RjToBr), CEREAL_NVP(TO_LkToBr),
-               CEREAL_NVP(TO_CmToBr), CEREAL_NVP(RS_READOUT));
+               CEREAL_NVP(TO_CmToBr), CEREAL_NVP(TO_DnToBr), CEREAL_NVP(RS_READOUT));
         }
     } TEMPORAL;
 
@@ -186,6 +198,7 @@ public:
         // topic, param pack
         std::map<std::string, IMUIntrinsics::Ptr> IMU;
         std::map<std::string, ns_veta::PinholeIntrinsic::Ptr> Camera;
+        std::map<std::string, ns_veta::PinholeIntrinsic::Ptr> RGBD;
 
         static ns_veta::PinholeIntrinsic::Ptr LoadCameraIntri(
             const std::string &filename,
@@ -216,7 +229,7 @@ public:
         // Serialization
         template <class Archive>
         void serialize(Archive &archive) {
-            archive(CEREAL_NVP(IMU), CEREAL_NVP(Camera));
+            archive(CEREAL_NVP(IMU), CEREAL_NVP(Camera), CEREAL_NVP(RGBD));
         }
 
     public:
@@ -231,13 +244,15 @@ public:
     explicit CalibParamManager(const std::vector<std::string> &imuTopics = {},
                                const std::vector<std::string> &radarTopics = {},
                                const std::vector<std::string> &lidarTopics = {},
-                               const std::vector<std::string> &cameraTopics = {});
+                               const std::vector<std::string> &cameraTopics = {},
+                               const std::vector<std::string> &rgbdTopics = {});
 
     // the creator
     static CalibParamManager::Ptr Create(const std::vector<std::string> &imuTopics = {},
                                          const std::vector<std::string> &radarTopics = {},
                                          const std::vector<std::string> &lidarTopics = {},
-                                         const std::vector<std::string> &cameraTopics = {});
+                                         const std::vector<std::string> &cameraTopics = {},
+                                         const std::vector<std::string> &rgbdTopics = {});
 
     // save the parameters to file using cereal library
     template <class CerealArchiveType = CerealArchiveType::YAML>

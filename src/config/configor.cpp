@@ -74,6 +74,7 @@ std::map<std::string, Configor::DataStream::IMUConfig> Configor::DataStream::IMU
 std::map<std::string, Configor::DataStream::RadarConfig> Configor::DataStream::RadarTopics = {};
 std::map<std::string, Configor::DataStream::LiDARConfig> Configor::DataStream::LiDARTopics = {};
 std::map<std::string, Configor::DataStream::CameraConfig> Configor::DataStream::CameraTopics = {};
+std::map<std::string, Configor::DataStream::RGBDConfig> Configor::DataStream::RGBDTopics = {};
 std::string Configor::DataStream::ReferIMU = {};
 std::string Configor::DataStream::BagPath = {};
 double Configor::DataStream::BeginTime = {};
@@ -154,7 +155,7 @@ int Configor::Preference::AvailableThreads() {
 Configor::Configor() = default;
 
 void Configor::PrintMainFields() {
-    std::stringstream ssIMUTopics, ssRadarTopics, ssLiDARTopics, ssCameraTopics;
+    std::stringstream ssIMUTopics, ssRadarTopics, ssLiDARTopics, ssCameraTopics, ssRGBDTopics;
 
     for (const auto &[topic, _] : DataStream::IMUTopics) {
         ssIMUTopics << topic << " ";
@@ -168,11 +169,15 @@ void Configor::PrintMainFields() {
     for (const auto &[topic, _] : DataStream::CameraTopics) {
         ssCameraTopics << topic << " ";
     }
+    for (const auto &[topic, info] : DataStream::RGBDTopics) {
+        ssRGBDTopics << topic << ':' << info.DepthTopic << " ";
+    }
 
     std::string IMUTopics = ssIMUTopics.str();
     std::string RadarTopics = ssRadarTopics.str();
     std::string LiDARTopics = ssLiDARTopics.str();
     std::string CameraTopics = ssCameraTopics.str();
+    std::string RGBDTopics = ssRGBDTopics.str();
 
     auto GetOptString = [](OutputOption opt) -> std::string {
         std::stringstream stringStream;
@@ -187,14 +192,14 @@ void Configor::PrintMainFields() {
             DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT
                 DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT
                     DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT
-                        DESC_FORMAT,
+                        DESC_FORMAT DESC_FORMAT,
         DESC_FIELD(IMUTopics), DESC_FIELD(RadarTopics), DESC_FIELD(LiDARTopics),
-        DESC_FIELD(CameraTopics), DESC_FIELD(DataStream::ReferIMU), DESC_FIELD(DataStream::BagPath),
-        DESC_FIELD(DataStream::BeginTime), DESC_FIELD(DataStream::Duration),
-        DESC_FIELD(DataStream::OutputPath), DESC_FIELD(Prior::GravityNorm),
-        DESC_FIELD(Prior::OptTemporalParams), DESC_FIELD(Prior::TimeOffsetPadding),
-        DESC_FIELD(Prior::ReadoutTimePadding), DESC_FIELD(Prior::KnotTimeDist::SO3Spline),
-        DESC_FIELD(Prior::KnotTimeDist::ScaleSpline),
+        DESC_FIELD(CameraTopics), DESC_FIELD(RGBDTopics), DESC_FIELD(DataStream::ReferIMU),
+        DESC_FIELD(DataStream::BagPath), DESC_FIELD(DataStream::BeginTime),
+        DESC_FIELD(DataStream::Duration), DESC_FIELD(DataStream::OutputPath),
+        DESC_FIELD(Prior::GravityNorm), DESC_FIELD(Prior::OptTemporalParams),
+        DESC_FIELD(Prior::TimeOffsetPadding), DESC_FIELD(Prior::ReadoutTimePadding),
+        DESC_FIELD(Prior::KnotTimeDist::SO3Spline), DESC_FIELD(Prior::KnotTimeDist::ScaleSpline),
         DESC_FIELD(Prior::NDTLiDAROdometer::Resolution),
         DESC_FIELD(Prior::NDTLiDAROdometer::KeyFrameDownSample),
         DESC_FIELD(Prior::LiDARDataAssociate::MapDownSample),
@@ -217,7 +222,8 @@ void Configor::CheckConfigure() {
             "the imu topic num (i.e., DataStream::IMUTopic) should be larger equal than 1!");
     }
     if (!Configor::IsLiDARIntegrated() && !Configor::IsRadarIntegrated() &&
-        !Configor::IsCameraIntegrated() && DataStream::IMUTopics.size() < 2) {
+        !Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated() &&
+        DataStream::IMUTopics.size() < 2) {
         throw Status(
             Status::ERROR,
             "performing multi-imu calibration requires imus that are more than or equal to 2!");
@@ -270,6 +276,21 @@ void Configor::CheckConfigure() {
         if (!std::filesystem::exists(config.Intrinsics)) {
             throw Status(Status::ERROR, "camera intrinsic file for '{}' dose not exist: '{}'",
                          topic, config.Intrinsics);
+        }
+    }
+    for (const auto &[topic, config] : DataStream::RGBDTopics) {
+        if (topic.empty()) {
+            throw Status(Status::ERROR, "empty color topic (rgbd) topic exists!");
+        }
+        if (config.DepthTopic.empty()) {
+            throw Status(Status::ERROR, "empty depth topic (rgbd) topic exists!");
+        }
+        if (config.Weight <= 0.0) {
+            throw Status(Status::ERROR, "weight of rgbd '{}' should be positive!", topic);
+        }
+        if (!std::filesystem::exists(config.Intrinsics)) {
+            throw Status(Status::ERROR, "rgbd intrinsic file for '{}' dose not exist: '{}'", topic,
+                         config.Intrinsics);
         }
     }
 
@@ -400,4 +421,6 @@ bool Configor::IsLiDARIntegrated() { return !DataStream::LiDARTopics.empty(); }
 bool Configor::IsRadarIntegrated() { return !DataStream::RadarTopics.empty(); }
 
 bool Configor::IsCameraIntegrated() { return !DataStream::CameraTopics.empty(); }
+
+bool Configor::IsRGBDIntegrated() { return !DataStream::RGBDTopics.empty(); }
 }  // namespace ns_ikalibr
