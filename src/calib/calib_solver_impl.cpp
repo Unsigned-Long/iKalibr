@@ -393,8 +393,118 @@ CalibSolver::Initialization() {
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
     }
 
+    // -------------------------------------------------------------------------------------
+    // Step 3.1: perform rotation-only visual odometer to recover rotations and time offsets
+    // -------------------------------------------------------------------------------------
+    using FeatTrackingInfo =
+        std::map<ns_veta::IndexT,
+                 std::list<std::pair<CameraFramePtr, RotOnlyVisualOdometer::Feat>>>;
+    // 'FeatTrackingInfo' is a list for each rgbd camera, as fail tracking leads to multiple pieces
+    std::map<std::string, std::list<FeatTrackingInfo>> RGBDTrackingInfo;
+    if (Configor::IsRGBDIntegrated()) {
+        // how many features to maintain in each image
+        constexpr int featNumPerImg = 300;
+        // the min distance between two features (to ensure features are distributed uniformly)
+        constexpr int minDist = 25;
+        for (const auto &[topic, frameVec] : _dataMagr->GetRGBDMeasurements()) {
+            spdlog::info(
+                "perform rotation-only visual odometer to recover extrinsic rotations for RGBD "
+                "camera '{}'...",
+                topic);
+
+            // estimates rotations
+            auto odometer = RotOnlyVisualOdometer::Create(featNumPerImg, minDist,
+                                                          _parMagr->INTRI.RGBD.at(topic));
+            // estimates extrinsic rotation between the rgbd and reference IMU using the estimated
+            // rotations
+            auto rotEstimator = RotationEstimator::Create();
+
+            bar = std::make_shared<tqdm>();
+            for (int i = 0; i < static_cast<int>(frameVec.size()); ++i) {
+                bar->progress(i, static_cast<int>(frameVec.size()));
+
+                // if tracking current frame failed, the rotation-only odometer would re-initialize
+                if (!odometer->GrabFrame(frameVec.at(i))) {
+                    spdlog::warn(
+                        "tracking failed when grab the '{}' image frame!!! try to reinitialize", i);
+                    // save the tracking information
+                    RGBDTrackingInfo[topic].push_back(odometer->GetLmTrackInfo());
+                    // clear workspace
+                    odometer->ResetWorkspace();
+                }
+
+                // we do not want to try to recover the extrinsic rotation too frequent (or has been
+                // recovered)
+                if (rotEstimator->SolveStatus() || (odometer->GetRotations().size() < 50) ||
+                    (odometer->GetRotations().size() % 5 != 0)) {
+                    continue;
+                }
+
+                // estimate the extrinsic rotation
+                rotEstimator->Estimate(so3Spline, odometer->GetRotations());
+
+                // check solver status
+                if (rotEstimator->SolveStatus()) {
+                    // assign the estimated extrinsic rotation
+                    _parMagr->EXTRI.SO3_DnToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
+
+                    // perform rotation alignment to estimate time offset
+                    if (Configor::Prior::OptTemporalParams) {
+                        estimator = Estimator::Create(_splines, _parMagr);
+
+                        optOption =
+                            OptOption::Option::OPT_SO3_DnToBr | OptOption::Option::OPT_TO_DnToBr;
+                        double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
+                        double weight = Configor::DataStream::RGBDTopics.at(topic).Weight;
+
+                        const auto &rotations = odometer->GetRotations();
+                        for (int i = 0; i < static_cast<int>(rotations.size()) - 1; ++i) {
+                            const auto &sRot = rotations.at(i), eRot = rotations.at(i + 1);
+                            // we throw the head and tail data as the rotations from the fitted SO3
+                            // Spline in that range are poor
+                            if (sRot.first + TO_DnToBr < st || eRot.first + TO_DnToBr > et) {
+                                continue;
+                            }
+
+                            estimator->AddHandEyeRotationAlignmentForRGBD(
+                                topic, sRot.first, eRot.first, sRot.second, eRot.second, optOption,
+                                weight);
+                        }
+
+                        // we don't want to output the solving information
+                        sum = estimator->Solve(Estimator::DefaultSolverOptions(
+                                                   Configor::Preference::AvailableThreads(), false,
+                                                   Configor::Preference::UseCudaInSolving),
+                                               _priori);
+                    }
+                    _viewer->UpdateSensorViewer();
+                }
+            }
+            bar->finish();
+
+            // add tracking info
+            RGBDTrackingInfo[topic].push_back(odometer->GetLmTrackInfo());
+
+            // check solver status
+            if (!rotEstimator->SolveStatus()) {
+                throw Status(Status::ERROR,
+                             "initialize rotation 'SO3_DnToBr' failed, this may be related to "
+                             "insufficiently excited motion or bad images.");
+            }
+        }
+        cv::destroyAllWindows();
+    }
+
+    // -------------------------------------------------------------
+    // Step 3.2: estimate rgbd-derived up-to-scale linear velocities
+    // -------------------------------------------------------------
+    // todo
+
+    _parMagr->ShowParamStatus();
+    IKALIBR_DEBUG
+    std::cin.get();
     // -----------------------------------------------------------------------
-    // Step 3.1: initialize extrinsic rotations of LiDARs if they are involved
+    // Step 4.1: initialize extrinsic rotations of LiDARs if they are involved
     // -----------------------------------------------------------------------
     if (Configor::IsLiDARIntegrated()) {
         spdlog::info("LiDARs are integrated, initializing extrinsic rotations of LiDARs...");
@@ -449,7 +559,7 @@ CalibSolver::Initialization() {
     }
 
     // --------------------------------------------------
-    // Step 3.2: Undistort lidar scans and rerun odometer
+    // Step 4.2: Undistort lidar scans and rerun odometer
     // --------------------------------------------------
     std::map<std::string, LiDAROdometer::Ptr> lidarOdometers;
     std::map<std::string, std::vector<LiDARFrame::Ptr>> undistFramesInScan;
@@ -511,7 +621,7 @@ CalibSolver::Initialization() {
     }
 
     // --------------------------------------------------------------------------
-    // Step 3.3: initialize time offsets of LiDARs by hand eye rotation alignment
+    // Step 4.3: initialize time offsets of LiDARs by hand eye rotation alignment
     // --------------------------------------------------------------------------
     if (Configor::IsLiDARIntegrated()) {
         spdlog::info("performing  hand eye rotation alignment for LiDARs...");
@@ -545,7 +655,7 @@ CalibSolver::Initialization() {
     }
 
     // ---------------------------------------------------------------------------
-    // Step 4: initialize other spatial parameters using inertial-sensor alignment
+    // Step 5: initialize other spatial parameters using inertial-sensor alignment
     // ---------------------------------------------------------------------------
     spdlog::info("performing inertial alignment to initialize other spatial parameters...");
 
@@ -806,7 +916,7 @@ CalibSolver::Initialization() {
     linVelSeqLk.clear(), linVelSeqBr.clear(), linVelSeqCm.clear(), visualScaleSeq.clear();
 
     // ----------------------------------------------------------------------------
-    // Step 5: recover scale spline (linear acceleration, velocity, or translation)
+    // Step 6: recover scale spline (linear acceleration, velocity, or translation)
     // ----------------------------------------------------------------------------
     spdlog::info("performing scale spline recovery...");
 
@@ -962,7 +1072,8 @@ CalibSolver::Initialization() {
             // we don't want to output the solving information
             estimator->Solve(
                 Estimator::DefaultSolverOptions(Configor::Preference::AvailableThreads(), false,
-                                                Configor::Preference::UseCudaInSolving));
+                                                Configor::Preference::UseCudaInSolving),
+                _priori);
 
             const auto &rSo3Spline = roughSplines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
             const auto &rScaleSpline =
@@ -998,14 +1109,14 @@ CalibSolver::Initialization() {
     }
 
     //------------------------------------------------------
-    // Step 6: align initialized states to gravity direction
+    // Step 7: align initialized states to gravity direction
     //------------------------------------------------------
     spdlog::info("aligning all states to gravity direction...");
     AlignStatesToGravity();
     _viewer->UpdateSplineViewer();
 
     // --------------------------------------------------------------
-    // Step 7.1 : trans veta to world frame if Cameras are integrated
+    // Step 8.1 : trans veta to world frame if Cameras are integrated
     // --------------------------------------------------------------
     for (const auto &[camTopic, poseSeq] : sfmPoseSeq) {
         auto SE3_Cm0ToBr0 = this->CurCmToW(poseSeq.front().timeStamp, camTopic);
@@ -1020,7 +1131,7 @@ CalibSolver::Initialization() {
     }
 
     // ----------------------------------------------------------------
-    // Step 7.2 : build map and undisto frames if LiDARs are integrated
+    // Step 8.2 : build map and undisto frames if LiDARs are integrated
     // ----------------------------------------------------------------
     spdlog::info("build global map and undisto lidar frames in world...");
     IKalibrPointCloud::Ptr globalMap(new IKalibrPointCloud);

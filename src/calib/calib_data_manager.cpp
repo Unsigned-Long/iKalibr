@@ -185,7 +185,9 @@ void CalibDataManager::LoadCalibData() {
                 mes->SetId(static_cast<ns_veta::IndexT>(mes->GetTimestamp() * 1E3));
                 _camMes[topic].push_back(mes);
             }
-        } else if (rgbdColorDataLoaders.cend() != rgbdColorDataLoaders.find(topic)) {
+        }
+        // we do not use 'else' here for 'Camera' and 'RGBD', think about why?
+        if (rgbdColorDataLoaders.cend() != rgbdColorDataLoaders.find(topic)) {
             // is a rgbd color frame
             auto mes = rgbdColorDataLoaders.at(topic)->UnpackFrame(item);
             if (mes != nullptr) {

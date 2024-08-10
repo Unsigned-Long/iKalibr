@@ -103,6 +103,8 @@ public:
 
     void ShowLmTrackInfo() const;
 
+    void ResetWorkspace();
+
 protected:
     static std::pair<std::vector<int>, std::vector<cv::Point2f>> ExtractFeatMapAsRawFeatVec(
         const std::map<int, Feat> &featMap, const std::vector<int> &desiredIds = {});

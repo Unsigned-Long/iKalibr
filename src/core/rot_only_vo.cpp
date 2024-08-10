@@ -181,8 +181,6 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame) {
         // perform rotation-only estimation (with outliers rejection)
         // ----------------------------------------------------------
         if (trackIdsCur2Last.size() < 10) {
-            _ptsInLast.clear(), _lmTrackInfo.clear(), _featId2lmIdInLast.clear(),
-                _lastFrame = nullptr, _rotations.clear();
             return false;
         }
 
@@ -195,8 +193,6 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame) {
 
         // solving failed
         if (res.second.empty()) {
-            _ptsInLast.clear(), _lmTrackInfo.clear(), _featId2lmIdInLast.clear(),
-                _lastFrame = nullptr, _rotations.clear();
             return false;
         }
 
@@ -269,6 +265,14 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame) {
 // #endif
 #undef VISUALIZATION
     return true;
+}
+
+void RotOnlyVisualOdometer::ResetWorkspace() {
+    _ptsInLast.clear();
+    _lmTrackInfo.clear();
+    _featId2lmIdInLast.clear();
+    _lastFrame = nullptr;
+    _rotations.clear();
 }
 
 std::pair<cv::Mat, std::set<int>> RotOnlyVisualOdometer::ComputeMaskAndFilterPts(
