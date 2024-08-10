@@ -68,6 +68,8 @@ public:
 
     // release the image mat data to save memory when needed
     void ReleaseMat() override;
+
+    [[nodiscard]] cv::Mat CreateColorDepthMap() const;
 };
 
 class DepthFrame {

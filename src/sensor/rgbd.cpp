@@ -34,6 +34,7 @@
 
 #include "sensor/rgbd.h"
 #include "spdlog/spdlog.h"
+#include "opencv2/imgproc.hpp"
 
 namespace ns_ikalibr {
 
@@ -74,6 +75,21 @@ cv::Mat& RGBDFrame::GetDepthImage() { return _depthImg; }
 void RGBDFrame::ReleaseMat() {
     CameraFrame::ReleaseMat();
     _depthImg.release();
+}
+
+cv::Mat RGBDFrame::CreateColorDepthMap() const {
+    double min = 0.0, max = 0.0;
+    cv::minMaxIdx(_depthImg, &min, &max);
+
+    // new value = (value - min) * (255.0f / (max - min));
+    double alpha = 255.0 / (max - min), beta = -min * alpha;
+    cv::Mat uCharImg, colorImg;
+    cv::convertScaleAbs(_depthImg, uCharImg, alpha, beta);
+    cv::applyColorMap(uCharImg, colorImg, cv::COLORMAP_PLASMA);
+
+    cv::Mat rgbdMap;
+    cv::hconcat(_colorImg, colorImg, rgbdMap);
+    return rgbdMap;
 }
 
 // ----------
