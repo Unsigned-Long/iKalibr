@@ -59,6 +59,7 @@ private:
     std::map<std::string, std::vector<RadarTargetArray::Ptr>> _radarMes;
     std::map<std::string, std::vector<LiDARFrame::Ptr>> _lidarMes;
     std::map<std::string, std::vector<CameraFrame::Ptr>> _camMes;
+    std::map<std::string, std::vector<RGBDFrame::Ptr>> _rgbdMes;
 
     std::map<std::string, ns_veta::Veta::Ptr> _sfmData;
 
@@ -102,6 +103,13 @@ public:
 
     [[nodiscard]] const std::vector<CameraFrame::Ptr> &GetCameraMeasurements(
         const std::string &camTopic) const;
+
+    // get raw rgbd measurements
+    [[nodiscard]] const std::map<std::string, std::vector<RGBDFrame::Ptr>> &GetRGBDMeasurements()
+        const;
+
+    [[nodiscard]] const std::vector<RGBDFrame::Ptr> &GetRGBDMeasurements(
+        const std::string &rgbdTopic) const;
 
     // get raw SfM data
     [[nodiscard]] const std::map<std::string, ns_veta::Veta::Ptr> &GetSfMData() const;

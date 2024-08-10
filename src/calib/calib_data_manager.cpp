@@ -39,6 +39,7 @@
 #include "sensor/radar_data_loader.h"
 #include "sensor/lidar_data_loader.h"
 #include "sensor/camera_data_loader.h"
+#include "sensor/depth_data_loader.h"
 #include "opencv4/opencv2/imgcodecs.hpp"
 #include "util/tqdm.h"
 
@@ -86,6 +87,10 @@ void CalibDataManager::LoadCalibData() {
     for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
         topicsToQuery.push_back(topic);
     }
+    for (const auto &[topic, info] : Configor::DataStream::RGBDTopics) {
+        topicsToQuery.push_back(topic);
+        topicsToQuery.push_back(info.DepthTopic);
+    }
 
     viewTemp.addQuery(*bag, rosbag::TopicQuery(topicsToQuery));
     auto begTime = viewTemp.getBeginTime();
@@ -122,6 +127,12 @@ void CalibDataManager::LoadCalibData() {
     std::map<std::string, RadarDataLoader::Ptr> radarDataLoaders;
     std::map<std::string, LiDARDataLoader::Ptr> lidarDataLoaders;
     std::map<std::string, CameraDataLoader::Ptr> cameraDataLoaders;
+    // for rgbd cameras
+    std::map<std::string, CameraDataLoader::Ptr> rgbdColorDataLoaders;
+    std::map<std::string, DepthDataLoader::Ptr> rgbdDepthDataLoaders;
+    // temporal data containers ('list' containers)
+    std::map<std::string, std::list<CameraFrame::Ptr>> rgbdColorMesTemp;
+    std::map<std::string, std::list<DepthFrame::Ptr>> rgbdDepthMesTemp;
 
     // get type enum from the string
     for (const auto &[topic, config] : Configor::DataStream::IMUTopics) {
@@ -136,6 +147,10 @@ void CalibDataManager::LoadCalibData() {
     for (const auto &[topic, config] : Configor::DataStream::CameraTopics) {
         cameraDataLoaders.insert({topic, CameraDataLoader::GetLoader(config.Type)});
     }
+    for (const auto &[topic, config] : Configor::DataStream::RGBDTopics) {
+        rgbdColorDataLoaders.insert({topic, CameraDataLoader::GetLoader(config.Type)});
+        rgbdDepthDataLoaders.insert({config.DepthTopic, DepthDataLoader::GetLoader(config.Type)});
+    }
 
     // read raw data
     auto bar = std::make_shared<tqdm>();
@@ -144,34 +159,47 @@ void CalibDataManager::LoadCalibData() {
         bar->progress(idx, static_cast<int>(view.size()));
         const auto &item = *iter;
         const std::string &topic = item.getTopic();
-        if (Configor::DataStream::IMUTopics.cend() != Configor::DataStream::IMUTopics.find(topic)) {
+        if (imuDataLoaders.cend() != imuDataLoaders.find(topic)) {
             // is an inertial frame
             auto mes = imuDataLoaders.at(topic)->UnpackFrame(item);
             if (mes != nullptr) {
                 _imuMes[topic].push_back(mes);
             }
-        } else if (Configor::DataStream::RadarTopics.cend() !=
-                   Configor::DataStream::RadarTopics.find(topic)) {
+        } else if (radarDataLoaders.cend() != radarDataLoaders.find(topic)) {
             // is a radar frame
             auto mes = radarDataLoaders.at(topic)->UnpackScan(item);
             if (mes != nullptr) {
                 _radarMes[topic].push_back(mes);
             }
-        } else if (Configor::DataStream::LiDARTopics.cend() !=
-                   Configor::DataStream::LiDARTopics.find(topic)) {
+        } else if (lidarDataLoaders.cend() != lidarDataLoaders.find(topic)) {
             // is a lidar frame
             auto mes = lidarDataLoaders.at(topic)->UnpackScan(item);
             if (mes != nullptr) {
                 _lidarMes[topic].push_back(mes);
             }
-        } else if (Configor::DataStream::CameraTopics.cend() !=
-                   Configor::DataStream::CameraTopics.find(topic)) {
+        } else if (cameraDataLoaders.cend() != cameraDataLoaders.find(topic)) {
             // is a camera frame
             auto mes = cameraDataLoaders.at(topic)->UnpackFrame(item);
             if (mes != nullptr) {
                 // id: uint64_t from timestamp (raw, millisecond)
                 mes->SetId(static_cast<ns_veta::IndexT>(mes->GetTimestamp() * 1E3));
                 _camMes[topic].push_back(mes);
+            }
+        } else if (rgbdColorDataLoaders.cend() != rgbdColorDataLoaders.find(topic)) {
+            // is a rgbd color frame
+            auto mes = rgbdColorDataLoaders.at(topic)->UnpackFrame(item);
+            if (mes != nullptr) {
+                // id: uint64_t from timestamp (raw, millisecond)
+                mes->SetId(static_cast<ns_veta::IndexT>(mes->GetTimestamp() * 1E3));
+                rgbdColorMesTemp[topic].push_back(mes);
+            }
+        } else if (rgbdDepthDataLoaders.cend() != rgbdDepthDataLoaders.find(topic)) {
+            // is a rgbd depth frame
+            auto mes = rgbdDepthDataLoaders.at(topic)->UnpackFrame(item);
+            if (mes != nullptr) {
+                // id: uint64_t from timestamp (raw, millisecond)
+                mes->SetId(static_cast<ns_veta::IndexT>(mes->GetTimestamp() * 1E3));
+                rgbdDepthMesTemp[topic].push_back(mes);
             }
         }
     }
@@ -184,11 +212,16 @@ void CalibDataManager::LoadCalibData() {
     for (const auto &[topic, _] : Configor::DataStream::RadarTopics) {
         CheckTopicExists(topic, _radarMes);
     }
+    for (const auto &[topic, _] : Configor::DataStream::LiDARTopics) {
+        CheckTopicExists(topic, _lidarMes);
+    }
     for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
         CheckTopicExists(topic, _camMes);
     }
-    for (const auto &[topic, _] : Configor::DataStream::LiDARTopics) {
-        CheckTopicExists(topic, _lidarMes);
+    for (const auto &[topic, info] : Configor::DataStream::RGBDTopics) {
+        // measurements are stored in 'rgbdColorMesTemp' and 'rgbdDepthMesTemp' temporally
+        CheckTopicExists(topic, rgbdColorMesTemp);
+        CheckTopicExists(info.DepthTopic, rgbdDepthMesTemp);
     }
 
     // if the radar is AWR1843BOOST, data should be reorganized,
@@ -221,6 +254,44 @@ void CalibDataManager::LoadCalibData() {
             }
             _radarMes.at(topic) = arrays;
         }
+    }
+
+    // match color and depth images for rgbd cameras
+    // 'rgbdColorMesTemp' + 'rgbdDepthMesTemp' -->  '_rgbdMes'
+    for (const auto &[colorTopic, colorFrames] : rgbdColorMesTemp) {
+        auto depthTopic = Configor::DataStream::RGBDTopics.at(colorTopic).DepthTopic;
+        auto &curRGBDMes = _rgbdMes[colorTopic];
+        auto &depthImgs = rgbdDepthMesTemp.at(depthTopic);
+        for (const auto &colorFrame : colorFrames) {
+            const double timestamp = colorFrame->GetTimestamp();
+            // find a matched depth image for current color image
+            // the matched depth and color images should be close enough to each other in time
+            // domain
+            auto iter = std::find_if(
+                depthImgs.begin(), depthImgs.end(), [timestamp](const DepthFrame::Ptr &depthFrame) {
+                    // time distance: 0.001 s, i.e., 1 ms
+                    return std::abs(depthFrame->GetTimestamp() - timestamp) < 1E-3;
+                });
+            if (iter != depthImgs.cend()) {
+                curRGBDMes.push_back(RGBDFrame::Create(timestamp,                    // timestamp
+                                                       colorFrame->GetImage(),       // grey image
+                                                       colorFrame->GetColorImage(),  // color image
+                                                       (*iter)->GetDepthImage(),     // depth image
+                                                       colorFrame->GetId()           // image index
+                                                       ));
+                // remove this depth image
+                depthImgs.erase(iter);
+            } else {
+                spdlog::warn(
+                    "can not find a matched depth image from '{}' for color image from '{}' at "
+                    "time '{:.5f}'",
+                    depthTopic, colorTopic, timestamp);
+            }
+        }
+    }
+    rgbdColorMesTemp.clear(), rgbdDepthMesTemp.clear();
+    for (const auto &[topic, info] : Configor::DataStream::RGBDTopics) {
+        CheckTopicExists(topic, _rgbdMes);
     }
 
     OutputDataStatus();
@@ -338,6 +409,25 @@ void CalibDataManager::AdjustCalibDataSequence() {
         _rawEndTimestamp = std::min({_rawEndTimestamp, camMaxTime});
     }
 
+    if (Configor::IsRGBDIntegrated()) {
+        auto rgbdMinTime = std::max_element(_rgbdMes.begin(), _rgbdMes.end(),
+                                            [](const auto &p1, const auto &p2) {
+                                                return p1.second.front()->GetTimestamp() <
+                                                       p2.second.front()->GetTimestamp();
+                                            })
+                               ->second.front()
+                               ->GetTimestamp();
+        auto rgbdMaxTime = std::min_element(_rgbdMes.begin(), _rgbdMes.end(),
+                                            [](const auto &p1, const auto &p2) {
+                                                return p1.second.back()->GetTimestamp() <
+                                                       p2.second.back()->GetTimestamp();
+                                            })
+                               ->second.back()
+                               ->GetTimestamp();
+        _rawStartTimestamp = std::max({_rawStartTimestamp, rgbdMinTime});
+        _rawEndTimestamp = std::min({_rawEndTimestamp, rgbdMaxTime});
+    }
+
     for (const auto &[topic, _] : Configor::DataStream::IMUTopics) {
         // remove imu frames that are before the start time stamp
         EraseSeqHeadData(
@@ -420,6 +510,25 @@ void CalibDataManager::AdjustCalibDataSequence() {
             "data.");
     }
 
+    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+        // remove rgbd frames that are before the start time stamp
+        EraseSeqHeadData(
+            _rgbdMes.at(topic),
+            [this](const RGBDFrame::Ptr &frame) {
+                return frame->GetTimestamp() >
+                       _rawStartTimestamp + 2 * Configor::Prior::TimeOffsetPadding;
+            },
+            "the rgbd data is invalid, there is no intersection between imu data and rgbd data.");
+
+        // remove rgbd frames that are after the end time stamp
+        EraseSeqTailData(
+            _rgbdMes.at(topic),
+            [this](const RGBDFrame::Ptr &frame) {
+                return frame->GetTimestamp() <
+                       _rawEndTimestamp - 2 * Configor::Prior::TimeOffsetPadding;
+            },
+            "the rgbd data is invalid, there is no intersection between imu data and rgbd data.");
+    }
     OutputDataStatus();
 }
 
@@ -457,6 +566,11 @@ void CalibDataManager::AlignTimestamp() {
             frame->SetTimestamp(frame->GetTimestamp() - _rawStartTimestamp);
         }
     }
+    for (auto &[rgbdTopic, mes] : _rgbdMes) {
+        for (const auto &frame : mes) {
+            frame->SetTimestamp(frame->GetTimestamp() - _rawStartTimestamp);
+        }
+    }
     OutputDataStatus();
 }
 
@@ -482,6 +596,12 @@ void CalibDataManager::OutputDataStatus() const {
     for (const auto &[topic, mes] : _camMes) {
         spdlog::info(
             "Camera topic: '{}', data size: '{:06}', time span: from '{:+010.5f}' to '{:+010.5f}' "
+            "(s)",
+            topic, mes.size(), mes.front()->GetTimestamp(), mes.back()->GetTimestamp());
+    }
+    for (const auto &[topic, mes] : _rgbdMes) {
+        spdlog::info(
+            "RGBD topic: '{}', data size: '{:06}', time span: from '{:+010.5f}' to '{:+010.5f}' "
             "(s)",
             topic, mes.size(), mes.front()->GetTimestamp(), mes.back()->GetTimestamp());
     }
@@ -591,6 +711,16 @@ CalibDataManager::GetCameraMeasurements() const {
 const std::vector<CameraFrame::Ptr> &CalibDataManager::GetCameraMeasurements(
     const std::string &camTopic) const {
     return _camMes.at(camTopic);
+}
+
+const std::map<std::string, std::vector<RGBDFrame::Ptr>> &CalibDataManager::GetRGBDMeasurements()
+    const {
+    return _rgbdMes;
+}
+
+const std::vector<RGBDFrame::Ptr> &CalibDataManager::GetRGBDMeasurements(
+    const std::string &rgbdTopic) const {
+    return _rgbdMes.at(rgbdTopic);
 }
 
 const std::map<std::string, ns_veta::Veta::Ptr> &CalibDataManager::GetSfMData() const {
