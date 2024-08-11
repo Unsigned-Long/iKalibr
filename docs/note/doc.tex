@@ -635,6 +635,301 @@
 	\angvel{c^m}{w}(\tau)=\bsm{I}_{3}\cdot\angvel{b^r}{w}(\tau)
 	\end{equation}
 	
+\section{RGBD-Inertial Spatiotemporal Calibration}
+	\subsection{Visual Kinectics}
+	Given a landmark $\bsm{l}^{w}$ in $\coordframe{w}$, we have:
+	\begin{equation}
+	\bsm{l}^{w}=\rotation{c}{w}(\tau)\cdot\bsm{l}^{c}(\tau)+\translation{c}{w}(\tau)
+	\end{equation}
+	thus the linear velocity of landmark with respect to the camera frame $\coordframe{c}$ would be:
+	\begin{equation}
+	\bsm{0}_{3\times 1}=-\liehat{\rotation{c}{w}(\tau)\cdot\bsm{l}^{c}}\cdot\angvel{c}{w}(\tau)+\rotation{c}{w}(\tau)\cdot\linvel{l}{c}(\tau)+\linvel{c}{w}(\tau)
+	\end{equation}
+	\begin{equation}
+	\liehat{\bsm{l}^{c}}\cdot\left( \rotation{c}{w}(\tau)\right)^\top\cdot\angvel{c}{w}(\tau)-\left( \rotation{c}{w}(\tau)\right)^\top\cdot\linvel{c}{w}(\tau)=\linvel{l}{c}(\tau)
+	\end{equation}	
+	we expand this equation as follows:
+	\begin{equation}
+	\begin{bmatrix}
+		\dot{x}^c_l\\
+		\dot{y}^c_l\\
+		\dot{z}^c_l
+		\end{bmatrix}=
+	\begin{bmatrix}
+	0&-z_l^c&y_l^c\\
+	z_l^c&0&-x_l^c \\
+	-y_l^c&x_l^c&0
+	\end{bmatrix}\cdot
+	\begin{bmatrix}
+	\omega_{c,x}\\
+	\omega_{c,y}\\
+	\omega_{c,z}
+	\end{bmatrix}-
+	\begin{bmatrix}
+	v_{c,x}\\
+	v_{c,y}\\
+	v_{c,z}
+	\end{bmatrix}=\begin{bmatrix}
+	y_l^c\cdot\omega_{c,z}-z_l^c\cdot\omega_{c,y}-v_{c,x}\\
+	z_l^c\cdot\omega_{c,x}-x_l^c\cdot\omega_{c,z}-v_{c,y}\\
+	x_l^c\cdot\omega_{c,y}-y_l^c\cdot\omega_{c,x}-v_{c,z}
+	\end{bmatrix}
+	\end{equation}
+	
+	For optical projection, we have:
+	\begin{equation}
+	\begin{bmatrix}
+	u\\v
+	\end{bmatrix}=\begin{bmatrix}
+	f_x&0&c_x\\
+	0&f_y&c_y
+	\end{bmatrix}\cdot
+	\begin{bmatrix}
+	x_l^c/z_l^c\\
+	y_l^c/z_l^c\\
+	1
+	\end{bmatrix}=\begin{bmatrix}
+	\begin{aligned}
+		f_x\cdot\frac{x_l^c}{z_l^c}+c_x
+	\end{aligned}\\
+		\begin{aligned}
+			f_y\cdot\frac{y_l^c}{z_l^c}+c_y
+		\end{aligned}
+	\end{bmatrix}
+	\end{equation}
+	By derivation, we have:
+	\begin{equation}
+	\begin{bmatrix}
+		\dot{u}\\\dot{v}
+	\end{bmatrix}=\begin{bmatrix}
+	\begin{aligned}
+		f_x\cdot\frac{\dot{x}^c_l\cdot z_l^c-x^c_l\cdot \dot{z}^c_l}{\left( z_l^c\right) ^2}
+	\end{aligned}\\
+		\begin{aligned}
+			f_y\cdot\frac{\dot{y}^c_l\cdot z_l^c-y^c_l\cdot \dot{z}^c_l}{\left( z_l^c\right) ^2}
+		\end{aligned}
+	\end{bmatrix}=\begin{bmatrix}
+	\begin{aligned}
+		f_x\cdot\frac{\dot{x}^c_l}{z_l^c}-
+		f_x\cdot\frac{x^c_l}{z_l^c}
+		\cdot\frac{\dot{z}^c_l}{z_l^c}
+	\end{aligned}\\
+		\begin{aligned}
+		f_y\cdot\frac{\dot{y}^c_l}{z_l^c}-
+		f_y\cdot\frac{y^c_l}{z_l^c}
+		\cdot\frac{\dot{z}^c_l}{z_l^c}
+		\end{aligned}
+	\end{bmatrix}=\begin{bmatrix}
+	\begin{aligned}
+		f_x\cdot\frac{\dot{x}^c_l}{z_l^c}-
+		\left( u-c_x\right) \cdot
+		\frac{\dot{z}^c_l}{z_l^c}
+	\end{aligned}\\
+		\begin{aligned}
+		f_y\cdot\frac{\dot{y}^c_l}{z_l^c}-
+		\left( v-c_y\right) \cdot
+		\frac{\dot{z}^c_l}{z_l^c}
+		\end{aligned}
+	\end{bmatrix}
+	\end{equation}
+	Finally, we have:
+	\begin{equation}
+	\begin{aligned}
+	\dot{u}&=f_x\cdot\frac{
+		y_l^c\cdot\omega_{c,z}-z_l^c\cdot\omega_{c,y}-v_{c,x}
+		}{z_l^c}-
+		\left( u-c_x\right) \cdot
+		\frac{
+		x_l^c\cdot\omega_{c,y}-y_l^c\cdot\omega_{c,x}-v_{c,z}
+		}{z_l^c}\\
+		&=\frac{f_x\cdot \left( v-c_y\right) \cdot\omega_{c,z}}{f_y}
+		-f_x\cdot\omega_{c,y}
+		-\frac{f_x\cdot v_{c,x}}{z_l^c}
+		-\left( u-c_x\right)^2 \cdot\frac{\omega_{c,y}}{f_x}
+		+\left( u-c_x\right)\cdot\left( v-c_y\right) \cdot\frac{\omega_{c,x}}{f_y}
+		+\left( u-c_x\right)\cdot\frac{v_{c,z}}{z_l^c}\\
+		&=\frac{\left( u-c_x\right)\cdot v_{c,z}-f_x\cdot v_{c,x}}{z_l^c}
+		+\left( u-c_x\right)\cdot\left( v-c_y\right)\cdot\frac{\omega_{c,x}}{f_y}
+		-\omega_{c,y}\cdot\left(f_x+\frac{\left( u-c_x\right)^2}{f_x} \right) 
+		+\frac{f_x\cdot \left( v-c_y\right) \cdot\omega_{c,z}}{f_y}
+	\end{aligned}
+	\end{equation}
+	and
+	\begin{equation}
+	\begin{aligned}
+	\dot{v}&=f_y\cdot\frac{z_l^c\cdot\omega_{c,x}-x_l^c\cdot\omega_{c,z}-v_{c,y}}{z_l^c}-
+	\left( v-c_y\right) \cdot
+	\frac{x_l^c\cdot\omega_{c,y}-y_l^c\cdot\omega_{c,x}-v_{c,z}}{z_l^c}\\
+	&=f_y\cdot\omega_{c,x}
+	-\frac{f_y\cdot \left( u-c_x\right) \cdot\omega_{c,z}}{f_x}
+	-\frac{f_y\cdot v_{c,y}}{z_l^c}
+	-\left( u-c_x\right)\cdot\left( v-c_y\right) \cdot\frac{\omega_{c,y}}{f_x}
+	+\left( v-c_y\right)^2 \cdot\frac{\omega_{c,x}}{f_y}
+	+\left( v-c_y\right)\cdot\frac{v_{c,z}}{z_l^c}\\
+	&=\frac{\left( v-c_y\right)\cdot v_{c,z}-f_y\cdot v_{c,y}}{z_l^c}
+	+\omega_{c,x}\cdot\left(f_x+\frac{\left( v-c_y\right)^2}{f_y} \right) 
+	-\left( u-c_x\right)\cdot\left( v-c_y\right)\cdot\frac{\omega_{c,y}}{f_x}
+	-\frac{f_y\cdot \left( u-c_x\right) \cdot\omega_{c,z}}{f_x}
+	\end{aligned}
+	\end{equation}
+	By reorganization, we have:
+	\begin{equation}
+	\begin{bmatrix}
+			\dot{u}\\\dot{v}
+		\end{bmatrix}=\frac{1}{z_l^c}\cdot\begin{bmatrix}
+		-f_x&0&u-c_x\\
+		0&-f_y&v-c_y
+		\end{bmatrix}\cdot\begin{bmatrix}
+			v_{c,x}\\
+			v_{c,y}\\
+			v_{c,z}
+			\end{bmatrix}+\begin{bmatrix}
+			\begin{aligned}
+			\frac{\left( u-c_x\right) \cdot\left( v-c_y\right)}{f_y}
+			\end{aligned}&
+			\begin{aligned}
+			-f_x-\frac{\left( u-c_x\right)^2}{f_x}
+			\end{aligned}&
+			\begin{aligned}
+			\frac{f_x\cdot \left( v-c_y\right)}{f_y}
+			\end{aligned}\\
+			\begin{aligned}
+			f_x+\frac{\left( v-c_y\right)^2}{f_y}
+			\end{aligned}&
+			\begin{aligned}
+			-\frac{\left( u-c_x\right)\cdot\left( v-c_y\right)}{f_x}
+			\end{aligned}&
+			\begin{aligned}
+			-\frac{f_y\cdot \left( u-c_x\right)}{f_x}
+			\end{aligned}
+			\end{bmatrix}\cdot\begin{bmatrix}
+				\omega_{c,x}\\
+				\omega_{c,y}\\
+				\omega_{c,z}
+				\end{bmatrix}
+	\end{equation}
+\begin{equation}
+	\begin{bmatrix}
+			\dot{u}\\\dot{v}
+		\end{bmatrix}=\frac{1}{z_l^c}\cdot\begin{bmatrix}
+		-f_x&0&u^\prime\\
+		0&-f_y&v^\prime
+		\end{bmatrix}\cdot\begin{bmatrix}
+			v_{c,x}\\
+			v_{c,y}\\
+			v_{c,z}
+			\end{bmatrix}+\begin{bmatrix}
+			\begin{aligned}
+			\frac{u^\prime \cdot v^\prime}{f_y}
+			\end{aligned}&
+			\begin{aligned}
+			-f_x-\frac{\left( u^\prime\right)^2}{f_x}
+			\end{aligned}&
+			\begin{aligned}
+			\frac{f_x\cdot v^\prime}{f_y}
+			\end{aligned}\\
+			\begin{aligned}
+			f_x+\frac{\left(v^\prime\right)^2}{f_y}
+			\end{aligned}&
+			\begin{aligned}
+			-\frac{u^\prime\cdot v^\prime}{f_x}
+			\end{aligned}&
+			\begin{aligned}
+			-\frac{f_y\cdot u^\prime}{f_x}
+			\end{aligned}
+			\end{bmatrix}\cdot\begin{bmatrix}
+				\omega_{c,x}\\
+				\omega_{c,y}\\
+				\omega_{c,z}
+				\end{bmatrix}
+	\end{equation}
+	we denote this equation as:
+	\begin{equation}
+	\begin{bmatrix}
+				\dot{u}\\\dot{v}
+			\end{bmatrix}=\frac{1}{z_l^c}\cdot\bsm{A}\cdot\bsm{v}_c(\tau)+\bsm{B}\cdot\bsm{\omega}_c(\tau)
+	\end{equation}
+	Note that:
+	\begin{equation}
+	\bsm{v}_c(\tau)=\left( \rotation{c}{w}(\tau)\right)^\top\cdot\linvel{c}{w}(\tau),\qquad
+	\bsm{\omega}_c(\tau)=\left( \rotation{c}{w}(\tau)\right)^\top\cdot\angvel{c}{w}(\tau)
+	\end{equation}
+	
+	\subsection{Pipeline}
+	\begin{enumerate}
+	\item Recover the rotation spline using raw angular velocity measurements from the gyroscope. If multiple IMUs are involved, the time offsets and extrinsic rotation between IMUs are be recovered;
+	
+	\item RGBD-only RGBD-derived visual kinematic estimation: estimate the camera-frame linear velocities and angular velocities.
+	
+	\item Employ the hand-eye alignment to recover the extrinsic rotations and time offsets between the reference IMU and the RGBD camera;
+	
+	\item RGBD-Inertial alignment: recover the extrinsic translations;
+	
+	\item Recover the linear velocity spline;
+	
+	\item Batch optimization;
+	\end{enumerate}
+	
+	\subsection{Lagrange Polynomial}
+	Given $n+1$ points, the lagrange polynomial can be expressed as:
+	\begin{equation}
+	L(x)=\sum_{i=0}^{n}y_i\cdot l_i(x)
+	\end{equation}
+	with
+	\begin{equation}
+	l_i(x)=\prod_{j=0,j\ne i}^{n}\frac{x-x_j}{x_i-x_j}
+	\end{equation}
+	we can find that:
+	\begin{equation}
+	l_i(x_i)\equiv 1
+	\end{equation}
+	
+	\subsection{First-Order Derivative of Lagrange Polynomial}
+	we have:
+	\begin{equation}
+	L^\prime (x)=\sum_{i=0}^{n}y_i\cdot l_i^\prime(x)
+	\end{equation}
+	as for $l_i^\prime(x)$, we can obtain it by:
+	\begin{equation}
+	\begin{aligned}
+	\ln l_i(x)&=\ln\left( \prod_{j=0,j\ne i}^{n}\frac{x-x_j}{x_i-x_j}\right) =\sum_{j=0,j\ne i}^{n}\ln\left( \frac{x-x_j}{x_i-x_j}\right) 
+	\\
+	\frac{l_i^\prime(x)}{l_i(x)}&=\sum_{j=0,j\ne i}^{n}\frac{1}{x-x_j}
+	\\
+	l_i^\prime(x)&=l_i(x)\cdot \sum_{j=0,j\ne i}^{n}\frac{1}{x-x_j}
+	\end{aligned}
+	\end{equation}
+	for example, for $2$ point $(x_0,y_0)$ and $(x_1,y_1)$, we have:
+	\begin{equation}
+	L(x)=y_0\cdot\frac{x-x_1}{x_0-x_1}+y_1\cdot\frac{x-x_0}{x_1-x_0}
+	\end{equation}
+	and 
+	\begin{equation}
+	\begin{aligned}
+	L^\prime(x)&=y_0\cdot\frac{x-x_1}{x_0-x_1}\cdot\left(
+		\frac{1}{x-x_1}
+		\right) +y_1\cdot\frac{x-x_0}{x_1-x_0}\cdot\left(
+			\frac{1}{x-x_0}
+			\right)
+			\\
+			&=y_0\cdot\frac{1}{x_0-x_1}+y_1\cdot\frac{1}{x_1-x_0}
+	\end{aligned}
+	\end{equation}
+	for $3$ point $(x_0,y_0)$, $(x_1,y_1)$ and $(x_2,y_2)$, we have:
+	\begin{equation}
+	\begin{aligned}
+	L^\prime(x)&=y_0\cdot\frac{x-x_1}{x_0-x_1}\cdot\frac{x-x_2}{x_0-x_2}\cdot\left(\frac{1}{x-x_1}+\frac{1}{x-x_2}\right) \\
+		&+y_1\cdot\frac{x-x_0}{x_1-x_0}\cdot\frac{x-x_2}{x_1-x_2}\cdot\left(\frac{1}{x-x_0}+\frac{1}{x-x_2}\right) \\
+		&+y_2\cdot\frac{x-x_0}{x_2-x_0}\cdot\frac{x-x_1}{x_2-x_1}\cdot\left(\frac{1}{x-x_0}+\frac{1}{x-x_1}\right)
+	\end{aligned}
+	\end{equation}
+	when $x=x_1$, we have:
+	\begin{equation}
+	L^\prime(x_1)=y_0\cdot\frac{1}{x_0-x_1}\cdot\frac{x_1-x_2}{x_0-x_2}
+	+y_1\cdot\left(\frac{1}{x_1-x_0}+\frac{1}{x_1-x_2}\right)
+	+y_2\cdot\frac{x_1-x_0}{x_2-x_0}\cdot\frac{1}{x_2-x_1}
+	\end{equation}
+	
 	\newpage
 	\bibliographystyle{IEEEtran}
 	\bibliography{reference}
