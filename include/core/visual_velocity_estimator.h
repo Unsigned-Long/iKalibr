@@ -32,12 +32,14 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IKALIBR_VISUAL_PIXEL_DYNAMIC_H
-#define IKALIBR_VISUAL_PIXEL_DYNAMIC_H
+#ifndef IKALIBR_VISUAL_VELOCITY_ESTIMATOR_H
+#define IKALIBR_VISUAL_VELOCITY_ESTIMATOR_H
 
-#include "util/utils.h"
-#include "opencv4/opencv2/core.hpp"
+#include "config/configor.h"
+#include "ctraj/core/spline_bundle.h"
+#include "ctraj/core/pose.hpp"
 #include "veta/camera/pinhole.h"
+#include "opencv2/core.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -47,40 +49,35 @@ namespace ns_ikalibr {
 struct CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
 
-class VisualPixelDynamic {
+class VisualVelocityEstimator {
 public:
-    using Ptr = std::shared_ptr<VisualPixelDynamic>;
-    static constexpr int MID = 1;
+    using Ptr = std::shared_ptr<VisualVelocityEstimator>;
+    using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
+    using So3SplineType = SplineBundleType::So3SplineType;
+    using RotationSequence = std::vector<std::pair<double, Sophus::SO3d>>;
 
 protected:
-    // camera frame, pixel (undistorted)
-    std::array<std::pair<CameraFramePtr, Eigen::Vector2d>, 3> _movement;
-    Eigen::Vector2d _midPointVel;
+    // pixel, velocity, depth
+    std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>> _dynamics;
+    ns_veta::PinholeIntrinsic::Ptr _intri;
 
 public:
-    explicit VisualPixelDynamic(
-        const std::array<std::pair<CameraFramePtr, Eigen::Vector2d>, 3>& movement);
+    explicit VisualVelocityEstimator(
+        const std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>> &dynamics,
+        ns_veta::PinholeIntrinsic::Ptr intri);
 
-    static Ptr Create(const std::array<std::pair<CameraFramePtr, Eigen::Vector2d>, 3>& movement);
+    static Ptr Create(
+        const std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>> &dynamics,
+        const ns_veta::PinholeIntrinsic::Ptr &intri);
 
-    [[nodiscard]] cv::Mat CreatePixelDynamicMat(const ns_veta::PinholeIntrinsic::Ptr& intri) const;
+    [[nodiscard]] std::optional<Eigen::Vector3d> Estimate(double timeByBr,
+                                                          const So3SplineType &spline,
+                                                          const Sophus::SO3d &SO3_DnToBr) const;
 
-    [[nodiscard]] const Eigen::Vector2d& GetMidPointVel() const;
-
-    [[nodiscard]] const Eigen::Vector2d& GetMidPoint() const;
-
-    [[nodiscard]] const CameraFramePtr& GetMidCameraFrame() const;
-
-protected:
-    // given three points, compute the first order of the middle point using lagrange polynomial
-    static double MidLagrangePolynomialFOD(const std::array<std::pair<double, double>, 3>& data);
-
-    [[nodiscard]] Eigen::Vector2d MidLagrangePolynomialFOD() const;
-
-    static cv::Mat GetInRangeSubMat(const cv::Mat& img, const Eigen::Vector2d& p, int padding);
-
-    static cv::Mat DrawKeypoint(cv::Mat img, const Eigen::Vector2d& p);
+    cv::Mat DrawVisualVelocityMat(const Eigen::Vector3d &LIN_VEL_DnToWInDn,
+                                  const CameraFramePtr &frame,
+                                  double factor);
 };
 }  // namespace ns_ikalibr
 
-#endif  // IKALIBR_VISUAL_PIXEL_DYNAMIC_H
+#endif  // IKALIBR_VISUAL_VELOCITY_ESTIMATOR_H

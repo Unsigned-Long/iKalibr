@@ -163,4 +163,6 @@ const Eigen::Vector2d& VisualPixelDynamic::GetMidPointVel() const { return _midP
 const CameraFramePtr& VisualPixelDynamic::GetMidCameraFrame() const {
     return _movement.at(MID).first;
 }
+
+const Eigen::Vector2d& VisualPixelDynamic::GetMidPoint() const { return _movement.at(MID).second; }
 }  // namespace ns_ikalibr

@@ -767,7 +767,7 @@
 	+\left( v-c_y\right)^2 \cdot\frac{\omega_{c,x}}{f_y}
 	+\left( v-c_y\right)\cdot\frac{v_{c,z}}{z_l^c}\\
 	&=\frac{\left( v-c_y\right)\cdot v_{c,z}-f_y\cdot v_{c,y}}{z_l^c}
-	+\omega_{c,x}\cdot\left(f_x+\frac{\left( v-c_y\right)^2}{f_y} \right) 
+	+\omega_{c,x}\cdot\left(f_y+\frac{\left( v-c_y\right)^2}{f_y} \right) 
 	-\left( u-c_x\right)\cdot\left( v-c_y\right)\cdot\frac{\omega_{c,y}}{f_x}
 	-\frac{f_y\cdot \left( u-c_x\right) \cdot\omega_{c,z}}{f_x}
 	\end{aligned}
@@ -794,7 +794,7 @@
 			\frac{f_x\cdot \left( v-c_y\right)}{f_y}
 			\end{aligned}\\
 			\begin{aligned}
-			f_x+\frac{\left( v-c_y\right)^2}{f_y}
+			f_y+\frac{\left( v-c_y\right)^2}{f_y}
 			\end{aligned}&
 			\begin{aligned}
 			-\frac{\left( u-c_x\right)\cdot\left( v-c_y\right)}{f_x}
@@ -829,7 +829,7 @@
 			\frac{f_x\cdot v^\prime}{f_y}
 			\end{aligned}\\
 			\begin{aligned}
-			f_x+\frac{\left(v^\prime\right)^2}{f_y}
+			f_y+\frac{\left(v^\prime\right)^2}{f_y}
 			\end{aligned}&
 			\begin{aligned}
 			-\frac{u^\prime\cdot v^\prime}{f_x}
@@ -853,6 +853,19 @@
 	\begin{equation}
 	\bsm{v}_c(\tau)=\left( \rotation{c}{w}(\tau)\right)^\top\cdot\linvel{c}{w}(\tau),\qquad
 	\bsm{\omega}_c(\tau)=\left( \rotation{c}{w}(\tau)\right)^\top\cdot\angvel{c}{w}(\tau)
+	\end{equation}
+	where:
+	\begin{equation}
+	\rotation{c}{w}(\tau)=\rotation{b^r}{w}(\tau)\cdot\rotation{c}{b^r}
+	\Rightarrow
+	\angvel{c}{w}(\tau)=\angvel{b^r}{w}(\tau)
+	\end{equation}
+	thus:
+	\begin{equation}
+	\bsm{\omega}_c(\tau)=\left( \rotation{c}{w}(\tau)\right)^\top\cdot\angvel{c}{w}(\tau)=\left( 
+	\rotation{b^r}{w}(\tau)\cdot\rotation{c}{b^r}\right)^\top \cdot\angvel{b^r}{w}(\tau)=\left( 
+		\rotation{c}{b^r}\right)^\top \cdot\left( 
+				\rotation{b^r}{w}(\tau)\right)^\top \cdot\angvel{b^r}{w}(\tau)
 	\end{equation}
 	
 	\subsection{Pipeline}

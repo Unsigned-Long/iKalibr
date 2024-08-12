@@ -44,6 +44,7 @@
 #include "util/tqdm.h"
 #include "magic_enum_flags.hpp"
 #include "core/visual_pixel_dynamic.h"
+#include "core/visual_velocity_estimator.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -500,14 +501,50 @@ CalibSolver::Initialization() {
         // store
         _dataMagr->SetRGBDPixelDynamics(topic, CreateVisualPixelDynamicForRGBD(trackInfoList));
     }
+    // topic, camera frame, body-frame up-to-scale velocity
+    std::map<std::string, std::vector<std::pair<CameraFrame::Ptr, Eigen::Vector3d>>> rgbdVels;
     for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
+        spdlog::info("estimate RGBD-derived up-to-scale linear velocities for '{}'...", topic);
+        // reorganize rgbd-dynamics, store them by frame index
+        // camera frame, dynamics in this frame (pixel, velocity, depth)
+        std::map<CameraFrame::Ptr,
+                 std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>>>
+            dynamicsInFrame;
         for (const auto &dynamic : dynamics) {
             // show the visual pixel dynamic image (tracking features, mid-point pixel velocity)
-            auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic));
-            cv::imshow("img", img);
-            cv::waitKey();
+            // auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic));
+            auto midCamFrame = dynamic->GetMidCameraFrame();
+            auto depthMat = std::dynamic_pointer_cast<RGBDFrame>(midCamFrame)->GetDepthImage();
+            const Eigen::Vector2d &midPoint = dynamic->GetMidPoint();
+            float depth = depthMat.at<float>((int)midPoint(1), (int)midPoint(0));
+            if (depth > 1E-3) {
+                // a valid depth
+                dynamicsInFrame[midCamFrame].emplace_back(midPoint, dynamic->GetMidPointVel(),
+                                                          depth);
+            }
         }
-        // todo: recover rgbd-derived up-to-scale linear velocities
+
+        // estimate rgbd-derived up-to-scale linear velocities for each frame
+        const auto &intri = _parMagr->INTRI.RGBD.at(topic);
+        const double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
+        const Sophus::SO3d &SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
+        for (const auto &[frame, dynamics] : dynamicsInFrame) {
+            const double timeByBr = frame->GetTimestamp() + TO_DnToBr;
+            if (timeByBr < st || timeByBr > et) {
+                continue;
+            }
+            auto vvEstimator = VisualVelocityEstimator::Create(dynamics, intri);
+            auto res = vvEstimator->Estimate(timeByBr, so3Spline, SO3_DnToBr);
+            if (res) {
+                rgbdVels[topic].emplace_back(frame, *res);
+                // auto img = vvEstimator->DrawVisualVelocityMat(*res, frame, 0.5);
+            }
+        }
+        // sort timestamps
+        auto &curRGBDVels = rgbdVels.at(topic);
+        std::sort(curRGBDVels.begin(), curRGBDVels.end(), [](const auto &p1, const auto &p2) {
+            return p1.first->GetTimestamp() < p2.first->GetTimestamp();
+        });
     }
 
     _parMagr->ShowParamStatus();

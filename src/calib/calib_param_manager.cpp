@@ -136,7 +136,7 @@ CalibParamManager::Ptr CalibParamManager::InitParamsFromConfigor() {
 void CalibParamManager::ShowParamStatus() {
     std::stringstream stream;
 #define ITEM(name) fmt::format(fmt::emphasis::bold | fmt::fg(fmt::color::green), name)
-#define PARAM(name) fmt::format(fmt::emphasis::bold | fmt::fg(fmt::color::white), name)
+#define PARAM(name) fmt::format(fmt::emphasis::bold | fmt::fg(fmt::color::steel_blue), name)
 #define STREAM_PACK(obj) stream << "-- " << obj << std::endl;
 
     constexpr std::size_t n = 74;
