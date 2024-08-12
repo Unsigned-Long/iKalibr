@@ -42,6 +42,7 @@
 #include "sensor/depth_data_loader.h"
 #include "opencv4/opencv2/imgcodecs.hpp"
 #include "util/tqdm.h"
+#include "core/visual_pixel_dynamic.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -735,5 +736,19 @@ const ns_veta::Veta::Ptr &CalibDataManager::GetSfMData(const std::string &camTop
 
 void CalibDataManager::SetSfMData(const std::string &camTopic, const ns_veta::Veta::Ptr &veta) {
     _sfmData[camTopic] = veta;
+}
+void CalibDataManager::SetRGBDPixelDynamics(const std::string &rgbdTopic,
+                                            const std::vector<VisualPixelDynamic::Ptr> &dynamics) {
+    _rgbdPixelDynamics[rgbdTopic] = dynamics;
+}
+
+const std::map<std::string, std::vector<VisualPixelDynamicPtr>> &
+CalibDataManager::GetRGBDPixelDynamics() const {
+    return _rgbdPixelDynamics;
+}
+
+const std::vector<VisualPixelDynamicPtr> &CalibDataManager::GetRGBDPixelDynamics(
+    const std::string &rgbdTopic) const {
+    return _rgbdPixelDynamics.at(rgbdTopic);
 }
 }  // namespace ns_ikalibr

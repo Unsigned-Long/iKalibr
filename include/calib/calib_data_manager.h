@@ -50,6 +50,9 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
+struct VisualPixelDynamic;
+using VisualPixelDynamicPtr = std::shared_ptr<VisualPixelDynamic>;
+
 class CalibDataManager {
 public:
     using Ptr = std::shared_ptr<CalibDataManager>;
@@ -62,6 +65,8 @@ private:
     std::map<std::string, std::vector<RGBDFrame::Ptr>> _rgbdMes;
 
     std::map<std::string, ns_veta::Veta::Ptr> _sfmData;
+
+    std::map<std::string, std::vector<VisualPixelDynamicPtr>> _rgbdPixelDynamics;
 
     double _rawStartTimestamp{};
     double _rawEndTimestamp{};
@@ -117,6 +122,15 @@ public:
     [[nodiscard]] const ns_veta::Veta::Ptr &GetSfMData(const std::string &camTopic) const;
 
     void SetSfMData(const std::string &camTopic, const ns_veta::Veta::Ptr &veta);
+
+    [[nodiscard]] const std::map<std::string, std::vector<VisualPixelDynamicPtr>> &
+    GetRGBDPixelDynamics() const;
+
+    [[nodiscard]] const std::vector<VisualPixelDynamicPtr> &GetRGBDPixelDynamics(
+        const std::string &rgbdTopic) const;
+
+    void SetRGBDPixelDynamics(const std::string &rgbdTopic,
+                              const std::vector<VisualPixelDynamicPtr> &dynamics);
 
     [[nodiscard]] double GetRawStartTimestamp() const;
 

@@ -36,6 +36,10 @@
 #include "spdlog/spdlog.h"
 #include "opencv2/imgproc.hpp"
 
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
+
 namespace ns_ikalibr {
 
 // ---------

@@ -65,6 +65,10 @@ public:
 
         Feat(cv::Point2f raw, cv::Point2f undistorted);
     };
+    // landmark id, track lists [camera frame, feature point]
+    using FeatTrackingInfo =
+        std::map<ns_veta::IndexT,
+                 std::list<std::pair<CameraFramePtr, RotOnlyVisualOdometer::Feat>>>;
 
 private:
     const int FEAT_NUM_PER_IMG;

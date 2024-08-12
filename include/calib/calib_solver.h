@@ -42,12 +42,16 @@
 #include "core/vision_only_sfm.h"
 #include "viewer/viewer.h"
 #include "calib/spat_temp_priori.h"
+#include "core/rot_only_vo.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
+
+struct VisualPixelDynamic;
+using VisualPixelDynamicPtr = std::shared_ptr<VisualPixelDynamic>;
 
 struct ImagesInfo {
 public:
@@ -246,6 +250,9 @@ protected:
     static bool IsRSCamera(const std::string &camTopic);
 
     static void SaveStageCalibParam(const CalibParamManager::Ptr &par, const std::string &desc);
+
+    static std::vector<VisualPixelDynamicPtr> CreateVisualPixelDynamicForRGBD(
+        const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList);
 };
 
 struct CeresDebugCallBack : public ceres::IterationCallback {

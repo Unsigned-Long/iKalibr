@@ -43,6 +43,7 @@
 #include "opencv2/highgui.hpp"
 #include "util/tqdm.h"
 #include "magic_enum_flags.hpp"
+#include "core/visual_pixel_dynamic.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -396,11 +397,8 @@ CalibSolver::Initialization() {
     // -------------------------------------------------------------------------------------
     // Step 3.1: perform rotation-only visual odometer to recover rotations and time offsets
     // -------------------------------------------------------------------------------------
-    using FeatTrackingInfo =
-        std::map<ns_veta::IndexT,
-                 std::list<std::pair<CameraFramePtr, RotOnlyVisualOdometer::Feat>>>;
     // 'FeatTrackingInfo' is a list for each rgbd camera, as fail tracking leads to multiple pieces
-    std::map<std::string, std::list<FeatTrackingInfo>> RGBDTrackingInfo;
+    std::map<std::string, std::list<RotOnlyVisualOdometer::FeatTrackingInfo>> RGBDTrackingInfo;
     if (Configor::IsRGBDIntegrated()) {
         // how many features to maintain in each image
         constexpr int featNumPerImg = 300;
@@ -498,7 +496,19 @@ CalibSolver::Initialization() {
     // -------------------------------------------------------------
     // Step 3.2: estimate rgbd-derived up-to-scale linear velocities
     // -------------------------------------------------------------
-    // todo
+    for (const auto &[topic, trackInfoList] : RGBDTrackingInfo) {
+        // store
+        _dataMagr->SetRGBDPixelDynamics(topic, CreateVisualPixelDynamicForRGBD(trackInfoList));
+    }
+    for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
+        for (const auto &dynamic : dynamics) {
+            // show the visual pixel dynamic image (tracking features, mid-point pixel velocity)
+            auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic));
+            cv::imshow("img", img);
+            cv::waitKey();
+        }
+        // todo: recover rgbd-derived up-to-scale linear velocities
+    }
 
     _parMagr->ShowParamStatus();
     IKALIBR_DEBUG
@@ -1357,6 +1367,41 @@ CalibSolver::DataAssociationForCameras() {
         spdlog::info("visual reprojection sequences for '{}': {}", topic, corrs.at(topic).size());
     }
     return corrs;
+}
+
+std::vector<VisualPixelDynamic::Ptr> CalibSolver::CreateVisualPixelDynamicForRGBD(
+    const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList) {
+    std::vector<VisualPixelDynamic::Ptr> dynamics;
+    for (const auto &trackInfo : trackInfoList) {
+        for (const auto &[id, info] : trackInfo) {
+            // for each tracked feature
+            if (info.size() < 3) {
+                continue;
+            }
+            // store in groups of three
+            auto groupSize = info.size() - 2;
+            auto iter0 = info.cbegin();
+            for (int i = 0; i < static_cast<int>(groupSize); ++i, ++iter0) {
+                auto iter1 = iter0, iter2 = iter0;
+                std::advance(iter1, 1), std::advance(iter2, 2);
+                std::array<std::pair<CameraFramePtr, Eigen::Vector2d>, 3> movement;
+                movement.at(0) = {
+                    iter0->first,
+                    Eigen::Vector2d(iter0->second.undistorted.x, iter0->second.undistorted.y),
+                };
+                movement.at(1) = {
+                    iter1->first,
+                    Eigen::Vector2d(iter1->second.undistorted.x, iter1->second.undistorted.y),
+                };
+                movement.at(2) = {
+                    iter2->first,
+                    Eigen::Vector2d(iter2->second.undistorted.x, iter2->second.undistorted.y),
+                };
+                dynamics.push_back(VisualPixelDynamic::Create(movement));
+            }
+        }
+    }
+    return dynamics;
 }
 
 CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(

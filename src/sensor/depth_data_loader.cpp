@@ -38,6 +38,10 @@
 #include "cv_bridge/cv_bridge.h"
 #include "util/status.hpp"
 
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
+
 namespace ns_ikalibr {
 
 DepthDataLoader::DepthDataLoader(CameraModelType model)
