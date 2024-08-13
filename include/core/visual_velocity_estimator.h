@@ -74,7 +74,10 @@ public:
                                                           const So3SplineType &spline,
                                                           const Sophus::SO3d &SO3_DnToBr) const;
 
-    cv::Mat DrawVisualVelocityMat(const Eigen::Vector3d &LIN_VEL_DnToWInDn,
+    cv::Mat DrawVisualVelocityMat(double timeByBr,
+                                  const So3SplineType &spline,
+                                  const Sophus::SO3d &SO3_DnToBr,
+                                  const Eigen::Vector3d &LIN_VEL_DnToWInDn,
                                   const CameraFramePtr &frame,
                                   double factor);
 };

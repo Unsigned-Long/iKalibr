@@ -108,16 +108,27 @@ std::optional<Eigen::Vector3d> VisualVelocityEstimator::Estimate(
     return {LIN_VEL_DnToWInDn};
 }
 
-cv::Mat VisualVelocityEstimator::DrawVisualVelocityMat(const Eigen::Vector3d& LIN_VEL_DnToWInDn,
-                                                       const CameraFrame::Ptr& frame,
+cv::Mat VisualVelocityEstimator::DrawVisualVelocityMat(double timeByBr,
+                                                       const So3SplineType& spline,
+                                                       const Sophus::SO3d& SO3_DnToBr,
+                                                       const Eigen::Vector3d& LIN_VEL_DnToWInDn,
+                                                       const CameraFramePtr& frame,
                                                        double factor) {
     cv::Mat img = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
+    auto SO3_BrToBr0 = spline.Evaluate(timeByBr);
+    Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * spline.VelocityBody(timeByBr);
+    auto SO3_DnToBr0 = SO3_BrToBr0 * SO3_DnToBr;
+    Eigen::Vector3d LIN_VEL_DnToBr0InBr0 = SO3_DnToBr0 * LIN_VEL_DnToWInDn;
+
     for (const auto& [feat, vel, depth] : _dynamics) {
         Eigen::Vector2d lmInPlane = _intri->ImgToCam(feat);
         Eigen::Vector3d lmInCm(lmInPlane(0) * depth, lmInPlane(1) * depth, depth);
 
-        // draw negative velocity
-        Eigen::Vector3d end = lmInCm - factor * LIN_VEL_DnToWInDn;
+        Eigen::Vector3d val1 =
+            Sophus::SO3d::hat(SO3_DnToBr0 * lmInCm) * ANG_VEL_BrToBr0InBr0 - LIN_VEL_DnToBr0InBr0;
+        Eigen::Vector3d val2 = SO3_DnToBr0.inverse() * val1;
+
+        Eigen::Vector3d end = lmInCm + factor * val2;
 
         if (end(2) < 1E-3 || lmInCm(2) < 1E-3) {
             continue;

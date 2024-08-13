@@ -178,17 +178,7 @@ void CalibDataManager::LoadCalibData() {
             if (mes != nullptr) {
                 _lidarMes[topic].push_back(mes);
             }
-        } else if (cameraDataLoaders.cend() != cameraDataLoaders.find(topic)) {
-            // is a camera frame
-            auto mes = cameraDataLoaders.at(topic)->UnpackFrame(item);
-            if (mes != nullptr) {
-                // id: uint64_t from timestamp (raw, millisecond)
-                mes->SetId(static_cast<ns_veta::IndexT>(mes->GetTimestamp() * 1E3));
-                _camMes[topic].push_back(mes);
-            }
-        }
-        // we do not use 'else' here for 'Camera' and 'RGBD', think about why?
-        if (rgbdColorDataLoaders.cend() != rgbdColorDataLoaders.find(topic)) {
+        } else if (rgbdColorDataLoaders.cend() != rgbdColorDataLoaders.find(topic)) {
             // is a rgbd color frame
             auto mes = rgbdColorDataLoaders.at(topic)->UnpackFrame(item);
             if (mes != nullptr) {
@@ -203,6 +193,14 @@ void CalibDataManager::LoadCalibData() {
                 // id: uint64_t from timestamp (raw, millisecond)
                 mes->SetId(static_cast<ns_veta::IndexT>(mes->GetTimestamp() * 1E3));
                 rgbdDepthMesTemp[topic].push_back(mes);
+            }
+        } else if (cameraDataLoaders.cend() != cameraDataLoaders.find(topic)) {
+            // is a camera frame
+            auto mes = cameraDataLoaders.at(topic)->UnpackFrame(item);
+            if (mes != nullptr) {
+                // id: uint64_t from timestamp (raw, millisecond)
+                mes->SetId(static_cast<ns_veta::IndexT>(mes->GetTimestamp() * 1E3));
+                _camMes[topic].push_back(mes);
             }
         }
     }

@@ -471,10 +471,10 @@ CalibSolver::Initialization() {
                         }
 
                         // we don't want to output the solving information
-                        sum = estimator->Solve(Estimator::DefaultSolverOptions(
-                                                   Configor::Preference::AvailableThreads(), false,
-                                                   Configor::Preference::UseCudaInSolving),
-                                               _priori);
+                        estimator->Solve(Estimator::DefaultSolverOptions(
+                                             Configor::Preference::AvailableThreads(), false,
+                                             Configor::Preference::UseCudaInSolving),
+                                         _priori);
                     }
                     _viewer->UpdateSensorViewer();
                 }
@@ -502,7 +502,8 @@ CalibSolver::Initialization() {
         _dataMagr->SetRGBDPixelDynamics(topic, CreateVisualPixelDynamicForRGBD(trackInfoList));
     }
     // topic, camera frame, body-frame up-to-scale velocity
-    std::map<std::string, std::vector<std::pair<CameraFrame::Ptr, Eigen::Vector3d>>> rgbdVels;
+    std::map<std::string, std::vector<std::pair<CameraFrame::Ptr, Eigen::Vector3d>>>
+        rgbdBodyFrameVels;
     for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
         spdlog::info("estimate RGBD-derived up-to-scale linear velocities for '{}'...", topic);
         // reorganize rgbd-dynamics, store them by frame index
@@ -536,12 +537,13 @@ CalibSolver::Initialization() {
             auto vvEstimator = VisualVelocityEstimator::Create(dynamics, intri);
             auto res = vvEstimator->Estimate(timeByBr, so3Spline, SO3_DnToBr);
             if (res) {
-                rgbdVels[topic].emplace_back(frame, *res);
-                // auto img = vvEstimator->DrawVisualVelocityMat(*res, frame, 0.5);
+                rgbdBodyFrameVels[topic].emplace_back(frame, *res);
+                // auto img = vvEstimator->DrawVisualVelocityMat(timeByBr, so3Spline, SO3_DnToBr,
+                // *res, frame, 0.25);
             }
         }
         // sort timestamps
-        auto &curRGBDVels = rgbdVels.at(topic);
+        auto &curRGBDVels = rgbdBodyFrameVels.at(topic);
         std::sort(curRGBDVels.begin(), curRGBDVels.end(), [](const auto &p1, const auto &p2) {
             return p1.first->GetTimestamp() < p2.first->GetTimestamp();
         });
