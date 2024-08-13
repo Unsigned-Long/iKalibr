@@ -45,6 +45,7 @@
 #include "magic_enum_flags.hpp"
 #include "core/visual_pixel_dynamic.h"
 #include "core/visual_velocity_estimator.h"
+#include "core/visual_velocity_sac.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -535,11 +536,12 @@ CalibSolver::Initialization() {
                 continue;
             }
             auto vvEstimator = VisualVelocityEstimator::Create(dynamics, rgbdIntri->intri);
-            auto res = vvEstimator->Estimate(timeByBr, so3Spline, SO3_DnToBr);
+            auto res = VisualVelocitySacProblem::VisualVelocityEstimationRANSAC(
+                dynamics, rgbdIntri->intri, timeByBr, so3Spline, SO3_DnToBr);
             if (res) {
                 rgbdBodyFrameVels[topic].emplace_back(frame, *res);
-                // auto img = vvEstimator->DrawVisualVelocityMat(timeByBr, so3Spline, SO3_DnToBr,
-                // *res, frame, 0.25);
+                // auto img = VisualVelocityEstimator::DrawVisualVelocityMat(
+                // dynamics, rgbdIntri->intri, timeByBr, so3Spline, SO3_DnToBr, *res, frame, 0.25);
             }
         }
         // sort timestamps
@@ -723,8 +725,8 @@ CalibSolver::Initialization() {
         OptOption::Option::OPT_POS_CmInBr | OptOption::Option::OPT_VISUAL_GLOBAL_SCALE |
         // radar extrinsics
         OptOption::Option::OPT_SO3_RjToBr | OptOption::Option::OPT_POS_RjInBr |
-        // rgbd extrinsics and alpha (depth factor)
-        OptOption::Option::OPT_POS_DnInBr | OptOption::Option::OPT_RGBD_ALPHA |
+        // rgbd extrinsics
+        OptOption::Option::OPT_POS_DnInBr |
         // imu extrinsic translations and gravity
         OptOption::Option::OPT_POS_BiInBr | OptOption::Option::OPT_GRAVITY;
 

@@ -74,12 +74,15 @@ public:
                                                           const So3SplineType &spline,
                                                           const Sophus::SO3d &SO3_DnToBr) const;
 
-    cv::Mat DrawVisualVelocityMat(double timeByBr,
-                                  const So3SplineType &spline,
-                                  const Sophus::SO3d &SO3_DnToBr,
-                                  const Eigen::Vector3d &LIN_VEL_DnToWInDn,
-                                  const CameraFramePtr &frame,
-                                  double factor);
+    static cv::Mat DrawVisualVelocityMat(
+        const std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>> &dynamics,
+        const ns_veta::PinholeIntrinsic::Ptr &intri,
+        double timeByBr,
+        const So3SplineType &spline,
+        const Sophus::SO3d &SO3_DnToBr,
+        const Eigen::Vector3d &LIN_VEL_DnToWInDn,
+        const CameraFramePtr &frame,
+        double factor);
 };
 }  // namespace ns_ikalibr
 

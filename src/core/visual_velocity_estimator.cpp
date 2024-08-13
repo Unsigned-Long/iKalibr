@@ -108,20 +108,23 @@ std::optional<Eigen::Vector3d> VisualVelocityEstimator::Estimate(
     return {LIN_VEL_DnToWInDn};
 }
 
-cv::Mat VisualVelocityEstimator::DrawVisualVelocityMat(double timeByBr,
-                                                       const So3SplineType& spline,
-                                                       const Sophus::SO3d& SO3_DnToBr,
-                                                       const Eigen::Vector3d& LIN_VEL_DnToWInDn,
-                                                       const CameraFramePtr& frame,
-                                                       double factor) {
-    cv::Mat img = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
+cv::Mat VisualVelocityEstimator::DrawVisualVelocityMat(
+    const std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>>& dynamics,
+    const ns_veta::PinholeIntrinsic::Ptr& intri,
+    double timeByBr,
+    const So3SplineType& spline,
+    const Sophus::SO3d& SO3_DnToBr,
+    const Eigen::Vector3d& LIN_VEL_DnToWInDn,
+    const CameraFramePtr& frame,
+    double factor) {
+    cv::Mat img = CalibParamManager::ParIntri::UndistortImage(intri, frame->GetColorImage());
     auto SO3_BrToBr0 = spline.Evaluate(timeByBr);
     Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * spline.VelocityBody(timeByBr);
     auto SO3_DnToBr0 = SO3_BrToBr0 * SO3_DnToBr;
     Eigen::Vector3d LIN_VEL_DnToBr0InBr0 = SO3_DnToBr0 * LIN_VEL_DnToWInDn;
 
-    for (const auto& [feat, vel, depth] : _dynamics) {
-        Eigen::Vector2d lmInPlane = _intri->ImgToCam(feat);
+    for (const auto& [feat, vel, depth] : dynamics) {
+        Eigen::Vector2d lmInPlane = intri->ImgToCam(feat);
         Eigen::Vector3d lmInCm(lmInPlane(0) * depth, lmInPlane(1) * depth, depth);
 
         Eigen::Vector3d val1 =
@@ -134,7 +137,7 @@ cv::Mat VisualVelocityEstimator::DrawVisualVelocityMat(double timeByBr,
             continue;
         }
 
-        Eigen::Vector2d endPixel = _intri->CamToImg({end(0) / end(2), end(1) / end(2)});
+        Eigen::Vector2d endPixel = intri->CamToImg({end(0) / end(2), end(1) / end(2)});
 
         // square
         cv::drawMarker(img, cv::Point2d(feat(0), feat(1)), cv::Scalar(0, 255, 0),

@@ -154,19 +154,21 @@ public:
             std::string Type;
             std::string Intrinsics;
             std::string DepthTopic;
+            double DepthFactor;
             double Weight;
 
             RGBDConfig()
                 : Type(),
                   Intrinsics(),
                   DepthTopic(),
+                  DepthFactor(),
                   Weight(){};
 
         public:
             template <class Archive>
             void serialize(Archive &ar) {
                 ar(CEREAL_NVP(Type), CEREAL_NVP(Intrinsics), CEREAL_NVP(DepthTopic),
-                   CEREAL_NVP(Weight));
+                   CEREAL_NVP(DepthFactor), CEREAL_NVP(Weight));
             }
         };
 
