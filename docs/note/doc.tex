@@ -610,6 +610,27 @@
 	-{^{b_0}\boldsymbol{g}}\cdot (t_{k+1}-t_k)
 	\end{equation}
 	
+	\subsection{Radar-inertial Rough Rotational Alignment}
+	在上一节中的雷达/惯性对齐中，同时包含了外参位移量和外参旋转量，同时估计不利于收敛。为此，可以通过均匀角速度假设，消去外参位移量，只粗糙地进行外参旋转量的恢复，即：
+	\begin{equation}
+	\begin{aligned}
+	{^{b_0}\dot{\boldsymbol{p}}_b(\tau)}&={^{b_0}_{b}\boldsymbol{R}}(\tau)\cdot{^{b}_{r}\boldsymbol{R}}\cdot\bsm{d}(\tau)
+		+\liehat{{^{b_0}_{b}\boldsymbol{R}(\tau)}\cdot{^{b}{\boldsymbol{p}}_r}}\cdot{^{b_0}_{b}\dot{\boldsymbol{R}}(\tau)}
+		\\
+		&={^{b_0}_{b}\boldsymbol{R}}(\tau)\cdot{^{b}_{r}\boldsymbol{R}}\cdot\bsm{d}(\tau)
+				-\liehat{{^{b_0}_{b}\dot{\boldsymbol{R}}(\tau)}}\cdot{^{b_0}_{b}\boldsymbol{R}(\tau)}\cdot{^{b}{\boldsymbol{p}}_r}
+	\end{aligned}
+	\end{equation}
+	然后两边同时乘以$\left( {^{b_0}_{b}\dot{\boldsymbol{R}}(\tau)}\right) ^\top$，得到：
+	\begin{equation}
+	\begin{aligned}
+	\left( {^{b_0}_{b}\dot{\boldsymbol{R}}(\tau)}\right) ^\top\cdot{^{b_0}\dot{\boldsymbol{p}}_b(\tau)}
+	&=\left( {^{b_0}_{b}\dot{\boldsymbol{R}}(\tau)}\right) ^\top\cdot{^{b_0}_{b}\boldsymbol{R}}(\tau)\cdot{^{b}_{r}\boldsymbol{R}}\cdot\bsm{d}(\tau)-\left( {^{b_0}_{b}\dot{\boldsymbol{R}}(\tau)}\right) ^\top\cdot\liehat{{^{b_0}_{b}\dot{\boldsymbol{R}}(\tau)}}\cdot{^{b_0}_{b}\boldsymbol{R}(\tau)}\cdot{^{b}{\boldsymbol{p}}_r}
+	\\
+	&=\left( {^{b_0}_{b}\dot{\boldsymbol{R}}(\tau)}\right) ^\top\cdot{^{b_0}_{b}\boldsymbol{R}}(\tau)\cdot{^{b}_{r}\boldsymbol{R}}\cdot\bsm{d}(\tau)	
+	\end{aligned}
+	\end{equation}
+	
 	\section{Visual Kinectics}
 	Given a landmark $\bsm{l}^{w}$ in $\coordframe{w}$, we have:
 	\begin{equation}
@@ -635,7 +656,7 @@
 	\angvel{c^m}{w}(\tau)=\bsm{I}_{3}\cdot\angvel{b^r}{w}(\tau)
 	\end{equation}
 	
-\section{RGBD-Inertial Spatiotemporal Calibration}
+	\section{RGBD-Inertial Spatiotemporal Calibration}
 	\subsection{Visual Kinectics}
 	Given a landmark $\bsm{l}^{w}$ in $\coordframe{w}$, we have:
 	\begin{equation}

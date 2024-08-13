@@ -354,6 +354,14 @@ public:
                                    Estimator::Opt option,
                                    double weight);
 
+    void AddRGBDInertialAlignment(const std::vector<IMUFrame::Ptr> &data,
+                                  const std::string &imuTopic,
+                                  const std::string &rgbdTopic,
+                                  const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &sRGBDAry,
+                                  const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &eRGBDAry,
+                                  Estimator::Opt option,
+                                  double weight);
+
     void AddRadarInertialRotRoughAlignment(const std::vector<IMUFrame::Ptr> &data,
                                            const std::string &imuTopic,
                                            const std::string &radarTopic,

@@ -39,6 +39,7 @@
 #include "factor/visual_inertial_align_factor.hpp"
 #include "factor/radar_inertial_align_factor.hpp"
 #include "factor/radar_inertial_rot_align_factor.hpp"
+#include "factor/rgbd_inertial_align_factor.hpp"
 #include "factor/hand_eye_rot_align_factor.hpp"
 #include "factor/so3_factor.hpp"
 #include "factor/visual_proj_factor.hpp"
@@ -647,6 +648,83 @@ void Estimator::AddRadarInertialRotRoughAlignment(const std::vector<IMUFrame::Pt
     }
     if (!IsOptionWith(Opt::OPT_SO3_RjToBr, option)) {
         this->SetParameterBlockConstant(SO3_RjToBr);
+    }
+}
+/**
+ * param blocks:
+ * [ POS_BiInBr | SO3_DnToBr | POS_DnInBr | GRAVITY | SCALE ]
+ */
+void Estimator::AddRGBDInertialAlignment(
+    const std::vector<IMUFrame::Ptr> &data,
+    const std::string &imuTopic,
+    const std::string &rgbdTopic,
+    const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &sRGBDAry,
+    const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &eRGBDAry,
+    Estimator::Opt option,
+    double weight) {
+    const auto &so3Spline = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    double st = sRGBDAry.first->GetTimestamp(), et = eRGBDAry.first->GetTimestamp();
+    double TO_DnToBr = parMagr->TEMPORAL.TO_DnToBr.at(rgbdTopic);
+
+    if (!so3Spline.TimeStampInRange(st + TO_DnToBr) ||
+        !so3Spline.TimeStampInRange(et + TO_DnToBr)) {
+        return;
+    }
+
+    double TO_DnToBi = TO_DnToBr - parMagr->TEMPORAL.TO_BiToBr.at(imuTopic);
+    auto velVecMat = InertialVelIntegration(data, imuTopic, st + TO_DnToBi, et + TO_DnToBi);
+
+    // create a cost function
+    auto helper = RGBDInertialAlignHelper<Configor::Prior::SplineOrder>(
+        so3Spline, sRGBDAry, eRGBDAry, TO_DnToBi, velVecMat);
+    auto costFunc = RGBDInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
+
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(4);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(1);
+
+    costFunc->SetNumResiduals(3);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // POS_BiInBc
+    auto POS_BiInBr = parMagr->EXTRI.POS_BiInBr.at(imuTopic).data();
+    paramBlockVec.push_back(POS_BiInBr);
+    // SO3_DnToBr
+    auto SO3_DnToBr = parMagr->EXTRI.SO3_DnToBr.at(rgbdTopic).data();
+    paramBlockVec.push_back(SO3_DnToBr);
+    // POS_DnInBr
+    auto POS_DnInBr = parMagr->EXTRI.POS_DnInBr.at(rgbdTopic).data();
+    paramBlockVec.push_back(POS_DnInBr);
+    // GRAVITY
+    auto gravity = parMagr->GRAVITY.data();
+    paramBlockVec.push_back(gravity);
+    // SCALE
+    auto alpha = &parMagr->INTRI.RGBD.at(rgbdTopic)->alpha;
+    paramBlockVec.push_back(alpha);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+    this->SetManifold(gravity, GRAVITY_MANIFOLD.get());
+    this->SetManifold(SO3_DnToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_GRAVITY, option)) {
+        this->SetParameterBlockConstant(gravity);
+    }
+    if (!IsOptionWith(Opt::OPT_POS_BiInBr, option)) {
+        this->SetParameterBlockConstant(POS_BiInBr);
+    }
+    if (!IsOptionWith(Opt::OPT_SO3_DnToBr, option)) {
+        this->SetParameterBlockConstant(SO3_DnToBr);
+    }
+    if (!IsOptionWith(Opt::OPT_POS_DnInBr, option)) {
+        this->SetParameterBlockConstant(POS_DnInBr);
+    }
+    if (!IsOptionWith(Opt::OPT_RGBD_ALPHA, option)) {
+        this->SetParameterBlockConstant(alpha);
     }
 }
 

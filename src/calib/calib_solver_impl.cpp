@@ -549,9 +549,6 @@ CalibSolver::Initialization() {
         });
     }
 
-    _parMagr->ShowParamStatus();
-    IKALIBR_DEBUG
-    std::cin.get();
     // -----------------------------------------------------------------------
     // Step 4.1: initialize extrinsic rotations of LiDARs if they are involved
     // -----------------------------------------------------------------------
@@ -726,6 +723,8 @@ CalibSolver::Initialization() {
         OptOption::Option::OPT_POS_CmInBr | OptOption::Option::OPT_VISUAL_GLOBAL_SCALE |
         // radar extrinsics
         OptOption::Option::OPT_SO3_RjToBr | OptOption::Option::OPT_POS_RjInBr |
+        // rgbd extrinsics and alpha (depth factor)
+        OptOption::Option::OPT_POS_DnInBr | OptOption::Option::OPT_RGBD_ALPHA |
         // imu extrinsic translations and gravity
         OptOption::Option::OPT_POS_BiInBr | OptOption::Option::OPT_GRAVITY;
 
@@ -755,7 +754,7 @@ CalibSolver::Initialization() {
             }
 
             if (ePose.timeStamp - sPose.timeStamp < 1E-3 ||
-                ePose.timeStamp - sPose.timeStamp > 1.0) {
+                ePose.timeStamp - sPose.timeStamp > 0.5) {
                 continue;
             }
 
@@ -833,7 +832,7 @@ CalibSolver::Initialization() {
             }
 
             if (ePose.timeStamp - sPose.timeStamp < 1E-3 ||
-                ePose.timeStamp - sPose.timeStamp > 1.0) {
+                ePose.timeStamp - sPose.timeStamp > 0.5) {
                 continue;
             }
 
@@ -888,9 +887,43 @@ CalibSolver::Initialization() {
                 continue;
             }
 
+            if (eArray->GetTimestamp() - sArray->GetTimestamp() < 1E-3 ||
+                eArray->GetTimestamp() - sArray->GetTimestamp() > 0.5) {
+                continue;
+            }
+
             estimator->AddRadarInertialRotRoughAlignment(frames, Configor::DataStream::ReferIMU,
                                                          radarTopic, sArray, eArray, optOption,
                                                          weight);
+        }
+    }
+
+    // rgbd-inertial alignment
+    for (const auto &[rgbdTopic, bodyFrameVels] : rgbdBodyFrameVels) {
+        double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
+        double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(rgbdTopic);
+
+        const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+        spdlog::info("add rgbd-inertial alignment factors for '{}' and '{}'...", rgbdTopic,
+                     Configor::DataStream::ReferIMU);
+
+        for (int i = 0; i < static_cast<int>(bodyFrameVels.size()) - 1; ++i) {
+            const auto &[sFrame, sVel] = bodyFrameVels.at(i);
+            const auto &[eFrame, eVel] = bodyFrameVels.at(i + 1);
+
+            if (sFrame->GetTimestamp() + TO_DnToBr < st ||
+                eFrame->GetTimestamp() + TO_DnToBr > et) {
+                continue;
+            }
+
+            if (eFrame->GetTimestamp() - sFrame->GetTimestamp() < 1E-3 ||
+                eFrame->GetTimestamp() - sFrame->GetTimestamp() > 0.5) {
+                continue;
+            }
+
+            estimator->AddRGBDInertialAlignment(frames, Configor::DataStream::ReferIMU, rgbdTopic,
+                                                bodyFrameVels.at(i), bodyFrameVels.at(i + 1),
+                                                optOption, weight);
         }
     }
 
@@ -900,6 +933,10 @@ CalibSolver::Initialization() {
 
     sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
+
+    _parMagr->ShowParamStatus();
+    IKALIBR_DEBUG
+    std::cin.get();
 
     if (Configor::IsRadarIntegrated()) {
         estimator = Estimator::Create(_splines, _parMagr);
