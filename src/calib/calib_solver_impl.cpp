@@ -936,10 +936,6 @@ CalibSolver::Initialization() {
     sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
-    _parMagr->ShowParamStatus();
-    IKALIBR_DEBUG
-    std::cin.get();
-
     if (Configor::IsRadarIntegrated()) {
         estimator = Estimator::Create(_splines, _parMagr);
         // radar-inertial alignment
@@ -1022,6 +1018,7 @@ CalibSolver::Initialization() {
             constexpr int VelDeriv =
                 TimeDeriv::Deriv<TimeDeriv::LIN_VEL_SPLINE, TimeDeriv::LIN_VEL>();
             optOption |= OptOption::Option::OPT_SO3_SPLINE;
+            // radar-derived velocities
             for (const auto &[topic, data] : _dataMagr->GetRadarMeasurements()) {
                 const double TO_RjToBr = _parMagr->TEMPORAL.TO_RjToBr.at(topic);
                 const auto &SO3_RjToBr = _parMagr->EXTRI.SO3_RjToBr.at(topic);
@@ -1044,13 +1041,39 @@ CalibSolver::Initialization() {
                                                                   optOption, weight);
                 }
             }
+
+            // rgbd-derived up-to-scale velocities
+            for (const auto &[rgbdTopic, bodyFrameVels] : rgbdBodyFrameVels) {
+                double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
+                double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(rgbdTopic);
+                const auto &SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(rgbdTopic);
+                const Eigen::Vector3d &POS_DnInBr = _parMagr->EXTRI.POS_DnInBr.at(rgbdTopic);
+                const double alpha = _parMagr->INTRI.RGBD.at(rgbdTopic)->alpha;
+
+                for (const auto &[frame, vel] : bodyFrameVels) {
+                    double timeByBr = frame->GetTimestamp() + TO_DnToBr;
+                    if (!so3Spline.TimeStampInRange(timeByBr)) {
+                        continue;
+                    }
+
+                    auto SO3_BrToW = so3Spline.Evaluate(timeByBr);
+                    auto ANG_VEL_BrToWInW = SO3_BrToW * so3Spline.VelocityBody(timeByBr);
+                    Eigen::Vector3d LIN_VEL_BrToWInW =
+                        SO3_BrToW * SO3_DnToBr * (alpha * vel) -
+                        Sophus::SO3d::hat(ANG_VEL_BrToWInW) * (SO3_BrToW * POS_DnInBr);
+
+                    estimator->AddLinearScaleConstraint<VelDeriv>(timeByBr, LIN_VEL_BrToWInW,
+                                                                  optOption, weight);
+                }
+            }
+
             // add acceleration factor using inertial measurements only from reference IMU
             this->AddAcceFactor<TimeDeriv::LIN_VEL_SPLINE>(
                 estimator, Configor::DataStream::ReferIMU, optOption);
             this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU, optOption);
             // if optimize time offsets, we first recover the scale spline, then construct a ls
-            // problem to recover time offsets
-            if (Configor::Prior::OptTemporalParams) {
+            // problem to recover time offsets, only for radars
+            if (Configor::IsRadarIntegrated() && Configor::Prior::OptTemporalParams) {
                 // we don't want to output the solving information
                 estimator->Solve(
                     Estimator::DefaultSolverOptions(Configor::Preference::AvailableThreads(), false,
@@ -1195,6 +1218,10 @@ CalibSolver::Initialization() {
     if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
         SaveStageCalibParam(_parMagr, "stage_3_scale_fit");
     }
+
+    _parMagr->ShowParamStatus();
+    IKALIBR_DEBUG
+    std::cin.get();
 
     //------------------------------------------------------
     // Step 7: align initialized states to gravity direction
