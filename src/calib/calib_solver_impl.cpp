@@ -413,7 +413,7 @@ CalibSolver::Initialization() {
 
             // estimates rotations
             auto odometer = RotOnlyVisualOdometer::Create(featNumPerImg, minDist,
-                                                          _parMagr->INTRI.RGBD.at(topic));
+                                                          _parMagr->INTRI.RGBD.at(topic)->intri);
             // estimates extrinsic rotation between the rgbd and reference IMU using the estimated
             // rotations
             auto rotEstimator = RotationEstimator::Create();
@@ -526,7 +526,7 @@ CalibSolver::Initialization() {
         }
 
         // estimate rgbd-derived up-to-scale linear velocities for each frame
-        const auto &intri = _parMagr->INTRI.RGBD.at(topic);
+        const auto &rgbdIntri = _parMagr->INTRI.RGBD.at(topic);
         const double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
         const Sophus::SO3d &SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
         for (const auto &[frame, dynamics] : dynamicsInFrame) {
@@ -534,7 +534,7 @@ CalibSolver::Initialization() {
             if (timeByBr < st || timeByBr > et) {
                 continue;
             }
-            auto vvEstimator = VisualVelocityEstimator::Create(dynamics, intri);
+            auto vvEstimator = VisualVelocityEstimator::Create(dynamics, rgbdIntri->intri);
             auto res = vvEstimator->Estimate(timeByBr, so3Spline, SO3_DnToBr);
             if (res) {
                 rgbdBodyFrameVels[topic].emplace_back(frame, *res);

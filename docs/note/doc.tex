@@ -942,6 +942,20 @@
 	+y_1\cdot\left(\frac{1}{x_1-x_0}+\frac{1}{x_1-x_2}\right)
 	+y_2\cdot\frac{x_1-x_0}{x_2-x_0}\cdot\frac{1}{x_2-x_1}
 	\end{equation}
+
+	\subsection{RGBD-inertial Alignment}
+	首先通过最小二乘，计算得到${^{b}_{d}\boldsymbol{R}^\top}\cdot{^{b_0}_{b}\boldsymbol{R}^\top}\cdot{^{b_0}\dot{\boldsymbol{p}}_d(\tau)}$，记为$\bsm{d}(\tau)$向量。类似于radar，我们有(把$\{r\}$替换为$\{d\}$即可)：
+	\begin{equation}
+	{^{b_0}\dot{\boldsymbol{p}}_b(\tau)}={^{b_0}_{b}\boldsymbol{R}}(\tau)\cdot{^{b}_{r}\boldsymbol{R}}\cdot s\cdot\bsm{d}(\tau)
+	+\liehat{{^{b_0}_{b}\boldsymbol{R}(\tau)}\cdot{^{b}{\boldsymbol{p}}_r}}\cdot{^{b_0}_{b}\dot{\boldsymbol{R}}(\tau)}
+	\end{equation}
+	注意，与radar不同的地方在于多了一个尺度因子$s$。所以在$\tau\in[t_k,t_{k+1}]$时间段内，有：：
+	\begin{equation}
+	\int_{\tau\in[t_k,t_{k+1}]}{^{b_0}_{b}\boldsymbol{R}(\tau)}\cdot{^{b}\boldsymbol{a}(\tau)}\cdot d\tau=
+	{^{b_0}\dot{\boldsymbol{p}}_b(t_{k+1})}-{^{b_0}\dot{\boldsymbol{p}}_b(t_k)}
+	-{^{b_0}\boldsymbol{g}}\cdot (t_{k+1}-t_k)
+	\end{equation}
+	
 	
 	\newpage
 	\bibliographystyle{IEEEtran}

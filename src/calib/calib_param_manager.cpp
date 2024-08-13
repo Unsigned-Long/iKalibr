@@ -122,8 +122,10 @@ CalibParamManager::Ptr CalibParamManager::InitParamsFromConfigor() {
                                           Configor::Preference::OutputDataFormat);
     }
     for (auto &[topic, intri] : parMarg->INTRI.RGBD) {
-        intri = ParIntri::LoadCameraIntri(Configor::DataStream::RGBDTopics.at(topic).Intrinsics,
-                                          Configor::Preference::OutputDataFormat);
+        intri = RGBDIntrinsics::Create(
+            ParIntri::LoadCameraIntri(Configor::DataStream::RGBDTopics.at(topic).Intrinsics,
+                                      Configor::Preference::OutputDataFormat),
+            1.0, 0.0);
     }
 
     // align to the negative 'z' axis
@@ -323,7 +325,8 @@ void CalibParamManager::ShowParamStatus() {
     // rgbds
     for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
         STREAM_PACK("RGBD: '" << topic << "'")
-        const auto &intri = INTRI.RGBD.at(topic);
+        const auto &rgbdIntri = INTRI.RGBD.at(topic);
+        const auto &intri = rgbdIntri->intri;
         const auto &pars = intri->GetParams();
 
         STREAM_PACK(
@@ -335,6 +338,9 @@ void CalibParamManager::ShowParamStatus() {
 
         STREAM_PACK(PARAM("PRINCIP  POINT: ")
                     << FormatValueVector<double>({"cx", "cy"}, {pars.at(2), pars.at(3)}))
+
+        STREAM_PACK(PARAM("DEPTH   FACTOR: ")
+                    << FormatValueVector<double>({" a", " b"}, {rgbdIntri->alpha, rgbdIntri->beta}))
 
         STREAM_PACK("")
         if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(intri)) {

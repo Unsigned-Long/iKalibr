@@ -37,6 +37,7 @@
 
 #include "config/configor.h"
 #include "sensor/imu_intrinsic.hpp"
+#include "sensor/rgbd_intrinsic.hpp"
 #include "tiny-viewer/core/viewer.h"
 #include "tiny-viewer/core/multi_viewer.h"
 #include "veta/camera/pinhole_brown.h"
@@ -198,7 +199,7 @@ public:
         // topic, param pack
         std::map<std::string, IMUIntrinsics::Ptr> IMU;
         std::map<std::string, ns_veta::PinholeIntrinsic::Ptr> Camera;
-        std::map<std::string, ns_veta::PinholeIntrinsic::Ptr> RGBD;
+        std::map<std::string, RGBDIntrinsics::Ptr> RGBD;
 
         static ns_veta::PinholeIntrinsic::Ptr LoadCameraIntri(
             const std::string &filename,
