@@ -97,6 +97,7 @@ double Configor::Prior::LiDARDataAssociate::PlanarityMin = {};
 double Configor::Prior::CauchyLossForRadarFactor = {};
 double Configor::Prior::CauchyLossForLiDARFactor = {};
 double Configor::Prior::CauchyLossForCameraFactor = {};
+double Configor::Prior::CauchyLossForRGBDFactor = {};
 bool Configor::Prior::OptTemporalParams = {};
 
 bool Configor::Preference::UseCudaInSolving = {};
@@ -351,6 +352,9 @@ void Configor::CheckConfigure() {
     }
     if (Prior::CauchyLossForCameraFactor <= 0.0) {
         throw Status(Status::ERROR, "the Prior::CauchyLossForCameraFactor should be positive!");
+    }
+    if (Prior::CauchyLossForRGBDFactor <= 0.0) {
+        throw Status(Status::ERROR, "the Prior::CauchyLossForRGBDFactor should be positive!");
     }
 
     if (Preference::SplineScaleInViewer <= 0.0) {

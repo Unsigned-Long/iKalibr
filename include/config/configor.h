@@ -260,6 +260,7 @@ public:
         static double CauchyLossForRadarFactor;
         static double CauchyLossForLiDARFactor;
         static double CauchyLossForCameraFactor;
+        static double CauchyLossForRGBDFactor;
 
     public:
         template <class Archive>
@@ -270,7 +271,7 @@ public:
                cereal::make_nvp("NDTLiDAROdometer", ndtLiDAROdometer),
                cereal::make_nvp("LiDARDataAssociate", lidarDataAssociate),
                CEREAL_NVP(CauchyLossForRadarFactor), CEREAL_NVP(CauchyLossForLiDARFactor),
-               CEREAL_NVP(CauchyLossForCameraFactor));
+               CEREAL_NVP(CauchyLossForCameraFactor), CEREAL_NVP(CauchyLossForRGBDFactor));
         }
     } prior;
 

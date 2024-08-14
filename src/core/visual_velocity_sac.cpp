@@ -111,7 +111,7 @@ std::optional<Eigen::Vector3d> VisualVelocitySacProblem::VisualVelocityEstimatio
     std::shared_ptr<VisualVelocitySacProblem> probPtr(
         new VisualVelocitySacProblem(dynamics, intri, timeByBr, spline, SO3_DnToBr));
     ransac.sac_model_ = probPtr;
-    ransac.threshold_ = thd;
+    ransac.threshold_ = Configor::Prior::CauchyLossForRGBDFactor * intri->Focal();
     ransac.max_iterations_ = 20;
     bool res = ransac.computeModel();
     if (res) {
