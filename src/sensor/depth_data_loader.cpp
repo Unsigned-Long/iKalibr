@@ -53,7 +53,7 @@ DepthDataLoader::Ptr DepthDataLoader::GetLoader(const std::string &modelStr) {
     try {
         model = EnumCast::stringToEnum<CameraModelType>(modelStr);
     } catch (...) {
-        throw Status(Status::ERROR, UnsupportedCameraModelMsg(modelStr));
+        throw Status(Status::ERROR, CameraModel::UnsupportedCameraModelMsg(modelStr));
     }
     DepthDataLoader::Ptr dataLoader;
     switch (model) {
@@ -70,7 +70,7 @@ DepthDataLoader::Ptr DepthDataLoader::GetLoader(const std::string &modelStr) {
             dataLoader = DepthSensorImageCompLoader::Create(model);
             break;
         default:
-            throw Status(Status::ERROR, UnsupportedCameraModelMsg(modelStr));
+            throw Status(Status::ERROR, CameraModel::UnsupportedCameraModelMsg(modelStr));
     }
     return dataLoader;
 }

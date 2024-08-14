@@ -42,24 +42,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_ikalibr {
 
 VisualReProjAssociator::VisualReProjAssociator(const CameraModelType &type)
-    : ExposureFactor(0.0) {
-    if (IsOptionWith(CameraModelType::RS, type)) {
-        // if it is a RS camera
-        if (IsOptionWith(CameraModelType::FIRST_EXPOSURE, type)) {
-            ExposureFactor = 0.0;
-            spdlog::info("RS images are stamped by 'FIRST_EXPOSURE' mode, ExposureFactor: '{:.2f}'",
-                         ExposureFactor);
-        } else if (IsOptionWith(CameraModelType::MID_EXPOSURE, type)) {
-            ExposureFactor = 0.5;
-            spdlog::info("RS images are stamped by 'MID_EXPOSURE' mode, ExposureFactor: '{:.2f}'",
-                         ExposureFactor);
-        } else if (IsOptionWith(CameraModelType::LAST_EXPOSURE, type)) {
-            ExposureFactor = 1.0;
-            spdlog::info("RS images are stamped by 'LAST_EXPOSURE' mode, ExposureFactor: '{:.2f}'",
-                         ExposureFactor);
-        }
-    }
-}
+    : ExposureFactor(CameraModel::RSCameraExposureFactor(type)) {}
 
 VisualReProjAssociator::Ptr VisualReProjAssociator::Create(const CameraModelType &type) {
     return std::make_shared<VisualReProjAssociator>(type);

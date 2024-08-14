@@ -45,19 +45,22 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
+struct LidarModel {
+    enum class LidarModelType {
+        VLP_16_PACKET,
+        VLP_POINTS,
 
-enum class LidarModelType {
-    VLP_16_PACKET,
-    VLP_POINTS,
+        OUSTER_POINTS,
 
-    OUSTER_POINTS,
+        PANDAR_XT_POINTS,
 
-    PANDAR_XT_POINTS,
+        LIVOX_CUSTOM,
+    };
 
-    LIVOX_CUSTOM,
+    static std::string UnsupportedLiDARModelMsg(const std::string &modelStr);
 };
 
-std::string UnsupportedLiDARModelMsg(const std::string &modelStr);
+using LidarModelType = LidarModel::LidarModelType;
 
 class LiDARDataLoader {
 public:

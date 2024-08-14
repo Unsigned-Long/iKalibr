@@ -50,7 +50,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-std::string UnsupportedLiDARModelMsg(const std::string &modelStr) {
+std::string LidarModel::UnsupportedLiDARModelMsg(const std::string &modelStr) {
     return fmt::format(
         "Unsupported LiDAR Type: '{}'. "
         "Currently supported LiDAR types are: \n"
@@ -71,7 +71,7 @@ LiDARDataLoader::Ptr LiDARDataLoader::GetLoader(const std::string &lidarModelStr
     try {
         lidarModel = EnumCast::stringToEnum<LidarModelType>(lidarModelStr);
     } catch (...) {
-        throw Status(Status::WARNING, UnsupportedLiDARModelMsg(lidarModelStr));
+        throw Status(Status::WARNING, LidarModel::UnsupportedLiDARModelMsg(lidarModelStr));
     }
     LiDARDataLoader::Ptr dataLoader;
     switch (lidarModel) {
@@ -91,7 +91,7 @@ LiDARDataLoader::Ptr LiDARDataLoader::GetLoader(const std::string &lidarModelStr
             dataLoader = LivoxLiDAR::Create(lidarModel);
             break;
         default:
-            throw Status(Status::WARNING, UnsupportedLiDARModelMsg(lidarModelStr));
+            throw Status(Status::WARNING, LidarModel::UnsupportedLiDARModelMsg(lidarModelStr));
     }
     return dataLoader;
 }

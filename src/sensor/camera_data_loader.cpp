@@ -45,7 +45,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-std::string UnsupportedCameraModelMsg(const std::string &modelStr) {
+std::string CameraModel::UnsupportedCameraModelMsg(const std::string &modelStr) {
     return fmt::format(
         "Unsupported camera Type: '{}'. "
         "Currently supported camera types are: \n"
@@ -71,6 +71,27 @@ std::string UnsupportedCameraModelMsg(const std::string &modelStr) {
         modelStr);
 }
 
+double CameraModel::RSCameraExposureFactor(const CameraModelType &type) {
+    double exposureFactor = 0.0;
+    if (IsOptionWith(CameraModelType::RS, type)) {
+        // if it is a RS camera
+        if (IsOptionWith(CameraModelType::FIRST_EXPOSURE, type)) {
+            exposureFactor = 0.0;
+            spdlog::info("RS images are stamped by 'FIRST_EXPOSURE' mode, exposureFactor: '{:.2f}'",
+                         exposureFactor);
+        } else if (IsOptionWith(CameraModelType::MID_EXPOSURE, type)) {
+            exposureFactor = 0.5;
+            spdlog::info("RS images are stamped by 'MID_EXPOSURE' mode, exposureFactor: '{:.2f}'",
+                         exposureFactor);
+        } else if (IsOptionWith(CameraModelType::LAST_EXPOSURE, type)) {
+            exposureFactor = 1.0;
+            spdlog::info("RS images are stamped by 'LAST_EXPOSURE' mode, exposureFactor: '{:.2f}'",
+                         exposureFactor);
+        }
+    }
+    return exposureFactor;
+}
+
 CameraDataLoader::CameraDataLoader(CameraModelType model)
     : _model(model) {}
 
@@ -80,7 +101,7 @@ CameraDataLoader::Ptr CameraDataLoader::GetLoader(const std::string &modelStr) {
     try {
         model = EnumCast::stringToEnum<CameraModelType>(modelStr);
     } catch (...) {
-        throw Status(Status::ERROR, UnsupportedCameraModelMsg(modelStr));
+        throw Status(Status::ERROR, CameraModel::UnsupportedCameraModelMsg(modelStr));
     }
     CameraDataLoader::Ptr dataLoader;
     switch (model) {
@@ -97,7 +118,7 @@ CameraDataLoader::Ptr CameraDataLoader::GetLoader(const std::string &modelStr) {
             dataLoader = SensorImageCompLoader::Create(model);
             break;
         default:
-            throw Status(Status::ERROR, UnsupportedCameraModelMsg(modelStr));
+            throw Status(Status::ERROR, CameraModel::UnsupportedCameraModelMsg(modelStr));
     }
     return dataLoader;
 }

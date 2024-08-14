@@ -44,7 +44,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-std::string UnsupportedIMUModelMsg(const std::string &modelStr) {
+std::string IMUModel::UnsupportedIMUModelMsg(const std::string &modelStr) {
     return fmt::format(
         "Unsupported IMU Type: '{}'. "
         "Currently supported IMU types are: \n"
@@ -69,7 +69,7 @@ IMUDataLoader::Ptr IMUDataLoader::GetLoader(const std::string &imuModelStr) {
     try {
         imuModel = EnumCast::stringToEnum<IMUModelType>(imuModelStr);
     } catch (...) {
-        throw Status(Status::WARNING, UnsupportedIMUModelMsg(imuModelStr));
+        throw Status(Status::WARNING, IMUModel::UnsupportedIMUModelMsg(imuModelStr));
     }
     IMUDataLoader::Ptr dataLoader;
     switch (imuModel) {
@@ -86,7 +86,7 @@ IMUDataLoader::Ptr IMUDataLoader::GetLoader(const std::string &imuModelStr) {
             dataLoader = SensorIMUGUnitLoader::Create(imuModel, -Configor::Prior::GravityNorm);
             break;
         default:
-            throw Status(Status::WARNING, UnsupportedIMUModelMsg(imuModelStr));
+            throw Status(Status::WARNING, IMUModel::UnsupportedIMUModelMsg(imuModelStr));
     }
     return dataLoader;
 }

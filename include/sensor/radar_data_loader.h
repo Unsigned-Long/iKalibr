@@ -45,14 +45,20 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-enum class RadarModelType {
-    AINSTEIN_RADAR,
-    AWR1843BOOST_RAW,
-    AWR1843BOOST_CUSTOM,
-    POINTCLOUD2_POSV,
-    POINTCLOUD2_POSIV,
-    POINTCLOUD2_XRIO,
+struct RadarModel {
+    enum class RadarModelType {
+        AINSTEIN_RADAR,
+        AWR1843BOOST_RAW,
+        AWR1843BOOST_CUSTOM,
+        POINTCLOUD2_POSV,
+        POINTCLOUD2_POSIV,
+        POINTCLOUD2_XRIO,
+    };
+
+    static std::string UnsupportedRadarModelMsg(const std::string &modelStr);
 };
+
+using RadarModelType = RadarModel::RadarModelType;
 
 class RadarDataLoader {
 public:
