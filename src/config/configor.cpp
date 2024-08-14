@@ -232,6 +232,7 @@ void Configor::CheckConfigure() {
     }
 
     // check empty topics
+    std::multiset<std::string> topics;
     for (const auto &[topic, config] : DataStream::IMUTopics) {
         if (topic.empty()) {
             throw Status(Status::ERROR, "empty IMU topic exists!");
@@ -247,6 +248,7 @@ void Configor::CheckConfigure() {
             throw Status(Status::ERROR, "IMU intrinsic file for '{}' dose not exist: '{}'", topic,
                          config.Intrinsics);
         }
+        topics.insert(topic);
     }
     for (const auto &[topic, config] : DataStream::RadarTopics) {
         if (topic.empty()) {
@@ -255,6 +257,7 @@ void Configor::CheckConfigure() {
         if (config.Weight <= 0.0) {
             throw Status(Status::ERROR, "weight of Radar '{}' should be positive!", topic);
         }
+        topics.insert(topic);
     }
     for (const auto &[topic, config] : DataStream::LiDARTopics) {
         if (topic.empty()) {
@@ -263,6 +266,7 @@ void Configor::CheckConfigure() {
         if (config.Weight <= 0.0) {
             throw Status(Status::ERROR, "weight of LiDAR '{}' should be positive!", topic);
         }
+        topics.insert(topic);
     }
     for (const auto &[topic, config] : DataStream::CameraTopics) {
         if (topic.empty()) {
@@ -279,6 +283,7 @@ void Configor::CheckConfigure() {
             throw Status(Status::ERROR, "camera intrinsic file for '{}' dose not exist: '{}'",
                          topic, config.Intrinsics);
         }
+        topics.insert(topic);
     }
     for (const auto &[topic, config] : DataStream::RGBDTopics) {
         if (topic.empty()) {
@@ -293,6 +298,14 @@ void Configor::CheckConfigure() {
         if (!std::filesystem::exists(config.Intrinsics)) {
             throw Status(Status::ERROR, "rgbd intrinsic file for '{}' dose not exist: '{}'", topic,
                          config.Intrinsics);
+        }
+        topics.insert(topic);
+    }
+    for (const auto &topic : topics) {
+        if (topics.count(topic) != 1) {
+            throw Status(Status::ERROR,
+                         "the topic of '{}' is ambiguous, associated to not unique sensors!",
+                         topic);
         }
     }
 
