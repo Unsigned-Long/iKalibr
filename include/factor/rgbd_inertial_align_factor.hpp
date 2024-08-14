@@ -123,7 +123,7 @@ public:
 public:
     /**
      * param blocks:
-     * [ POS_BiInBr | SO3_DnToBr | POS_DnInBr | GRAVITY | SCALE ]
+     * [ POS_BiInBr | SO3_DnToBr | POS_DnInBr | GRAVITY ]
      */
     template <class T>
     bool operator()(T const *const *sKnots, T *sResiduals) const {
@@ -131,14 +131,13 @@ public:
         Eigen::Map<Sophus::SO3<T> const> const SO3_DnToBr(sKnots[1]);
         Eigen::Map<const Eigen::Vector3<T>> POS_DnInBr(sKnots[2]);
         Eigen::Map<const Eigen::Vector3<T>> GRAVITY(sKnots[3]);
-        T SCALE = sKnots[4][0];
 
         Eigen::Vector3<T> sLIN_VEL_BrToBr0InBr0 =
-            _helper.sSO3_BrToBr0 * SO3_DnToBr * (SCALE * _helper.sDVec) +
+            _helper.sSO3_BrToBr0 * SO3_DnToBr * _helper.sDVec +
             Sophus::SO3<T>::hat(_helper.sSO3_BrToBr0 * POS_DnInBr) * _helper.sANG_VEL_BcToBc0;
 
         Eigen::Vector3<T> eLIN_VEL_BrToBr0InBr0 =
-            _helper.eSO3_BrToBr0 * SO3_DnToBr * (SCALE * _helper.eDVec) +
+            _helper.eSO3_BrToBr0 * SO3_DnToBr * _helper.eDVec +
             Sophus::SO3<T>::hat(_helper.eSO3_BrToBr0 * POS_DnInBr) * _helper.eANG_VEL_BcToBc0;
 
         Eigen::Vector3<T> pred =

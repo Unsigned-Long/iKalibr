@@ -109,8 +109,7 @@ public:
         const ns_veta::PinholeIntrinsic::Ptr &intri,
         double timeByBr,
         const VisualVelocityEstimator::So3SplineType &spline,
-        const Sophus::SO3d &SO3_DnToBr,
-        double thd = 20.0);
+        const Sophus::SO3d &SO3_DnToBr);
 
 protected:
     /** The adapter holding all input data */

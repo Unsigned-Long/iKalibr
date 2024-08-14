@@ -105,8 +105,7 @@ std::optional<Eigen::Vector3d> VisualVelocitySacProblem::VisualVelocityEstimatio
     const ns_veta::PinholeIntrinsic::Ptr &intri,
     double timeByBr,
     const VisualVelocityEstimator::So3SplineType &spline,
-    const Sophus::SO3d &SO3_DnToBr,
-    double thd) {
+    const Sophus::SO3d &SO3_DnToBr) {
     opengv::sac::Ransac<VisualVelocitySacProblem> ransac;
     std::shared_ptr<VisualVelocitySacProblem> probPtr(
         new VisualVelocitySacProblem(dynamics, intri, timeByBr, spline, SO3_DnToBr));

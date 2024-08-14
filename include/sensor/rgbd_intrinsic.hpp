@@ -64,6 +64,8 @@ public:
         return std::make_shared<RGBDIntrinsics>(intri, alpha, beta);
     }
 
+    [[nodiscard]] double ActualDepth(double rawDepth) const { return alpha * rawDepth + beta; }
+
 public:
     // Serialization
     template <class Archive>

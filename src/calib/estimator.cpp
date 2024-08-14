@@ -652,7 +652,7 @@ void Estimator::AddRadarInertialRotRoughAlignment(const std::vector<IMUFrame::Pt
 }
 /**
  * param blocks:
- * [ POS_BiInBr | SO3_DnToBr | POS_DnInBr | GRAVITY | SCALE ]
+ * [ POS_BiInBr | SO3_DnToBr | POS_DnInBr | GRAVITY ]
  */
 void Estimator::AddRGBDInertialAlignment(
     const std::vector<IMUFrame::Ptr> &data,
@@ -683,7 +683,6 @@ void Estimator::AddRGBDInertialAlignment(
     costFunc->AddParameterBlock(4);
     costFunc->AddParameterBlock(3);
     costFunc->AddParameterBlock(3);
-    costFunc->AddParameterBlock(1);
 
     costFunc->SetNumResiduals(3);
 
@@ -702,9 +701,6 @@ void Estimator::AddRGBDInertialAlignment(
     // GRAVITY
     auto gravity = parMagr->GRAVITY.data();
     paramBlockVec.push_back(gravity);
-    // SCALE
-    auto alpha = &parMagr->INTRI.RGBD.at(rgbdTopic)->alpha;
-    paramBlockVec.push_back(alpha);
 
     // pass to problem
     this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
@@ -722,9 +718,6 @@ void Estimator::AddRGBDInertialAlignment(
     }
     if (!IsOptionWith(Opt::OPT_POS_DnInBr, option)) {
         this->SetParameterBlockConstant(POS_DnInBr);
-    }
-    if (!IsOptionWith(Opt::OPT_RGBD_ALPHA, option)) {
-        this->SetParameterBlockConstant(alpha);
     }
 }
 

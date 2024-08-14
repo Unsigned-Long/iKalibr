@@ -193,7 +193,7 @@ void Configor::PrintMainFields() {
             DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT
                 DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT
                     DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT DESC_FORMAT
-                        DESC_FORMAT DESC_FORMAT,
+                        DESC_FORMAT DESC_FORMAT DESC_FORMAT,
         DESC_FIELD(IMUTopics), DESC_FIELD(RadarTopics), DESC_FIELD(LiDARTopics),
         DESC_FIELD(CameraTopics), DESC_FIELD(RGBDTopics), DESC_FIELD(DataStream::ReferIMU),
         DESC_FIELD(DataStream::BagPath), DESC_FIELD(DataStream::BeginTime),
@@ -207,9 +207,10 @@ void Configor::PrintMainFields() {
         DESC_FIELD(Prior::LiDARDataAssociate::PointToSurfelMax),
         DESC_FIELD(Prior::LiDARDataAssociate::PlanarityMin),
         DESC_FIELD(Prior::CauchyLossForRadarFactor), DESC_FIELD(Prior::CauchyLossForLiDARFactor),
-        DESC_FIELD(Prior::CauchyLossForLiDARFactor), DESC_FIELD(Preference::UseCudaInSolving),
-        "Preference::OutputDataFormat", Preference::OutputDataFormatStr, "Preference::Outputs",
-        GetOptString(Preference::Outputs), DESC_FIELD(Preference::ThreadsToUse));
+        DESC_FIELD(Prior::CauchyLossForCameraFactor), DESC_FIELD(Prior::CauchyLossForRGBDFactor),
+        DESC_FIELD(Preference::UseCudaInSolving), "Preference::OutputDataFormat",
+        Preference::OutputDataFormatStr, "Preference::Outputs", GetOptString(Preference::Outputs),
+        DESC_FIELD(Preference::ThreadsToUse));
 
 #undef DESC_FIELD
 #undef DESC_FORMAT

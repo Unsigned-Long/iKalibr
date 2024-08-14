@@ -59,6 +59,7 @@ std::optional<Eigen::Vector3d> VisualVelocityEstimator::Estimate(
     double timeByBr,
     const VisualVelocityEstimator::So3SplineType& spline,
     const Sophus::SO3d& SO3_DnToBr) const {
+    // at least two measurements are required
     if (_dynamics.size() < 2) {
         return {};
     }
@@ -98,12 +99,14 @@ std::optional<Eigen::Vector3d> VisualVelocityEstimator::Estimate(
     Eigen::MatrixXd lVec = VMat - BMat;
     Eigen::Matrix3d HMat = (AMat.transpose() * AMat).inverse();
 
-    Eigen::JacobiSVD<Eigen::Matrix3d> svd(HMat, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    Eigen::Vector3d cov = svd.singularValues();
-    if (cov(2) < 0.01) {
-        return {};
-    }
+    // observability check
+    // Eigen::JacobiSVD<Eigen::Matrix3d> svd(HMat, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    // Eigen::Vector3d cov = svd.singularValues();
+    // std::cout << cov.transpose() << std::endl;
+    // if (cov(2) < thd) { return {}; }
+
     Eigen::Vector3d LIN_VEL_DnToWInDn = HMat * AMat.transpose() * lVec;
+    // std::cout << LIN_VEL_DnToWInDn.transpose() << std::endl;
 
     return {LIN_VEL_DnToWInDn};
 }
