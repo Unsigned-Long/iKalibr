@@ -509,24 +509,23 @@ CalibSolver::Initialization() {
     for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
         spdlog::info("estimate RGBD-derived linear velocities for '{}'...", topic);
         // reorganize rgbd-dynamics, store them by frame index
-        // camera frame, dynamics in this frame (pixel, velocity, depth)
+        // camera frame, dynamics in this frame (timestamp, pixel, velocity, depth)
         std::map<CameraFrame::Ptr,
                  std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>>>
             dynamicsInFrame;
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
+        const auto &cameraType = EnumCast::stringToEnum<CameraModelType>(
+            Configor::DataStream::RGBDTopics.at(topic).Type);
+        const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
         for (const auto &dynamic : dynamics) {
             // show the visual pixel dynamic image (tracking features, mid-point pixel velocity)
             // auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic)->intri);
             auto midCamFrame = dynamic->GetMidCameraFrame();
-            auto depthMat = std::dynamic_pointer_cast<RGBDFrame>(midCamFrame)->GetDepthImage();
-            const Eigen::Vector2d &midPoint = dynamic->GetMidPoint();
-            // obtain actual depth
-            double depth =
-                intri->ActualDepth(depthMat.at<float>((int)midPoint(1), (int)midPoint(0)));
-            if (depth > 1E-2 /* 1 cm */) {
+            if (const auto &rgbdVelCorr = dynamic->CreateRGBDVelocityCorr(intri, cameraType);
+                rgbdVelCorr->depth > 1E-2 /* 1 cm */) {
                 // a valid depth
-                dynamicsInFrame[midCamFrame].emplace_back(midPoint, dynamic->GetMidPointVel(),
-                                                          depth);
+                dynamicsInFrame[midCamFrame].emplace_back(
+                    rgbdVelCorr->MidPoint(), rgbdVelCorr->MidPointVel(readout), rgbdVelCorr->depth);
             }
         }
 
@@ -930,6 +929,8 @@ CalibSolver::Initialization() {
                 continue;
             }
 
+            // we don't consider the readout time here (i.e., the camera frame time is treated as
+            // the velocity of the midpoint)
             estimator->AddRGBDInertialAlignment(frames, Configor::DataStream::ReferIMU, rgbdTopic,
                                                 bodyFrameVels.at(i), bodyFrameVels.at(i + 1),
                                                 optOption, weight);

@@ -89,6 +89,7 @@ CalibParamManager::CalibParamManager(const std::vector<std::string> &imuTopics,
         EXTRI.SO3_DnToBr[topic] = Sophus::SO3d();
         EXTRI.POS_DnInBr[topic] = Eigen::Vector3d::Zero();
         TEMPORAL.TO_DnToBr[topic] = 0.0;
+        TEMPORAL.RS_READOUT[topic] = 0.0;
         INTRI.RGBD[topic] = nullptr;
     }
     GRAVITY = Eigen::Vector3d(0.0, 0.0, -9.8);
@@ -242,6 +243,8 @@ void CalibParamManager::ShowParamStatus() {
     for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
         STREAM_PACK("RGBD: '" << topic << "'")
         OUTPUT_TEMPORAL(D, n, B, r)
+        const auto RS_READOUT = TEMPORAL.RS_READOUT.at(topic);
+        STREAM_PACK(fmt::format("{}: {:+010.6f} (s)", PARAM("RS_READOUT"), RS_READOUT))
         STREAM_PACK("")
     }
 

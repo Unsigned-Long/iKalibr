@@ -63,6 +63,34 @@ void ConfigSpdlog();
 
 void PrintIKalibrLibInfo();
 
+// given three points, compute the first order of the middle point using lagrange polynomial
+template <class Type>
+double LagrangePolynomialTripleMidFOD(const std::array<Type, 3> &xData,
+                                      const std::array<Type, 3> &yData) {
+    Type x0 = xData[0];
+    Type x1 = xData[1];
+    Type x2 = xData[2];
+    Type y0 = yData[0];
+    Type y1 = yData[1];
+    Type y2 = yData[2];
+    Type v1 = y0 * (x1 - x2) / (x0 - x1) / (x0 - x2);
+    Type v2 = y1 * (1 / (x1 - x0) + 1 / (x1 - x2));
+    Type v3 = y2 * (x1 - x0) / (x2 - x0) / (x2 - x1);
+    return v1 + v2 + v3;
+}
+
+// given three points, compute the first order of the middle point using lagrange polynomial
+template <class Type>
+double LagrangePolynomialTripleMidFOD(const std::array<std::pair<Type, Type>, 3> &data) {
+    std::array<Type, 3> xData;
+    std::array<Type, 3> yData;
+    for (int i = 0; i < 3; ++i) {
+        xData[i] = data[i].first;
+        yData[i] = data[i].second;
+    }
+    return LagrangePolynomialTripleMidFOD(xData, yData);
+}
+
 template <class Type>
 Type GetParamFromROS(const std::string &param) {
     Type par;

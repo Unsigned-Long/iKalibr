@@ -38,14 +38,18 @@
 #include "util/utils.h"
 #include "opencv4/opencv2/core.hpp"
 #include "veta/camera/pinhole.h"
+#include "sensor/camera_data_loader.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-struct CameraFrame;
-using CameraFramePtr = std::shared_ptr<CameraFrame>;
+struct RGBDVelocityCorr;
+using RGBDVelocityCorrPtr = std::shared_ptr<RGBDVelocityCorr>;
+struct RGBDIntrinsics;
+using RGBDIntrinsicsPtr = std::shared_ptr<RGBDIntrinsics>;
+
 
 class VisualPixelDynamic {
 public:
@@ -54,29 +58,25 @@ public:
 
 protected:
     // camera frame, pixel (undistorted)
-    std::array<std::pair<CameraFramePtr, Eigen::Vector2d>, 3> _movement;
-    Eigen::Vector2d _midPointVel;
+    std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3> _movement;
 
 public:
     explicit VisualPixelDynamic(
-        const std::array<std::pair<CameraFramePtr, Eigen::Vector2d>, 3>& movement);
+        const std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3>& movement);
 
-    static Ptr Create(const std::array<std::pair<CameraFramePtr, Eigen::Vector2d>, 3>& movement);
+    static Ptr Create(const std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3>& movement);
 
-    [[nodiscard]] cv::Mat CreatePixelDynamicMat(const ns_veta::PinholeIntrinsic::Ptr& intri) const;
+    [[nodiscard]] const CameraFrame::Ptr& GetMidCameraFrame() const;
 
-    [[nodiscard]] const Eigen::Vector2d& GetMidPointVel() const;
+    // for rgbd cameras whose have depth images
+    [[nodiscard]] RGBDVelocityCorrPtr CreateRGBDVelocityCorr(const RGBDIntrinsicsPtr& intri,
+                                                             const CameraModelType& type) const;
 
-    [[nodiscard]] const Eigen::Vector2d& GetMidPoint() const;
-
-    [[nodiscard]] const CameraFramePtr& GetMidCameraFrame() const;
+    // visualization
+    [[nodiscard]] cv::Mat CreatePixelDynamicMat(const ns_veta::PinholeIntrinsic::Ptr& intri,
+                                                const Eigen::Vector2d& midVel) const;
 
 protected:
-    // given three points, compute the first order of the middle point using lagrange polynomial
-    static double MidLagrangePolynomialFOD(const std::array<std::pair<double, double>, 3>& data);
-
-    [[nodiscard]] Eigen::Vector2d MidLagrangePolynomialFOD() const;
-
     static cv::Mat GetInRangeSubMat(const cv::Mat& img, const Eigen::Vector2d& p, int padding);
 
     static cv::Mat DrawKeypoint(cv::Mat img, const Eigen::Vector2d& p);

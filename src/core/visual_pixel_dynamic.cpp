@@ -37,6 +37,8 @@
 #include "sensor/rgbd.h"
 #include "opencv2/imgproc.hpp"
 #include "calib/calib_param_manager.h"
+#include "factor/rgbd_velocity_factor.hpp"
+#include "sensor/rgbd_intrinsic.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -45,43 +47,42 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_ikalibr {
 VisualPixelDynamic::VisualPixelDynamic(
     const std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3>& movement)
-    : _movement(movement),
-      _midPointVel(MidLagrangePolynomialFOD()) {}
+    : _movement(movement) {}
 
 VisualPixelDynamic::Ptr VisualPixelDynamic::Create(
-    const std::array<std::pair<CameraFramePtr, Eigen::Vector2d>, 3>& movement) {
+    const std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3>& movement) {
     return std::make_shared<VisualPixelDynamic>(movement);
 }
 
-double VisualPixelDynamic::MidLagrangePolynomialFOD(
-    const std::array<std::pair<double, double>, 3>& data) {
-    double x0 = data[0].first;
-    double x1 = data[1].first;
-    double x2 = data[2].first;
-    double y0 = data[0].second;
-    double y1 = data[1].second;
-    double y2 = data[2].second;
-    double v1 = y0 * (x1 - x2) / (x0 - x1) / (x0 - x2);
-    double v2 = y1 * (1 / (x1 - x0) + 1 / (x1 - x2));
-    double v3 = y2 * (x1 - x0) / (x2 - x0) / (x2 - x1);
-    return v1 + v2 + v3;
+const CameraFrame::Ptr& VisualPixelDynamic::GetMidCameraFrame() const {
+    return _movement.at(MID).first;
 }
 
-Eigen::Vector2d VisualPixelDynamic::MidLagrangePolynomialFOD() const {
-    std::array<std::pair<double, double>, 3> xAry;
-    std::array<std::pair<double, double>, 3> yAry;
+RGBDVelocityCorr::Ptr VisualPixelDynamic::CreateRGBDVelocityCorr(
+    const RGBDIntrinsics::Ptr& intri, const CameraModelType& type) const {
+    std::array<double, 3> timeAry{}, xAry{}, yAry{};
     for (int i = 0; i < 3; ++i) {
-        xAry[i].first = _movement[i].first->GetTimestamp();
-        xAry[i].second = _movement[i].second(0);
-
-        yAry[i].first = _movement[i].first->GetTimestamp();
-        yAry[i].second = _movement[i].second(1);
+        timeAry[i] = _movement[i].first->GetTimestamp();
+        xAry[i] = _movement[i].second(0);
+        yAry[i] = _movement[i].second(1);
     }
-    return {MidLagrangePolynomialFOD(xAry), MidLagrangePolynomialFOD(yAry)};
+    const auto& midFrame = _movement.at(MID).first;
+    const Eigen::Vector2d& midPoint = _movement.at(MID).second;
+    double depth = -1.0;
+    if (auto rgbdFrame = std::dynamic_pointer_cast<RGBDFrame>(midFrame); rgbdFrame) {
+        if (auto depthMat = rgbdFrame->GetDepthImage(); !depthMat.empty())
+            depth = intri->ActualDepth(depthMat.at<float>((int)midPoint(1), (int)midPoint(0)));
+    }
+    auto depthMat = std::dynamic_pointer_cast<RGBDFrame>(midFrame)->GetDepthImage();
+    return RGBDVelocityCorr::Create(timeAry, xAry, yAry, depth, (int)intri->intri->imgHeight,
+                                    CameraModel::RSCameraExposureFactor(type));
 }
 
-cv::Mat VisualPixelDynamic::CreatePixelDynamicMat(
-    const ns_veta::PinholeIntrinsic::Ptr& intri) const {
+// -------------
+// visualization
+// -------------
+cv::Mat VisualPixelDynamic::CreatePixelDynamicMat(const ns_veta::PinholeIntrinsic::Ptr& intri,
+                                                  const Eigen::Vector2d& midVel) const {
     std::array<cv::Mat, 3> imgs;
     for (int i = 0; i < static_cast<int>(_movement.size()); ++i) {
         imgs[i] = CalibParamManager::ParIntri::UndistortImage(
@@ -112,7 +113,7 @@ cv::Mat VisualPixelDynamic::CreatePixelDynamicMat(
                     cv::HersheyFonts::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255, 0, 0), 2);
         if (i == MID) {
             // mid-point velocity
-            Eigen::Vector2d endPixel = feat - 0.1 * _midPointVel;
+            Eigen::Vector2d endPixel = feat - 0.1 * midVel;
             cv::line(imgs[MID], cv::Point2d(feat(0), feat(1)),
                      cv::Point2d(endPixel(0), endPixel(1)), cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
         }
@@ -157,12 +158,4 @@ cv::Mat VisualPixelDynamic::DrawKeypoint(cv::Mat img, const Eigen::Vector2d& fea
                    cv::MarkerTypes::MARKER_SQUARE, 2, 2);
     return img;
 }
-
-const Eigen::Vector2d& VisualPixelDynamic::GetMidPointVel() const { return _midPointVel; }
-
-const CameraFramePtr& VisualPixelDynamic::GetMidCameraFrame() const {
-    return _movement.at(MID).first;
-}
-
-const Eigen::Vector2d& VisualPixelDynamic::GetMidPoint() const { return _movement.at(MID).second; }
 }  // namespace ns_ikalibr
