@@ -877,9 +877,15 @@
 	\end{equation}
 	where:
 	\begin{equation}
-	\rotation{c}{w}(\tau)=\rotation{b^r}{w}(\tau)\cdot\rotation{c}{b^r}
-	\Rightarrow
-	\angvel{c}{w}(\tau)=\angvel{b^r}{w}(\tau)
+	\begin{aligned}
+		\rotation{c}{w}(\tau)&=\rotation{b^r}{w}(\tau)\cdot\rotation{c}{b^r}
+		\quad\Rightarrow\quad
+		\angvel{c}{w}(\tau)=\angvel{b^r}{w}(\tau)
+		\\
+		\translation{c}{w}(\tau)&=\rotation{b^r}{w}(\tau)\cdot\translation{c}{b^r}+\translation{b^r}{w}(\tau)
+		\quad\Rightarrow\quad
+		\linvel{c}{w}(\tau)=-\liehat{\rotation{b^r}{w}(\tau)\cdot\translation{c}{b^r}}\cdot\angvel{b^r}{w}(\tau)+\linvel{b^r}{w}(\tau)
+	\end{aligned}
 	\end{equation}
 	thus:
 	\begin{equation}

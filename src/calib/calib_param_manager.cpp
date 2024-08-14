@@ -489,7 +489,7 @@ std::vector<ns_viewer::Entity::Ptr> CalibParamManager::EntitiesForVisualization(
         auto SE3_DnToBr = EXTRI.SE3_DnToBr(topic).cast<float>();
         auto rgbd = ns_viewer::CubeCamera::Create(
             ns_viewer::Posef(SE3_DnToBr.so3().matrix(), SE3_DnToBr.translation()), RGBD_SIZE,
-            ns_viewer::Colour(1.0f, 0.33f, 0.0f, 1.0f));
+            ns_viewer::Colour(0.33f, 0.0f, 0.5f, 1.0f));
         auto line =
             ns_viewer::Line::Create(Eigen::Vector3f::Zero(), SE3_DnToBr.translation().cast<float>(),
                                     ns_viewer::Colour::Black());

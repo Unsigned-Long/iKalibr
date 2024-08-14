@@ -35,6 +35,7 @@
 #include "core/visual_velocity_sac.h"
 #include "opengv/sac/Ransac.hpp"
 #include "spdlog/spdlog.h"
+#include "factor/rgbd_velocity_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -70,21 +71,10 @@ void VisualVelocitySacProblem::getSelectedDistancesToModel(
 
     for (int i = 0; i < static_cast<int>(indices.size()); ++i) {
         const auto &[pixel, vel, depth] = dynamics.at(i);
-        const double up = pixel(0) - cx, vp = pixel(1) - cy;
 
-        Eigen::Matrix<double, 2, 3> subAMat = Eigen::Matrix<double, 2, 3>::Zero();
-        subAMat(0, 0) = -fx;
-        subAMat(1, 1) = -fy;
-        subAMat(0, 2) = up;
-        subAMat(1, 2) = vp;
-
-        Eigen::Matrix<double, 2, 3> subBMat = Eigen::Matrix<double, 2, 3>::Zero();
-        subBMat(0, 0) = up * vp / fy;
-        subBMat(0, 1) = -fx - up * up / fx;
-        subBMat(0, 2) = fx * vp / fy;
-        subBMat(1, 0) = fy + vp * vp / fy;
-        subBMat(1, 1) = -up * vp / fx;
-        subBMat(1, 2) = -fy * up / fx;
+        Eigen::Matrix<double, 2, 3> subAMat, subBMat;
+        // the template parameters, i.e., 'Order' and 'TimeDeriv', do not matter here
+        RGBDVelocityFactor<0, 0>::SubMats<double>(&fx, &fy, &cx, &cy, pixel, &subAMat, &subBMat);
 
         Eigen::Vector3d ANG_VEL_BrToWInBr = spline.VelocityBody(timeByBr);
         Eigen::Vector3d ANG_VEL_DnToWInDn = SO3_DnToBr.inverse() * ANG_VEL_BrToWInBr;
