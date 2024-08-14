@@ -676,7 +676,7 @@ void Estimator::AddRGBDInertialAlignment(
 
     // create a cost function
     auto helper = RGBDInertialAlignHelper<Configor::Prior::SplineOrder>(
-        so3Spline, sRGBDAry, eRGBDAry, TO_DnToBi, velVecMat);
+        so3Spline, sRGBDAry, eRGBDAry, TO_DnToBr, velVecMat);
     auto costFunc = RGBDInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
 
     costFunc->AddParameterBlock(3);
