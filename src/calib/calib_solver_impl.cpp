@@ -158,25 +158,26 @@ CalibSolver::Initialization() {
     // IMU, then estimates other quantities by involving angular velocity measurements from other
     // IMUs. For better readability, we could also optimize them together (not current version)
     auto estimator = Estimator::Create(_splines, _parMagr);
-    this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU,
-                        OptOption::Option::OPT_SO3_SPLINE);
+    auto optOption = OptOption::Option::OPT_SO3_SPLINE;
+    this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU, optOption);
     auto sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
-    estimator = Estimator::Create(_splines, _parMagr);
-    auto optOption = OptOption::Option::OPT_SO3_BiToBr;
-    if (Configor::Prior::OptTemporalParams) {
-        optOption |= OptOption::Option::OPT_TO_BiToBr;
-    }
-    for (const auto &[topic, _] : Configor::DataStream::IMUTopics) {
-        this->AddGyroFactor(estimator, topic, optOption);
-    }
-    // make this problem full rank
-    estimator->SetRefIMUParamsConstant();
-    // estimator->FixFirSO3ControlPoint();
+    if (Configor::DataStream::IMUTopics.size() > 1) {
+        estimator = Estimator::Create(_splines, _parMagr);
+        if (Configor::Prior::OptTemporalParams) {
+            optOption |= OptOption::Option::OPT_TO_BiToBr;
+        }
+        for (const auto &[topic, _] : Configor::DataStream::IMUTopics) {
+            this->AddGyroFactor(estimator, topic, optOption);
+        }
+        // make this problem full rank
+        estimator->SetRefIMUParamsConstant();
+        // estimator->FixFirSO3ControlPoint();
 
-    sum = estimator->Solve(_ceresOption, this->_priori);
-    spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
+        sum = estimator->Solve(_ceresOption, this->_priori);
+        spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
+    }
 
     if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
         SaveStageCalibParam(_parMagr, "stage_1_rot_fit");
