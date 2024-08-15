@@ -58,10 +58,9 @@ public:
     std::array<double, 3> timeAry;
     std::array<double, 3> xDynamicAry;
     std::array<double, 3> yDynamicAry;
-    // row / image height
-    std::array<double, 3> rDivHAry;
+    // row / image height - rsExpFactor
+    std::array<double, 3> rdFactorAry;
     double depth;
-    double rsExpFactor;
 
 public:
     RGBDVelocityCorr(const std::array<double, 3> &timeAry,
@@ -73,11 +72,10 @@ public:
         : timeAry(timeAry),
           xDynamicAry(xDynamicAry),
           yDynamicAry(yDynamicAry),
-          rDivHAry(),
-          depth(depth),
-          rsExpFactor(rsExpFactor) {
+          rdFactorAry(),
+          depth(depth) {
         for (int i = 0; i < 3; ++i) {
-            rDivHAry[i] = yDynamicAry[i] / (double)imgHeight;
+            rdFactorAry[i] = yDynamicAry[i] / (double)imgHeight - rsExpFactor;
         }
     }
 
@@ -97,14 +95,14 @@ public:
 
     template <class Type>
     [[nodiscard]] Type MidPointTime(Type readout) const {
-        return timeAry[MID] + (rDivHAry[MID] - rsExpFactor) * readout;
+        return timeAry[MID] + rdFactorAry[MID] * readout;
     }
 
     template <class Type>
     [[nodiscard]] Eigen::Vector2<Type> MidPointVel(Type readout) const {
         std::array<Type, 3> newTimeAry{};
         for (int i = 0; i < 3; ++i) {
-            newTimeAry[i] = timeAry[i] + (rDivHAry[i] - rsExpFactor) * readout;
+            newTimeAry[i] = timeAry[i] + rdFactorAry[i] * readout;
         }
         return {ns_ikalibr::LagrangePolynomialTripleMidFOD(newTimeAry, xDynamicAry),
                 ns_ikalibr::LagrangePolynomialTripleMidFOD(newTimeAry, yDynamicAry)};
