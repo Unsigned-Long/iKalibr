@@ -865,7 +865,7 @@ public:
      *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA ]
      */
     template <TimeDeriv::ScaleSplineType type>
-    void AddRGBDVelocityConstraint(const RGBDVelocityCorr &velCorr,
+    void AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
                                    const std::string &topic,
                                    Opt option,
                                    double weight) {
@@ -878,8 +878,8 @@ public:
         double *TO_DnToBr = &parMagr->TEMPORAL.TO_DnToBr.at(topic);
 
         // readout time equals to 0.0 means the raw middle time
-        double minTime = velCorr.MidPointTime(0.0);
-        double maxTime = velCorr.MidPointTime(0.0);
+        double minTime = velCorr->MidPointTime(0.0);
+        double maxTime = velCorr->MidPointTime(0.0);
 
         // different relative control points finding [single vs. range]
         if (IsOptionWith(Opt::OPT_TO_DnToBr, option)) {
@@ -890,7 +890,7 @@ public:
             maxTime += *TO_DnToBr;
         }
 
-        const double midRDFactor = velCorr.MidReadoutFactor();
+        const double midRDFactor = velCorr->MidReadoutFactor();
         if (IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option)) {
             minTime += std::min(midRDFactor * 0.0, midRDFactor * RT_PADDING);
             maxTime += std::max(midRDFactor * 0.0, midRDFactor * RT_PADDING);

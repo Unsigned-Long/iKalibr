@@ -94,7 +94,7 @@ Type LagrangePolynomialTripleMidFOD(const std::array<Type, 3> &xData,
     Type y1 = yData[1];
     Type y2 = yData[2];
     Type v1 = y0 * (x1 - x2) / (x0 - x1) / (x0 - x2);
-    Type v2 = y1 * (1 / (x1 - x0) + 1 / (x1 - x2));
+    Type v2 = y1 * (1.0 / (x1 - x0) + 1.0 / (x1 - x2));
     Type v3 = y2 * (x1 - x0) / (x2 - x0) / (x2 - x1);
     return v1 + v2 + v3;
 }

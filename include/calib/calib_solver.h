@@ -158,7 +158,8 @@ protected:
     BackUp::Ptr BatchOptimization(
         OptOption::Option optOption,
         const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &ptsCorrs,
-        const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualCorrs);
+        const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualCorrs,
+        const std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> &rgbdCorrs);
 
     std::optional<Sophus::SE3d> CurBrToW(double timeByBr);
 
@@ -244,7 +245,7 @@ protected:
                                Estimator::Opt option) {
         double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
         for (const auto &corr : corrs) {
-            estimator->AddVisualReprojection<type>(corr, rgbdTopic, option, weight);
+            estimator->AddRGBDVelocityConstraint<type>(corr, rgbdTopic, option, weight);
         }
     }
 
@@ -265,7 +266,7 @@ protected:
     static std::vector<VisualPixelDynamicPtr> CreateVisualPixelDynamicForRGBD(
         const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList);
 
-    std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CreateRGBDVelocityCorr();
+    std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> DataAssociationForRGBDs();
 };
 
 struct CeresDebugCallBack : public ceres::IterationCallback {

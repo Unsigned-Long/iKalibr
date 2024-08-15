@@ -85,7 +85,9 @@ void CalibSolver::Process() {
                 // point to surfel data association for LiDARs
                 DataAssociationForLiDARs(globalMap, undistFramesInMap, ptsCountInEachScan),
                 // visual reprojection data association for cameras
-                DataAssociationForCameras());
+                DataAssociationForCameras(),
+                // visual velocity creation for rgbd cameras
+                DataAssociationForRGBDs());
             // deconstruct data
             globalMap.reset(), undistFramesInMap.clear();
         } else {
@@ -96,7 +98,9 @@ void CalibSolver::Process() {
                 // point to surfel data association for LiDARs
                 DataAssociationForLiDARs(curGlobalMap, curUndistFramesInMap, ptsCountInEachScan),
                 // visual reprojection data association for cameras
-                DataAssociationForCameras());
+                DataAssociationForCameras(),
+                // visual velocity creation for rgbd cameras
+                DataAssociationForRGBDs());
             // 'curGlobalMap' and 'curUndistFramesInMap' would be deconstructed here
         }
 
@@ -1518,7 +1522,7 @@ std::vector<VisualPixelDynamic::Ptr> CalibSolver::CreateVisualPixelDynamicForRGB
     return dynamics;
 }
 
-std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::CreateRGBDVelocityCorr() {
+std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssociationForRGBDs() {
     std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> corrs;
     for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
@@ -1536,7 +1540,8 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::CreateRGB
 CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     OptOption::Option optOption,
     const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &ptsCorrs,
-    const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualCorrs) {
+    const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualCorrs,
+    const std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> &rgbdCorrs) {
     auto GetOptString = [](OptOption::Option opt) -> std::string {
         std::stringstream stringStream;
         stringStream << magic_enum::enum_flags_name(opt);
@@ -1561,6 +1566,10 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
             for (const auto &[topic, _] : Configor::DataStream::IMUTopics) {
                 this->AddAcceFactor<TimeDeriv::LIN_VEL_SPLINE>(estimator, topic, optOption);
                 this->AddGyroFactor(estimator, topic, optOption);
+            }
+            for (const auto &[topic, corrs] : rgbdCorrs) {
+                this->AddRGBDVelocityFactor<TimeDeriv::LIN_VEL_SPLINE>(estimator, topic, corrs,
+                                                                       optOption);
             }
         } break;
         case TimeDeriv::LIN_POS_SPLINE: {
@@ -1593,6 +1602,10 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
             for (const auto &[topic, _] : Configor::DataStream::IMUTopics) {
                 this->AddAcceFactor<TimeDeriv::LIN_POS_SPLINE>(estimator, topic, optOption);
                 this->AddGyroFactor(estimator, topic, optOption);
+            }
+            for (const auto &[topic, corrs] : rgbdCorrs) {
+                this->AddRGBDVelocityFactor<TimeDeriv::LIN_POS_SPLINE>(estimator, topic, corrs,
+                                                                       optOption);
             }
         } break;
     }

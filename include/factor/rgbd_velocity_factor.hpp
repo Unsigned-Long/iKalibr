@@ -102,12 +102,25 @@ public:
 
     template <class Type>
     [[nodiscard]] Eigen::Vector2<Type> MidPointVel(Type readout) const {
-        std::array<Type, 3> newTimeAry{};
-        for (int i = 0; i < 3; ++i) {
-            newTimeAry[i] = timeAry[i] + rdFactorAry[i] * readout;
+        if constexpr (std::is_same<Type, double>::value) {
+            std::array<Type, 3> newTimeAry{};
+            for (int i = 0; i < 3; ++i) {
+                newTimeAry[i] = timeAry[i] + rdFactorAry[i] * readout;
+            }
+            return {ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, xDynamicAry),
+                    ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, yDynamicAry)};
+        } else {
+            std::array<Type, 3> newTimeAry{};
+            std::array<Type, 3> newXAry{};
+            std::array<Type, 3> newYAry{};
+            for (int i = 0; i < 3; ++i) {
+                newTimeAry[i] = timeAry[i] + rdFactorAry[i] * readout;
+                newXAry[i] = (Type)xDynamicAry[i];
+                newYAry[i] = (Type)yDynamicAry[i];
+            }
+            return {ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, newXAry),
+                    ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, newYAry)};
         }
-        return {ns_ikalibr::LagrangePolynomialTripleMidFOD(newTimeAry, xDynamicAry),
-                ns_ikalibr::LagrangePolynomialTripleMidFOD(newTimeAry, yDynamicAry)};
     }
 };
 
@@ -252,7 +265,7 @@ public:
             subBMat * ANG_VEL_DnToBr0InDn;
 
         Eigen::Map<Eigen::Vector2<T>> residuals(sResiduals);
-        residuals = T(_weight) * Eigen::Vector2<T>(pred - _corr->MidPointVel(READOUT_TIME));
+        residuals = T(_weight) * (pred - _corr->template MidPointVel(READOUT_TIME));
 
         return true;
     }
