@@ -84,40 +84,32 @@ RGBDVelocityCorr::Ptr VisualPixelDynamic::CreateRGBDVelocityCorr(
 cv::Mat VisualPixelDynamic::CreatePixelDynamicMat(const ns_veta::PinholeIntrinsic::Ptr& intri,
                                                   const Eigen::Vector2d& midVel) const {
     std::array<cv::Mat, 3> imgs;
+    // obtain images
     for (int i = 0; i < static_cast<int>(_movement.size()); ++i) {
         imgs[i] = CalibParamManager::ParIntri::UndistortImage(
             intri, _movement.at(i).first->GetColorImage());
     }
+    // trace of point
+    DrawTrace(imgs[MID], midVel, 2);
+
+    // draw point in each image
     for (int i = 0; i < static_cast<int>(_movement.size()); ++i) {
         const auto& [frame, feat] = _movement.at(i);
-        // pixel
-        DrawKeypoint(imgs[i], feat);
-        // index
-        cv::putText(imgs[i], fmt::format("{}", i), cv::Point2d(feat(0) + 10, feat(1)),
-                    cv::HersheyFonts::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255, 0, 0), 2);
-        // depth
-        if (auto depthFrame = std::dynamic_pointer_cast<RGBDFrame>(frame); depthFrame) {
-            // img.at<type>(row, col)
-            float depth = depthFrame->GetDepthImage().at<float>((int)feat(1), (int)feat(0));
-            cv::putText(imgs[i], fmt::format("d: {:.1f}", depth),
-                        cv::Point2d(feat(0) + 10, feat(1) - 20),
-                        cv::HersheyFonts::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255, 0, 0), 2);
-        }
+        // draw point
+        DrawKeypointOnCVMat(imgs[i], feat);
+        // put index text
+        PutTextOnCVMat(imgs[i], fmt::format("{}", i), feat);
+        // draw point in the middle image
+        DrawKeypointOnCVMat(imgs[MID], feat);
+        // put index text in the middle image
+        PutTextOnCVMat(imgs[MID], fmt::format("{}", i), feat);
     }
-    for (int i = 0; i < static_cast<int>(_movement.size()); ++i) {
-        const auto& [frame, feat] = _movement.at(i);
-        // pixel
-        DrawKeypoint(imgs[MID], feat);
-        // index
-        cv::putText(imgs[MID], std::to_string(i), cv::Point2d(feat(0) + 10, feat(1)),
-                    cv::HersheyFonts::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255, 0, 0), 2);
-        if (i == MID) {
-            // mid-point velocity
-            Eigen::Vector2d endPixel = feat - 0.1 * midVel;
-            cv::line(imgs[MID], cv::Point2d(feat(0), feat(1)),
-                     cv::Point2d(endPixel(0), endPixel(1)), cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-        }
-    }
+    // draw mid-point dynamics (points in mid image)
+    const auto& [midFrame, midFeat] = _movement.at(MID);
+    Eigen::Vector2d endPixel = midFeat - 0.1 * midVel;
+    DrawLineOnCVMat(imgs[MID], midFeat, endPixel);
+
+    // concat images
     for (int i = 0; i < static_cast<int>(_movement.size()); ++i) {
         imgs[i] = GetInRangeSubMat(imgs[i], _movement.at(i).second, 200);
     }
@@ -149,13 +141,31 @@ cv::Mat VisualPixelDynamic::GetInRangeSubMat(const cv::Mat& image,
     return result;
 }
 
-cv::Mat VisualPixelDynamic::DrawKeypoint(cv::Mat img, const Eigen::Vector2d& feat) {
-    // square
-    cv::drawMarker(img, cv::Point2d(feat(0), feat(1)), cv::Scalar(0, 255, 0),
-                   cv::MarkerTypes::MARKER_SQUARE, 10, 1);
-    // key point
-    cv::drawMarker(img, cv::Point2d(feat(0), feat(1)), cv::Scalar(0, 255, 0),
-                   cv::MarkerTypes::MARKER_SQUARE, 2, 2);
-    return img;
+void VisualPixelDynamic::DrawTrace(cv::Mat& img,
+                                   const Eigen::Vector2d& midVel,
+                                   const int pixelDist) const {
+    const double duration =
+        _movement.back().first->GetTimestamp() - _movement.front().first->GetTimestamp();
+    const double sTime = _movement.front().first->GetTimestamp() - duration * 0.25;
+    const double eTime = _movement.back().first->GetTimestamp() + duration * 0.25;
+    const double deltaTime = pixelDist / midVel.norm();
+    std::array<double, 3> tData{};
+    std::array<double, 3> xData{};
+    std::array<double, 3> yData{};
+    for (int i = 0; i < 3; ++i) {
+        tData[i] = _movement[i].first->GetTimestamp();
+        xData[i] = _movement[i].second(0);
+        yData[i] = _movement[i].second(1);
+    }
+    double xLast = LagrangePolynomial<double, 3>(sTime, tData, xData);
+    double yLast = LagrangePolynomial<double, 3>(sTime, tData, yData);
+    for (double t = sTime + deltaTime; t < eTime;) {
+        double x = LagrangePolynomial<double, 3>(t, tData, xData);
+        double y = LagrangePolynomial<double, 3>(t, tData, yData);
+        DrawLineOnCVMat(img, cv::Point2d(xLast, yLast), cv::Point2d(x, y), cv::Scalar(0, 0, 255));
+        t += deltaTime;
+        xLast = x;
+        yLast = y;
+    }
 }
 }  // namespace ns_ikalibr

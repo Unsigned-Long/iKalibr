@@ -55,6 +55,7 @@ std::vector<Vector2d.
 #include "ros/ros.h"
 #include "ctraj/utils/sophus_utils.hpp"
 #include "spdlog/fmt/fmt.h"
+#include "opencv2/core.hpp"
 
 namespace ns_ikalibr {
 
@@ -63,10 +64,29 @@ void ConfigSpdlog();
 
 void PrintIKalibrLibInfo();
 
+// given n points and a x value, compute the y value using lagrange polynomial
+template <class Type, int N>
+double LagrangePolynomial(Type xQuery,
+                          const std::array<Type, N> &xData,
+                          const std::array<Type, N> &yData) {
+    Type y = 0.0;
+    for (int i = 0; i < N; ++i) {
+        Type li = 1.0;
+        for (int j = 0; j < N; ++j) {
+            if (j == i) {
+                continue;
+            }
+            li *= (xQuery - xData[j]) / (xData[i] - xData[j]);
+        }
+        y += yData[i] * li;
+    }
+    return y;
+}
+
 // given three points, compute the first order of the middle point using lagrange polynomial
 template <class Type>
-double LagrangePolynomialTripleMidFOD(const std::array<Type, 3> &xData,
-                                      const std::array<Type, 3> &yData) {
+Type LagrangePolynomialTripleMidFOD(const std::array<Type, 3> &xData,
+                                    const std::array<Type, 3> &yData) {
     Type x0 = xData[0];
     Type x1 = xData[1];
     Type x2 = xData[2];
@@ -81,7 +101,7 @@ double LagrangePolynomialTripleMidFOD(const std::array<Type, 3> &xData,
 
 // given three points, compute the first order of the middle point using lagrange polynomial
 template <class Type>
-double LagrangePolynomialTripleMidFOD(const std::array<std::pair<Type, Type>, 3> &data) {
+Type LagrangePolynomialTripleMidFOD(const std::array<std::pair<Type, Type>, 3> &data) {
     std::array<Type, 3> xData;
     std::array<Type, 3> yData;
     for (int i = 0; i < 3; ++i) {
@@ -103,6 +123,40 @@ Type GetParamFromROS(const std::string &param) {
 std::string UpperString(std::string s);
 
 std::string LowerString(std::string s);
+
+void DrawKeypointOnCVMat(cv::Mat &img,
+                         const Eigen::Vector2d &feat,
+                         bool withBox = true,
+                         const cv::Scalar &color = cv::Scalar(0, 255, 0));
+
+void DrawKeypointOnCVMat(cv::Mat &img,
+                         const cv::Point2d &feat,
+                         bool withBox = true,
+                         const cv::Scalar &color = cv::Scalar(0, 255, 0));
+
+void DrawLineOnCVMat(cv::Mat &img,
+                     const Eigen::Vector2d &p1,
+                     const Eigen::Vector2d &p2,
+                     const cv::Scalar &color = cv::Scalar(0, 255, 0));
+
+void DrawLineOnCVMat(cv::Mat &img,
+                     const cv::Point2d &p1,
+                     const cv::Point2d &p2,
+                     const cv::Scalar &color = cv::Scalar(0, 255, 0));
+
+void PutTextOnCVMat(cv::Mat &img,
+                    const std::string &str,
+                    const cv::Point2d &pt,
+                    double xBias = 10.0,
+                    double yBias = 0.0,
+                    const cv::Scalar &color = cv::Scalar(255, 0, 0));
+
+void PutTextOnCVMat(cv::Mat &img,
+                    const std::string &str,
+                    const Eigen::Vector2d &pt,
+                    double xBias = 10.0,
+                    double yBias = 0.0,
+                    const cv::Scalar &color = cv::Scalar(255, 0, 0));
 
 using namespace magic_enum::bitwise_operators;
 

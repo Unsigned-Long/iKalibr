@@ -518,14 +518,16 @@ CalibSolver::Initialization() {
             Configor::DataStream::RGBDTopics.at(topic).Type);
         const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
         for (const auto &dynamic : dynamics) {
-            // show the visual pixel dynamic image (tracking features, mid-point pixel velocity)
-            // auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic)->intri);
             auto midCamFrame = dynamic->GetMidCameraFrame();
             if (const auto &rgbdVelCorr = dynamic->CreateRGBDVelocityCorr(intri, cameraType);
                 rgbdVelCorr->depth > 1E-2 /* 1 cm */) {
                 // a valid depth
                 dynamicsInFrame[midCamFrame].emplace_back(
                     rgbdVelCorr->MidPoint(), rgbdVelCorr->MidPointVel(readout), rgbdVelCorr->depth);
+
+                // show the visual pixel dynamic image (tracking features, mid-point pixel velocity)
+                // auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic)->intri,
+                //                                           rgbdVelCorr->MidPointVel(readout));
             }
         }
 

@@ -50,7 +50,6 @@ using RGBDVelocityCorrPtr = std::shared_ptr<RGBDVelocityCorr>;
 struct RGBDIntrinsics;
 using RGBDIntrinsicsPtr = std::shared_ptr<RGBDIntrinsics>;
 
-
 class VisualPixelDynamic {
 public:
     using Ptr = std::shared_ptr<VisualPixelDynamic>;
@@ -79,7 +78,7 @@ public:
 protected:
     static cv::Mat GetInRangeSubMat(const cv::Mat& img, const Eigen::Vector2d& p, int padding);
 
-    static cv::Mat DrawKeypoint(cv::Mat img, const Eigen::Vector2d& p);
+    void DrawTrace(cv::Mat& img, const Eigen::Vector2d& midVel, int pixelDist = 5) const;
 };
 }  // namespace ns_ikalibr
 

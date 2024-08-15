@@ -317,16 +317,17 @@ void RotOnlyVisualOdometer::ShowCurrentFrame() const {
     for (const auto &[id, feat] : _ptsInLast) {
         const auto &pt = feat.raw;
         const auto &upt = feat.undistorted;
-        // square
-        cv::drawMarker(img, pt, cv::Scalar(0, 0, 255), cv::MarkerTypes::MARKER_SQUARE, 10, 1);
-        // key point
-        cv::drawMarker(img, pt, cv::Scalar(0, 0, 255), cv::MarkerTypes::MARKER_SQUARE, 2, 2);
-        cv::drawMarker(img, upt, cv::Scalar(255, 255, 255), cv::MarkerTypes::MARKER_SQUARE, 2, 2);
-        cv::line(img, pt, upt, cv::Scalar(255, 255, 255), 1);
+
+        // connect between point and its undistorted one
+        DrawLineOnCVMat(img, pt, upt, cv::Scalar(255, 255, 255));
+        // undistorted point
+        DrawKeypointOnCVMat(img, upt, false, cv::Scalar(255, 255, 255));
+        // raw point
+        DrawKeypointOnCVMat(img, pt);
+
         // text: track count
         int count = static_cast<int>(_lmTrackInfo.at(_featId2lmIdInLast.at(id)).size());
-        cv::putText(img, std::to_string(count), cv::Point2f(pt.x + 10, pt.y),
-                    cv::HersheyFonts::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255, 0, 0), 2);
+        PutTextOnCVMat(img, std::to_string(count), pt);
     }
     // auto [K, D] = CalibParamManager().INTRI.ObtainKDMatForUndisto(_intri);
     // cv::Mat undistImg;
@@ -497,16 +498,15 @@ void RotOnlyVisualOdometer::ShowLmTrackInfo() const {
 
             const auto &pt = feat.raw;
             const auto &upt = feat.undistorted;
-            // square
-            cv::drawMarker(img, pt, cv::Scalar(0, 0, 255), cv::MarkerTypes::MARKER_SQUARE, 10, 1);
-            // key point
-            cv::drawMarker(img, pt, cv::Scalar(0, 0, 255), cv::MarkerTypes::MARKER_SQUARE, 2, 2);
-            cv::drawMarker(img, upt, cv::Scalar(255, 255, 255), cv::MarkerTypes::MARKER_SQUARE, 2,
-                           2);
-            cv::line(img, pt, upt, cv::Scalar(255, 255, 255), 1);
-            // text: track count
-            cv::putText(img, std::to_string(trackList.size()), cv::Point2f(pt.x + 10, pt.y),
-                        cv::HersheyFonts::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255, 0, 0), 2);
+
+            // connect between point and its undistorted one
+            DrawLineOnCVMat(img, pt, upt, cv::Scalar(255, 255, 255));
+            // undistorted point
+            DrawKeypointOnCVMat(img, upt, false, cv::Scalar(255, 255, 255));
+            // raw point
+            DrawKeypointOnCVMat(img, pt);
+
+            PutTextOnCVMat(img, std::to_string(trackList.size()), pt);
 
             cv::imshow(std::to_string(frame->GetId()), img);
         }

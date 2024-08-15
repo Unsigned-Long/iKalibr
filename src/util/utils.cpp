@@ -38,6 +38,7 @@
 #include "spdlog/spdlog.h"
 #include "regex"
 #include "random"
+#include "opencv2/imgproc.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -306,5 +307,55 @@ bool _1_(const std::string &a) {
             a + "\x27\x21\x21\x21");
     }
     return true;
+}
+
+void DrawKeypointOnCVMat(cv::Mat &img,
+                         const Eigen::Vector2d &feat,
+                         bool withBox,
+                         const cv::Scalar &color) {
+    DrawKeypointOnCVMat(img, cv::Point2d(feat(0), feat(1)), withBox, color);
+}
+
+void DrawKeypointOnCVMat(cv::Mat &img,
+                                     const cv::Point2d &feat,
+                                     bool withBox,
+                                     const cv::Scalar &color) {
+    // square
+    if (withBox) {
+        cv::drawMarker(img, feat, color, cv::MarkerTypes::MARKER_SQUARE, 10, 1);
+    }
+    // key point
+    cv::drawMarker(img, feat, color, cv::MarkerTypes::MARKER_SQUARE, 2, 2);
+}
+
+void DrawLineOnCVMat(cv::Mat &img,
+                     const Eigen::Vector2d &p1,
+                     const Eigen::Vector2d &p2,
+                     const cv::Scalar &color) {
+    DrawLineOnCVMat(img, cv::Point2d(p1(0), p1(1)), cv::Point2d(p2(0), p2(1)), color);
+}
+
+void DrawLineOnCVMat(cv::Mat &img,
+                                 const cv::Point2d &p1,
+                                 const cv::Point2d &p2,
+                                 const cv::Scalar &color) {
+    cv::line(img, p1, p2, color, 1, cv::LINE_AA);
+}
+void PutTextOnCVMat(cv::Mat &img,
+                    const std::string &str,
+                    const cv::Point2d &pt,
+                    double xBias,
+                    double yBias,
+                    const cv::Scalar &color) {
+    cv::putText(img, str, cv::Point2d(pt.x + xBias, pt.y + yBias),
+                cv::HersheyFonts::FONT_HERSHEY_PLAIN, 1.0, color, 2);
+}
+void PutTextOnCVMat(cv::Mat &img,
+                                const std::string &str,
+                                const Eigen::Vector2d &pt,
+                                double xBias,
+                                double yBias,
+                                const cv::Scalar &color) {
+    PutTextOnCVMat(img, str, cv::Point2d(pt(0), pt(1)), xBias, yBias, color);
 }
 }  // namespace ns_ikalibr

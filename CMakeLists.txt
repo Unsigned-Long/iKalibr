@@ -176,7 +176,6 @@ if (OPENMP_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif ()
 
-find_package(OpenCV)
 find_package(magic_enum)
 # magic_enum works in range of [MAGIC_ENUM_RANGE_MIN, MAGIC_ENUM_RANGE_MAX]
 add_definitions(-DMAGIC_ENUM_RANGE_MIN=0)

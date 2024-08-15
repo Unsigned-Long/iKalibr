@@ -111,17 +111,8 @@ cv::Mat VisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame, float
         // we do not use extracted raw feature here to keep better consistency
         Eigen::Vector2d feat = _intri->CamToImg({lmInCm(0) / lmInCm(2), lmInCm(1) / lmInCm(2)});
 
-        // square
-        cv::drawMarker(undistImgColor, cv::Point2d(feat(0), feat(1)), cv::Scalar(0, 255, 0),
-                       cv::MarkerTypes::MARKER_SQUARE, 10, 1);
-
-        // key point
-        cv::drawMarker(undistImgColor, cv::Point2d(feat(0), feat(1)), cv::Scalar(0, 255, 0),
-                       cv::MarkerTypes::MARKER_SQUARE, 2, 2);
-
-        // tail
-        cv::line(undistImgColor, cv::Point2d(feat(0), feat(1)),
-                 cv::Point2d(endPixel(0), endPixel(1)), cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        DrawKeypointOnCVMat(undistImgColor, feat);
+        DrawLineOnCVMat(undistImgColor, feat, endPixel);
     }
     return undistImgColor;
 }
