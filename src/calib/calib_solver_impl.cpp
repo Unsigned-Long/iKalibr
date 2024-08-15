@@ -1518,6 +1518,21 @@ std::vector<VisualPixelDynamic::Ptr> CalibSolver::CreateVisualPixelDynamicForRGB
     return dynamics;
 }
 
+std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::CreateRGBDVelocityCorr() {
+    std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> corrs;
+    for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
+        const auto &intri = _parMagr->INTRI.RGBD.at(topic);
+        const auto &cameraType = EnumCast::stringToEnum<CameraModelType>(
+            Configor::DataStream::RGBDTopics.at(topic).Type);
+
+        corrs[topic].reserve(dynamics.size());
+        for (const auto &dynamic : dynamics) {
+            corrs[topic].push_back(dynamic->CreateRGBDVelocityCorr(intri, cameraType));
+        }
+    }
+    return corrs;
+}
+
 CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     OptOption::Option optOption,
     const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &ptsCorrs,

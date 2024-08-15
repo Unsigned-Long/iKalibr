@@ -98,6 +98,8 @@ public:
         return timeAry[MID] + rdFactorAry[MID] * readout;
     }
 
+    [[nodiscard]] double MidReadoutFactor() const { return rdFactorAry[MID]; }
+
     template <class Type>
     [[nodiscard]] Eigen::Vector2<Type> MidPointVel(Type readout) const {
         std::array<Type, 3> newTimeAry{};
@@ -250,8 +252,7 @@ public:
             subBMat * ANG_VEL_DnToBr0InDn;
 
         Eigen::Map<Eigen::Vector2<T>> residuals(sResiduals);
-        residuals.template block<1, 1>(0, 0) =
-            T(_weight) * Eigen::Vector2<T>(pred - _corr->MidPointVel(READOUT_TIME));
+        residuals = T(_weight) * Eigen::Vector2<T>(pred - _corr->MidPointVel(READOUT_TIME));
 
         return true;
     }

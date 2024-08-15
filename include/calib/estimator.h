@@ -859,6 +859,167 @@ public:
         }
     }
 
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr |
+     *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA ]
+     */
+    template <TimeDeriv::ScaleSplineType type>
+    void AddRGBDVelocityConstraint(const RGBDVelocityCorr &velCorr,
+                                   const std::string &topic,
+                                   Opt option,
+                                   double weight) {
+        // prepare metas for splines
+        SplineMetaType so3Meta, scaleMeta;
+
+        const double TO_PADDING = Configor::Prior::TimeOffsetPadding;
+        const double RT_PADDING = Configor::Prior::ReadoutTimePadding;
+        double *RS_READOUT = &parMagr->TEMPORAL.RS_READOUT.at(topic);
+        double *TO_DnToBr = &parMagr->TEMPORAL.TO_DnToBr.at(topic);
+
+        // readout time equals to 0.0 means the raw middle time
+        double minTime = velCorr.MidPointTime(0.0);
+        double maxTime = velCorr.MidPointTime(0.0);
+
+        // different relative control points finding [single vs. range]
+        if (IsOptionWith(Opt::OPT_TO_DnToBr, option)) {
+            minTime -= TO_PADDING;
+            maxTime += TO_PADDING;
+        } else {
+            minTime += *TO_DnToBr;
+            maxTime += *TO_DnToBr;
+        }
+
+        const double midRDFactor = velCorr.MidReadoutFactor();
+        if (IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option)) {
+            minTime += std::min(midRDFactor * 0.0, midRDFactor * RT_PADDING);
+            maxTime += std::max(midRDFactor * 0.0, midRDFactor * RT_PADDING);
+        } else {
+            minTime += midRDFactor * *RS_READOUT;
+            maxTime += midRDFactor * *RS_READOUT;
+        }
+
+        // invalid time stamp
+        if (!splines->TimeInRangeForSo3(minTime, Configor::Preference::SO3_SPLINE) ||
+            !splines->TimeInRangeForSo3(maxTime, Configor::Preference::SO3_SPLINE) ||
+            !splines->TimeInRangeForRd(minTime, Configor::Preference::SCALE_SPLINE) ||
+            !splines->TimeInRangeForRd(maxTime, Configor::Preference::SCALE_SPLINE)) {
+            return;
+        }
+
+        std::pair<double, double> timePair = {minTime, maxTime};
+        splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE, {timePair}, so3Meta);
+        splines->CalculateRdSplineMeta(Configor::Preference::SCALE_SPLINE, {timePair}, scaleMeta);
+
+        static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_VEL>();
+        // create a cost function
+        auto costFunc = RGBDVelocityFactor<Configor::Prior::SplineOrder, deriv>::Create(
+            so3Meta, scaleMeta, velCorr, weight);
+
+        // so3 knots param block [each has four sub params]
+        for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
+            costFunc->AddParameterBlock(4);
+        }
+        // pos knots param block [each has three sub params]
+        for (int i = 0; i < static_cast<int>(scaleMeta.NumParameters()); ++i) {
+            costFunc->AddParameterBlock(3);
+        }
+
+        costFunc->AddParameterBlock(4);
+        costFunc->AddParameterBlock(3);
+        costFunc->AddParameterBlock(1);
+        costFunc->AddParameterBlock(1);
+
+        // fx, fy, cx, cy
+        costFunc->AddParameterBlock(1);
+        costFunc->AddParameterBlock(1);
+        costFunc->AddParameterBlock(1);
+        costFunc->AddParameterBlock(1);
+
+        // alpha, beta
+        costFunc->AddParameterBlock(1);
+        costFunc->AddParameterBlock(1);
+
+        costFunc->SetNumResiduals(2);
+
+        // organize the param block vector
+        std::vector<double *> paramBlockVec;
+
+        // so3 knots param block
+        AddSo3KnotsData(paramBlockVec, splines->GetSo3Spline(Configor::Preference::SO3_SPLINE),
+                        so3Meta, !IsOptionWith(Opt::OPT_SO3_SPLINE, option));
+
+        // lin acce knots
+        AddRdKnotsData(paramBlockVec, splines->GetRdSpline(Configor::Preference::SCALE_SPLINE),
+                       scaleMeta, !IsOptionWith(Opt::OPT_SCALE_SPLINE, option));
+
+        auto SO3_DnToBr = parMagr->EXTRI.SO3_DnToBr.at(topic).data();
+        paramBlockVec.push_back(SO3_DnToBr);
+
+        auto POS_DnInBr = parMagr->EXTRI.POS_DnInBr.at(topic).data();
+        paramBlockVec.push_back(POS_DnInBr);
+
+        paramBlockVec.push_back(TO_DnToBr);
+        paramBlockVec.push_back(RS_READOUT);
+
+        auto &intri = parMagr->INTRI.RGBD.at(topic);
+        paramBlockVec.push_back(intri->intri->FXAddress());
+        paramBlockVec.push_back(intri->intri->FYAddress());
+        paramBlockVec.push_back(intri->intri->CXAddress());
+        paramBlockVec.push_back(intri->intri->CYAddress());
+
+        paramBlockVec.push_back(&intri->alpha);
+        paramBlockVec.push_back(&intri->beta);
+
+        // pass to problem
+        this->AddResidualBlock(costFunc,
+                               new ceres::CauchyLoss(Configor::Prior::CauchyLossForRGBDFactor),
+                               paramBlockVec);
+        this->SetManifold(SO3_DnToBr, QUATER_MANIFOLD.get());
+
+        if (!IsOptionWith(Opt::OPT_SO3_DnToBr, option)) {
+            this->SetParameterBlockConstant(SO3_DnToBr);
+        }
+
+        if (!IsOptionWith(Opt::OPT_POS_DnInBr, option)) {
+            this->SetParameterBlockConstant(POS_DnInBr);
+        }
+
+        if (!IsOptionWith(Opt::OPT_TO_DnToBr, option)) {
+            this->SetParameterBlockConstant(TO_DnToBr);
+        } else {
+            // set bound
+            this->SetParameterLowerBound(TO_DnToBr, 0, -TO_PADDING);
+            this->SetParameterUpperBound(TO_DnToBr, 0, TO_PADDING);
+        }
+
+        if (!IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option)) {
+            this->SetParameterBlockConstant(RS_READOUT);
+        } else {
+            // set bound
+            this->SetParameterLowerBound(RS_READOUT, 0, 0.0);
+            this->SetParameterUpperBound(RS_READOUT, 0, RT_PADDING);
+        }
+
+        if (!IsOptionWith(Opt::OPT_CAM_FOCAL_LEN, option)) {
+            this->SetParameterBlockConstant(intri->intri->FXAddress());
+            this->SetParameterBlockConstant(intri->intri->FYAddress());
+        }
+
+        if (!IsOptionWith(Opt::OPT_CAM_PRINCIPAL_POINT, option)) {
+            this->SetParameterBlockConstant(intri->intri->CXAddress());
+            this->SetParameterBlockConstant(intri->intri->CYAddress());
+        }
+
+        if (!IsOptionWith(Opt::OPT_RGBD_ALPHA, option)) {
+            this->SetParameterBlockConstant(&intri->alpha);
+        }
+
+        if (!IsOptionWith(Opt::OPT_RGBD_BETA, option)) {
+            this->SetParameterBlockConstant(&intri->beta);
+        }
+    }
+
     void SetRefIMUParamsConstant();
 
     void FixFirSO3ControlPoint();

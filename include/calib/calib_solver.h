@@ -237,6 +237,17 @@ protected:
         }
     }
 
+    template <TimeDeriv::ScaleSplineType type>
+    void AddRGBDVelocityFactor(Estimator::Ptr &estimator,
+                               const std::string &rgbdTopic,
+                               const std::vector<RGBDVelocityCorr::Ptr> &corrs,
+                               Estimator::Opt option) {
+        double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
+        for (const auto &corr : corrs) {
+            estimator->AddVisualReprojection<type>(corr, rgbdTopic, option, weight);
+        }
+    }
+
     void StoreImagesForSfM(const std::string &camTopic, const std::set<IndexPair> &matchRes);
 
     ns_veta::Veta::Ptr TryLoadSfMData(const std::string &camTopic,
@@ -253,6 +264,8 @@ protected:
 
     static std::vector<VisualPixelDynamicPtr> CreateVisualPixelDynamicForRGBD(
         const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList);
+
+    std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CreateRGBDVelocityCorr();
 };
 
 struct CeresDebugCallBack : public ceres::IterationCallback {
