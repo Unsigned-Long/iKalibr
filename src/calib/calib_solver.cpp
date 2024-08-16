@@ -547,10 +547,16 @@ void CalibSolver::PerformTransformForVeta(const ns_veta::Veta::Ptr &veta,
     }
 }
 
-bool CalibSolver::IsRSCamera(const std::string &camTopic) {
-    auto model = EnumCast::stringToEnum<CameraModelType>(
-        Configor::DataStream::CameraTopics.at(camTopic).Type);
-    return IsOptionWith(CameraModelType::RS, model);
+bool CalibSolver::IsRSCamera(const std::string &topic) {
+    CameraModelType type = CameraModelType::GS;
+    if (auto t = Configor::DataStream::CameraTopics.find(topic);
+        t != Configor::DataStream::CameraTopics.cend()) {
+        type = EnumCast::stringToEnum<CameraModelType>(t->second.Type);
+    } else if (auto t = Configor::DataStream::RGBDTopics.find(topic);
+               t != Configor::DataStream::RGBDTopics.cend()) {
+        type = EnumCast::stringToEnum<CameraModelType>(t->second.Type);
+    }
+    return IsOptionWith(CameraModelType::RS, type);
 }
 
 void CalibSolver::DownsampleVeta(const ns_veta::Veta::Ptr &veta,

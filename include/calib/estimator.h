@@ -59,9 +59,9 @@ struct OptOption {
     // OPT_SO3_RjToBr OPT_POS_RjInBr OPT_SO3_LkToBr OPT_POS_LkInBr OPT_SO3_CmToBr OPT_POS_CmInBr
     // OPT_SO3_DnToBr OPT_POS_DnInBr OPT_TO_BiToBr OPT_TO_RjToBr OPT_TO_LkToBr OPT_TO_CmToBr
     // OPT_TO_DnToBr OPT_GYRO_BIAS OPT_GYRO_MAP_COEFF OPT_ACCE_BIAS OPT_ACCE_MAP_COEFF OPT_SO3_AtoG
-    // OPT_GRAVITY OPT_VISUAL_GLOBAL_SCALE OPT_VISUAL_INV_DEPTH OPT_RGBD_ALPHA OPT_RGBD_BETA
-    // OPT_CAM_FOCAL_LEN OPT_CAM_PRINCIPAL_POINT OPT_RS_CAM_READOUT_TIME
-    enum Option : std::uint32_t {
+    // OPT_GRAVITY OPT_VISUAL_GLOBAL_SCALE OPT_VISUAL_INV_DEPTH OPT_RGBD_DEPTH OPT_RGBD_ALPHA
+    // OPT_RGBD_BETA OPT_CAM_FOCAL_LEN OPT_CAM_PRINCIPAL_POINT OPT_RS_CAM_READOUT_TIME
+    enum Option : long {
         /**
          * @brief options
          */
@@ -102,12 +102,13 @@ struct OptOption {
         OPT_VISUAL_GLOBAL_SCALE = 1 << 24,
         OPT_VISUAL_INV_DEPTH = 1 << 25,
 
-        OPT_RGBD_ALPHA = 1 << 26,
-        OPT_RGBD_BETA = 1 << 27,
+        OPT_RGBD_DEPTH = 1 << 26,
+        OPT_RGBD_ALPHA = 1 << 27,
+        OPT_RGBD_BETA = 1 << 28,
 
-        OPT_CAM_FOCAL_LEN = 1 << 28,
-        OPT_CAM_PRINCIPAL_POINT = 1 << 29,
-        OPT_RS_CAM_READOUT_TIME = 1 << 30,
+        OPT_CAM_FOCAL_LEN = 1 << 29,
+        OPT_CAM_PRINCIPAL_POINT = 1 << 30,
+        OPT_RS_CAM_READOUT_TIME = 1 << 31,
 
         ALL = OPT_SO3_SPLINE | OPT_SCALE_SPLINE | OPT_SO3_BiToBr | OPT_POS_BiInBr | OPT_SO3_RjToBr |
               OPT_POS_RjInBr | OPT_SO3_LkToBr | OPT_POS_LkInBr | OPT_SO3_CmToBr | OPT_POS_CmInBr |
@@ -862,13 +863,17 @@ public:
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr |
-     *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA ]
+     *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH ]
      */
     template <TimeDeriv::ScaleSplineType type>
     void AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
                                    const std::string &topic,
                                    Opt option,
                                    double weight) {
+        // invalid depth
+        if (velCorr->depth < 1E-3) {
+            return;
+        }
         // prepare metas for splines
         SplineMetaType so3Meta, scaleMeta;
 
@@ -936,7 +941,8 @@ public:
         costFunc->AddParameterBlock(1);
         costFunc->AddParameterBlock(1);
 
-        // alpha, beta
+        // alpha, beta, depth
+        costFunc->AddParameterBlock(1);
         costFunc->AddParameterBlock(1);
         costFunc->AddParameterBlock(1);
 
@@ -970,6 +976,7 @@ public:
 
         paramBlockVec.push_back(&intri->alpha);
         paramBlockVec.push_back(&intri->beta);
+        paramBlockVec.push_back(&velCorr->depth);
 
         // pass to problem
         this->AddResidualBlock(costFunc,
@@ -1017,6 +1024,10 @@ public:
 
         if (!IsOptionWith(Opt::OPT_RGBD_BETA, option)) {
             this->SetParameterBlockConstant(&intri->beta);
+        }
+
+        if (!IsOptionWith(Opt::OPT_RGBD_DEPTH, option)) {
+            this->SetParameterBlockConstant(&velCorr->depth);
         }
     }
 

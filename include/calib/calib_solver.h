@@ -106,6 +106,8 @@ public:
         std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> lidarCorrs;
         // radar global map
         IKalibrPointCloud::Ptr radarMap;
+        // rgbd velocity correspondences
+        std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> rgbdCorrs;
     };
 
 private:

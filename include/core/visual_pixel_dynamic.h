@@ -69,7 +69,8 @@ public:
 
     // for rgbd cameras whose have depth images
     [[nodiscard]] RGBDVelocityCorrPtr CreateRGBDVelocityCorr(const RGBDIntrinsicsPtr& intri,
-                                                             const CameraModelType& type) const;
+                                                             const CameraModelType& type,
+                                                             bool rawDepth) const;
 
     // visualization
     [[nodiscard]] cv::Mat CreatePixelDynamicMat(const ns_veta::PinholeIntrinsic::Ptr& intri,

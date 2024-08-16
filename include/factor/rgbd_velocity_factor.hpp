@@ -195,7 +195,7 @@ public:
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr |
-     *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA ]
+     *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH ]
      */
     template <class T>
     bool operator()(T const *const *sKnots, T *sResiduals) const {
@@ -210,6 +210,7 @@ public:
         std::size_t CY_OFFSET = CX_OFFSET + 1;
         std::size_t ALPHA_OFFSET = CY_OFFSET + 1;
         std::size_t BETA_OFFSET = ALPHA_OFFSET + 1;
+        std::size_t DEPTH_OFFSET = BETA_OFFSET + 1;
 
         // get value
         Eigen::Map<const Sophus::SO3<T>> SO3_DnToBr(sKnots[SO3_DnToBr_OFFSET]);
@@ -226,6 +227,7 @@ public:
 
         T ALPHA = sKnots[ALPHA_OFFSET][0];
         T BETA = sKnots[BETA_OFFSET][0];
+        T DEPTH = sKnots[DEPTH_OFFSET][0];
 
         auto timeByBr = _corr->MidPointTime(READOUT_TIME) + TO_DnToBr;
 
@@ -260,9 +262,8 @@ public:
         Eigen::Matrix<T, 2, 3> subAMat, subBMat;
         // the template parameters, i.e., 'Order' and 'TimeDeriv', do not matter here
         SubMats<T>(&FX, &FY, &CX, &CY, _corr->MidPoint().cast<T>(), &subAMat, &subBMat);
-        Eigen::Vector2<T> pred =
-            1.0 / (ALPHA * _corr->depth + BETA) * subAMat * LIN_VEL_DnToBr0InDn +
-            subBMat * ANG_VEL_DnToBr0InDn;
+        Eigen::Vector2<T> pred = 1.0 / (ALPHA * DEPTH + BETA) * subAMat * LIN_VEL_DnToBr0InDn +
+                                 subBMat * ANG_VEL_DnToBr0InDn;
 
         Eigen::Map<Eigen::Vector2<T>> residuals(sResiduals);
         residuals = T(_weight) * (pred - _corr->template MidPointVel(READOUT_TIME));

@@ -58,8 +58,9 @@ const CameraFrame::Ptr& VisualPixelDynamic::GetMidCameraFrame() const {
     return _movement.at(MID).first;
 }
 
-RGBDVelocityCorr::Ptr VisualPixelDynamic::CreateRGBDVelocityCorr(
-    const RGBDIntrinsics::Ptr& intri, const CameraModelType& type) const {
+RGBDVelocityCorr::Ptr VisualPixelDynamic::CreateRGBDVelocityCorr(const RGBDIntrinsics::Ptr& intri,
+                                                                 const CameraModelType& type,
+                                                                 bool rawDepth) const {
     std::array<double, 3> timeAry{}, xAry{}, yAry{};
     for (int i = 0; i < 3; ++i) {
         timeAry[i] = _movement[i].first->GetTimestamp();
@@ -70,8 +71,13 @@ RGBDVelocityCorr::Ptr VisualPixelDynamic::CreateRGBDVelocityCorr(
     const Eigen::Vector2d& midPoint = _movement.at(MID).second;
     double depth = -1.0;
     if (auto rgbdFrame = std::dynamic_pointer_cast<RGBDFrame>(midFrame); rgbdFrame) {
-        if (auto depthMat = rgbdFrame->GetDepthImage(); !depthMat.empty())
-            depth = intri->ActualDepth(depthMat.at<float>((int)midPoint(1), (int)midPoint(0)));
+        if (auto depthMat = rgbdFrame->GetDepthImage(); !depthMat.empty()) {
+            if (rawDepth) {
+                depth = depthMat.at<float>((int)midPoint(1), (int)midPoint(0));
+            } else {
+                depth = intri->ActualDepth(depthMat.at<float>((int)midPoint(1), (int)midPoint(0)));
+            }
+        }
     }
     auto depthMat = std::dynamic_pointer_cast<RGBDFrame>(midFrame)->GetDepthImage();
     return RGBDVelocityCorr::Create(timeAry, xAry, yAry, depth, (int)intri->intri->imgHeight,

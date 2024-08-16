@@ -44,7 +44,6 @@
 #include "util/tqdm.h"
 #include "magic_enum_flags.hpp"
 #include "core/visual_pixel_dynamic.h"
-#include "core/visual_velocity_estimator.h"
 #include "core/visual_velocity_sac.h"
 
 namespace {
@@ -384,7 +383,8 @@ CalibSolver::Initialization() {
             }
 
             for (int i = 0; i < static_cast<int>(constructedFrames.size()) - 1; ++i) {
-                const auto &sPose = constructedFrames.at(i), ePose = constructedFrames.at(i + 1);
+                const auto &sPose = constructedFrames.at(i);
+                const auto &ePose = constructedFrames.at(i + 1);
                 // we throw the head and tail data as the rotations from the fitted SO3 Spline in
                 // that range are poor
                 if (sPose.timeStamp + TO_CmToBr < st || ePose.timeStamp + TO_CmToBr > et) {
@@ -523,7 +523,7 @@ CalibSolver::Initialization() {
         const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
         for (const auto &dynamic : dynamics) {
             auto midCamFrame = dynamic->GetMidCameraFrame();
-            if (const auto &rgbdVelCorr = dynamic->CreateRGBDVelocityCorr(intri, cameraType);
+            if (const auto &rgbdVelCorr = dynamic->CreateRGBDVelocityCorr(intri, cameraType, false);
                 rgbdVelCorr->depth > 1E-2 /* 1 cm */) {
                 // a valid depth
                 dynamicsInFrame[midCamFrame].emplace_back(
@@ -838,7 +838,8 @@ CalibSolver::Initialization() {
 
         static constexpr int STEP = 5;
         for (int i = 0; i < static_cast<int>(constructedFrames.size()) - STEP; ++i) {
-            const auto &sPose = constructedFrames.at(i), ePose = constructedFrames.at(i + STEP);
+            const auto &sPose = constructedFrames.at(i);
+            const auto &ePose = constructedFrames.at(i + STEP);
             // we throw the head and tail data as the rotations from the fitted SO3 Spline in
             // that range are poor
             if (sPose.timeStamp + TO_CmToBr < st || ePose.timeStamp + TO_CmToBr > et) {
@@ -1232,10 +1233,6 @@ CalibSolver::Initialization() {
         SaveStageCalibParam(_parMagr, "stage_3_scale_fit");
     }
 
-    _parMagr->ShowParamStatus();
-    IKALIBR_DEBUG
-    std::cin.get();
-
     //------------------------------------------------------
     // Step 7: align initialized states to gravity direction
     //------------------------------------------------------
@@ -1525,13 +1522,14 @@ std::vector<VisualPixelDynamic::Ptr> CalibSolver::CreateVisualPixelDynamicForRGB
 std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssociationForRGBDs() {
     std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> corrs;
     for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
+        spdlog::info("perform data association for RGBD camera '{}'...", topic);
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
         const auto &cameraType = EnumCast::stringToEnum<CameraModelType>(
             Configor::DataStream::RGBDTopics.at(topic).Type);
 
         corrs[topic].reserve(dynamics.size());
         for (const auto &dynamic : dynamics) {
-            corrs[topic].push_back(dynamic->CreateRGBDVelocityCorr(intri, cameraType));
+            corrs[topic].push_back(dynamic->CreateRGBDVelocityCorr(intri, cameraType, true));
         }
     }
     return corrs;
@@ -1568,8 +1566,23 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddGyroFactor(estimator, topic, optOption);
             }
             for (const auto &[topic, corrs] : rgbdCorrs) {
+                OptOption::Option visualOpt = optOption;
+                if (IsOptionWith(OptOption::Option::OPT_RS_CAM_READOUT_TIME, visualOpt)) {
+                    if (IsRSCamera(topic)) {
+                        spdlog::info(
+                            "rgbd camera '{}' is a rolling shutter (RS) camera, "
+                            "use optimization option 'OPT_RS_CAM_READOUT_TIME'",
+                            topic);
+                    } else {
+                        visualOpt ^= OptOption::Option::OPT_RS_CAM_READOUT_TIME;
+                        spdlog::info(
+                            "rgbd camera '{}' is a global shutter (GS) camera, "
+                            "remove optimization option 'OPT_RS_CAM_READOUT_TIME'",
+                            topic);
+                    }
+                }
                 this->AddRGBDVelocityFactor<TimeDeriv::LIN_VEL_SPLINE>(estimator, topic, corrs,
-                                                                       optOption);
+                                                                       visualOpt);
             }
         } break;
         case TimeDeriv::LIN_POS_SPLINE: {
@@ -1604,8 +1617,23 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddGyroFactor(estimator, topic, optOption);
             }
             for (const auto &[topic, corrs] : rgbdCorrs) {
+                OptOption::Option visualOpt = optOption;
+                if (IsOptionWith(OptOption::Option::OPT_RS_CAM_READOUT_TIME, visualOpt)) {
+                    if (IsRSCamera(topic)) {
+                        spdlog::info(
+                            "rgbd camera '{}' is a rolling shutter (RS) camera, "
+                            "use optimization option 'OPT_RS_CAM_READOUT_TIME'",
+                            topic);
+                    } else {
+                        visualOpt ^= OptOption::Option::OPT_RS_CAM_READOUT_TIME;
+                        spdlog::info(
+                            "rgbd camera '{}' is a global shutter (GS) camera, "
+                            "remove optimization option 'OPT_RS_CAM_READOUT_TIME'",
+                            topic);
+                    }
+                }
                 this->AddRGBDVelocityFactor<TimeDeriv::LIN_POS_SPLINE>(estimator, topic, corrs,
-                                                                       optOption);
+                                                                       visualOpt);
             }
         } break;
     }
@@ -1654,6 +1682,8 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     backUp->visualGlobalScale = visualGlobalScale;
     // the inverse depth of each corr sequence is stored here
     backUp->visualCorrs = visualCorrs;
+    // depth is stored here
+    backUp->rgbdCorrs = rgbdCorrs;
     return backUp;
 }
 }  // namespace ns_ikalibr

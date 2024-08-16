@@ -79,11 +79,21 @@ protected:
             Opt::OPT_RS_CAM_READOUT_TIME | Opt::OPT_CAM_FOCAL_LEN | Opt::OPT_CAM_PRINCIPAL_POINT |
             Opt::OPT_ACCE_BIAS | Opt::OPT_GYRO_BIAS};
 
+    constexpr static std::array<Opt, 2> MultiRGBDIMU = {
+        // first batch optimization
+        Opt::OPT_SO3_SPLINE | Opt::OPT_SCALE_SPLINE | Opt::OPT_GRAVITY | Opt::OPT_SO3_DnToBr |
+            Opt::OPT_POS_DnInBr | Opt::OPT_TO_DnToBr | Opt::OPT_RGBD_DEPTH,
+        // second batch optimization (append to last)
+        Opt::OPT_SO3_BiToBr | Opt::OPT_POS_BiInBr | Opt::OPT_TO_BiToBr |
+            Opt::OPT_RS_CAM_READOUT_TIME | Opt::OPT_CAM_FOCAL_LEN | Opt::OPT_CAM_PRINCIPAL_POINT |
+            Opt::OPT_ACCE_BIAS | Opt::OPT_GYRO_BIAS};
+
 public:
     static std::vector<Opt> GetOptions() {
         std::vector<Opt> options;
         if (!Configor::IsLiDARIntegrated() && !Configor::IsRadarIntegrated() &&
-            !Configor::IsCameraIntegrated()) {
+            !Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
+            // imu-only multi-imu calibration
             options = AryToVecWithAppend(MultiIMU);
         } else {
             if (Configor::IsLiDARIntegrated()) {
@@ -94,6 +104,9 @@ public:
             }
             if (Configor::IsRadarIntegrated()) {
                 options = MergeOptions(options, AryToVecWithAppend(MultiRadarIMU));
+            }
+            if (Configor::IsRGBDIntegrated()) {
+                options = MergeOptions(options, AryToVecWithAppend(MultiRGBDIMU));
             }
             if (options.empty()) {
                 throw Status(Status::CRITICAL, "unknown error happened! (unknown sensor suite)");
@@ -106,6 +119,7 @@ public:
                 RemoveOption(opt, Opt::OPT_TO_RjToBr);
                 RemoveOption(opt, Opt::OPT_TO_LkToBr);
                 RemoveOption(opt, Opt::OPT_TO_CmToBr);
+                RemoveOption(opt, Opt::OPT_TO_DnToBr);
                 // we do not remove this optimization option, as the RS effect exists even if
                 // sensors are hardware-synchronized. in other words, we still optimize this
                 // parameter (readout time of RS camera) RemoveOption(opt,
