@@ -37,7 +37,7 @@
 
 #include "calib/calib_param_manager.h"
 #include "calib/calib_data_manager.h"
-#include "calib/estimator.h"
+#include "calib/estimator_tpl.hpp"
 #include "calib/calib_solver_io.h"
 #include "core/vision_only_sfm.h"
 #include "viewer/viewer.h"

@@ -409,8 +409,9 @@ CalibSolver::Initialization() {
     // 'FeatTrackingInfo' is a list for each rgbd camera, as fail tracking leads to multiple pieces
     std::map<std::string, std::list<RotOnlyVisualOdometer::FeatTrackingInfo>> RGBDTrackingInfo;
     if (Configor::IsRGBDIntegrated()) {
-        // how many features to maintain in each image
-        constexpr int featNumPerImg = 300;
+        // how many features to maintain in each image, for rgbd cameras, we expect more than
+        // optical cameras
+        constexpr int featNumPerImg = 600;
         // the min distance between two features (to ensure features are distributed uniformly)
         constexpr int minDist = 25;
         for (const auto &[topic, frameVec] : _dataMagr->GetRGBDMeasurements()) {
@@ -1567,7 +1568,6 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
                     case TimeDeriv::LIN_ACCE_SPLINE:
                         // this would not happen
                         continue;
-                        break;
                     case TimeDeriv::LIN_VEL_SPLINE:
                         LIN_VEL_BrToBr0InBr0 = scaleSpline.Evaluate<0>(timeByBr);
                         break;
@@ -1576,7 +1576,7 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
                         break;
                 }
                 // however, only when the camera is moving, we can compute the depth
-                if (LIN_VEL_BrToBr0InBr0.norm() < 2.0 * Configor::Prior::CauchyLossForRGBDFactor) {
+                if (LIN_VEL_BrToBr0InBr0.norm() < 0.05 /* m/s */) {
                     continue;
                 }
                 Sophus::SO3d SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
