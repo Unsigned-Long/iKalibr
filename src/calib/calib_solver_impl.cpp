@@ -86,7 +86,8 @@ void CalibSolver::Process() {
                 // visual reprojection data association for cameras
                 DataAssociationForCameras(),
                 // visual velocity creation for rgbd cameras
-                DataAssociationForRGBDs(false));
+                DataAssociationForRGBDs(
+                    IsOptionWith(OptOption::Option::OPT_RGBD_DEPTH, options.at(i))));
             // deconstruct data
             globalMap.reset(), undistFramesInMap.clear();
         } else {
@@ -99,7 +100,8 @@ void CalibSolver::Process() {
                 // visual reprojection data association for cameras
                 DataAssociationForCameras(),
                 // visual velocity creation for rgbd cameras
-                DataAssociationForRGBDs(false));
+                DataAssociationForRGBDs(
+                    IsOptionWith(OptOption::Option::OPT_RGBD_DEPTH, options.at(i))));
             // 'curGlobalMap' and 'curUndistFramesInMap' would be deconstructed here
         }
 

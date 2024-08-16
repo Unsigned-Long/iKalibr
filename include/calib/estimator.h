@@ -61,62 +61,62 @@ struct OptOption {
     // OPT_TO_DnToBr OPT_GYRO_BIAS OPT_GYRO_MAP_COEFF OPT_ACCE_BIAS OPT_ACCE_MAP_COEFF OPT_SO3_AtoG
     // OPT_GRAVITY OPT_VISUAL_GLOBAL_SCALE OPT_VISUAL_INV_DEPTH OPT_RGBD_DEPTH OPT_RGBD_ALPHA
     // OPT_RGBD_BETA OPT_CAM_FOCAL_LEN OPT_CAM_PRINCIPAL_POINT OPT_RS_CAM_READOUT_TIME
-    enum Option : long {
+    enum Option : std::uint32_t {
         /**
          * @brief options
          */
-        NONE = 1 << 0,
+        NONE = std::uint32_t(1) << 0,
+        OPT_SO3_SPLINE = std::uint32_t(1) << 1,
+        OPT_SCALE_SPLINE = std::uint32_t(1) << 2,
 
-        OPT_SO3_SPLINE = 1 << 1,
-        OPT_SCALE_SPLINE = 1 << 2,
+        OPT_SO3_BiToBr = std::uint32_t(1) << 3,
+        OPT_POS_BiInBr = std::uint32_t(1) << 4,
 
-        OPT_SO3_BiToBr = 1 << 3,
-        OPT_POS_BiInBr = 1 << 4,
+        OPT_SO3_RjToBr = std::uint32_t(1) << 5,
+        OPT_POS_RjInBr = std::uint32_t(1) << 6,
 
-        OPT_SO3_RjToBr = 1 << 5,
-        OPT_POS_RjInBr = 1 << 6,
+        OPT_SO3_LkToBr = std::uint32_t(1) << 7,
+        OPT_POS_LkInBr = std::uint32_t(1) << 8,
 
-        OPT_SO3_LkToBr = 1 << 7,
-        OPT_POS_LkInBr = 1 << 8,
+        OPT_SO3_CmToBr = std::uint32_t(1) << 9,
+        OPT_POS_CmInBr = std::uint32_t(1) << 10,
 
-        OPT_SO3_CmToBr = 1 << 9,
-        OPT_POS_CmInBr = 1 << 10,
+        OPT_SO3_DnToBr = std::uint32_t(1) << 11,
+        OPT_POS_DnInBr = std::uint32_t(1) << 12,
 
-        OPT_SO3_DnToBr = 1 << 11,
-        OPT_POS_DnInBr = 1 << 12,
+        OPT_TO_BiToBr = std::uint32_t(1) << 13,
+        OPT_TO_RjToBr = std::uint32_t(1) << 14,
+        OPT_TO_LkToBr = std::uint32_t(1) << 15,
+        OPT_TO_CmToBr = std::uint32_t(1) << 16,
+        OPT_TO_DnToBr = std::uint32_t(1) << 17,
 
-        OPT_TO_BiToBr = 1 << 13,
-        OPT_TO_RjToBr = 1 << 14,
-        OPT_TO_LkToBr = 1 << 15,
-        OPT_TO_CmToBr = 1 << 16,
-        OPT_TO_DnToBr = 1 << 17,
+        OPT_GYRO_BIAS = std::uint32_t(1) << 18,
+        OPT_GYRO_MAP_COEFF = std::uint32_t(1) << 19,
+        OPT_ACCE_BIAS = std::uint32_t(1) << 20,
+        OPT_ACCE_MAP_COEFF = std::uint32_t(1) << 21,
+        OPT_SO3_AtoG = std::uint32_t(1) << 22,
 
-        OPT_GYRO_BIAS = 1 << 18,
-        OPT_GYRO_MAP_COEFF = 1 << 19,
-        OPT_ACCE_BIAS = 1 << 20,
-        OPT_ACCE_MAP_COEFF = 1 << 21,
-        OPT_SO3_AtoG = 1 << 22,
+        OPT_GRAVITY = std::uint32_t(1) << 23,
 
-        OPT_GRAVITY = 1 << 23,
+        OPT_VISUAL_GLOBAL_SCALE = std::uint32_t(1) << 24,
+        OPT_VISUAL_INV_DEPTH = std::uint32_t(1) << 25,
 
-        OPT_VISUAL_GLOBAL_SCALE = 1 << 24,
-        OPT_VISUAL_INV_DEPTH = 1 << 25,
+        OPT_RGBD_ALPHA = std::uint32_t(1) << 26,
+        OPT_RGBD_BETA = std::uint32_t(1) << 27,
+        OPT_RGBD_DEPTH = std::uint32_t(1) << 28,
 
-        OPT_RGBD_DEPTH = 1 << 26,
-        OPT_RGBD_ALPHA = 1 << 27,
-        OPT_RGBD_BETA = 1 << 28,
+        OPT_CAM_FOCAL_LEN = std::uint32_t(1) << 29,
+        OPT_CAM_PRINCIPAL_POINT = std::uint32_t(1) << 30,
 
-        OPT_CAM_FOCAL_LEN = 1 << 29,
-        OPT_CAM_PRINCIPAL_POINT = 1 << 30,
-        OPT_RS_CAM_READOUT_TIME = 1 << 31,
+        OPT_RS_CAM_READOUT_TIME = std::uint32_t(1) << 31,
 
         ALL = OPT_SO3_SPLINE | OPT_SCALE_SPLINE | OPT_SO3_BiToBr | OPT_POS_BiInBr | OPT_SO3_RjToBr |
               OPT_POS_RjInBr | OPT_SO3_LkToBr | OPT_POS_LkInBr | OPT_SO3_CmToBr | OPT_POS_CmInBr |
               OPT_SO3_DnToBr | OPT_POS_DnInBr | OPT_TO_BiToBr | OPT_TO_RjToBr | OPT_TO_LkToBr |
               OPT_TO_CmToBr | OPT_TO_DnToBr | OPT_GYRO_BIAS | OPT_GYRO_MAP_COEFF | OPT_ACCE_BIAS |
               OPT_ACCE_MAP_COEFF | OPT_SO3_AtoG | OPT_GRAVITY | OPT_VISUAL_GLOBAL_SCALE |
-              OPT_VISUAL_INV_DEPTH | OPT_RGBD_ALPHA | OPT_RGBD_BETA | OPT_CAM_FOCAL_LEN |
-              OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME
+              OPT_VISUAL_INV_DEPTH | OPT_RGBD_ALPHA | OPT_RGBD_BETA | OPT_RGBD_DEPTH |
+              OPT_CAM_FOCAL_LEN | OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME
     };
 };
 
