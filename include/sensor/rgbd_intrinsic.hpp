@@ -66,6 +66,8 @@ public:
 
     [[nodiscard]] double ActualDepth(double rawDepth) const { return alpha * rawDepth + beta; }
 
+    [[nodiscard]] double RawDepth(double actualDepth) const { return (actualDepth - beta) / alpha; }
+
 public:
     // Serialization
     template <class Archive>

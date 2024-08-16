@@ -108,9 +108,9 @@ public:
             if (Configor::IsRGBDIntegrated()) {
                 options = MergeOptions(options, AryToVecWithAppend(MultiRGBDIMU));
             }
-            if (options.empty()) {
-                throw Status(Status::CRITICAL, "unknown error happened! (unknown sensor suite)");
-            }
+        }
+        if (options.empty()) {
+            throw Status(Status::CRITICAL, "unknown error happened! (unknown sensor suite)");
         }
         // if do not optimize temporal parameters, remove them
         if (!Configor::Prior::OptTemporalParams) {

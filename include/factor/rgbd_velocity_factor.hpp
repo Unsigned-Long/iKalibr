@@ -260,7 +260,6 @@ public:
             SO3_BrToDn * SO3_BrToBr0.inverse() * LIN_VEL_DnToBr0InBr0;
 
         Eigen::Matrix<T, 2, 3> subAMat, subBMat;
-        // the template parameters, i.e., 'Order' and 'TimeDeriv', do not matter here
         SubMats<T>(&FX, &FY, &CX, &CY, _corr->MidPoint().cast<T>(), &subAMat, &subBMat);
         Eigen::Vector2<T> pred = 1.0 / (ALPHA * DEPTH + BETA) * subAMat * LIN_VEL_DnToBr0InDn +
                                  subBMat * ANG_VEL_DnToBr0InDn;

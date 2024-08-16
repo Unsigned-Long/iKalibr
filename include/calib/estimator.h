@@ -870,10 +870,12 @@ public:
                                    const std::string &topic,
                                    Opt option,
                                    double weight) {
+        auto &intri = parMagr->INTRI.RGBD.at(topic);
         // invalid depth
-        if (velCorr->depth < 1E-3) {
+        if (intri->ActualDepth(velCorr->depth) < 1E-3) {
             return;
         }
+
         // prepare metas for splines
         SplineMetaType so3Meta, scaleMeta;
 
@@ -968,7 +970,6 @@ public:
         paramBlockVec.push_back(TO_DnToBr);
         paramBlockVec.push_back(RS_READOUT);
 
-        auto &intri = parMagr->INTRI.RGBD.at(topic);
         paramBlockVec.push_back(intri->intri->FXAddress());
         paramBlockVec.push_back(intri->intri->FYAddress());
         paramBlockVec.push_back(intri->intri->CXAddress());

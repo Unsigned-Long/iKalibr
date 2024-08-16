@@ -86,7 +86,7 @@ void CalibSolver::Process() {
                 // visual reprojection data association for cameras
                 DataAssociationForCameras(),
                 // visual velocity creation for rgbd cameras
-                DataAssociationForRGBDs());
+                DataAssociationForRGBDs(false));
             // deconstruct data
             globalMap.reset(), undistFramesInMap.clear();
         } else {
@@ -99,7 +99,7 @@ void CalibSolver::Process() {
                 // visual reprojection data association for cameras
                 DataAssociationForCameras(),
                 // visual velocity creation for rgbd cameras
-                DataAssociationForRGBDs());
+                DataAssociationForRGBDs(false));
             // 'curGlobalMap' and 'curUndistFramesInMap' would be deconstructed here
         }
 
@@ -1519,18 +1519,105 @@ std::vector<VisualPixelDynamic::Ptr> CalibSolver::CreateVisualPixelDynamicForRGB
     return dynamics;
 }
 
-std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssociationForRGBDs() {
+std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssociationForRGBDs(
+    bool estDepth) {
+    const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+
     std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> corrs;
+
     for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
         spdlog::info("perform data association for RGBD camera '{}'...", topic);
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
+        const double fx = intri->intri->FocalX(), fy = intri->intri->FocalY();
+        const double cx = intri->intri->PrincipalPoint()(0), cy = intri->intri->PrincipalPoint()(1);
+
         const auto &cameraType = EnumCast::stringToEnum<CameraModelType>(
             Configor::DataStream::RGBDTopics.at(topic).Type);
 
+        const double readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
+        const double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
+
+        const auto SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
+        Sophus::SO3d SO3_BrToDn = SO3_DnToBr.inverse();
+        Eigen::Vector3d POS_DnInBr = _parMagr->EXTRI.POS_DnInBr.at(topic);
+
         corrs[topic].reserve(dynamics.size());
+
+        int estDepthCount = 0;
+
         for (const auto &dynamic : dynamics) {
-            corrs[topic].push_back(dynamic->CreateRGBDVelocityCorr(intri, cameraType, true));
+            auto corr = dynamic->CreateRGBDVelocityCorr(intri, cameraType, true);
+
+            if (auto actualDepth = intri->ActualDepth(corr->depth); actualDepth < 1E-3) {
+                if (!estDepth) {
+                    continue;
+                }
+                // if depth is not measured, we assign a rough depth for it, as depth would be
+                // optimized in estimator
+                double timeByBr = corr->MidPointTime(readout) + TO_DnToBr;
+                if (!so3Spline.TimeStampInRange(timeByBr) ||
+                    !scaleSpline.TimeStampInRange(timeByBr)) {
+                    continue;
+                }
+                Eigen::Vector3d LIN_VEL_BrToBr0InBr0;
+                switch (GetScaleType()) {
+                    case TimeDeriv::LIN_ACCE_SPLINE:
+                        // this would not happen
+                        continue;
+                        break;
+                    case TimeDeriv::LIN_VEL_SPLINE:
+                        LIN_VEL_BrToBr0InBr0 = scaleSpline.Evaluate<0>(timeByBr);
+                        break;
+                    case TimeDeriv::LIN_POS_SPLINE:
+                        LIN_VEL_BrToBr0InBr0 = scaleSpline.Evaluate<1>(timeByBr);
+                        break;
+                }
+                // however, only when the camera is moving, we can compute the depth
+                if (LIN_VEL_BrToBr0InBr0.norm() < 2.0 * Configor::Prior::CauchyLossForRGBDFactor) {
+                    continue;
+                }
+                Sophus::SO3d SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
+                Eigen::Vector3d ANG_VEL_BrToBr0InBr = so3Spline.VelocityBody(timeByBr);
+
+                Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * ANG_VEL_BrToBr0InBr;
+                Eigen::Vector3d ANG_VEL_DnToBr0InDn = SO3_BrToDn * ANG_VEL_BrToBr0InBr;
+
+                Eigen::Vector3d LIN_VEL_DnToBr0InBr0 =
+                    -Sophus::SO3d::hat(SO3_BrToBr0 * POS_DnInBr) * ANG_VEL_BrToBr0InBr0 +
+                    LIN_VEL_BrToBr0InBr0;
+
+                Eigen::Vector3d LIN_VEL_DnToBr0InDn =
+                    SO3_BrToDn * SO3_BrToBr0.inverse() * LIN_VEL_DnToBr0InBr0;
+
+                Eigen::Matrix<double, 2, 3> subAMat, subBMat;
+                RGBDVelocityFactor<0, 0>::SubMats<double>(&fx, &fy, &cx, &cy, corr->MidPoint(),
+                                                          &subAMat, &subBMat);
+
+                Eigen::Vector2d lVec = subAMat * LIN_VEL_DnToBr0InDn;
+                Eigen::Vector2d bMat = corr->MidPointVel(readout) - subBMat * ANG_VEL_DnToBr0InDn;
+                Eigen::Vector1d HMat = bMat.transpose() * bMat;
+                double estDepth = (HMat.inverse() * bMat.transpose() * lVec)(0, 0);
+                double newRawDepth = intri->RawDepth(estDepth);
+                // spdlog::info(
+                //     "raw depth: {:.3f}, actual depth: {:.3f}, est depth: {:.3f}, new raw depth: "
+                //     "{:.3f}",
+                //     corr->depth, actualDepth, estDepth, newRawDepth);
+                ++estDepthCount;
+
+                if (estDepth < 1E-3) {
+                    // depth is negative, invalid
+                    continue;
+                }
+                corr->depth = newRawDepth;
+            }
+
+            corrs[topic].push_back(corr);
         }
+
+        spdlog::info(
+            "total correspondences count for rgbd '{}': {}, with estimated depth count: {}", topic,
+            corrs[topic].size(), estDepthCount);
     }
     return corrs;
 }

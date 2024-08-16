@@ -268,7 +268,8 @@ protected:
     static std::vector<VisualPixelDynamicPtr> CreateVisualPixelDynamicForRGBD(
         const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList);
 
-    std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> DataAssociationForRGBDs();
+    std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> DataAssociationForRGBDs(
+        bool estDepth);
 };
 
 struct CeresDebugCallBack : public ceres::IterationCallback {
