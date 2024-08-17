@@ -86,7 +86,7 @@ public:
                 : Type(),
                   Intrinsics(),
                   AcceWeight(),
-                  GyroWeight(){};
+                  GyroWeight() {};
 
         public:
             template <class Archive>
@@ -103,7 +103,7 @@ public:
 
             RadarConfig()
                 : Type(),
-                  Weight(){};
+                  Weight() {};
 
         public:
             template <class Archive>
@@ -119,7 +119,7 @@ public:
 
             LiDARConfig()
                 : Type(),
-                  Weight(){};
+                  Weight() {};
 
         public:
             template <class Archive>
@@ -139,7 +139,7 @@ public:
                 : Type(),
                   Intrinsics(),
                   Weight(),
-                  TrackLengthMin(){};
+                  TrackLengthMin() {};
 
         public:
             template <class Archive>
@@ -156,19 +156,21 @@ public:
             std::string DepthTopic;
             double DepthFactor;
             double Weight;
+            int TrackLengthMin;
 
             RGBDConfig()
                 : Type(),
                   Intrinsics(),
                   DepthTopic(),
                   DepthFactor(),
-                  Weight(){};
+                  Weight(),
+                  TrackLengthMin() {};
 
         public:
             template <class Archive>
             void serialize(Archive &ar) {
                 ar(CEREAL_NVP(Type), CEREAL_NVP(Intrinsics), CEREAL_NVP(DepthTopic),
-                   CEREAL_NVP(DepthFactor), CEREAL_NVP(Weight));
+                   CEREAL_NVP(DepthFactor), CEREAL_NVP(Weight), CEREAL_NVP(TrackLengthMin));
             }
         };
 

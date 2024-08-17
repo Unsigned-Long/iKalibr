@@ -266,7 +266,8 @@ protected:
     static void SaveStageCalibParam(const CalibParamManager::Ptr &par, const std::string &desc);
 
     static std::vector<VisualPixelDynamicPtr> CreateVisualPixelDynamicForRGBD(
-        const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList);
+        const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList,
+        const std::string &topic);
 
     std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> DataAssociationForRGBDs(
         bool estDepth);

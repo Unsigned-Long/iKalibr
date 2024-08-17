@@ -409,9 +409,8 @@ CalibSolver::Initialization() {
     // 'FeatTrackingInfo' is a list for each rgbd camera, as fail tracking leads to multiple pieces
     std::map<std::string, std::list<RotOnlyVisualOdometer::FeatTrackingInfo>> RGBDTrackingInfo;
     if (Configor::IsRGBDIntegrated()) {
-        // how many features to maintain in each image, for rgbd cameras, we expect more than
-        // optical cameras
-        constexpr int featNumPerImg = 600;
+        // how many features to maintain in each image
+        constexpr int featNumPerImg = 300;
         // the min distance between two features (to ensure features are distributed uniformly)
         constexpr int minDist = 25;
         for (const auto &[topic, frameVec] : _dataMagr->GetRGBDMeasurements()) {
@@ -508,7 +507,8 @@ CalibSolver::Initialization() {
     // ------------------------------------------------------------
     for (const auto &[topic, trackInfoList] : RGBDTrackingInfo) {
         // store
-        _dataMagr->SetRGBDPixelDynamics(topic, CreateVisualPixelDynamicForRGBD(trackInfoList));
+        _dataMagr->SetRGBDPixelDynamics(topic,
+                                        CreateVisualPixelDynamicForRGBD(trackInfoList, topic));
     }
     // topic, camera frame, body-frame velocity
     std::map<std::string, std::vector<std::pair<CameraFrame::Ptr, Eigen::Vector3d>>>
@@ -1488,12 +1488,14 @@ CalibSolver::DataAssociationForCameras() {
 }
 
 std::vector<VisualPixelDynamic::Ptr> CalibSolver::CreateVisualPixelDynamicForRGBD(
-    const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList) {
+    const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList,
+    const std::string &topic) {
     std::vector<VisualPixelDynamic::Ptr> dynamics;
+    int trackThd = Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin;
     for (const auto &trackInfo : trackInfoList) {
         for (const auto &[id, info] : trackInfo) {
             // for each tracked feature
-            if (info.size() < 3) {
+            if (static_cast<int>(info.size()) < std::max(trackThd, 3)) {
                 continue;
             }
             // store in groups of three

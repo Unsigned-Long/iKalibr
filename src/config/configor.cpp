@@ -295,6 +295,10 @@ void Configor::CheckConfigure() {
         if (config.Weight <= 0.0) {
             throw Status(Status::ERROR, "weight of rgbd '{}' should be positive!", topic);
         }
+        if (config.TrackLengthMin < 3) {
+            throw Status(Status::ERROR, "track length of rgbd '{}' should be larger than '3'!",
+                         topic);
+        }
         if (!std::filesystem::exists(config.Intrinsics)) {
             throw Status(Status::ERROR, "rgbd intrinsic file for '{}' dose not exist: '{}'", topic,
                          config.Intrinsics);
