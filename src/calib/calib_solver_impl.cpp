@@ -1043,7 +1043,8 @@ CalibSolver::Initialization() {
                 const double TO_RjToBr = _parMagr->TEMPORAL.TO_RjToBr.at(topic);
                 const auto &SO3_RjToBr = _parMagr->EXTRI.SO3_RjToBr.at(topic);
                 const Eigen::Vector3d &POS_RjInBr = _parMagr->EXTRI.POS_RjInBr.at(topic);
-                const double weight = Configor::DataStream::RadarTopics.at(topic).Weight;
+                // const double weight = Configor::DataStream::RadarTopics.at(topic).Weight;
+                constexpr double weight = 10.0;
 
                 for (const auto &ary : data) {
                     double timeByBr = ary->GetTimestamp() + TO_RjToBr;
@@ -1064,7 +1065,8 @@ CalibSolver::Initialization() {
 
             // rgbd-derived velocities
             for (const auto &[rgbdTopic, bodyFrameVels] : rgbdBodyFrameVels) {
-                double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
+                // const double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
+                constexpr double weight = 10.0;
                 double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(rgbdTopic);
                 const auto &SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(rgbdTopic);
                 const Eigen::Vector3d &POS_DnInBr = _parMagr->EXTRI.POS_DnInBr.at(rgbdTopic);
@@ -1147,7 +1149,8 @@ CalibSolver::Initialization() {
 
             for (const auto &[lidarTopic, odometer] : lidarOdometers) {
                 double TO_LkToBr = _parMagr->TEMPORAL.TO_LkToBr.at(lidarTopic);
-                double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
+                // const double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
+                constexpr double weight = 10.0;
                 auto SE3_BrToLk = _parMagr->EXTRI.SE3_LkToBr(lidarTopic).inverse();
 
                 // the translation part is not exactly rigorous as the translation spline is not
@@ -1172,7 +1175,8 @@ CalibSolver::Initialization() {
 
             for (const auto &[camTopic, poseSeq] : sfmPoseSeq) {
                 double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(camTopic);
-                double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
+                // const double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
+                constexpr double weight = 10.0;
                 auto SE3_BrToCm = _parMagr->EXTRI.SE3_CmToBr(camTopic).inverse();
 
                 // the translation part is not exactly rigorous as the translation spline is not
@@ -1532,6 +1536,7 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
 
     std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> corrs;
+    std::default_random_engine engine(std::chrono::system_clock::now().time_since_epoch().count());
 
     for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
         spdlog::info("perform data association for RGBD camera '{}'...", topic);
@@ -1550,7 +1555,8 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
         Sophus::SO3d SO3_BrToDn = SO3_DnToBr.inverse();
         Eigen::Vector3d POS_DnInBr = _parMagr->EXTRI.POS_DnInBr.at(topic);
 
-        corrs[topic].reserve(dynamics.size());
+        auto &curCorrs = corrs[topic];
+        curCorrs.reserve(dynamics.size());
 
         int estDepthCount = 0;
 
@@ -1619,12 +1625,21 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
                 corr->depth = newRawDepth;
             }
 
-            corrs[topic].push_back(corr);
+            curCorrs.push_back(corr);
         }
 
         spdlog::info(
             "total correspondences count for rgbd '{}': {}, with estimated depth count: {}", topic,
-            corrs[topic].size(), estDepthCount);
+            curCorrs.size(), estDepthCount);
+
+        // constexpr int CorrCountPerFrame = 20;
+        // auto desiredCount = CorrCountPerFrame * _dataMagr->GetRGBDMeasurements(topic).size();
+        // if (desiredCount < curCorrs.size()) {
+        //     curCorrs = SamplingWoutReplace2(engine, curCorrs, desiredCount);
+        //     spdlog::info("total correspondences count for rgbd '{}' after down sampled: {}",
+        //     topic,
+        //                  curCorrs.size());
+        // }
     }
     return corrs;
 }
