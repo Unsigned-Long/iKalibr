@@ -40,6 +40,8 @@
 #include "veta/veta.h"
 #include "veta/camera/pinhole.h"
 #include "opencv2/core.hpp"
+#include "sensor/rgbd_intrinsic.hpp"
+#include "calib/time_deriv.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -50,6 +52,10 @@ struct CalibParamManager;
 using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
 struct CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
+struct RGBDVelocityCorr;
+using RGBDVelocityCorrPtr = std::shared_ptr<RGBDVelocityCorr>;
+struct VisualPixelDynamic;
+using VisualPixelDynamicPtr = std::shared_ptr<VisualPixelDynamic>;
 
 class VisualLinVelDrawer {
 public:
@@ -57,10 +63,8 @@ public:
     using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
 
 private:
-    std::string _topic;
     ns_veta::Veta::Ptr _veta;
     SplineBundleType::Ptr _splines;
-    CalibParamManagerPtr _parMagr;
 
     ns_veta::PinholeIntrinsic::Ptr _intri;
 
@@ -68,10 +72,10 @@ private:
     double TO_CmToBr;
 
 public:
-    VisualLinVelDrawer(std::string topic,
+    VisualLinVelDrawer(const std::string &topic,
                        ns_veta::Veta::Ptr veta,
                        SplineBundleType::Ptr splines,
-                       CalibParamManagerPtr parMagr);
+                       const CalibParamManagerPtr &parMagr);
 
     static Ptr Create(const std::string &topic,
                       const ns_veta::Veta::Ptr &veta,
@@ -79,6 +83,37 @@ public:
                       const CalibParamManagerPtr &parMagr);
 
     cv::Mat CreateLinVelImg(const CameraFramePtr &frame, float scale = 0.3f);
+};
+
+class RGBDVisualLinVelDrawer {
+public:
+    using Ptr = std::shared_ptr<RGBDVisualLinVelDrawer>;
+    using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
+
+private:
+    std::map<CameraFramePtr, std::vector<RGBDVelocityCorrPtr>> _velCorrs;
+    SplineBundleType::Ptr _splines;
+
+    RGBDIntrinsics::Ptr _intri;
+
+    Sophus::SE3d SE3_DnToBr;
+    double TO_DnToBr;
+    double RS_READOUT;
+
+public:
+    RGBDVisualLinVelDrawer(const std::string &topic,
+                           const std::vector<VisualPixelDynamicPtr> &dynamics,
+                           SplineBundleType::Ptr splines,
+                           const CalibParamManagerPtr &parMagr);
+
+    static Ptr Create(const std::string &topic,
+                      const std::vector<VisualPixelDynamicPtr> &dynamics,
+                      const SplineBundleType::Ptr &splines,
+                      const CalibParamManagerPtr &parMagr);
+
+    cv::Mat CreateLinVelImg(const CameraFramePtr &frame,
+                            const TimeDeriv::ScaleSplineType &scaleSplineType,
+                            float scale = 0.3f);
 };
 }  // namespace ns_ikalibr
 

@@ -543,6 +543,10 @@ void CalibParamManager::ParIntri::SaveIMUIntri(const IMUIntrinsics::Ptr &intri,
 cv::Mat CalibParamManager::ParIntri::UndistortImage(const ns_veta::PinholeIntrinsic::Ptr &intri,
                                                     const cv::Mat &src) {
     auto [K, D] = ObtainKDMatForUndisto(intri);
+    if (cv::countNonZero(D) == 0) {
+        // don't need to undedistort this image
+        return src.clone();
+    }
     cv::Mat undistImg;
     if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(intri)) {
         cv::undistort(src, undistImg, K, D);

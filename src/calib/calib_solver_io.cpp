@@ -284,7 +284,7 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() {
 }
 
 void CalibSolverIO::SaveVisualKinematics() {
-    if (!Configor::IsCameraIntegrated()) {
+    if (!Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -340,6 +340,35 @@ void CalibSolverIO::SaveVisualKinematics() {
             bar->progress(i, static_cast<int>(data.size()));
             const auto &frame = data.at(i);
             cv::Mat res = linVelDrawer->CreateLinVelImg(frame);
+            auto filename = subSaveDir + '/' + std::to_string(frame->GetId()) + ".jpg";
+            cv::imwrite(filename, res);
+            cv::imshow("Visual Linear Velocity", res);
+            cv::waitKey(1);
+        }
+        bar->finish();
+    }
+    cv::destroyAllWindows();
+
+    // linear velocities for rgbds
+    for (const auto &[topic, data] : _solver->_dataMagr->GetRGBDPixelDynamics()) {
+        spdlog::info("create visual linear velocity images for rgbd '{}'...", topic);
+
+        auto subSaveDir = saveDir + "/lin_vel/" + topic;
+        if (!TryCreatePath(subSaveDir)) {
+            spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
+            continue;
+        }
+
+        auto linVelDrawer =
+            RGBDVisualLinVelDrawer::Create(topic, data, _solver->_splines, _solver->_parMagr);
+
+        const TimeDeriv::ScaleSplineType &scaleSplineType = ns_ikalibr::CalibSolver::GetScaleType();
+        const auto &frames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+        bar = std::make_shared<tqdm>();
+        for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
+            bar->progress(i, static_cast<int>(frames.size()));
+            const auto &frame = frames.at(i);
+            cv::Mat res = linVelDrawer->CreateLinVelImg(frame, scaleSplineType);
             auto filename = subSaveDir + '/' + std::to_string(frame->GetId()) + ".jpg";
             cv::imwrite(filename, res);
             cv::imshow("Visual Linear Velocity", res);

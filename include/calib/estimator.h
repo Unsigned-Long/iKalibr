@@ -46,6 +46,7 @@
 #include "factor/point_to_surfel_factor.hpp"
 #include "factor/visual_reproj_factor.hpp"
 #include "factor/rgbd_velocity_factor.hpp"
+#include "calib/time_deriv.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -120,21 +121,7 @@ struct OptOption {
     };
 };
 
-struct TimeDeriv {
-    enum ScaleSplineType : int { LIN_ACCE_SPLINE = 0, LIN_VEL_SPLINE = 1, LIN_POS_SPLINE = 2 };
 
-    enum ScaleType : int {
-        LIN_ACCE = 0,
-        LIN_VEL = -1,
-        LIN_POS = -2,
-    };
-
-    template <ScaleSplineType spType, ScaleType sType>
-    static constexpr int Deriv() {
-        // compute how many times to perform time derivation to obtain "sType" from "spType"
-        return spType + sType;
-    }
-};
 
 struct SpatialTemporalPriori;
 using SpatialTemporalPrioriPtr = std::shared_ptr<SpatialTemporalPriori>;

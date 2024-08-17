@@ -527,7 +527,7 @@ CalibSolver::Initialization() {
         for (const auto &dynamic : dynamics) {
             auto midCamFrame = dynamic->GetMidCameraFrame();
             if (const auto &rgbdVelCorr = dynamic->CreateRGBDVelocityCorr(intri, cameraType, false);
-                rgbdVelCorr->depth > 1E-2 /* 1 cm */) {
+                rgbdVelCorr->depth > 1E-3 /* 1 mm */) {
                 // a valid depth
                 dynamicsInFrame[midCamFrame].emplace_back(
                     rgbdVelCorr->MidPoint(), rgbdVelCorr->MidPointVel(readout), rgbdVelCorr->depth);
