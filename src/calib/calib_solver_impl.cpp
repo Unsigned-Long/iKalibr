@@ -521,12 +521,14 @@ CalibSolver::Initialization() {
                  std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>>>
             dynamicsInFrame;
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
-        const auto &cameraType = EnumCast::stringToEnum<CameraModelType>(
-            Configor::DataStream::RGBDTopics.at(topic).Type);
+        const auto &rsExposureFactor =
+            CameraModel::RSCameraExposureFactor(EnumCast::stringToEnum<CameraModelType>(
+                Configor::DataStream::RGBDTopics.at(topic).Type));
         const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
         for (const auto &dynamic : dynamics) {
             auto midCamFrame = dynamic->GetMidCameraFrame();
-            if (const auto &rgbdVelCorr = dynamic->CreateRGBDVelocityCorr(intri, cameraType, false);
+            if (const auto &rgbdVelCorr =
+                    dynamic->CreateRGBDVelocityCorr(intri, rsExposureFactor, false);
                 rgbdVelCorr->depth > 1E-3 /* 1 mm */) {
                 // a valid depth
                 dynamicsInFrame[midCamFrame].emplace_back(
@@ -1537,8 +1539,9 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
         const double fx = intri->intri->FocalX(), fy = intri->intri->FocalY();
         const double cx = intri->intri->PrincipalPoint()(0), cy = intri->intri->PrincipalPoint()(1);
 
-        const auto &cameraType = EnumCast::stringToEnum<CameraModelType>(
-            Configor::DataStream::RGBDTopics.at(topic).Type);
+        const auto &rsExposureFactor =
+            CameraModel::RSCameraExposureFactor(EnumCast::stringToEnum<CameraModelType>(
+                Configor::DataStream::RGBDTopics.at(topic).Type));
 
         const double readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
         const double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
@@ -1552,7 +1555,7 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
         int estDepthCount = 0;
 
         for (const auto &dynamic : dynamics) {
-            auto corr = dynamic->CreateRGBDVelocityCorr(intri, cameraType, true);
+            auto corr = dynamic->CreateRGBDVelocityCorr(intri, rsExposureFactor, true);
 
             if (auto actualDepth = intri->ActualDepth(corr->depth); actualDepth < 1E-3) {
                 if (!estDepth) {

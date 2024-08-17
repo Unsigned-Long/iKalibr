@@ -59,7 +59,7 @@ const CameraFrame::Ptr& VisualPixelDynamic::GetMidCameraFrame() const {
 }
 
 RGBDVelocityCorr::Ptr VisualPixelDynamic::CreateRGBDVelocityCorr(const RGBDIntrinsics::Ptr& intri,
-                                                                 const CameraModelType& type,
+                                                                 double rsExposureFactor,
                                                                  bool rawDepth) const {
     std::array<double, 3> timeAry{}, xAry{}, yAry{};
     for (int i = 0; i < 3; ++i) {
@@ -80,8 +80,7 @@ RGBDVelocityCorr::Ptr VisualPixelDynamic::CreateRGBDVelocityCorr(const RGBDIntri
         }
     }
     auto depthMat = std::dynamic_pointer_cast<RGBDFrame>(midFrame)->GetDepthImage();
-    return RGBDVelocityCorr::Create(timeAry, xAry, yAry, depth, midFrame,
-                                    CameraModel::RSCameraExposureFactor(type));
+    return RGBDVelocityCorr::Create(timeAry, xAry, yAry, depth, midFrame, rsExposureFactor);
 }
 
 // -------------

@@ -69,7 +69,7 @@ public:
 
     // for rgbd cameras whose have depth images
     [[nodiscard]] RGBDVelocityCorrPtr CreateRGBDVelocityCorr(const RGBDIntrinsicsPtr& intri,
-                                                             const CameraModelType& type,
+                                                             double rsExposureFactor,
                                                              bool rawDepth) const;
 
     // visualization
