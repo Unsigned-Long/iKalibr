@@ -350,7 +350,7 @@ void CalibSolverIO::SaveVisualKinematics() {
     cv::destroyAllWindows();
 
     // linear velocities for rgbds
-    for (const auto &[topic, data] : _solver->_dataMagr->GetRGBDPixelDynamics()) {
+    for (const auto &[topic, data] : _solver->_backup->rgbdCorrs) {
         spdlog::info("create visual linear velocity images for rgbd '{}'...", topic);
 
         auto subSaveDir = saveDir + "/lin_vel/" + topic;

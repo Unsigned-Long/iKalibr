@@ -125,7 +125,7 @@ cv::Mat VisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame, float
 // ----------------------
 
 RGBDVisualLinVelDrawer::RGBDVisualLinVelDrawer(const std::string &topic,
-                                               const std::vector<VisualPixelDynamic::Ptr> &dynamics,
+                                               const std::vector<RGBDVelocityCorr::Ptr> &corrs,
                                                SplineBundleType::Ptr splines,
                                                const CalibParamManager::Ptr &parMagr)
     : _splines(std::move(splines)) {
@@ -134,23 +134,20 @@ RGBDVisualLinVelDrawer::RGBDVisualLinVelDrawer(const std::string &topic,
     TO_DnToBr = parMagr->TEMPORAL.TO_DnToBr.at(topic);
     RS_READOUT = parMagr->TEMPORAL.RS_READOUT.at(topic);
 
-    const auto &cameraType =
-        EnumCast::stringToEnum<CameraModelType>(Configor::DataStream::RGBDTopics.at(topic).Type);
-    for (const auto &dynamic : dynamics) {
-        if (const auto &rgbdVelCorr = dynamic->CreateRGBDVelocityCorr(_intri, cameraType, false);
-            rgbdVelCorr->depth > 1E-3 /* 1 mm */) {
+    for (const auto &corr : corrs) {
+        if (_intri->ActualDepth(corr->depth) > 1E-3 /* 1 mm */) {
             // a valid depth
-            this->_velCorrs[dynamic->GetMidCameraFrame()].emplace_back(rgbdVelCorr);
+            this->_velCorrs[corr->frame->GetId()].emplace_back(corr);
         }
     }
 }
 
 RGBDVisualLinVelDrawer::Ptr RGBDVisualLinVelDrawer::Create(
     const std::string &topic,
-    const std::vector<VisualPixelDynamic::Ptr> &dynamics,
+    const std::vector<RGBDVelocityCorr::Ptr> &corrs,
     const SplineBundleType::Ptr &splines,
     const CalibParamManager::Ptr &parMagr) {
-    return std::make_shared<RGBDVisualLinVelDrawer>(topic, dynamics, splines, parMagr);
+    return std::make_shared<RGBDVisualLinVelDrawer>(topic, corrs, splines, parMagr);
 }
 
 cv::Mat RGBDVisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame,
@@ -200,9 +197,9 @@ cv::Mat RGBDVisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame,
     const double FX = _intri->intri->FocalX(), FY = _intri->intri->FocalY();
     const double CX = _intri->intri->PrincipalPoint()(0), CY = _intri->intri->PrincipalPoint()(1);
 
-    for (const auto &velCorr : _velCorrs[frame]) {
-        // this depth has been mapped using alpha and beta
-        const double depth = velCorr->depth;
+    for (const auto &velCorr : _velCorrs[frame->GetId()]) {
+        // map depth using alpha and beta
+        const double depth = _intri->ActualDepth(velCorr->depth);
 
         // draw linear velocity of the landmark with respect to the rgbd camera
         {  // obtain the landmark

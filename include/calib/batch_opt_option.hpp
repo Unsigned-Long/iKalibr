@@ -62,7 +62,7 @@ protected:
     constexpr static std::array<Opt, 3> MultiLiDARIMU = {
         // first batch optimization
         Opt::OPT_SO3_SPLINE | Opt::OPT_SCALE_SPLINE | Opt::OPT_GRAVITY | Opt::OPT_SO3_LkToBr |
-            Opt::OPT_POS_LkInBr | Opt::OPT_TO_LkToBr,
+            Opt::OPT_POS_LkInBr | Opt::OPT_TO_LkToBr ,
         // second batch optimization (append to last)
         Opt::OPT_SO3_BiToBr | Opt::OPT_POS_BiInBr | Opt::OPT_TO_BiToBr | Opt::OPT_ACCE_BIAS |
             Opt::OPT_GYRO_BIAS,
@@ -82,7 +82,7 @@ protected:
     constexpr static std::array<Opt, 2> MultiRGBDIMU = {
         // first batch optimization
         Opt::OPT_SO3_SPLINE | Opt::OPT_SCALE_SPLINE | Opt::OPT_GRAVITY | Opt::OPT_SO3_DnToBr |
-            Opt::OPT_POS_DnInBr | Opt::OPT_TO_DnToBr,
+            Opt::OPT_POS_DnInBr | Opt::OPT_TO_DnToBr | Opt::OPT_RGBD_DEPTH,
         // second batch optimization (append to last)
         Opt::OPT_SO3_BiToBr | Opt::OPT_POS_BiInBr | Opt::OPT_TO_BiToBr |
             Opt::OPT_RS_CAM_READOUT_TIME | Opt::OPT_CAM_FOCAL_LEN | Opt::OPT_CAM_PRINCIPAL_POINT |

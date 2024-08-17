@@ -42,6 +42,7 @@
 #include "ctraj/spline/ceres_spline_helper_jet.h"
 #include "ceres/ceres.h"
 #include "util/utils.h"
+#include "sensor/camera.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -61,19 +62,22 @@ public:
     // row / image height - rsExpFactor
     std::array<double, 3> rdFactorAry;
     double depth;
+    CameraFrame::Ptr frame;
 
 public:
     RGBDVelocityCorr(const std::array<double, 3> &timeAry,
                      const std::array<double, 3> &xDynamicAry,
                      const std::array<double, 3> &yDynamicAry,
                      double depth,
-                     int imgHeight,
+                     const CameraFrame::Ptr &frame,
                      double rsExpFactor)
         : timeAry(timeAry),
           xDynamicAry(xDynamicAry),
           yDynamicAry(yDynamicAry),
           rdFactorAry(),
-          depth(depth) {
+          depth(depth),
+          frame(frame) {
+        int imgHeight = frame->GetImage().rows;
         for (int i = 0; i < 3; ++i) {
             rdFactorAry[i] = yDynamicAry[i] / (double)imgHeight - rsExpFactor;
         }
@@ -83,10 +87,10 @@ public:
                       const std::array<double, 3> &xDynamicAry,
                       const std::array<double, 3> &yDynamicAry,
                       double depth,
-                      int imgHeight,
+                      const CameraFrame::Ptr &frame,
                       double rsExpFactor) {
-        return std::make_shared<RGBDVelocityCorr>(timeAry, xDynamicAry, yDynamicAry, depth,
-                                                  imgHeight, rsExpFactor);
+        return std::make_shared<RGBDVelocityCorr>(timeAry, xDynamicAry, yDynamicAry, depth, frame,
+                                                  rsExpFactor);
     }
 
     [[nodiscard]] Eigen::Vector2d MidPoint() const {

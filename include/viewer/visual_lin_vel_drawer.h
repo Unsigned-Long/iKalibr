@@ -54,8 +54,6 @@ struct CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
 struct RGBDVelocityCorr;
 using RGBDVelocityCorrPtr = std::shared_ptr<RGBDVelocityCorr>;
-struct VisualPixelDynamic;
-using VisualPixelDynamicPtr = std::shared_ptr<VisualPixelDynamic>;
 
 class VisualLinVelDrawer {
 public:
@@ -91,7 +89,8 @@ public:
     using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
 
 private:
-    std::map<CameraFramePtr, std::vector<RGBDVelocityCorrPtr>> _velCorrs;
+    // frame id, correspondences
+    std::map<ns_veta::IndexT, std::vector<RGBDVelocityCorrPtr>> _velCorrs;
     SplineBundleType::Ptr _splines;
 
     RGBDIntrinsics::Ptr _intri;
@@ -102,12 +101,12 @@ private:
 
 public:
     RGBDVisualLinVelDrawer(const std::string &topic,
-                           const std::vector<VisualPixelDynamicPtr> &dynamics,
+                           const std::vector<RGBDVelocityCorrPtr> &corrs,
                            SplineBundleType::Ptr splines,
                            const CalibParamManagerPtr &parMagr);
 
     static Ptr Create(const std::string &topic,
-                      const std::vector<VisualPixelDynamicPtr> &dynamics,
+                      const std::vector<RGBDVelocityCorrPtr> &dynamics,
                       const SplineBundleType::Ptr &splines,
                       const CalibParamManagerPtr &parMagr);
 
