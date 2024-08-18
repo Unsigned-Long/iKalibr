@@ -427,8 +427,14 @@ CalibSolver::Initialization() {
             auto rotEstimator = RotationEstimator::Create();
 
             bar = std::make_shared<tqdm>();
+            auto intri = _parMagr->INTRI.RGBD.at(topic);
             for (int i = 0; i < static_cast<int>(frameVec.size()); ++i) {
                 bar->progress(i, static_cast<int>(frameVec.size()));
+
+                if (i % 10 == 0) {
+                    _viewer->ClearViewer(Viewer::VIEW_MAP);
+                    _viewer->AddRGBDFrame(frameVec.at(i), intri, Viewer::VIEW_MAP, true, 2.0f);
+                }
 
                 // if tracking current frame failed, the rotation-only odometer would re-initialize
                 if (!odometer->GrabFrame(frameVec.at(i))) {
@@ -499,6 +505,7 @@ CalibSolver::Initialization() {
                              "insufficiently excited motion or bad images.");
             }
         }
+        _viewer->ClearViewer(Viewer::VIEW_MAP);
         cv::destroyAllWindows();
     }
 

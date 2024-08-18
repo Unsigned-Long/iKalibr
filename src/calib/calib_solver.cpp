@@ -99,18 +99,11 @@ CalibSolver::CalibSolver(CalibDataManager::Ptr calibDataManager,
 
     // create viewer
     _viewer = Viewer::Create(_parMagr, _splines);
-    if (!Configor::IsCameraIntegrated() && !Configor::IsLiDARIntegrated()) {
-        auto modelPath = ros::package::getPath("ikalibr") + "/model/ikalibr.obj";
-        if (std::filesystem::exists(modelPath)) {
-            _viewer->AddObjEntity(modelPath, Viewer::VIEW_MAP);
-            _viewer->AddObjEntity(modelPath, Viewer::VIEW_ASSOCIATION);
-        } else {
-            spdlog::warn("can not load models from '{}'!", modelPath);
-        }
-    }
+    auto modelPath = ros::package::getPath("ikalibr") + "/model/ikalibr.obj";
+    _viewer->FillEmptyViews(modelPath);
 
     // pass the 'CeresViewerCallBack' to ceres option so that update the viewer after every
-    // interation in ceres
+    // iteration in ceres
     _ceresOption.callbacks.push_back(new CeresViewerCallBack(_viewer));
     _ceresOption.update_state_every_iteration = true;
 
@@ -291,9 +284,9 @@ void CalibSolver::StoreImagesForSfM(const std::string &topic, const std::set<Ind
                                  "can not create workspace for SfM for topic: '{}'!!!", topic);
     }
     const std::string database_path = *ws + "/database.db";
-    const std::string image_path = *path;
+    const std::string &image_path = *path;
     const std::string match_list_path = *ws + "/matches.txt";
-    const std::string output_path = *ws;
+    const std::string &output_path = *ws;
 
     auto logger = spdlog::basic_logger_mt("sfm_cmd", *ws + "/sfm-command-line.txt", true);
     // feature extractor

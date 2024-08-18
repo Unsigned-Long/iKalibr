@@ -54,6 +54,10 @@ using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
 struct PointToSurfelCondition;
 struct PointToSurfelCorr;
 using PointToSurfelCorrPtr = std::shared_ptr<PointToSurfelCorr>;
+struct RGBDFrame;
+using RGBDFramePtr = std::shared_ptr<RGBDFrame>;
+struct RGBDIntrinsics;
+using RGBDIntrinsicsPtr = std::shared_ptr<RGBDIntrinsics>;
 
 class Viewer : public ns_viewer::MultiViewer {
 public:
@@ -74,6 +78,8 @@ public:
     explicit Viewer(CalibParamManagerPtr parMagr, SplineBundleType::Ptr splines);
 
     static Ptr Create(const CalibParamManagerPtr &parMagr, const SplineBundleType::Ptr &splines);
+
+    Viewer &FillEmptyViews(const std::string &objPath);
 
     Viewer &UpdateSensorViewer();
 
@@ -117,6 +123,12 @@ public:
                            const std::string &view);
 
     void SetNewSpline(const SplineBundleType::Ptr &splines);
+
+    Viewer &AddRGBDFrame(const RGBDFramePtr &frame,
+                         const RGBDIntrinsicsPtr &intri,
+                         const std::string &view,
+                         bool trueColor,
+                         float size);
 
 protected:
     ns_viewer::MultiViewerConfigor GenViewerConfigor();

@@ -81,7 +81,7 @@ void RGBDFrame::ReleaseMat() {
     _depthImg.release();
 }
 
-cv::Mat RGBDFrame::CreateColorDepthMap() const {
+cv::Mat RGBDFrame::CreateColorDepthMap(bool withColorMat) const {
     double min = 0.0, max = 0.0;
     cv::minMaxIdx(_depthImg, &min, &max);
 
@@ -90,10 +90,13 @@ cv::Mat RGBDFrame::CreateColorDepthMap() const {
     cv::Mat uCharImg, colorImg;
     cv::convertScaleAbs(_depthImg, uCharImg, alpha, beta);
     cv::applyColorMap(uCharImg, colorImg, cv::COLORMAP_PLASMA);
-
-    cv::Mat rgbdMap;
-    cv::hconcat(_colorImg, colorImg, rgbdMap);
-    return rgbdMap;
+    if (withColorMat) {
+        cv::Mat rgbdMap;
+        cv::hconcat(_colorImg, colorImg, rgbdMap);
+        return rgbdMap;
+    } else {
+        return colorImg;
+    }
 }
 
 // ----------

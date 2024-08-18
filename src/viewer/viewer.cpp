@@ -36,6 +36,8 @@
 #include "util/status.hpp"
 #include "core/pts_association.h"
 #include "calib/calib_param_manager.h"
+#include "sensor/rgbd.h"
+#include "sensor/rgbd_intrinsic.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -324,4 +326,108 @@ Viewer &Viewer::AddEntityLocal(const std::vector<ns_viewer::Entity::Ptr> &entiti
 }
 
 void Viewer::SetNewSpline(const SplineBundleType::Ptr &splines) { _splines = splines; }
+
+Viewer &Viewer::FillEmptyViews(const std::string &objPath) {
+    std::array<std::map<std::string, bool>, 5> occupy;
+    std::array<bool, 5> senIntegrated{};
+    // imus
+    occupy[0] = {
+        {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, false}, {VIEW_ASSOCIATION, false}};
+    senIntegrated[0] = true;
+
+    // radars
+    occupy[1] = {
+        {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, false}, {VIEW_ASSOCIATION, false}};
+    senIntegrated[1] = Configor::IsRadarIntegrated();
+
+    // cameras
+    occupy[2] = {
+        {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, false}};
+    senIntegrated[2] = Configor::IsCameraIntegrated();
+
+    // lidars
+    occupy[3] = {
+        {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, true}};
+    senIntegrated[3] = Configor::IsLiDARIntegrated();
+
+    // rgbds
+    occupy[4] = {
+        {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, false}};
+    senIntegrated[4] = Configor::IsRGBDIntegrated();
+
+    std::map<std::string, bool> viewOccupy;
+    for (int i = 0; i < static_cast<int>(occupy.size()); ++i) {
+        if (!senIntegrated.at(i)) {
+            continue;
+        }
+        for (const auto &[view, status] : occupy.at(i)) {
+            auto iter = viewOccupy.find(view);
+            if (iter == viewOccupy.cend()) {
+                viewOccupy[view] = status;
+            } else {
+                iter->second = iter->second || status;
+            }
+        }
+    }
+
+    if (std::filesystem::exists(objPath)) {
+        for (const auto &[view, status] : viewOccupy) {
+            if (!status) {
+                this->AddObjEntity(objPath, view);
+            }
+        }
+    } else {
+        spdlog::warn("can not load models from '{}'!", objPath);
+    }
+
+    return *this;
+}
+
+Viewer &Viewer::AddRGBDFrame(const RGBDFrame::Ptr &frame,
+                             const RGBDIntrinsicsPtr &intri,
+                             const std::string &view,
+                             bool trueColor,
+                             float size) {
+    cv::Mat cMat;
+    if (trueColor) {
+        cMat = frame->GetColorImage();
+    } else {
+        cMat = frame->CreateColorDepthMap(false);
+    }
+    auto dMat = frame->GetDepthImage();
+    if (cMat.empty() || dMat.empty() || cMat.size != dMat.size) {
+        return *this;
+    }
+    int rowCnt = cMat.rows;
+    int colCnt = cMat.cols;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    cloud->reserve(rowCnt * colCnt);
+    for (int row = 0; row < rowCnt; ++row) {
+        auto cData = cMat.ptr<uchar>(row);
+        auto dData = dMat.ptr<float>(row);
+        for (int col = 0; col < colCnt; ++col) {
+            auto depth = (float)intri->ActualDepth(dData[0]);
+            if (depth > 1E-3) {
+                Eigen::Vector2d lmInDnPlane = intri->intri->ImgToCam({col, row});
+                Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);
+
+                pcl::PointXYZRGB p;
+                p.x = (float)lmInDn(0);
+                p.y = (float)lmInDn(1);
+                p.z = (float)lmInDn(2);
+                p.b = cData[2];
+                p.g = cData[1];
+                p.r = cData[0];
+                cloud->push_back(p);
+            }
+            // color mat ptr
+            cData += 3;
+            // depth mat ptr
+            dData += 1;
+        }
+    }
+    AddEntityLocal({ns_viewer::Cloud<pcl::PointXYZRGB>::Create(cloud, size)}, view);
+    return *this;
+}
 }  // namespace ns_ikalibr
