@@ -434,6 +434,9 @@ CalibSolver::Initialization() {
                 if (i % 10 == 0) {
                     _viewer->ClearViewer(Viewer::VIEW_MAP);
                     _viewer->AddRGBDFrame(frameVec.at(i), intri, Viewer::VIEW_MAP, true, 2.0f);
+                    // auto img = frameVec.at(i)->CreateColorDepthMap(intri, true);
+                    // cv::imshow("img", img);
+                    // cv::waitKey();
                 }
 
                 // if tracking current frame failed, the rotation-only odometer would re-initialize

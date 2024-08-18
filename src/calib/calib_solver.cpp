@@ -185,6 +185,23 @@ std::optional<Sophus::SE3d> CalibSolver::CurCmToW(double timeByCm, const std::st
     }
 }
 
+std::optional<Sophus::SE3d> CalibSolver::CurDnToW(double timeByDn, const std::string &topic) {
+    if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
+        throw Status(Status::CRITICAL,
+                     "'CurDnToW' error, scale spline is not translation spline!!!");
+    }
+    double timeByBr = timeByDn + _parMagr->TEMPORAL.TO_DnToBr.at(topic);
+    const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    const auto &posSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+
+    if (!so3Spline.TimeStampInRange(timeByBr) || !posSpline.TimeStampInRange(timeByBr)) {
+        return {};
+    } else {
+        Sophus::SE3d curBrToW(so3Spline.Evaluate(timeByBr), posSpline.Evaluate(timeByBr));
+        return curBrToW * _parMagr->EXTRI.SE3_DnToBr(topic);
+    }
+}
+
 std::optional<Sophus::SE3d> CalibSolver::CurRjToW(double timeByRj, const std::string &topic) {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,

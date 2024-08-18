@@ -169,6 +169,8 @@ protected:
 
     std::optional<Sophus::SE3d> CurCmToW(double timeByCm, const std::string &topic);
 
+    std::optional<Sophus::SE3d> CurDnToW(double timeByDn, const std::string &topic);
+
     std::optional<Sophus::SE3d> CurRjToW(double timeByRj, const std::string &topic);
 
     static SplineBundleType::Ptr CreateSplineBundle(double st,

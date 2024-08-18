@@ -35,6 +35,7 @@
 #include "sensor/rgbd.h"
 #include "spdlog/spdlog.h"
 #include "opencv2/imgproc.hpp"
+#include "sensor/rgbd_intrinsic.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -81,15 +82,52 @@ void RGBDFrame::ReleaseMat() {
     _depthImg.release();
 }
 
-cv::Mat RGBDFrame::CreateColorDepthMap(bool withColorMat) const {
-    double min = 0.0, max = 0.0;
-    cv::minMaxIdx(_depthImg, &min, &max);
+cv::Mat RGBDFrame::CreateColorDepthMap(const RGBDIntrinsics::Ptr& intri,
+                                       bool withColorMat,
+                                       float zMin,
+                                       float zMax) const {
+    int rowCnt = _depthImg.rows;
+    int colCnt = _depthImg.cols;
 
-    // new value = (value - min) * (255.0f / (max - min));
-    double alpha = 255.0 / (max - min), beta = -min * alpha;
+    cv::Mat invDepthImg(rowCnt, colCnt, CV_32FC1, cv::Scalar(0.0f));
+    float min = std::numeric_limits<float>::max(), max = std::numeric_limits<float>::min();
+
+    for (int row = 0; row < rowCnt; ++row) {
+        auto iData = invDepthImg.ptr<float>(row);
+        auto dData = _depthImg.ptr<float>(row);
+        for (int col = 0; col < colCnt; ++col) {
+            auto depth = (float)intri->ActualDepth(dData[0]);
+            if (depth > zMin && depth < zMax) {
+                iData[0] = 1.0f / depth;
+            } else {
+                iData[0] = 0.0f;
+            }
+            if (iData[0] < min) {
+                min = iData[0];
+            }
+            if (iData[0] > max) {
+                max = iData[0];
+            }
+            // color mat ptr
+            iData += 1;
+            // depth mat ptr
+            dData += 1;
+        }
+    }
+    float alpha = 255.0f / (max - min), beta = -min * alpha;
     cv::Mat uCharImg, colorImg;
-    cv::convertScaleAbs(_depthImg, uCharImg, alpha, beta);
+
+    cv::convertScaleAbs(invDepthImg, uCharImg, alpha, beta);
     cv::applyColorMap(uCharImg, colorImg, cv::COLORMAP_PLASMA);
+
+    // double min = 0.0, max = 0.0;
+    // cv::minMaxIdx(_depthImg, &min, &max);
+    // new value = (value - min) * (255.0f / (max - min));
+    // double alpha = 255.0 / (max - min), beta = -min * alpha;
+    // cv::Mat uCharImg, colorImg;
+    // cv::convertScaleAbs(_depthImg, uCharImg, alpha, beta);
+    // cv::applyColorMap(uCharImg, colorImg, cv::COLORMAP_PLASMA);
+
     if (withColorMat) {
         cv::Mat rgbdMap;
         cv::hconcat(_colorImg, colorImg, rgbdMap);

@@ -392,7 +392,7 @@ Viewer &Viewer::AddRGBDFrame(const RGBDFrame::Ptr &frame,
     if (trueColor) {
         cMat = frame->GetColorImage();
     } else {
-        cMat = frame->CreateColorDepthMap(false);
+        cMat = frame->CreateColorDepthMap(intri, false);
     }
     auto dMat = frame->GetDepthImage();
     if (cMat.empty() || dMat.empty() || cMat.size != dMat.size) {

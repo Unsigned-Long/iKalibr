@@ -42,6 +42,9 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
+struct RGBDIntrinsics;
+using RGBDIntrinsicsPtr = std::shared_ptr<RGBDIntrinsics>;
+
 class RGBDFrame : public CameraFrame {
 public:
     using Ptr = std::shared_ptr<RGBDFrame>;
@@ -69,7 +72,10 @@ public:
     // release the image mat data to save memory when needed
     void ReleaseMat() override;
 
-    [[nodiscard]] cv::Mat CreateColorDepthMap(bool withColorMat = true) const;
+    [[nodiscard]] cv::Mat CreateColorDepthMap(const RGBDIntrinsicsPtr &intri,
+                                              bool withColorMat = true,
+                                              float zMin = 0.1f,
+                                              float zMax = 80.0f) const;
 };
 
 class DepthFrame {

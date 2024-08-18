@@ -210,7 +210,10 @@ void CalibSolverIO::SaveHessianMatrix() {
 }
 
 void CalibSolverIO::VerifyVisualLiDARConsistency() {
-    if (!Configor::IsLiDARIntegrated() || !Configor::IsCameraIntegrated()) {
+    if (!Configor::IsLiDARIntegrated()) {
+        return;
+    }
+    if (!Configor::IsCameraIntegrated() || !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -222,6 +225,7 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() {
     }
 
     auto covisibility = VisualLiDARCovisibility::Create(_solver->_backup->lidarMap);
+    // for cameras
     std::shared_ptr<tqdm> bar;
     for (const auto &[topic, data] : _solver->_dataMagr->GetCameraMeasurements()) {
         spdlog::info("verify consistency between LiDAR and camera '{}'...", topic);
@@ -280,6 +284,68 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() {
         spdlog::info("verify consistency for camera '{}' finished", topic);
     }
     cv::destroyAllWindows();
+
+    // for rgbds
+    for (const auto &[topic, data] : _solver->_dataMagr->GetRGBDMeasurements()) {
+        spdlog::info("verify consistency between LiDAR and rgbd '{}'...", topic);
+
+        auto subSaveDir = saveDir + '/' + topic;
+        if (!TryCreatePath(subSaveDir)) {
+            spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
+            continue;
+        }
+
+        const auto &intri = _solver->_parMagr->INTRI.RGBD.at(topic);
+        std::vector<std::pair<ns_veta::IndexT, Sophus::SE3d>> poseVec;
+        poseVec.reserve(data.size());
+        bar = std::make_shared<tqdm>();
+        for (int i = 0; i < static_cast<int>(data.size()); ++i) {
+            bar->progress(i, static_cast<int>(data.size()));
+
+            const auto &frame = data.at(i);
+            auto pose = _solver->CurDnToW(frame->GetTimestamp(), topic);
+            if (pose == std::nullopt) {
+                continue;
+            }
+
+            auto filename = subSaveDir + '/' + std::to_string(frame->GetId()) + ".jpg";
+            auto filenameDepth = subSaveDir + '/' + std::to_string(frame->GetId()) + "-d.png";
+            auto filenameColor = subSaveDir + '/' + std::to_string(frame->GetId()) + "-c.jpg";
+            auto filenameRaw = subSaveDir + '/' + std::to_string(frame->GetId()) + "-r.jpg";
+
+            // undistorted gray image
+            cv::Mat undistImgColor, res;
+            undistImgColor =
+                CalibParamManager::ParIntri::UndistortImage(intri->intri, frame->GetColorImage());
+
+            // depth image
+            auto [depthImg, colorImg] = covisibility->CreateCovisibility(*pose, intri->intri);
+            cv::imwrite(filename, undistImgColor);
+            cv::imwrite(filenameDepth, depthImg);
+            cv::imwrite(filenameColor, colorImg);
+            cv::imwrite(filenameRaw, frame->CreateColorDepthMap(intri, false));
+            poseVec.emplace_back(frame->GetId(), *pose);
+
+            // connect
+            cv::hconcat(undistImgColor, colorImg, res);
+            cv::imshow("Covisibility Image", res);
+            cv::waitKey(1);
+        }
+        bar->finish();
+        // save pose vector
+        auto filename = subSaveDir + "/pose" + ns_ikalibr::Configor::GetFormatExtension();
+        std::ofstream file(filename, std::ios::out);
+        auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
+        SerializeByOutputArchiveVariant(
+            ar, Configor::Preference::OutputDataFormat,
+            cereal::make_nvp(
+                "note",
+                std::string("The pose denotes transformation from rgbd frame to world frame!")),
+            cereal::make_nvp("pose_seq", poseVec));
+        spdlog::info("verify consistency for rgbd '{}' finished", topic);
+    }
+    cv::destroyAllWindows();
+
     spdlog::info("verify consistency finished!");
 }
 
