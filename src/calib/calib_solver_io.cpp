@@ -222,7 +222,7 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() {
     }
 
     auto covisibility = VisualLiDARCovisibility::Create(_solver->_backup->lidarMap);
-    std::shared_ptr<tqdm> bar = nullptr;
+    std::shared_ptr<tqdm> bar;
     for (const auto &[topic, data] : _solver->_dataMagr->GetCameraMeasurements()) {
         spdlog::info("verify consistency between LiDAR and camera '{}'...", topic);
 
@@ -295,7 +295,7 @@ void CalibSolverIO::SaveVisualKinematics() {
         return;
     }
 
-    std::shared_ptr<tqdm> bar = nullptr;
+    std::shared_ptr<tqdm> bar;
     // gravity
     for (const auto &[topic, data] : _solver->_dataMagr->GetCameraMeasurements()) {
         spdlog::info("create visual images with gravity for camera '{}'...", topic);
@@ -312,6 +312,33 @@ void CalibSolverIO::SaveVisualKinematics() {
         for (int i = 0; i < static_cast<int>(data.size()); ++i) {
             bar->progress(i, static_cast<int>(data.size()));
             const auto &frame = data.at(i);
+            cv::Mat res = gravityDrawer->CreateGravityImg(frame);
+            auto filename = subSaveDir + '/' + std::to_string(frame->GetId()) + ".jpg";
+            cv::imwrite(filename, res);
+            cv::imshow("Visual Gravity", res);
+            cv::waitKey(1);
+        }
+        bar->finish();
+    }
+    cv::destroyAllWindows();
+
+    // gravity for rgbds
+    for (const auto &[topic, data] : _solver->_backup->rgbdCorrs) {
+        spdlog::info("create visual images with gravity for rgbd '{}'...", topic);
+
+        auto subSaveDir = saveDir + "/gravity/" + topic;
+        if (!TryCreatePath(subSaveDir)) {
+            spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
+            continue;
+        }
+
+        auto gravityDrawer =
+            RGBDVisualGravityDrawer::Create(topic, data, _solver->_splines, _solver->_parMagr);
+        const auto &frames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+        bar = std::make_shared<tqdm>();
+        for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
+            bar->progress(i, static_cast<int>(frames.size()));
+            const auto &frame = frames.at(i);
             cv::Mat res = gravityDrawer->CreateGravityImg(frame);
             auto filename = subSaveDir + '/' + std::to_string(frame->GetId()) + ".jpg";
             cv::imwrite(filename, res);
@@ -487,7 +514,7 @@ void CalibSolverIO::SaveAlignedInertialMes() {
             const Eigen::Matrix3d &angVelMat = Sophus::SO3d::hat(angVelInW);
             const Eigen::Matrix3d &angAcceMat = Sophus::SO3d::hat(angAcceInW);
             Eigen::Vector3d linAcce;
-            switch (_solver->GetScaleType()) {
+            switch (ns_ikalibr::CalibSolver::GetScaleType()) {
                 case TimeDeriv::LIN_ACCE_SPLINE: {
                     constexpr int derive =
                         TimeDeriv::Deriv<TimeDeriv::LIN_ACCE_SPLINE, TimeDeriv::LIN_ACCE>();
@@ -682,7 +709,7 @@ bool CalibSolverIO::TryCreatePath(const std::string &path) {
 }
 
 void CalibSolverIO::SaveLiDARMaps() {
-    if (_solver->GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
+    if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
         !Configor::IsLiDARIntegrated()) {
         return;
     }
@@ -751,7 +778,7 @@ void CalibSolverIO::SaveLiDARMaps() {
 }
 
 void CalibSolverIO::SaveVisualMaps() {
-    if (_solver->GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
+    if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
         !Configor::IsCameraIntegrated()) {
         return;
     }
@@ -783,7 +810,7 @@ void CalibSolverIO::SaveVisualMaps() {
 }
 
 void CalibSolverIO::SaveRadarMaps() {
-    if (_solver->GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
+    if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
         !Configor::IsRadarIntegrated()) {
         return;
     }
@@ -826,7 +853,7 @@ void CalibSolverIO::SaveRadarDopplerError() {
 
     const auto &so3Spline = _solver->_splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _solver->_splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
-    auto scaleType = _solver->GetScaleType();
+    auto scaleType = ns_ikalibr::CalibSolver::GetScaleType();
 
     for (const auto &[topic, data] : _solver->_dataMagr->GetRadarMeasurements()) {
         auto subSaveDir = saveDir + "/" + topic;

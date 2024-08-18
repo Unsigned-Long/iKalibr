@@ -1536,7 +1536,6 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
 
     std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> corrs;
-    std::default_random_engine engine(std::chrono::system_clock::now().time_since_epoch().count());
 
     for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
         spdlog::info("perform data association for RGBD camera '{}'...", topic);
@@ -1587,7 +1586,9 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
                         break;
                 }
                 // however, only when the camera is moving, we can compute the depth
-                if (LIN_VEL_BrToBr0InBr0.norm() < 0.05 /* m/s */) {
+                if (LIN_VEL_BrToBr0InBr0.norm() < 0.05 /* m/s */ ||
+                    corr->MidPointVel(readout).norm() <
+                        2.0 * Configor::Prior::CauchyLossForRGBDFactor /* pixels */) {
                     continue;
                 }
                 Sophus::SO3d SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
@@ -1631,6 +1632,9 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
         spdlog::info(
             "total correspondences count for rgbd '{}': {}, with estimated depth count: {}", topic,
             curCorrs.size(), estDepthCount);
+
+        // std::default_random_engine
+        // engine(std::chrono::system_clock::now().time_since_epoch().count());
 
         // constexpr int CorrCountPerFrame = 20;
         // auto desiredCount = CorrCountPerFrame * _dataMagr->GetRGBDMeasurements(topic).size();

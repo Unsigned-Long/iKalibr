@@ -35,9 +35,7 @@
 #include "viewer/visual_lin_vel_drawer.h"
 #include "calib/calib_param_manager.h"
 #include "opencv2/imgproc.hpp"
-#include "sensor/camera_data_loader.h"
 #include "sensor/rgbd.h"
-#include "core/visual_pixel_dynamic.h"
 #include "factor/rgbd_velocity_factor.hpp"
 
 namespace {
@@ -219,9 +217,7 @@ cv::Mat RGBDVisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame,
 
             Eigen::Vector2d endPixel = _intri->intri->CamToImg({end(0) / end(2), end(1) / end(2)});
 
-            // we do not use extracted raw feature here to keep better consistency
-            Eigen::Vector2d feat =
-                _intri->intri->CamToImg({lmInDn(0) / lmInDn(2), lmInDn(1) / lmInDn(2)});
+            Eigen::Vector2d feat = velCorr->MidPoint();
 
             DrawKeypointOnCVMat(undistImgColor, feat);
             DrawLineOnCVMat(undistImgColor, feat, endPixel);

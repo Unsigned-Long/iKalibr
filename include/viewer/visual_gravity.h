@@ -40,6 +40,8 @@
 #include "veta/veta.h"
 #include "veta/camera/pinhole.h"
 #include "opencv2/core.hpp"
+#include "sensor/rgbd_intrinsic.hpp"
+#include "calib/time_deriv.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -50,6 +52,8 @@ struct CalibParamManager;
 using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
 struct CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
+struct RGBDVelocityCorr;
+using RGBDVelocityCorrPtr = std::shared_ptr<RGBDVelocityCorr>;
 
 class VisualGravityDrawer {
 public:
@@ -60,18 +64,18 @@ private:
     std::string _topic;
     ns_veta::Veta::Ptr _veta;
     SplineBundleType::Ptr _splines;
-    CalibParamManagerPtr _parMagr;
 
     ns_veta::PinholeIntrinsic::Ptr _intri;
 
     Sophus::SE3d SE3_CmToBr;
     double TO_CmToBr;
+    Eigen::Vector3d GRAVITY;
 
 public:
     VisualGravityDrawer(std::string topic,
                         ns_veta::Veta::Ptr veta,
                         SplineBundleType::Ptr splines,
-                        CalibParamManagerPtr parMagr);
+                        const CalibParamManagerPtr &parMagr);
 
     static Ptr Create(const std::string &topic,
                       const ns_veta::Veta::Ptr &veta,
@@ -79,6 +83,36 @@ public:
                       const CalibParamManagerPtr &parMagr);
 
     cv::Mat CreateGravityImg(const CameraFramePtr &frame, float scale = 0.1f);
+};
+
+class RGBDVisualGravityDrawer {
+public:
+    using Ptr = std::shared_ptr<RGBDVisualGravityDrawer>;
+    using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
+
+private:
+    // frame id, correspondences
+    std::map<ns_veta::IndexT, std::vector<RGBDVelocityCorrPtr>> _velCorrs;
+    SplineBundleType::Ptr _splines;
+
+    RGBDIntrinsics::Ptr _intri;
+
+    Sophus::SE3d SE3_DnToBr;
+    double TO_DnToBr;
+    Eigen::Vector3d GRAVITY;
+
+public:
+    RGBDVisualGravityDrawer(const std::string &topic,
+                            const std::vector<RGBDVelocityCorrPtr> &corrs,
+                            SplineBundleType::Ptr splines,
+                            const CalibParamManagerPtr &parMagr);
+
+    static Ptr Create(const std::string &topic,
+                      const std::vector<RGBDVelocityCorrPtr> &dynamics,
+                      const SplineBundleType::Ptr &splines,
+                      const CalibParamManagerPtr &parMagr);
+
+    cv::Mat CreateGravityImg(const CameraFramePtr &frame, float scale = 0.3f);
 };
 }  // namespace ns_ikalibr
 
