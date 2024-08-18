@@ -431,6 +431,33 @@ void CalibSolverIO::SaveVisualKinematics() {
         bar->finish();
     }
 
+    // angular velocities for rgbds
+    for (const auto &[topic, data] : _solver->_backup->rgbdCorrs) {
+        spdlog::info("create visual angular velocity images for rgbd '{}'...", topic);
+
+        auto subSaveDir = saveDir + "/ang_vel/" + topic;
+        if (!TryCreatePath(subSaveDir)) {
+            spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
+            continue;
+        }
+
+        auto angVelDrawer =
+            RGBDVisualAngVelDrawer::Create(topic, data, _solver->_splines, _solver->_parMagr);
+
+        const auto &frames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+        bar = std::make_shared<tqdm>();
+        for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
+            bar->progress(i, static_cast<int>(frames.size()));
+            const auto &frame = frames.at(i);
+            cv::Mat res = angVelDrawer->CreateAngVelImg(frame);
+            auto filename = subSaveDir + '/' + std::to_string(frame->GetId()) + ".jpg";
+            cv::imwrite(filename, res);
+            cv::imshow("Visual Angular Velocity", res);
+            cv::waitKey(1);
+        }
+        bar->finish();
+    }
+
     cv::destroyAllWindows();
     spdlog::info("saving visual kinematics finished!");
 }

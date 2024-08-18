@@ -808,8 +808,7 @@ void Estimator::AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
     // 1. without 'Opt::OPT_RGBD_DEPTH' option
     // 2. the pixel moves too slow
     if (!IsOptionWith(Opt::OPT_RGBD_DEPTH, option) ||
-        velCorr->MidPointVel(*RS_READOUT).norm() <
-            2.0 * Configor::Prior::CauchyLossForRGBDFactor /* pixels */) {
+        velCorr->MidPointVel(*RS_READOUT).norm() < 40.0 /* pixels */) {
         this->SetParameterBlockConstant(&velCorr->depth);
     }
 }

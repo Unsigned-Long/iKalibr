@@ -162,8 +162,6 @@ cv::Mat RGBDVisualGravityDrawer::CreateGravityImg(const CameraFrame::Ptr &frame,
         // map depth using alpha and beta
         const double depth = _intri->ActualDepth(velCorr->depth);
 
-        // draw linear velocity of the landmark with respect to the rgbd camera
-
         // obtain the landmark
         Eigen::Vector2d lmInDnPlane = _intri->intri->ImgToCam(velCorr->MidPoint());
         Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);

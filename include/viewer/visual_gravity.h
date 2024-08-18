@@ -41,7 +41,6 @@
 #include "veta/camera/pinhole.h"
 #include "opencv2/core.hpp"
 #include "sensor/rgbd_intrinsic.hpp"
-#include "calib/time_deriv.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

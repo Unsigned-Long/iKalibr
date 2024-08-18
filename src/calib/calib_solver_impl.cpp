@@ -1587,8 +1587,7 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
                 }
                 // however, only when the camera is moving, we can compute the depth
                 if (LIN_VEL_BrToBr0InBr0.norm() < 0.05 /* m/s */ ||
-                    corr->MidPointVel(readout).norm() <
-                        2.0 * Configor::Prior::CauchyLossForRGBDFactor /* pixels */) {
+                    corr->MidPointVel(readout).norm() < 40.0 /* pixels */) {
                     continue;
                 }
                 Sophus::SO3d SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
