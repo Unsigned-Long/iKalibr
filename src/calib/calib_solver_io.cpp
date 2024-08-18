@@ -127,7 +127,7 @@ void CalibSolverIO::SaveHessianMatrix() {
         parOrderSize.emplace_back(name, estimator->ParameterBlockTangentSize(address));
     };
 
-    // spatiotemporal parameters
+    // spatiotemporal parameters (extrinsics, time offsets, rs readout time)
     for (auto &[topic, item] : _solver->_parMagr->EXTRI.SO3_BiToBr) {
         InvolveParameter(item.data(), "SO3_BiToBr-" + topic);
     }
@@ -156,6 +156,13 @@ void CalibSolverIO::SaveHessianMatrix() {
         InvolveParameter(item.data(), "POS_CmInBr-" + topic);
     }
 
+    for (auto &[topic, item] : _solver->_parMagr->EXTRI.SO3_DnToBr) {
+        InvolveParameter(item.data(), "SO3_DnToBr-" + topic);
+    }
+    for (auto &[topic, item] : _solver->_parMagr->EXTRI.POS_DnInBr) {
+        InvolveParameter(item.data(), "POS_DnInBr-" + topic);
+    }
+
     for (auto &[topic, item] : _solver->_parMagr->TEMPORAL.TO_BiToBr) {
         InvolveParameter(&item, "TO_BiToBr-" + topic);
     }
@@ -168,10 +175,14 @@ void CalibSolverIO::SaveHessianMatrix() {
     for (auto &[topic, item] : _solver->_parMagr->TEMPORAL.TO_CmToBr) {
         InvolveParameter(&item, "TO_CmToBr-" + topic);
     }
+    for (auto &[topic, item] : _solver->_parMagr->TEMPORAL.TO_DnToBr) {
+        InvolveParameter(&item, "TO_DnToBr-" + topic);
+    }
     for (auto &[topic, item] : _solver->_parMagr->TEMPORAL.RS_READOUT) {
         InvolveParameter(&item, "RS_READOUT-" + topic);
     }
 
+    // intrinsics
     for (auto &[topic, intri] : _solver->_parMagr->INTRI.IMU) {
         InvolveParameter(intri->ACCE.BIAS.data(), "ACCE.BIAS-" + topic);
         InvolveParameter(intri->GYRO.BIAS.data(), "GYRO.BIAS-" + topic);
@@ -182,6 +193,15 @@ void CalibSolverIO::SaveHessianMatrix() {
         InvolveParameter(intri->FYAddress(), "FY" + topic);
         InvolveParameter(intri->CXAddress(), "CX" + topic);
         InvolveParameter(intri->CYAddress(), "CY" + topic);
+    }
+
+    for (auto &[topic, intri] : _solver->_parMagr->INTRI.RGBD) {
+        InvolveParameter(intri->intri->FXAddress(), "FX" + topic);
+        InvolveParameter(intri->intri->FYAddress(), "FY" + topic);
+        InvolveParameter(intri->intri->CXAddress(), "CX" + topic);
+        InvolveParameter(intri->intri->CYAddress(), "CY" + topic);
+        InvolveParameter(&intri->alpha, "ALPHA" + topic);
+        InvolveParameter(&intri->beta, "BETA" + topic);
     }
 
     // gravity

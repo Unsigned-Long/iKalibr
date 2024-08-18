@@ -184,35 +184,39 @@ int main(int argc, char **argv) {
             // ----------------------------
             {
                 auto paramsEpochDir = ws + "/iteration/epoch";
-                auto files = ns_ikalibr::FilesInDir(paramsEpochDir);
-                files.erase(std::remove_if(files.begin(), files.end(),
-                                           [&srcExt](const std::string &str) {
-                                               return std::filesystem::path(str).extension() !=
-                                                      srcExt;
-                                           }),
-                            files.end());
-                for (const auto &filename : files) {
-                    wName = std::filesystem::path(filename).replace_extension(dstExt).string();
-                    ns_ikalibr::CalibParamManager::Load(filename, srcFormat)
-                        ->Save(wName, dstFormat);
-                    spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+                if (std::filesystem::exists(paramsEpochDir)) {
+                    auto files = ns_ikalibr::FilesInDir(paramsEpochDir);
+                    files.erase(std::remove_if(files.begin(), files.end(),
+                                               [&srcExt](const std::string &str) {
+                                                   return std::filesystem::path(str).extension() !=
+                                                          srcExt;
+                                               }),
+                                files.end());
+                    for (const auto &filename : files) {
+                        wName = std::filesystem::path(filename).replace_extension(dstExt).string();
+                        ns_ikalibr::CalibParamManager::Load(filename, srcFormat)
+                            ->Save(wName, dstFormat);
+                        spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+                    }
                 }
             }
 
             {
                 auto paramsStageDir = ws + "/iteration/stage";
-                auto files = ns_ikalibr::FilesInDir(paramsStageDir);
-                files.erase(std::remove_if(files.begin(), files.end(),
-                                           [&srcExt](const std::string &str) {
-                                               return std::filesystem::path(str).extension() !=
-                                                      srcExt;
-                                           }),
-                            files.end());
-                for (const auto &filename : files) {
-                    wName = std::filesystem::path(filename).replace_extension(dstExt).string();
-                    ns_ikalibr::CalibParamManager::Load(filename, srcFormat)
-                        ->Save(wName, dstFormat);
-                    spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+                if (std::filesystem::exists(paramsStageDir)) {
+                    auto files = ns_ikalibr::FilesInDir(paramsStageDir);
+                    files.erase(std::remove_if(files.begin(), files.end(),
+                                               [&srcExt](const std::string &str) {
+                                                   return std::filesystem::path(str).extension() !=
+                                                          srcExt;
+                                               }),
+                                files.end());
+                    for (const auto &filename : files) {
+                        wName = std::filesystem::path(filename).replace_extension(dstExt).string();
+                        ns_ikalibr::CalibParamManager::Load(filename, srcFormat)
+                            ->Save(wName, dstFormat);
+                        spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+                    }
                 }
             }
 
