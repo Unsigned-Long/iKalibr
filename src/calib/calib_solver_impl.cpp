@@ -542,17 +542,22 @@ CalibSolver::Initialization() {
         const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
         for (const auto &dynamic : dynamics) {
             auto midCamFrame = dynamic->GetMidCameraFrame();
-            if (const auto &rgbdVelCorr =
-                    dynamic->CreateRGBDVelocityCorr(intri, rsExposureFactor, false);
-                rgbdVelCorr->depth > 1E-3 /* 1 mm */) {
-                // a valid depth
-                dynamicsInFrame[midCamFrame].emplace_back(
-                    rgbdVelCorr->MidPoint(), rgbdVelCorr->MidPointVel(readout), rgbdVelCorr->depth);
-
-                // show the visual pixel dynamic image (tracking features, mid-point pixel velocity)
-                // auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic)->intri,
-                //                                           rgbdVelCorr->MidPointVel(readout));
+            const auto &rgbdVelCorr =
+                dynamic->CreateRGBDVelocityCorr(intri, rsExposureFactor, false);
+            if (rgbdVelCorr->depth < 1E-3 /* 1 mm */) {
+                continue;
             }
+            const Eigen::Vector2d vel = rgbdVelCorr->MidPointVel(readout);
+            if (vel.norm() < Configor::Prior::RGBDDynamicPixelVelThd /* pixels/sed */) {
+                continue;
+            }
+            // a valid depth
+            dynamicsInFrame[midCamFrame].emplace_back(rgbdVelCorr->MidPoint(), vel,
+                                                      rgbdVelCorr->depth);
+
+            // show the visual pixel dynamic image (tracking features, mid-point pixel velocity)
+            // auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic)->intri,
+            //                                           rgbdVelCorr->MidPointVel(readout));
         }
 
         // estimate rgbd-derived linear velocities for each frame
@@ -1389,7 +1394,7 @@ IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() {
     // ---------------------------
     pcl::VoxelGrid<IKalibrPoint> filter;
     filter.setInputCloud(radarCloud);
-    auto size = static_cast<float>(Configor::Prior::LiDARDataAssociate::MapDownSample * 2.0);
+    auto size = static_cast<float>(Configor::Prior::MapDownSample * 2.0);
     filter.setLeafSize(size, size, size);
 
     IKalibrPointCloud::Ptr radarCloudSampled(new IKalibrPointCloud);
@@ -1397,6 +1402,111 @@ IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() {
     _viewer->AddStarMarkCloud(radarCloudSampled, Viewer::VIEW_MAP);
 
     return radarCloud;
+}
+
+ColorPointCloud::Ptr CalibSolver::BuildGlobalMapOfRGBD(float downsampleSize) {
+    if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
+        return {};
+    }
+
+    ColorPointCloud::Ptr map(new ColorPointCloud);
+
+    std::shared_ptr<tqdm> bar;
+    for (const auto &[topic, frames] : _dataMagr->GetRGBDMeasurements()) {
+        spdlog::info("build global map for rgbd '{}'...", topic);
+
+        auto intri = _parMagr->INTRI.RGBD.at(topic);
+        auto rowCnt = (int)intri->intri->Height();
+        auto colCnt = (int)intri->intri->Width();
+
+        ColorPointCloud::Ptr curTopicCloud(new ColorPointCloud);
+
+        bar = std::make_shared<tqdm>();
+        for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
+            bar->progress(i, static_cast<int>(frames.size()));
+            const auto &frame = frames.at(i);
+            auto cMat = frame->GetColorImage();
+            auto dMat = frame->GetDepthImage();
+
+            if (cMat.empty() || dMat.empty() || cMat.size != dMat.size || cMat.rows != rowCnt ||
+                cMat.cols != colCnt) {
+                continue;
+            }
+
+            // transformation
+            auto SE3_CurDnToW = CurDnToW(frame->GetTimestamp(), topic);
+            if (SE3_CurDnToW == std::nullopt) {
+                continue;
+            }
+
+            // save points to 'cloud'
+            ColorPointCloud::Ptr cloud(new ColorPointCloud);
+            cloud->reserve(rowCnt * colCnt);
+            for (int row = 0; row < rowCnt; ++row) {
+                auto cData = cMat.ptr<uchar>(row);
+                auto dData = dMat.ptr<float>(row);
+                for (int col = 0; col < colCnt; ++col) {
+                    auto depth = (float)intri->ActualDepth(dData[0]);
+                    if (depth > 1E-3) {
+                        Eigen::Vector2d lmInDnPlane = intri->intri->ImgToCam({col, row});
+                        Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth,
+                                               depth);
+
+                        pcl::PointXYZRGBA p;
+                        p.x = (float)lmInDn(0);
+                        p.y = (float)lmInDn(1);
+                        p.z = (float)lmInDn(2);
+                        p.b = cData[2];
+                        p.g = cData[1];
+                        p.r = cData[0];
+                        p.a = 255;
+                        cloud->push_back(p);
+                    }
+                    // color mat ptr
+                    cData += 3;
+                    // depth mat ptr
+                    dData += 1;
+                }
+            }
+
+            ColorPointCloud::Ptr cloudTransformed(new ColorPointCloud);
+            if (downsampleSize > 0.0f) {
+                // down sample the map cloud
+                pcl::VoxelGrid<ColorPoint> filter;
+                filter.setInputCloud(cloud);
+                filter.setLeafSize(downsampleSize, downsampleSize, downsampleSize);
+
+                ColorPointCloud::Ptr cloudDownSampled(new ColorPointCloud);
+                filter.filter(*cloudDownSampled);
+
+                // transform cloud to map coordinate frame
+                pcl::transformPointCloud(*cloudDownSampled, *cloudTransformed,
+                                         SE3_CurDnToW->matrix().cast<float>());
+            } else {
+                // transform cloud to map coordinate frame
+                pcl::transformPointCloud(*cloud, *cloudTransformed,
+                                         SE3_CurDnToW->matrix().cast<float>());
+            }
+            *curTopicCloud += *cloudTransformed;
+        }
+        bar->finish();
+
+        *map += *curTopicCloud;
+    }
+    if (downsampleSize > 0.0f) {
+        spdlog::info("down sample rgbd point cloud map...");
+        // down sample the map cloud
+        pcl::VoxelGrid<ColorPoint> filter;
+        filter.setInputCloud(map);
+        filter.setLeafSize(downsampleSize, downsampleSize, downsampleSize);
+
+        ColorPointCloud::Ptr mapDownSampled(new ColorPointCloud);
+        filter.filter(*mapDownSampled);
+
+        return mapDownSampled;
+    } else {
+        return map;
+    }
 }
 
 std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> CalibSolver::DataAssociationForLiDARs(
@@ -1412,7 +1522,7 @@ std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> CalibSolver::DataAsso
     // ---------------------------------
     pcl::VoxelGrid<IKalibrPoint> filter;
     filter.setInputCloud(map);
-    auto size = static_cast<float>(Configor::Prior::LiDARDataAssociate::MapDownSample);
+    auto size = static_cast<float>(Configor::Prior::MapDownSample);
     filter.setLeafSize(size, size, size);
 
     IKalibrPointCloud::Ptr mapDownSampled(new IKalibrPointCloud);
@@ -1548,6 +1658,12 @@ std::vector<VisualPixelDynamic::Ptr> CalibSolver::CreateVisualPixelDynamicForRGB
 
 std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssociationForRGBDs(
     bool estDepth) {
+    // add rgbd point cloud map
+    // if (auto map = BuildGlobalMapOfRGBD(0.05f); map != nullptr) {
+    //     _viewer->AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(map, 2.0f)},
+    //                             Viewer::VIEW_MAP);
+    // }
+
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
 

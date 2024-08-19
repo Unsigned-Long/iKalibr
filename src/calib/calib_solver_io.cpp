@@ -891,8 +891,10 @@ void CalibSolverIO::SaveLiDARMaps() {
 }
 
 void CalibSolverIO::SaveVisualMaps() {
-    if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
-        !Configor::IsCameraIntegrated()) {
+    if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
+        return;
+    }
+    if (!Configor::IsCameraIntegrated() || !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -918,6 +920,24 @@ void CalibSolverIO::SaveVisualMaps() {
             spdlog::warn("create sub directory to save veta for '{}' failed: '{}'", topic, saveDir);
         } else {
             spdlog::info("save veta for camera '{}' as '{}'", topic, filename);
+        }
+    }
+
+    if (Configor::IsRGBDIntegrated()) {
+        auto subSaveDir = saveDir + "/rgbd";
+        if (!TryCreatePath(subSaveDir)) {
+            spdlog::warn("create sub directory to save rgbd point cloud map failed: '{}'",
+                         subSaveDir);
+        } else {
+            spdlog::info("save rgbd point cloud map for rgbd...");
+            auto map = _solver->BuildGlobalMapOfRGBD(
+                static_cast<float>(0.5f * Configor::Prior::MapDownSample));
+            auto filename = subSaveDir + "/rgbd_map.pcd";
+            if (pcl::io::savePCDFile(filename, *map, true) == -1) {
+                spdlog::warn("save rgbd map as : '{}' failed!", filename);
+            } else {
+                spdlog::info("save rgbd map as '{}'", filename);
+            }
         }
     }
 }

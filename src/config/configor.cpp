@@ -88,11 +88,11 @@ std::string Configor::Prior::SpatTempPrioriPath = {};
 double Configor::Prior::GravityNorm = {};
 double Configor::Prior::TimeOffsetPadding = {};
 double Configor::Prior::ReadoutTimePadding = {};
+double Configor::Prior::MapDownSample = {};
 double Configor::Prior::KnotTimeDist::SO3Spline = {};
 double Configor::Prior::KnotTimeDist::ScaleSpline = {};
 double Configor::Prior::NDTLiDAROdometer::Resolution = {};
 double Configor::Prior::NDTLiDAROdometer::KeyFrameDownSample = {};
-double Configor::Prior::LiDARDataAssociate::MapDownSample = {};
 double Configor::Prior::LiDARDataAssociate::PointToSurfelMax = {};
 double Configor::Prior::LiDARDataAssociate::PlanarityMin = {};
 double Configor::Prior::CauchyLossForRadarFactor = {};
@@ -201,10 +201,10 @@ void Configor::PrintMainFields() {
         DESC_FIELD(DataStream::Duration), DESC_FIELD(DataStream::OutputPath),
         DESC_FIELD(Prior::GravityNorm), DESC_FIELD(Prior::OptTemporalParams),
         DESC_FIELD(Prior::TimeOffsetPadding), DESC_FIELD(Prior::ReadoutTimePadding),
-        DESC_FIELD(Prior::KnotTimeDist::SO3Spline), DESC_FIELD(Prior::KnotTimeDist::ScaleSpline),
+        DESC_FIELD(Prior::MapDownSample), DESC_FIELD(Prior::KnotTimeDist::SO3Spline),
+        DESC_FIELD(Prior::KnotTimeDist::ScaleSpline),
         DESC_FIELD(Prior::NDTLiDAROdometer::Resolution),
         DESC_FIELD(Prior::NDTLiDAROdometer::KeyFrameDownSample),
-        DESC_FIELD(Prior::LiDARDataAssociate::MapDownSample),
         DESC_FIELD(Prior::LiDARDataAssociate::PointToSurfelMax),
         DESC_FIELD(Prior::LiDARDataAssociate::PlanarityMin),
         DESC_FIELD(Prior::CauchyLossForRadarFactor), DESC_FIELD(Prior::CauchyLossForLiDARFactor),

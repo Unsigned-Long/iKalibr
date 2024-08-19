@@ -150,6 +150,9 @@ protected:
 
     IKalibrPointCloud::Ptr BuildGlobalMapOfRadar();
 
+    // negative value means no down sample
+    ColorPointCloud::Ptr BuildGlobalMapOfRGBD(float downsampleSize = -1.0f);
+
     std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> DataAssociationForLiDARs(
         const IKalibrPointCloud::Ptr &map,
         const std::map<std::string, std::vector<LiDARFrame::Ptr>> &undistFrames,
