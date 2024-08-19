@@ -60,6 +60,7 @@ const static std::map<std::string, OutputOption> OutputOptionMap = {
     {"AlignedInertialMes", OutputOption::AlignedInertialMes},
     {"VisualReprojErrors", OutputOption::VisualReprojErrors},
     {"RadarDopplerErrors", OutputOption::RadarDopplerErrors},
+    {"RGBDVelocityErrors", OutputOption::RGBDVelocityErrors},
     {"ALL", OutputOption::ALL},
 };
 

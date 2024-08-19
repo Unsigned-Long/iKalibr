@@ -165,9 +165,7 @@ cv::Mat RGBDVisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame,
     }
 
     auto SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
-    Eigen::Vector3d POS_BrInBr0 = scaleSpline.Evaluate(timeByBr);
-    Sophus::SE3d SE3_BrToBr0(SO3_BrToBr0, POS_BrInBr0);
-    auto SE3_DnToBr0 = SE3_BrToBr0 * SE3_DnToBr;
+    auto SO3_DnToBr0 = SO3_BrToBr0 * SE3_DnToBr.so3();
     Sophus::SO3d SO3_BrToDn = SE3_DnToBr.so3().inverse();
 
     Eigen::Vector3d ANG_VEL_BrToBr0InBr = so3Spline.VelocityBody(timeByBr);
@@ -204,10 +202,9 @@ cv::Mat RGBDVisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame,
             Eigen::Vector2d lmInDnPlane = _intri->intri->ImgToCam(velCorr->MidPoint());
             Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);
 
-            Eigen::Vector3d val1 =
-                Sophus::SO3d::hat(SE3_DnToBr0.so3() * lmInDn) * ANG_VEL_BrToBr0InBr0 -
-                LIN_VEL_DnToBr0InBr0;
-            Eigen::Vector3d val2 = SE3_DnToBr0.so3().inverse() * val1;
+            Eigen::Vector3d val1 = Sophus::SO3d::hat(SO3_DnToBr0 * lmInDn) * ANG_VEL_BrToBr0InBr0 -
+                                   LIN_VEL_DnToBr0InBr0;
+            Eigen::Vector3d val2 = SO3_DnToBr0.inverse() * val1;
 
             Eigen::Vector3d end = lmInDn + scale * val2;
 

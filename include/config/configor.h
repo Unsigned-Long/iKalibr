@@ -64,9 +64,10 @@ enum class OutputOption : std::uint32_t {
     AlignedInertialMes = 1 << 10,
     VisualReprojErrors = 1 << 11,
     RadarDopplerErrors = 1 << 12,
+    RGBDVelocityErrors = 1 << 13,
     ALL = ParamInEachIter | BSplines | LiDARMaps | VisualMaps | RadarMaps | HessianMat |
           VisualLiDARCovisibility | VisualKinematics | ColorizedLiDARMap | AlignedInertialMes |
-          VisualReprojErrors | RadarDopplerErrors
+          VisualReprojErrors | RadarDopplerErrors | RGBDVelocityErrors
 };
 
 struct Configor {

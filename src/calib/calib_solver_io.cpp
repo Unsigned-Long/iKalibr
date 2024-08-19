@@ -1022,4 +1022,97 @@ void CalibSolverIO::SaveRadarDopplerError() {
     }
     spdlog::info("saving radar doppler errors finished!");
 }
+
+void CalibSolverIO::SaveRGBDVelocityError() {
+    if (!Configor::IsRGBDIntegrated()) {
+        return;
+    }
+
+    // folder
+    std::string saveDir = Configor::DataStream::OutputPath + "/residuals/rgbd_vel_error";
+    if (TryCreatePath(saveDir)) {
+        spdlog::info("saving radar rgbd velocity errors to dir: '{}'...", saveDir);
+    } else {
+        return;
+    }
+
+    const auto &so3Spline = _solver->_splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    const auto &scaleSpline = _solver->_splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+    auto scaleType = ns_ikalibr::CalibSolver::GetScaleType();
+
+    for (const auto &[topic, corrVec] : _solver->_backup->rgbdCorrs) {
+        auto subSaveDir = saveDir + "/" + topic;
+        if (!TryCreatePath(subSaveDir)) {
+            spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
+            continue;
+        }
+
+        const auto &parMagr = _solver->_parMagr;
+        const double readout = parMagr->TEMPORAL.RS_READOUT.at(topic);
+        const double TO_DnToBr = parMagr->TEMPORAL.TO_DnToBr.at(topic);
+        auto SE3_DnToBr = parMagr->EXTRI.SE3_DnToBr(topic);
+        const auto &intri = parMagr->INTRI.RGBD.at(topic);
+
+        std::list<Eigen::Vector2d> velErrors;
+
+        for (const auto &corr : corrVec) {
+            double timeByBr = corr->MidPointTime(readout) + TO_DnToBr;
+            if (!so3Spline.TimeStampInRange(timeByBr) || !scaleSpline.TimeStampInRange(timeByBr)) {
+                continue;
+            }
+
+            auto SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
+            Sophus::SO3d SO3_BrToDn = SE3_DnToBr.so3().inverse();
+
+            Eigen::Vector3d ANG_VEL_BrToBr0InBr = so3Spline.VelocityBody(timeByBr);
+            Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * ANG_VEL_BrToBr0InBr;
+            Eigen::Vector3d ANG_VEL_DnToBr0InDn = SO3_BrToDn * ANG_VEL_BrToBr0InBr;
+
+            Eigen::Vector3d LIN_VEL_BrToBr0InBr0;
+            switch (scaleType) {
+                case TimeDeriv::LIN_ACCE_SPLINE:
+                    // this would not happen
+                    continue;
+                case TimeDeriv::LIN_VEL_SPLINE:
+                    LIN_VEL_BrToBr0InBr0 = scaleSpline.Evaluate<0>(timeByBr);
+                    break;
+                case TimeDeriv::LIN_POS_SPLINE:
+                    LIN_VEL_BrToBr0InBr0 = scaleSpline.Evaluate<1>(timeByBr);
+                    break;
+            }
+
+            Eigen::Vector3d LIN_VEL_DnToBr0InBr0 =
+                LIN_VEL_BrToBr0InBr0 -
+                Sophus::SO3d::hat(SO3_BrToBr0 * SE3_DnToBr.translation()) * ANG_VEL_BrToBr0InBr0;
+            Eigen::Vector3d LIN_VEL_DnToBr0InDn =
+                SO3_BrToDn * SO3_BrToBr0.inverse() * LIN_VEL_DnToBr0InBr0;
+
+            const double FX = intri->intri->FocalX(), FY = intri->intri->FocalY();
+            const double CX = intri->intri->PrincipalPoint()(0),
+                         CY = intri->intri->PrincipalPoint()(1);
+
+            // map depth using alpha and beta
+            const double depth = intri->ActualDepth(corr->depth);
+
+            Eigen::Matrix<double, 2, 3> subAMat, subBMat;
+            RGBDVelocityFactor<0, 0>::SubMats<double>(&FX, &FY, &CX, &CY, corr->MidPoint(),
+                                                      &subAMat, &subBMat);
+            Eigen::Vector2d pred =
+                1.0 / depth * subAMat * LIN_VEL_DnToBr0InDn + subBMat * ANG_VEL_DnToBr0InDn;
+
+            Eigen::Vector2d mes = corr->MidPointVel(readout);
+
+            Eigen::Vector2d residuals = pred - mes;
+            velErrors.push_back(residuals);
+        }
+
+        std::ofstream file(subSaveDir + "/residuals" + Configor::GetFormatExtension(),
+                           std::ios::out);
+        auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
+        SerializeByOutputArchiveVariant(ar, Configor::Preference::OutputDataFormat,
+                                        cereal::make_nvp("rgbd_vel_errors", velErrors));
+    }
+
+    spdlog::info("saving rgbd velocity errors finished!");
+}
 }  // namespace ns_ikalibr

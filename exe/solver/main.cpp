@@ -127,6 +127,11 @@ int main(int argc, char **argv) {
             solverIO->SaveRadarDopplerError();
         }
 
+        if (IsOptionWith(ns_ikalibr::OutputOption::RGBDVelocityErrors,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveRGBDVelocityError();
+        }
+
         if (IsOptionWith(ns_ikalibr::OutputOption::VisualKinematics,
                          ns_ikalibr::Configor::Preference::Outputs)) {
             solverIO->SaveVisualKinematics();

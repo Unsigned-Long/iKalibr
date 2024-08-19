@@ -81,6 +81,8 @@ public:
 
     void SaveRadarDopplerError();
 
+    void SaveRGBDVelocityError();
+
     static bool SavePoseSequence(const Eigen::aligned_vector<ns_ctraj::Posed> &poseSeq,
                                  const std::string &filename,
                                  CerealArchiveType::Enum archiveType);
