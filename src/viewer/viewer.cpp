@@ -399,46 +399,15 @@ Viewer &Viewer::AddRGBDFrame(const RGBDFrame::Ptr &frame,
                              const std::string &view,
                              bool trueColor,
                              float size) {
-    cv::Mat cMat;
+    ColorPointCloud ::Ptr cloud(new ColorPointCloud);
     if (trueColor) {
-        cMat = frame->GetColorImage();
+        cloud = frame->CreatePointCloud(intri);
     } else {
-        cMat = frame->CreateColorDepthMap(intri, false);
+        auto cMat = frame->CreateColorDepthMap(intri, false);
+        auto dMat = frame->GetDepthImage();
+        cloud = RGBDFrame(INVALID_TIME_STAMP, cv::Mat(), cMat, dMat).CreatePointCloud(intri);
     }
-    auto dMat = frame->GetDepthImage();
-    if (cMat.empty() || dMat.empty() || cMat.size != dMat.size) {
-        return *this;
-    }
-    int rowCnt = cMat.rows;
-    int colCnt = cMat.cols;
-
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    cloud->reserve(rowCnt * colCnt);
-    for (int row = 0; row < rowCnt; ++row) {
-        auto cData = cMat.ptr<uchar>(row);
-        auto dData = dMat.ptr<float>(row);
-        for (int col = 0; col < colCnt; ++col) {
-            auto depth = (float)intri->ActualDepth(dData[0]);
-            if (depth > 1E-3) {
-                Eigen::Vector2d lmInDnPlane = intri->intri->ImgToCam({col, row});
-                Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);
-
-                pcl::PointXYZRGB p;
-                p.x = (float)lmInDn(0);
-                p.y = (float)lmInDn(1);
-                p.z = (float)lmInDn(2);
-                p.b = cData[2];
-                p.g = cData[1];
-                p.r = cData[0];
-                cloud->push_back(p);
-            }
-            // color mat ptr
-            cData += 3;
-            // depth mat ptr
-            dData += 1;
-        }
-    }
-    AddEntityLocal({ns_viewer::Cloud<pcl::PointXYZRGB>::Create(cloud, size)}, view);
+    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, size)}, view);
     return *this;
 }
 }  // namespace ns_ikalibr

@@ -137,6 +137,48 @@ cv::Mat RGBDFrame::CreateColorDepthMap(const RGBDIntrinsics::Ptr& intri,
     }
 }
 
+ColorPointCloud::Ptr RGBDFrame::CreatePointCloud(const RGBDIntrinsicsPtr& intri,
+                                                 float zMin,
+                                                 float zMax) {
+    auto cMat = _colorImg;
+    auto dMat = _depthImg;
+    int rowCnt = cMat.rows;
+    int colCnt = cMat.cols;
+
+    if (cMat.empty() || dMat.empty() || cMat.size != dMat.size) {
+        return nullptr;
+    }
+
+    ColorPointCloud::Ptr cloud(new ColorPointCloud);
+    cloud->reserve(rowCnt * colCnt);
+    for (int row = 0; row < rowCnt; ++row) {
+        auto cData = cMat.ptr<uchar>(row);
+        auto dData = dMat.ptr<float>(row);
+        for (int col = 0; col < colCnt; ++col) {
+            auto depth = (float)intri->ActualDepth(dData[0]);
+            if (depth > zMin && depth < zMax) {
+                Eigen::Vector2d lmInDnPlane = intri->intri->ImgToCam({col, row});
+                Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);
+
+                ColorPoint p;
+                p.x = (float)lmInDn(0);
+                p.y = (float)lmInDn(1);
+                p.z = (float)lmInDn(2);
+                p.b = cData[2];
+                p.g = cData[1];
+                p.r = cData[0];
+                p.a = 255;
+                cloud->push_back(p);
+            }
+            // color mat ptr
+            cData += 3;
+            // depth mat ptr
+            dData += 1;
+        }
+    }
+    return cloud;
+}
+
 // ----------
 // DepthFrame
 // ----------

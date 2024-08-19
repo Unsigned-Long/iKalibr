@@ -151,7 +151,7 @@ protected:
     IKalibrPointCloud::Ptr BuildGlobalMapOfRadar();
 
     // negative value means no down sample
-    ColorPointCloud::Ptr BuildGlobalMapOfRGBD();
+    ColorPointCloud::Ptr BuildGlobalMapOfRGBD(const std::string &topic);
 
     ns_veta::Veta::Ptr CreateVetaFromRGBD(const std::string &topic);
 

@@ -924,18 +924,31 @@ void CalibSolverIO::SaveVisualMaps() {
     }
 
     if (Configor::IsRGBDIntegrated()) {
-        auto subSaveDir = saveDir + "/rgbd";
-        if (!TryCreatePath(subSaveDir)) {
-            spdlog::warn("create sub directory to save rgbd point cloud map failed: '{}'",
-                         subSaveDir);
-        } else {
-            spdlog::info("save rgbd point cloud map for rgbd...");
-            auto map = _solver->BuildGlobalMapOfRGBD();
-            auto filename = subSaveDir + "/rgbd_map.pcd";
-            if (pcl::io::savePCDFile(filename, *map, true) == -1) {
-                spdlog::warn("save rgbd map as : '{}' failed!", filename);
+        for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+            auto subSaveDir = saveDir + "/rgbd/" + topic;
+            if (!TryCreatePath(subSaveDir)) {
+                spdlog::warn("create sub directory to save rgbd point cloud map failed: '{}'",
+                             subSaveDir);
             } else {
-                spdlog::info("save rgbd map as '{}'", filename);
+                // veta
+                auto filename = subSaveDir + "/veta.bin";
+                if (auto veta = _solver->CreateVetaFromRGBD(topic); veta != nullptr) {
+                    if (!ns_veta::Save(*veta, filename, ns_veta::Veta::ALL)) {
+                        spdlog::warn("create sub directory to save veta for '{}' failed: '{}'",
+                                     topic, saveDir);
+                    } else {
+                        spdlog::info("save veta for camera '{}' as '{}'", topic, filename);
+                    }
+                }
+                // point cloud map
+                spdlog::info("save rgbd point cloud map for rgbd '{}'...", topic);
+                auto map = _solver->BuildGlobalMapOfRGBD(topic);
+                filename = subSaveDir + "/rgbd_map.pcd";
+                if (pcl::io::savePCDFile(filename, *map, true) == -1) {
+                    spdlog::warn("save rgbd map as : '{}' failed!", filename);
+                } else {
+                    spdlog::info("save rgbd map as '{}'", filename);
+                }
             }
         }
     }

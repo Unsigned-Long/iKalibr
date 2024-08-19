@@ -36,6 +36,7 @@
 #define IKALIBR_RGBD_H
 
 #include "sensor/camera.h"
+#include "util/cloud_define.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -76,6 +77,10 @@ public:
                                               bool withColorMat = true,
                                               float zMin = 0.1f,
                                               float zMax = 80.0f) const;
+
+    ColorPointCloud::Ptr CreatePointCloud(const RGBDIntrinsicsPtr &intri,
+                                          float zMin = 0.1f,
+                                          float zMax = 80.0f);
 };
 
 class DepthFrame {

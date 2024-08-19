@@ -1417,110 +1417,59 @@ IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() {
     return radarCloud;
 }
 
-ColorPointCloud::Ptr CalibSolver::BuildGlobalMapOfRGBD() {
+ColorPointCloud::Ptr CalibSolver::BuildGlobalMapOfRGBD(const std::string &topic) {
     if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return {};
     }
 
+    spdlog::info("build global map for rgbd '{}'...", topic);
+
+    auto intri = _parMagr->INTRI.RGBD.at(topic);
+
     ColorPointCloud::Ptr map(new ColorPointCloud);
     const auto downsampleSize = static_cast<float>(Configor::Prior::MapDownSample);
 
-    std::shared_ptr<tqdm> bar;
-    for (const auto &[topic, frames] : _dataMagr->GetRGBDMeasurements()) {
-        spdlog::info("build global map for rgbd '{}'...", topic);
+    auto bar = std::make_shared<tqdm>();
+    const auto &frames = _dataMagr->GetRGBDMeasurements(topic);
+    for (int i = 0; i < static_cast<int>(frames.size()); i += 5) {
+        bar->progress(i, static_cast<int>(frames.size()));
+        const auto &frame = frames.at(i);
 
-        auto intri = _parMagr->INTRI.RGBD.at(topic);
-        auto rowCnt = (int)intri->intri->Height();
-        auto colCnt = (int)intri->intri->Width();
-
-        ColorPointCloud::Ptr curTopicCloud(new ColorPointCloud);
-
-        bar = std::make_shared<tqdm>();
-        for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
-            bar->progress(i, static_cast<int>(frames.size()));
-            const auto &frame = frames.at(i);
-            auto cMat = frame->GetColorImage();
-            auto dMat = frame->GetDepthImage();
-
-            if (cMat.empty() || dMat.empty() || cMat.size != dMat.size || cMat.rows != rowCnt ||
-                cMat.cols != colCnt) {
-                continue;
-            }
-
-            // transformation
-            auto SE3_CurDnToW = CurDnToW(frame->GetTimestamp(), topic);
-            if (SE3_CurDnToW == std::nullopt) {
-                continue;
-            }
-
-            // save points to 'cloud'
-            ColorPointCloud::Ptr cloud(new ColorPointCloud);
-            cloud->reserve(rowCnt * colCnt);
-            for (int row = 0; row < rowCnt; ++row) {
-                auto cData = cMat.ptr<uchar>(row);
-                auto dData = dMat.ptr<float>(row);
-                for (int col = 0; col < colCnt; ++col) {
-                    auto depth = (float)intri->ActualDepth(dData[0]);
-                    if (depth > 1E-3) {
-                        Eigen::Vector2d lmInDnPlane = intri->intri->ImgToCam({col, row});
-                        Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth,
-                                               depth);
-
-                        pcl::PointXYZRGBA p;
-                        p.x = (float)lmInDn(0);
-                        p.y = (float)lmInDn(1);
-                        p.z = (float)lmInDn(2);
-                        p.b = cData[2];
-                        p.g = cData[1];
-                        p.r = cData[0];
-                        p.a = 255;
-                        cloud->push_back(p);
-                    }
-                    // color mat ptr
-                    cData += 3;
-                    // depth mat ptr
-                    dData += 1;
-                }
-            }
-
-            ColorPointCloud::Ptr cloudTransformed(new ColorPointCloud);
-            if (downsampleSize > 0.0f) {
-                // down sample the map cloud
-                pcl::VoxelGrid<ColorPoint> filter;
-                filter.setInputCloud(cloud);
-                filter.setLeafSize(downsampleSize, downsampleSize, downsampleSize);
-
-                ColorPointCloud::Ptr cloudDownSampled(new ColorPointCloud);
-                filter.filter(*cloudDownSampled);
-
-                // transform cloud to map coordinate frame
-                pcl::transformPointCloud(*cloudDownSampled, *cloudTransformed,
-                                         SE3_CurDnToW->matrix().cast<float>());
-            } else {
-                // transform cloud to map coordinate frame
-                pcl::transformPointCloud(*cloud, *cloudTransformed,
-                                         SE3_CurDnToW->matrix().cast<float>());
-            }
-            *curTopicCloud += *cloudTransformed;
+        // transformation
+        auto SE3_CurDnToW = CurDnToW(frame->GetTimestamp(), topic);
+        if (SE3_CurDnToW == std::nullopt) {
+            continue;
         }
-        bar->finish();
 
-        *map += *curTopicCloud;
+        // save points to 'cloud'
+        ColorPointCloud::Ptr cloud = frame->CreatePointCloud(intri, 0.1f, 8.0f);
+        if (cloud == nullptr) {
+            continue;
+        }
+
+        ColorPointCloud::Ptr cloudTransformed(new ColorPointCloud);
+        if (downsampleSize > 0.0f) {
+            // down sample the map cloud
+            pcl::VoxelGrid<ColorPoint> filter;
+            filter.setInputCloud(cloud);
+            filter.setLeafSize(downsampleSize, downsampleSize, downsampleSize);
+
+            ColorPointCloud::Ptr cloudDownSampled(new ColorPointCloud);
+            filter.filter(*cloudDownSampled);
+
+            // transform cloud to map coordinate frame
+            pcl::transformPointCloud(*cloudDownSampled, *cloudTransformed,
+                                     SE3_CurDnToW->matrix().cast<float>());
+        } else {
+            // transform cloud to map coordinate frame
+            pcl::transformPointCloud(*cloud, *cloudTransformed,
+                                     SE3_CurDnToW->matrix().cast<float>());
+        }
+        *map += *cloudTransformed;
     }
-    if (downsampleSize > 0.0f) {
-        spdlog::info("down sample rgbd point cloud map...");
-        // down sample the map cloud
-        pcl::VoxelGrid<ColorPoint> filter;
-        filter.setInputCloud(map);
-        filter.setLeafSize(downsampleSize, downsampleSize, downsampleSize);
+    bar->finish();
 
-        ColorPointCloud::Ptr mapDownSampled(new ColorPointCloud);
-        filter.filter(*mapDownSampled);
-
-        return mapDownSampled;
-    } else {
-        return map;
-    }
+    return map;
 }
 
 std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> CalibSolver::DataAssociationForLiDARs(
