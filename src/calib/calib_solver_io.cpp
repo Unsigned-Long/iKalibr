@@ -930,8 +930,7 @@ void CalibSolverIO::SaveVisualMaps() {
                          subSaveDir);
         } else {
             spdlog::info("save rgbd point cloud map for rgbd...");
-            auto map = _solver->BuildGlobalMapOfRGBD(
-                static_cast<float>(0.5f * Configor::Prior::MapDownSample));
+            auto map = _solver->BuildGlobalMapOfRGBD();
             auto filename = subSaveDir + "/rgbd_map.pcd";
             if (pcl::io::savePCDFile(filename, *map, true) == -1) {
                 spdlog::warn("save rgbd map as : '{}' failed!", filename);

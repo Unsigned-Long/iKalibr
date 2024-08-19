@@ -296,20 +296,31 @@ ns_viewer::Entity::Ptr Viewer::Gravity() const {
         Eigen::Vector3f::Zero(), ns_viewer::Colour::Blue());
 }
 
-Viewer &Viewer::AddVeta(const ns_veta::Veta::Ptr &veta, const std::string &view) {
+Viewer &Viewer::AddVeta(const ns_veta::Veta::Ptr &veta,
+                        const std::string &view,
+                        const std::optional<ns_viewer::Colour> &camColor,
+                        const std::optional<ns_viewer::Colour> &lmColor) {
     std::vector<ns_viewer::Entity::Ptr> entities;
-    for (const auto &[viewId, se3] : veta->poses) {
-        ns_viewer::Posed pose(se3.Rotation().matrix(), se3.Translation());
-        entities.push_back(
-            ns_viewer::Camera::Create(pose.cast<float>(), 0.04, ns_viewer::Colour::Blue()));
+    if (camColor != std::nullopt) {
+        for (const auto &[viewId, se3] : veta->poses) {
+            ns_viewer::Posed pose(se3.Rotation().matrix(), se3.Translation());
+            entities.push_back(ns_viewer::Camera::Create(pose.cast<float>(), 0.04, *camColor));
+        }
     }
+
     if (!veta->structure.empty()) {
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
         cloud->reserve(veta->structure.size());
         for (const auto &[lmId, lm] : veta->structure) {
             pcl::PointXYZRGB p;
             p.x = (float)lm.X(0), p.y = (float)lm.X(1), p.z = (float)lm.X(2);
-            p.r = lm.color(0), p.g = lm.color(1), p.b = lm.color(2);
+            if (lmColor != std::nullopt) {
+                p.r = static_cast<uchar>(lmColor->r * 255.0f);
+                p.g = static_cast<uchar>(lmColor->g * 255.0f);
+                p.b = static_cast<uchar>(lmColor->b * 255.0f);
+            } else {
+                p.r = lm.color(0), p.g = lm.color(1), p.b = lm.color(2);
+            }
             cloud->push_back(p);
         }
         entities.push_back(ns_viewer::Cloud<pcl::PointXYZRGB>::Create(cloud, 8.0f));

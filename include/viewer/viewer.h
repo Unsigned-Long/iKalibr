@@ -117,7 +117,10 @@ public:
 
     ns_viewer::Entity::Ptr Gravity() const;
 
-    Viewer &AddVeta(const ns_veta::Veta::Ptr &veta, const std::string &view);
+    Viewer &AddVeta(const ns_veta::Veta::Ptr &veta,
+                    const std::string &view,
+                    const std::optional<ns_viewer::Colour> &camColor = ns_viewer::Colour::Blue(),
+                    const std::optional<ns_viewer::Colour> &lmColor = {});
 
     Viewer &AddEntityLocal(const std::vector<ns_viewer::Entity::Ptr> &entities,
                            const std::string &view);

@@ -40,6 +40,7 @@
 #include "util/tqdm.h"
 #include "ros/package.h"
 #include "sensor/camera_data_loader.h"
+#include "core/visual_pixel_dynamic.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -612,6 +613,68 @@ void CalibSolver::SaveStageCalibParam(const CalibParamManager::Ptr &par, const s
             paramDir + "/" + desc + ns_ikalibr::Configor::GetFormatExtension();
         par->Save(paramFilename, ns_ikalibr::Configor::Preference::OutputDataFormat);
     }
+}
+ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) {
+    if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
+        return nullptr;
+    }
+    const auto &intri = _parMagr->INTRI.RGBD.at(topic);
+
+    const auto &rsExposureFactor = CameraModel::RSCameraExposureFactor(
+        EnumCast::stringToEnum<CameraModelType>(Configor::DataStream::RGBDTopics.at(topic).Type));
+
+    auto veta = std::make_shared<ns_veta::Veta>();
+
+    // intrinsics
+    const ns_veta::IndexT INTRI_ID = 0;
+    veta->intrinsics.insert({INTRI_ID, intri->intri});
+
+    ns_veta::IndexT LM_ID_COUNTER = 0;
+    for (const auto &dynamic : _dataMagr->GetRGBDPixelDynamics(topic)) {
+        // we use actual depth here
+        auto corr = dynamic->CreateRGBDVelocityCorr(intri, rsExposureFactor, false);
+        if (corr->depth < 1E-3 /* 1 mm */) {
+            continue;
+        }
+        auto SE3_CurDnToW = CurDnToW(corr->frame->GetTimestamp(), topic);
+        if (SE3_CurDnToW == std::nullopt) {
+            continue;
+        }
+
+        // index
+        ns_veta::IndexT viewId = corr->frame->GetId(), intriIdx = INTRI_ID, poseId = viewId;
+
+        // we store pose from camera to world
+        auto pose = ns_veta::Posed(SE3_CurDnToW->so3(), SE3_CurDnToW->translation());
+
+        // view
+        auto view = ns_veta::View::Create(
+            // timestamp (aligned)
+            corr->frame->GetTimestamp(),
+            // index
+            viewId, intriIdx, poseId,
+            // width, height
+            intri->intri->imgWidth, intri->intri->imgHeight);
+
+        // landmark
+        const double depth = corr->depth;
+        Eigen::Vector2d lmInDnPlane = intri->intri->ImgToCam(corr->MidPoint());
+        Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);
+        Eigen::Vector3d lmInW = *SE3_CurDnToW * lmInDn;
+        // this landmark has only one observation
+        auto lm = ns_veta::Landmark(lmInW, {{viewId, ns_veta::Observation(corr->MidPoint(), 0)}});
+        auto cImg = corr->frame->GetColorImage();
+        // b, g, r
+        auto color = cImg.at<cv::Vec3b>((int)corr->MidPoint()(1), (int)corr->MidPoint()(0));
+        // r, g, b <- r, g, b
+        lm.color = {color(2), color(1), color(0)};
+
+        veta->poses.insert({poseId, pose});
+        veta->views.insert({viewId, view});
+        veta->structure.insert({++LM_ID_COUNTER, lm});
+    }
+
+    return veta;
 }
 
 // ------------------

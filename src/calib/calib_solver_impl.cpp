@@ -134,6 +134,18 @@ void CalibSolver::Process() {
             _viewer->AddVeta(sfmData, Viewer::VIEW_MAP);
         }
     }
+    if (Configor::IsRGBDIntegrated() && GetScaleType() == TimeDeriv::LIN_POS_SPLINE) {
+        // add veta from pixel dynamics
+        for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+            auto veta = CreateVetaFromRGBD(topic);
+            if (veta != nullptr) {
+                DownsampleVeta(veta, 10000,
+                               Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin);
+                // we do not show the pose
+                _viewer->AddVeta(veta, Viewer::VIEW_MAP, {}, ns_viewer::Entity::GetUniqueColour());
+            }
+        }
+    }
 
     _solveFinished = true;
 
@@ -309,7 +321,8 @@ CalibSolver::Initialization() {
                 spdlog::info("SfM data for camera '{}' is valid!", topic);
                 spdlog::info("down sample SfM data for camera '{}'", topic);
                 // keep too many landmarks and features in estimator is not always good
-                DownsampleVeta(veta, 10000, 10);
+                DownsampleVeta(veta, 10000,
+                               Configor::DataStream::CameraTopics.at(topic).TrackLengthMin);
                 // we store SfM datas in '_dataMagr' as it is the 'calibration data manager'
                 _dataMagr->SetSfMData(topic, veta);
                 // just for visualization
@@ -1404,12 +1417,13 @@ IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() {
     return radarCloud;
 }
 
-ColorPointCloud::Ptr CalibSolver::BuildGlobalMapOfRGBD(float downsampleSize) {
+ColorPointCloud::Ptr CalibSolver::BuildGlobalMapOfRGBD() {
     if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return {};
     }
 
     ColorPointCloud::Ptr map(new ColorPointCloud);
+    const auto downsampleSize = static_cast<float>(Configor::Prior::MapDownSample);
 
     std::shared_ptr<tqdm> bar;
     for (const auto &[topic, frames] : _dataMagr->GetRGBDMeasurements()) {
@@ -1663,6 +1677,16 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
     //     _viewer->AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(map, 2.0f)},
     //                             Viewer::VIEW_MAP);
     // }
+
+    // add veta from pixel dynamics
+    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+        auto veta = CreateVetaFromRGBD(topic);
+        if (veta != nullptr) {
+            DownsampleVeta(veta, 10000, Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin);
+            // we do not show the pose
+            _viewer->AddVeta(veta, Viewer::VIEW_MAP, {}, ns_viewer::Entity::GetUniqueColour());
+        }
+    }
 
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
