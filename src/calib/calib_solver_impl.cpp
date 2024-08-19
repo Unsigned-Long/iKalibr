@@ -433,6 +433,11 @@ CalibSolver::Initialization() {
 
                 if (i % 10 == 0) {
                     _viewer->ClearViewer(Viewer::VIEW_MAP);
+                    // rgbd camera
+                    static auto rgbd = ns_viewer::CubeCamera::Create(
+                        ns_viewer::Posef(), 0.04, ns_viewer::Colour(0.33f, 0.0f, 0.5f, 1.0f));
+                    _viewer->AddEntityLocal({rgbd}, Viewer::VIEW_MAP);
+                    // depth point could
                     _viewer->AddRGBDFrame(frameVec.at(i), intri, Viewer::VIEW_MAP, true, 2.0f);
                     // auto img = frameVec.at(i)->CreateColorDepthMap(intri, true);
                     // cv::imshow("img", img);
@@ -526,7 +531,7 @@ CalibSolver::Initialization() {
     for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
         spdlog::info("estimate RGBD-derived linear velocities for '{}'...", topic);
         // reorganize rgbd-dynamics, store them by frame index
-        // camera frame, dynamics in this frame (timestamp, pixel, velocity, depth)
+        // camera frame, dynamics in this frame (pixel, velocity, depth)
         std::map<CameraFrame::Ptr,
                  std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>>>
             dynamicsInFrame;
@@ -554,9 +559,9 @@ CalibSolver::Initialization() {
         const auto &rgbdIntri = _parMagr->INTRI.RGBD.at(topic);
         const double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
         const Sophus::SO3d &SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
-        for (const auto &[frame, dynamics] : dynamicsInFrame) {
+        for (const auto &[frame, curDynamics] : dynamicsInFrame) {
             // at least two measurements are required, here we up the ante
-            if (dynamics.size() < 5) {
+            if (curDynamics.size() < 5) {
                 continue;
             }
             const double timeByBr = frame->GetTimestamp() + TO_DnToBr;
@@ -564,11 +569,12 @@ CalibSolver::Initialization() {
                 continue;
             }
             auto res = VisualVelocitySacProblem::VisualVelocityEstimationRANSAC(
-                dynamics, rgbdIntri->intri, timeByBr, so3Spline, SO3_DnToBr);
+                curDynamics, rgbdIntri->intri, timeByBr, so3Spline, SO3_DnToBr);
             if (res) {
                 rgbdBodyFrameVels[topic].emplace_back(frame, *res);
                 // auto img = VisualVelocityEstimator::DrawVisualVelocityMat(
-                // dynamics, rgbdIntri->intri, timeByBr, so3Spline, SO3_DnToBr, *res, frame, 0.25);
+                //     curDynamics, rgbdIntri->intri, timeByBr, so3Spline, SO3_DnToBr, *res, frame,
+                //     0.25);
             }
         }
         // sort timestamps
@@ -1597,7 +1603,8 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
                 }
                 // however, only when the camera is moving, we can compute the depth
                 if (LIN_VEL_BrToBr0InBr0.norm() < 0.05 /* m/s */ ||
-                    corr->MidPointVel(readout).norm() < 40.0 /* pixels */) {
+                    corr->MidPointVel(readout).norm() <
+                        Configor::Prior::RGBDDynamicPixelVelThd /* pixels/sed */) {
                     continue;
                 }
                 Sophus::SO3d SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);

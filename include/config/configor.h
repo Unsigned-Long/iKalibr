@@ -210,6 +210,8 @@ public:
         static std::string SpatTempPrioriPath;
         static double GravityNorm;
         static constexpr int SplineOrder = 4;
+        // if pixel velocity is smaller than this field, we do not operation depth estimation
+        static constexpr double RGBDDynamicPixelVelThd = 100;  // pixels/sed
         static bool OptTemporalParams;
         static double TimeOffsetPadding;
         static double ReadoutTimePadding;
