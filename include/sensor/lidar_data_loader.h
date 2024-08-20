@@ -39,28 +39,13 @@
 #include "rosbag/message_instance.h"
 #include "util/enum_cast.hpp"
 #include "velodyne_msgs/VelodyneScan.h"
+#include "sensor/sensor_model.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-struct LidarModel {
-    enum class LidarModelType {
-        VLP_16_PACKET,
-        VLP_POINTS,
-
-        OUSTER_POINTS,
-
-        PANDAR_XT_POINTS,
-
-        LIVOX_CUSTOM,
-    };
-
-    static std::string UnsupportedLiDARModelMsg(const std::string &modelStr);
-};
-
-using LidarModelType = LidarModel::LidarModelType;
 
 class LiDARDataLoader {
 public:

@@ -36,6 +36,7 @@
 #define IKALIBR_CAMERA_DATA_LOADER_H
 
 #include "sensor/camera.h"
+#include "sensor/sensor_model.h"
 #include "rosbag/message_instance.h"
 #include "util/enum_cast.hpp"
 #include "sensor_msgs/Image.h"
@@ -45,41 +46,6 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-struct CameraModel {
-    enum class CameraModelType : std::uint32_t {
-        /**
-         * @brief options
-         */
-        NONE = 1 << 0,
-
-        GS = 1 << 1,
-        RS = 1 << 2,
-
-        FIRST_EXPOSURE = 1 << 3,
-        MID_EXPOSURE = 1 << 4,
-        LAST_EXPOSURE = 1 << 5,
-
-        SENSOR_IMAGE = 1 << 6,
-        SENSOR_IMAGE_COMP = 1 << 7,
-
-        SENSOR_IMAGE_GS = SENSOR_IMAGE | GS,
-        SENSOR_IMAGE_COMP_GS = SENSOR_IMAGE_COMP | GS,
-
-        SENSOR_IMAGE_RS_FIRST = SENSOR_IMAGE | RS | FIRST_EXPOSURE,
-        SENSOR_IMAGE_RS_MID = SENSOR_IMAGE | RS | MID_EXPOSURE,
-        SENSOR_IMAGE_RS_LAST = SENSOR_IMAGE | RS | LAST_EXPOSURE,
-
-        SENSOR_IMAGE_COMP_RS_FIRST = SENSOR_IMAGE_COMP_GS | RS | FIRST_EXPOSURE,
-        SENSOR_IMAGE_COMP_RS_MID = SENSOR_IMAGE_COMP_GS | RS | MID_EXPOSURE,
-        SENSOR_IMAGE_COMP_RS_LAST = SENSOR_IMAGE_COMP_GS | RS | LAST_EXPOSURE,
-    };
-
-    static std::string UnsupportedCameraModelMsg(const std::string &modelStr);
-
-    static double RSCameraExposureFactor(const CameraModelType &type);
-};
-
-using CameraModelType = CameraModel::CameraModelType;
 
 class CameraDataLoader {
 public:

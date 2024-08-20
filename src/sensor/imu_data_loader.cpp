@@ -44,21 +44,6 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-std::string IMUModel::UnsupportedIMUModelMsg(const std::string &modelStr) {
-    return fmt::format(
-        "Unsupported IMU Type: '{}'. "
-        "Currently supported IMU types are: \n"
-        "1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html\n"
-        "2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git\n"
-        "3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html "
-        "(acce unit: G)\n"
-        "4. SENSOR_IMU_G_NEG: "
-        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: -G)\n"
-        "...\n"
-        "If you need to use other IMU types, "
-        "please 'Issues' us on the profile of the github repository.",
-        modelStr);
-}
 
 IMUDataLoader::IMUDataLoader(IMUModelType imuModel)
     : _imuModel(imuModel) {}

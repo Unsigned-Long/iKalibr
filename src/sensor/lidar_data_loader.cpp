@@ -50,20 +50,6 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-std::string LidarModel::UnsupportedLiDARModelMsg(const std::string &modelStr) {
-    return fmt::format(
-        "Unsupported LiDAR Type: '{}'. "
-        "Currently supported LiDAR types are: \n"
-        "1.        Velodyne LiDARs: VLP_16_PACKET, VLP_POINTS\n"
-        "2.          Ouster LiDARs: OUSTER_POINTS\n"
-        "3. Hesai Pandar XT LiDARs: PANDAR_XT_POINTS\n"
-        "4.           Livox LiDARs: LIVOX_CUSTOM (the official 'xfer_format'=1, "
-        "mid-360 and avia is recommend)\n"
-        "...\n"
-        "If you need to use other IMU types, "
-        "please 'Issues' us on the profile of the github repository.",
-        modelStr);
-}
 
 LiDARDataLoader::Ptr LiDARDataLoader::GetLoader(const std::string &lidarModelStr) {
     // try extract lidar model

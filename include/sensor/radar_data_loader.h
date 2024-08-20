@@ -39,26 +39,13 @@
 #include "sensor/radar.h"
 #include "util/cloud_define.hpp"
 #include "util/enum_cast.hpp"
+#include "sensor/sensor_model.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-struct RadarModel {
-    enum class RadarModelType {
-        AINSTEIN_RADAR,
-        AWR1843BOOST_RAW,
-        AWR1843BOOST_CUSTOM,
-        POINTCLOUD2_POSV,
-        POINTCLOUD2_POSIV,
-        POINTCLOUD2_XRIO,
-    };
-
-    static std::string UnsupportedRadarModelMsg(const std::string &modelStr);
-};
-
-using RadarModelType = RadarModel::RadarModelType;
 
 class RadarDataLoader {
 public:

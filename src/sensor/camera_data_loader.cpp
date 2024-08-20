@@ -45,53 +45,6 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-std::string CameraModel::UnsupportedCameraModelMsg(const std::string &modelStr) {
-    return fmt::format(
-        "Unsupported camera Type: '{}'. "
-        "Currently supported camera types are: \n"
-        "1. SENSOR_IMAGE_GS: "
-        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-        "2. SENSOR_IMAGE_RS_FIRST: first-row exposure, "
-        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-        "3. SENSOR_IMAGE_RS_MID: middle-row exposure, "
-        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-        "4. SENSOR_IMAGE_RS_LAST: last-row exposure, "
-        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
-        "5. SENSOR_IMAGE_COMP_GS: "
-        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
-        "6. SENSOR_IMAGE_COMP_RS_FIRST: first-row exposure, "
-        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
-        "7. SENSOR_IMAGE_COMP_RS_MID: middle-row exposure, "
-        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
-        "8. SENSOR_IMAGE_COMP_RS_LAST: last-row exposure, "
-        "https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
-        "...\n"
-        "If you need to use other camera types, "
-        "please 'Issues' us on the profile of the github repository.",
-        modelStr);
-}
-
-double CameraModel::RSCameraExposureFactor(const CameraModelType &type) {
-    double exposureFactor = 0.0;
-    if (IsOptionWith(CameraModelType::RS, type)) {
-        // if it is a RS camera
-        if (IsOptionWith(CameraModelType::FIRST_EXPOSURE, type)) {
-            exposureFactor = 0.0;
-            spdlog::info("RS images are stamped by 'FIRST_EXPOSURE' mode, exposureFactor: '{:.2f}'",
-                         exposureFactor);
-        } else if (IsOptionWith(CameraModelType::MID_EXPOSURE, type)) {
-            exposureFactor = 0.5;
-            spdlog::info("RS images are stamped by 'MID_EXPOSURE' mode, exposureFactor: '{:.2f}'",
-                         exposureFactor);
-        } else if (IsOptionWith(CameraModelType::LAST_EXPOSURE, type)) {
-            exposureFactor = 1.0;
-            spdlog::info("RS images are stamped by 'LAST_EXPOSURE' mode, exposureFactor: '{:.2f}'",
-                         exposureFactor);
-        }
-    }
-    return exposureFactor;
-}
-
 CameraDataLoader::CameraDataLoader(CameraModelType model)
     : _model(model) {}
 

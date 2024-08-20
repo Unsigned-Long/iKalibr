@@ -614,6 +614,7 @@ void CalibSolver::SaveStageCalibParam(const CalibParamManager::Ptr &par, const s
         par->Save(paramFilename, ns_ikalibr::Configor::Preference::OutputDataFormat);
     }
 }
+
 ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) {
     if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return nullptr;

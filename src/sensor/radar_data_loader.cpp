@@ -47,25 +47,6 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-std::string RadarModel::UnsupportedRadarModelMsg(const std::string &modelStr) {
-    return fmt::format(
-        "Unsupported Radar Type: '{}'. "
-        "Currently supported radar types are: \n"
-        "1.     AINSTEIN_RADAR: https://github.com/AinsteinAI/ainstein_radar.git\n"
-        "2. AWR1843BOOST_RAW: https://github.com/Unsigned-Long/ti_mmwave_rospkg.git\n"
-        "3. AWR1843BOOST_CUSTOM: https://github.com/Unsigned-Long/ti_mmwave_rospkg.git\n"
-        "4.  POINTCLOUD2_POSV: 'sensor_msgs/PointCloud2' with point format: [x, y, z, "
-        "velocity]\n"
-        "5.  POINTCLOUD2_POSIV: 'sensor_msgs/PointCloud2' with point format: [x, y, z, "
-        "intensity, velocity]\n"
-        "6.  POINTCLOUD2_XRIO: 'sensor_msgs/PointCloud2' with x-RIO point format (see "
-        "https://github.com/christopherdoer/rio.git)\n"
-        "...\n"
-        "If you need to use other radar types, "
-        "please 'Issues' us on the profile of the github repository.",
-        modelStr);
-}
-
 RadarDataLoader::RadarDataLoader(RadarModelType radarModel)
     : _radarModel(radarModel) {}
 
