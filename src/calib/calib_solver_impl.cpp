@@ -561,9 +561,9 @@ CalibSolver::Initialization() {
                 continue;
             }
             const Eigen::Vector2d vel = rgbdVelCorr->MidPointVel(readout);
-            if (vel.norm() < Configor::Prior::RGBDDynamicPixelVelThd /* pixels/sed */) {
-                continue;
-            }
+            // if (vel.norm() < 0.5f * Configor::Prior::RGBDDynamicPixelVelThd /* pixels/sed */) {
+            //     continue;
+            // }
             // a valid depth
             dynamicsInFrame[midCamFrame].emplace_back(rgbdVelCorr->MidPoint(), vel,
                                                       rgbdVelCorr->depth);

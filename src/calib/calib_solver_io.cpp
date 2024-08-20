@@ -549,7 +549,10 @@ void CalibSolverIO::SaveVisualKinematics() {
 }
 
 void CalibSolverIO::SaveVisualColorizedMap() {
-    if (!Configor::IsCameraIntegrated() || !Configor::IsLiDARIntegrated()) {
+    if (!Configor::IsLiDARIntegrated()) {
+        return;
+    }
+    if (!Configor::IsCameraIntegrated() || !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -560,6 +563,7 @@ void CalibSolverIO::SaveVisualColorizedMap() {
         return;
     }
 
+    // cameras
     for (const auto &[topic, frames] : _solver->_dataMagr->GetCameraMeasurements()) {
         spdlog::info("create colorized map using camera '{}'...", topic);
 
@@ -578,6 +582,30 @@ void CalibSolverIO::SaveVisualColorizedMap() {
             spdlog::warn("save colorized map as : '{}' failed!", filename);
         }
     }
+
+    // rgbds
+    for (const auto &[topic, frames] : _solver->_dataMagr->GetRGBDMeasurements()) {
+        spdlog::info("create colorized map using rgbd '{}'...", topic);
+
+        auto subSaveDir = saveDir + "/rgbd/" + topic;
+        if (!TryCreatePath(subSaveDir)) {
+            spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
+            continue;
+        }
+        const auto &veta = _solver->CreateVetaFromRGBD(topic);
+        if (veta == nullptr) {
+            continue;
+        }
+        // todo: this has not been tested!!!
+        auto shader = RGBDColorizedCloudMap::Create(topic, frames, veta, _solver->_splines,
+                                                    _solver->_parMagr);
+        auto colorizedMap = shader->Colorize(_solver->_backup->lidarMap);
+        auto filename = subSaveDir + "/colorized_map.pcd";
+        if (pcl::io::savePCDFile(filename, *colorizedMap, true) == -1) {
+            spdlog::warn("save colorized map as : '{}' failed!", filename);
+        }
+    }
+
     spdlog::info("saving visual colorized map finished!");
 }
 

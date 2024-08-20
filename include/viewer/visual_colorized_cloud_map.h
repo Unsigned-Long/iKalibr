@@ -51,6 +51,8 @@ struct CalibParamManager;
 using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
 struct CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
+struct RGBDFrame;
+using RGBDFramePtr = std::shared_ptr<RGBDFrame>;
 
 class ColorizedCloudMap {
 public:
@@ -88,6 +90,48 @@ public:
 
 protected:
     std::optional<Sophus::SE3d> CurCmToW(double timeByCm);
+
+    static cv::Mat DrawPoint(const cv::Mat &img,
+                             const Eigen::Vector2i &p,
+                             const cv::Scalar &color = cv::Scalar(0, 255, 0));
+};
+
+class RGBDColorizedCloudMap {
+public:
+    using Ptr = std::shared_ptr<RGBDColorizedCloudMap>;
+    using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
+
+private:
+    std::string _topic;
+    const std::vector<RGBDFramePtr> &_frames;
+    ns_veta::Veta::Ptr _veta;
+    SplineBundleType::Ptr _splines;
+    CalibParamManagerPtr _parMagr;
+
+    ns_veta::PinholeIntrinsic::Ptr _intri;
+
+    Sophus::SE3d SE3_DnToBr;
+    double TO_DnToBr;
+
+    std::map<ns_veta::IndexT, std::pair<std::optional<Sophus::SE3d>, cv::Mat>> _viewIdToFrame;
+
+public:
+    RGBDColorizedCloudMap(std::string topic,
+                          const std::vector<RGBDFramePtr> &frames,
+                          ns_veta::Veta::Ptr veta,
+                          SplineBundleType::Ptr splines,
+                          CalibParamManagerPtr parMagr);
+
+    static Ptr Create(const std::string &topic,
+                      const std::vector<RGBDFramePtr> &frames,
+                      const ns_veta::Veta::Ptr &veta,
+                      const SplineBundleType::Ptr &splines,
+                      const CalibParamManagerPtr &parMagr);
+
+    ColorPointCloud::Ptr Colorize(const IKalibrPointCloud::Ptr &cloudMap, int K = 5);
+
+protected:
+    std::optional<Sophus::SE3d> CurDnToW(double timeByDn);
 
     static cv::Mat DrawPoint(const cv::Mat &img,
                              const Eigen::Vector2i &p,
