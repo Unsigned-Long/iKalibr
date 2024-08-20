@@ -1073,7 +1073,7 @@ CalibSolver::Initialization() {
             const double dtRough = dtRoughSum / count;
             roughSplines = CreateSplineBundle(minTime, maxTime, dtRough, dtRough);
 
-            estimator = Estimator::Create(roughSplines, nullptr);
+            estimator = Estimator::Create(roughSplines, _parMagr);
 
             for (const auto &[lidarTopic, odometer] : lidarOdometers) {
                 double TO_LkToBr = _parMagr->TEMPORAL.TO_LkToBr.at(lidarTopic);
@@ -1130,6 +1130,11 @@ CalibSolver::Initialization() {
             // add tail factors (constraints) to maintain enough observability
             estimator->AddLinScaleTailConstraint(optOption, 1.0);
             estimator->AddSO3TailConstraint(optOption, 1.0);
+
+            // add inertial factor using inertial measurements only from reference IMU
+            this->AddAcceFactor<TimeDeriv::LIN_POS_SPLINE>(
+                estimator, Configor::DataStream::ReferIMU, optOption);
+            this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU, optOption);
 
             // we don't want to output the solving information
             estimator->Solve(
