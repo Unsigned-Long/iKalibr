@@ -12,12 +12,12 @@
         <!-- for example, the regex expression "(\d+)-d\.png" would match '1695715763820-d.png'-format images -->
         <!-- and extract the '1695715763820' as a group and converted to time stamp string -->
         <!-- thus the final time would be 1695715763820 * {name_to_stamp_scale} -->
-        <param name="valid_name_stamp_regex" value="(\d+)-d\.png" type="string"/>
+        <param name="valid_name_stamp_regex" value="(\d+)\.jpg" type="string"/>
         <!-- image topic (what message topic for images in the generated rosbag you want) -->
-        <param name="imgs_topic" value="/cam/frame" type="string"/>
+        <param name="imgs_topic" value="/cam/color_frame" type="string"/>
         <!-- output bag path  -->
         <param name="bag_path"
-               value="/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world-old/data_202392616822/consistency/cam-depth.bag"
+               value="/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world-old/data_202392616822/consistency/cam-color.bag"
                type="string"/>
         <!-- whether we use image name as its timestamp  -->
         <param name="name_as_stamp" value="true" type="bool"/>
@@ -25,8 +25,9 @@
         <param name="name_to_stamp_scale" value="1E-3" type="double"/>
         <!-- if ${name_as_stamp} is false, then timestamp = ros::Time::now() + ros::Duration(idx * 1.0 / ${img_frequency})  -->
         <param name="img_frequency" value="10" type="int"/>
-        <!-- whether to convert color image (if it is) to gray image  -->
-        <param name="to_gray" value="false" type="bool"/>
+        <!-- the encoding type of the images, the encoding type can be found here: -->
+        <!-- https://docs.ros.org/en/jade/api/sensor_msgs/html/namespacesensor__msgs_1_1image__encodings.html -->
+        <param name="encoding" value="bgr8" type="string"/>
         <!-- downsample images: grab an image per {downsample_num} images to rosbag -->
         <!-- {downsample_num} equals to 1 means do not perform downsample -->
         <param name="downsample_num" value="1" type="int"/>

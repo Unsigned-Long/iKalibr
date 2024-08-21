@@ -79,8 +79,8 @@ int main(int argc, char **argv) {
                                      parPath.string());
         }
 
-        auto toGray = ns_ikalibr::GetParamFromROS<bool>("/ikalibr_imgs_to_bag/to_gray");
-        spdlog::info("whether to convert color image (if it is) to gray image: '{}'", toGray);
+        auto encoding = ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_imgs_to_bag/encoding");
+        spdlog::info("the encoding of images: '{}'", encoding);
 
         auto downsampleNum =
             ns_ikalibr::GetParamFromROS<int>("/ikalibr_imgs_to_bag/downsample_num");
@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
             }
 
             auto filename = filenames.at(i);
-            auto img = cv::imread(filename);
+            auto img = cv::imread(filename, cv::IMREAD_UNCHANGED);
             if (img.empty()) {
                 spdlog::warn("invalid image: '{}'!!!", filename);
                 continue;
@@ -174,21 +174,6 @@ int main(int argc, char **argv) {
             auto time = timestamps.at(i);
             spdlog::info("filename: '{}', time: '{:.3f}'",
                          std::filesystem::path(filename).filename().string(), time);
-
-            std::string encoding;
-            if (img.channels() == 3) {
-                if (toGray) {
-                    cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
-                    encoding = sensor_msgs::image_encodings::MONO8;
-                } else {
-                    encoding = sensor_msgs::image_encodings::BGR8;
-                }
-            } else if (img.channels() == 1) {
-                encoding = sensor_msgs::image_encodings::MONO8;
-            } else {
-                throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL,
-                                         "unknown image type for '{}'", filename);
-            }
 
             cv_bridge::CvImage cvImage;
             cvImage.image = img;

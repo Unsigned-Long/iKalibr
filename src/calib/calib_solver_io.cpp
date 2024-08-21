@@ -270,7 +270,8 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() {
             }
 
             auto filename = subSaveDir + '/' + std::to_string(frame->GetId()) + ".jpg";
-            auto filenameDepth = subSaveDir + '/' + std::to_string(frame->GetId()) + "-d.png";
+            // 32-bit float images should be saved as tiff-format files
+            auto filenameDepth = subSaveDir + '/' + std::to_string(frame->GetId()) + "-d.tiff";
             auto filenameColor = subSaveDir + '/' + std::to_string(frame->GetId()) + "-c.jpg";
 
             // undistorted gray image
@@ -329,7 +330,8 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() {
             }
 
             auto filename = subSaveDir + '/' + std::to_string(frame->GetId()) + ".jpg";
-            auto filenameDepth = subSaveDir + '/' + std::to_string(frame->GetId()) + "-d.png";
+            // 32-bit float images should be saved as tiff-format files
+            auto filenameDepth = subSaveDir + '/' + std::to_string(frame->GetId()) + "-d.tiff";
             auto filenameColor = subSaveDir + '/' + std::to_string(frame->GetId()) + "-c.jpg";
             auto filenameRaw = subSaveDir + '/' + std::to_string(frame->GetId()) + "-r.jpg";
 
