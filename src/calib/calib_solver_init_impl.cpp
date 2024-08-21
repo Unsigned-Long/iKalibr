@@ -76,7 +76,7 @@ CalibSolver::Initialization() {
 
     if (Configor::DataStream::IMUTopics.size() > 1) {
         estimator = Estimator::Create(_splines, _parMagr);
-        optOption |= OptOption::Option::OPT_SO3_BiToBr;
+        optOption = OptOption::Option::OPT_SO3_BiToBr;
         if (Configor::Prior::OptTemporalParams) {
             optOption |= OptOption::Option::OPT_TO_BiToBr;
         }
