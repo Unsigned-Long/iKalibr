@@ -9,6 +9,9 @@
                type="string"/>
         <!-- use matched images in {imgs_path}, empty one means all files in folder are matched -->
         <!-- then find stamp string in the filename string (the regex group) -->
+        <!-- for example, the regex expression "(\d+)-d\.png" would match '1695715763820-d.png'-format images -->
+        <!-- and extract the '1695715763820' as a group and converted to time stamp string -->
+        <!-- thus the final time would be 1695715763820 * {name_to_stamp_scale} -->
         <param name="valid_name_stamp_regex" value="(\d+)-d\.png" type="string"/>
         <!-- image topic (what message topic for images in the generated rosbag you want) -->
         <param name="imgs_topic" value="/cam/frame" type="string"/>
