@@ -308,8 +308,11 @@ void Estimator::AddLiDARInertialAlignment(const std::vector<IMUFrame::Ptr> &data
     }
 
     double TO_LkToBi = TO_LkToBr - parMagr->TEMPORAL.TO_BiToBr.at(imuTopic);
-    auto [velVecMat, posVecMat] =
-        InertialPosIntegration(data, imuTopic, st + TO_LkToBi, et + TO_LkToBi);
+    auto integrationData = InertialPosIntegration(data, imuTopic, st + TO_LkToBi, et + TO_LkToBi);
+    if (integrationData == std::nullopt) {
+        return;
+    }
+    auto [velVecMat, posVecMat] = *integrationData;
 
     // create a cost function
     auto helper = LiDARInertialAlignHelper<Configor::Prior::SplineOrder>(
@@ -393,8 +396,11 @@ void Estimator::AddVisualInertialAlignment(const std::vector<IMUFrame::Ptr> &dat
     }
 
     double TO_CmToBi = TO_CmToBr - parMagr->TEMPORAL.TO_BiToBr.at(imuTopic);
-    auto [velVecMat, posVecMat] =
-        InertialPosIntegration(data, imuTopic, st + TO_CmToBi, et + TO_CmToBi);
+    auto integrationData = InertialPosIntegration(data, imuTopic, st + TO_CmToBi, et + TO_CmToBi);
+    if (integrationData == std::nullopt) {
+        return;
+    }
+    auto [velVecMat, posVecMat] = *integrationData;
 
     // create a cost function
     auto helper = VisualInertialAlignHelper<Configor::Prior::SplineOrder>(
@@ -483,7 +489,11 @@ void Estimator::AddInertialAlignment(const std::vector<IMUFrame::Ptr> &data,
     auto velVecMat =
         InertialVelIntegration(data, imuTopic, sTimeByBr + TO_BrToBi, eTimeByBr + TO_BrToBi);
 
-    auto helper = InertialAlignHelper(eTimeByBr - sTimeByBr, velVecMat);
+    if (velVecMat == std::nullopt) {
+        return;
+    }
+
+    auto helper = InertialAlignHelper(eTimeByBr - sTimeByBr, *velVecMat);
     auto costFunc = InertialAlignFactor::Create(helper, weight);
 
     costFunc->AddParameterBlock(3);
@@ -538,10 +548,12 @@ void Estimator::AddRadarInertialAlignment(const std::vector<IMUFrame::Ptr> &data
 
     double TO_RjToBi = TO_RjToBr - parMagr->TEMPORAL.TO_BiToBr.at(imuTopic);
     auto velVecMat = InertialVelIntegration(data, imuTopic, st + TO_RjToBi, et + TO_RjToBi);
-
+    if (velVecMat == std::nullopt) {
+        return;
+    }
     // create a cost function
     auto helper = RadarInertialAlignHelper<Configor::Prior::SplineOrder>(
-        so3Spline, sRadarAry, eRadarAry, TO_RjToBr, velVecMat);
+        so3Spline, sRadarAry, eRadarAry, TO_RjToBr, *velVecMat);
     auto costFunc = RadarInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
 
     costFunc->AddParameterBlock(3);
@@ -609,10 +621,12 @@ void Estimator::AddRadarInertialRotRoughAlignment(const std::vector<IMUFrame::Pt
 
     double TO_RjToBi = TO_RjToBr - parMagr->TEMPORAL.TO_BiToBr.at(imuTopic);
     auto velVecMat = InertialVelIntegration(data, imuTopic, st + TO_RjToBi, et + TO_RjToBi);
-
+    if (velVecMat == std::nullopt) {
+        return;
+    }
     // create a cost function
     auto helper = RadarInertialRotRoughAlignHelper<Configor::Prior::SplineOrder>(
-        so3Spline, sRadarAry, eRadarAry, TO_RjToBr, velVecMat);
+        so3Spline, sRadarAry, eRadarAry, TO_RjToBr, *velVecMat);
     auto costFunc =
         RadarInertialRotRoughAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
 
@@ -673,10 +687,12 @@ void Estimator::AddRGBDInertialAlignment(
 
     double TO_DnToBi = TO_DnToBr - parMagr->TEMPORAL.TO_BiToBr.at(imuTopic);
     auto velVecMat = InertialVelIntegration(data, imuTopic, st + TO_DnToBi, et + TO_DnToBi);
-
+    if (velVecMat == std::nullopt) {
+        return;
+    }
     // create a cost function
     auto helper = RGBDInertialAlignHelper<Configor::Prior::SplineOrder>(
-        so3Spline, sRGBDAry, eRGBDAry, TO_DnToBr, velVecMat);
+        so3Spline, sRGBDAry, eRGBDAry, TO_DnToBr, *velVecMat);
     auto costFunc = RGBDInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
 
     costFunc->AddParameterBlock(3);
@@ -1081,23 +1097,35 @@ void Estimator::AddVisualProjectionFactor(ns_veta::Posed *T_CurCToW,
     this->SetManifold(T_CurCToW->Rotation().data(), QUATER_MANIFOLD.get());
 }
 
-std::pair<Eigen::Vector3d, Eigen::Matrix3d> Estimator::InertialVelIntegration(
+std::optional<std::pair<Eigen::Vector3d, Eigen::Matrix3d>> Estimator::InertialVelIntegration(
     const std::vector<IMUFrame::Ptr> &data,
     const std::string &imuTopic,
     double sTimeByBi,
     double eTimeByBi) {
     auto vecMatSeq = InertialIntegrationBase(data, imuTopic, sTimeByBi, eTimeByBi);
-    return {TrapIntegrationOnce(vecMatSeq.first), TrapIntegrationOnce(vecMatSeq.second)};
+    if (vecMatSeq.first.size() < 2 || vecMatSeq.second.size() < 2) {
+        // invalid integration data
+        return {};
+    }
+    return std::pair<Eigen::Vector3d, Eigen::Matrix3d>{TrapIntegrationOnce(vecMatSeq.first),
+                                                       TrapIntegrationOnce(vecMatSeq.second)};
 }
 
-std::pair<std::pair<Eigen::Vector3d, Eigen::Matrix3d>, std::pair<Eigen::Vector3d, Eigen::Matrix3d>>
+std::optional<std::pair<std::pair<Eigen::Vector3d, Eigen::Matrix3d>,
+                        std::pair<Eigen::Vector3d, Eigen::Matrix3d>>>
 Estimator::InertialPosIntegration(const std::vector<IMUFrame::Ptr> &data,
                                   const std::string &imuTopic,
                                   double sTimeByBi,
                                   double eTimeByBi) {
     auto vecMatSeq = InertialIntegrationBase(data, imuTopic, sTimeByBi, eTimeByBi);
-    return {{TrapIntegrationOnce(vecMatSeq.first), TrapIntegrationOnce(vecMatSeq.second)},
-            {TrapIntegrationTwice(vecMatSeq.first), TrapIntegrationTwice(vecMatSeq.second)}};
+    if (vecMatSeq.first.size() < 2 || vecMatSeq.second.size() < 2) {
+        // invalid integration data
+        return {};
+    }
+    return std::pair<std::pair<Eigen::Vector3d, Eigen::Matrix3d>,
+                     std::pair<Eigen::Vector3d, Eigen::Matrix3d>>{
+        {TrapIntegrationOnce(vecMatSeq.first), TrapIntegrationOnce(vecMatSeq.second)},
+        {TrapIntegrationTwice(vecMatSeq.first), TrapIntegrationTwice(vecMatSeq.second)}};
 }
 
 std::pair<std::vector<std::pair<double, Eigen::Vector3d>>,

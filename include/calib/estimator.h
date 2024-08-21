@@ -121,8 +121,6 @@ struct OptOption {
     };
 };
 
-
-
 struct SpatialTemporalPriori;
 using SpatialTemporalPrioriPtr = std::shared_ptr<SpatialTemporalPriori>;
 
@@ -367,14 +365,14 @@ protected:
 
     static Eigen::MatrixXd CRSMatrix2EigenMatrix(ceres::CRSMatrix *jacobian_crs_matrix);
 
-    std::pair<Eigen::Vector3d, Eigen::Matrix3d> InertialVelIntegration(
+    std::optional<std::pair<Eigen::Vector3d, Eigen::Matrix3d>> InertialVelIntegration(
         const std::vector<IMUFrame::Ptr> &data,
         const std::string &imuTopic,
         double sTimeByBi,
         double eTimeByBi);
 
-    std::pair<std::pair<Eigen::Vector3d, Eigen::Matrix3d>,
-              std::pair<Eigen::Vector3d, Eigen::Matrix3d>>
+    std::optional<std::pair<std::pair<Eigen::Vector3d, Eigen::Matrix3d>,
+                            std::pair<Eigen::Vector3d, Eigen::Matrix3d>>>
     InertialPosIntegration(const std::vector<IMUFrame::Ptr> &data,
                            const std::string &imuTopic,
                            double sTimeByBi,

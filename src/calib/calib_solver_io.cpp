@@ -233,7 +233,7 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() {
     if (!Configor::IsLiDARIntegrated()) {
         return;
     }
-    if (!Configor::IsCameraIntegrated() || !Configor::IsRGBDIntegrated()) {
+    if (!Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -552,7 +552,7 @@ void CalibSolverIO::SaveVisualColorizedMap() {
     if (!Configor::IsLiDARIntegrated()) {
         return;
     }
-    if (!Configor::IsCameraIntegrated() || !Configor::IsRGBDIntegrated()) {
+    if (!Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
         return;
     }
 

@@ -76,6 +76,7 @@ CalibSolver::Initialization() {
 
     if (Configor::DataStream::IMUTopics.size() > 1) {
         estimator = Estimator::Create(_splines, _parMagr);
+        optOption |= OptOption::Option::OPT_SO3_BiToBr;
         if (Configor::Prior::OptTemporalParams) {
             optOption |= OptOption::Option::OPT_TO_BiToBr;
         }
@@ -675,6 +676,11 @@ CalibSolver::Initialization() {
         // imu extrinsic translations and gravity
         OptOption::Option::OPT_POS_BiInBr | OptOption::Option::OPT_GRAVITY;
 
+    // this value should be considered carefully, make sure
+    // 'ALIGN_STEP' * 'TIME INTERVAL OF TWO FRAMES' < 'MAX_ALIGN_TIME'
+    static constexpr int ALIGN_STEP = 1;
+    static constexpr double MIN_ALIGN_TIME = 1E-3;
+    static constexpr double MAX_ALIGN_TIME = 0.5;
     // lidar-inertial alignment
     std::map<std::string, std::vector<Eigen::Vector3d>> linVelSeqLk;
     for (const auto &[lidarTopic, odometer] : lidarOdometers) {
@@ -691,24 +697,23 @@ CalibSolver::Initialization() {
         spdlog::info("add lidar-inertial alignment factors for '{}' and '{}'...", lidarTopic,
                      Configor::DataStream::ReferIMU);
 
-        static constexpr int STEP = 5;
-        for (int i = 0; i < static_cast<int>(poseSeq.size()) - STEP; ++i) {
-            const auto &sPose = poseSeq.at(i), ePose = poseSeq.at(i + STEP);
+        for (int i = 0; i < static_cast<int>(poseSeq.size()) - ALIGN_STEP; ++i) {
+            const auto &sPose = poseSeq.at(i), ePose = poseSeq.at(i + ALIGN_STEP);
             // we throw the head and tail data as the rotations from the fitted SO3 Spline in
             // that range are poor
             if (sPose.timeStamp + TO_LkToBr < st || ePose.timeStamp + TO_LkToBr > et) {
                 continue;
             }
 
-            if (ePose.timeStamp - sPose.timeStamp < 1E-3 ||
-                ePose.timeStamp - sPose.timeStamp > 0.5) {
+            if (ePose.timeStamp - sPose.timeStamp < MIN_ALIGN_TIME ||
+                ePose.timeStamp - sPose.timeStamp > MAX_ALIGN_TIME) {
                 continue;
             }
 
             estimator->AddLiDARInertialAlignment(
                 imuFrames, lidarTopic, Configor::DataStream::ReferIMU, sPose, ePose,
-                odometer->GetMapTime(), &curLidarLinVelSeq.at(i), &curLidarLinVelSeq.at(i + STEP),
-                optOption, weight);
+                odometer->GetMapTime(), &curLidarLinVelSeq.at(i),
+                &curLidarLinVelSeq.at(i + ALIGN_STEP), optOption, weight);
         }
     }
 
@@ -769,24 +774,24 @@ CalibSolver::Initialization() {
         spdlog::info("add visual-inertial alignment factors for '{}' and '{}'...", camTopic,
                      Configor::DataStream::ReferIMU);
 
-        static constexpr int STEP = 5;
-        for (int i = 0; i < static_cast<int>(constructedFrames.size()) - STEP; ++i) {
+        for (int i = 0; i < static_cast<int>(constructedFrames.size()) - ALIGN_STEP; ++i) {
             const auto &sPose = constructedFrames.at(i);
-            const auto &ePose = constructedFrames.at(i + STEP);
+            const auto &ePose = constructedFrames.at(i + ALIGN_STEP);
             // we throw the head and tail data as the rotations from the fitted SO3 Spline in
             // that range are poor
             if (sPose.timeStamp + TO_CmToBr < st || ePose.timeStamp + TO_CmToBr > et) {
                 continue;
             }
 
-            if (ePose.timeStamp - sPose.timeStamp < 1E-3 ||
-                ePose.timeStamp - sPose.timeStamp > 0.5) {
+            if (ePose.timeStamp - sPose.timeStamp < MIN_ALIGN_TIME ||
+                ePose.timeStamp - sPose.timeStamp > MAX_ALIGN_TIME) {
                 continue;
             }
 
             estimator->AddVisualInertialAlignment(
                 imuFrames, camTopic, Configor::DataStream::ReferIMU, sPose, ePose, firCTime,
-                &curCamLinVelSeq.at(i), &curCamLinVelSeq.at(i + STEP), &scale, optOption, weight);
+                &curCamLinVelSeq.at(i), &curCamLinVelSeq.at(i + ALIGN_STEP), &scale, optOption,
+                weight);
         }
     }
 
@@ -818,8 +823,8 @@ CalibSolver::Initialization() {
         spdlog::info("add radar-inertial alignment factors for '{}' and '{}'...", radarTopic,
                      Configor::DataStream::ReferIMU);
 
-        for (int i = 0; i < static_cast<int>(radarMes.size()) - 1; ++i) {
-            const auto &sArray = radarMes.at(i), eArray = radarMes.at(i + 1);
+        for (int i = 0; i < static_cast<int>(radarMes.size()) - ALIGN_STEP; ++i) {
+            const auto &sArray = radarMes.at(i), eArray = radarMes.at(i + ALIGN_STEP);
 
             // spdlog::info("sAry count: {}, eAry count: {}",
             //              sArray->GetTargets().size(), eArray->GetTargets().size());
@@ -835,8 +840,8 @@ CalibSolver::Initialization() {
                 continue;
             }
 
-            if (eArray->GetTimestamp() - sArray->GetTimestamp() < 1E-3 ||
-                eArray->GetTimestamp() - sArray->GetTimestamp() > 0.5) {
+            if (eArray->GetTimestamp() - sArray->GetTimestamp() < MIN_ALIGN_TIME ||
+                eArray->GetTimestamp() - sArray->GetTimestamp() > MAX_ALIGN_TIME) {
                 continue;
             }
 
@@ -855,17 +860,17 @@ CalibSolver::Initialization() {
         spdlog::info("add rgbd-inertial alignment factors for '{}' and '{}'...", rgbdTopic,
                      Configor::DataStream::ReferIMU);
 
-        for (int i = 0; i < static_cast<int>(bodyFrameVels.size()) - 1; ++i) {
+        for (int i = 0; i < static_cast<int>(bodyFrameVels.size()) - ALIGN_STEP; ++i) {
             const auto &[sFrame, sVel] = bodyFrameVels.at(i);
-            const auto &[eFrame, eVel] = bodyFrameVels.at(i + 1);
+            const auto &[eFrame, eVel] = bodyFrameVels.at(i + ALIGN_STEP);
 
             if (sFrame->GetTimestamp() + TO_DnToBr < st ||
                 eFrame->GetTimestamp() + TO_DnToBr > et) {
                 continue;
             }
 
-            if (eFrame->GetTimestamp() - sFrame->GetTimestamp() < 1E-3 ||
-                eFrame->GetTimestamp() - sFrame->GetTimestamp() > 0.5) {
+            if (eFrame->GetTimestamp() - sFrame->GetTimestamp() < MIN_ALIGN_TIME ||
+                eFrame->GetTimestamp() - sFrame->GetTimestamp() > MAX_ALIGN_TIME) {
                 continue;
             }
 
