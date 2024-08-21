@@ -4,22 +4,29 @@
     <!-- if images are named by their measurement timestamp, they would be stamped in rosbag by the same time system -->
     <node pkg="ikalibr" type="ikalibr_imgs_to_bag" name="ikalibr_imgs_to_bag" output="screen">
         <!-- image path  -->
-        <param name="imgs_path" value="/home/csl/dataset/tum/rolling-shutter/dataset-seq10/dso/cam0/images" type="string"/>
+        <param name="imgs_path"
+               value="/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world-old/data_202392616822/consistency/camera/frame"
+               type="string"/>
+        <!-- use matched images in {imgs_path}, empty one means all files in folder are matched -->
+        <!-- then find stamp string in the filename string (the regex group) -->
+        <param name="valid_name_stamp_regex" value="(\d+)-d\.png" type="string"/>
         <!-- image topic (what message topic for images in the generated rosbag you want) -->
-        <param name="imgs_topic" value="/cam0/frame" type="string"/>
+        <param name="imgs_topic" value="/cam/frame" type="string"/>
         <!-- output bag path  -->
-        <param name="bag_path" value="/home/csl/dataset/tum/rolling-shutter/dataset-seq10/cam0.bag" type="string"/>
-        <!-- whether use image name as its timestamp  -->
+        <param name="bag_path"
+               value="/home/csl/ros_ws/iKalibr/src/ikalibr/data/real-world-old/data_202392616822/consistency/cam-depth.bag"
+               type="string"/>
+        <!-- whether we use image name as its timestamp  -->
         <param name="name_as_stamp" value="true" type="bool"/>
         <!-- if ${name_as_stamp} is true, then timestamp = std::stod(img_name) * ${name_to_stamp_scale}  -->
-        <param name="name_to_stamp_scale" value="1E-9" type="double"/>
+        <param name="name_to_stamp_scale" value="1E-3" type="double"/>
         <!-- if ${name_as_stamp} is false, then timestamp = ros::Time::now() + ros::Duration(idx * 1.0 / ${img_frequency})  -->
         <param name="img_frequency" value="10" type="int"/>
         <!-- whether to convert color image (if it is) to gray image  -->
         <param name="to_gray" value="false" type="bool"/>
         <!-- downsample images: grab an image per {downsample_num} images to rosbag -->
         <!-- {downsample_num} equals to 1 means do not perform downsample -->
-        <param name="downsample_num" value="2" type="int"/>
+        <param name="downsample_num" value="1" type="int"/>
     </node>
 
     <!--

@@ -42,6 +42,7 @@
 #include "rosbag/bag.h"
 #include "filesystem"
 #include "spdlog/fmt/bundled/color.h"
+#include "regex"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -61,6 +62,9 @@ int main(int argc, char **argv) {
             throw ns_ikalibr::Status(ns_ikalibr::Status::ERROR,
                                      "the raw image path not exists!!! '{}'", imgPath);
         }
+        auto nameStampRegexStr =
+            ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_imgs_to_bag/valid_name_stamp_regex");
+        spdlog::info("the regex pattern of image names and stamps: '{}'", nameStampRegexStr);
 
         auto imgsTopic =
             ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_imgs_to_bag/imgs_topic");
@@ -85,20 +89,22 @@ int main(int argc, char **argv) {
         auto filenames = ns_ikalibr::FilesInDir(imgPath);
 
         // erase filenames that are not images
-        filenames.erase(std::remove_if(filenames.begin(), filenames.end(),
-                                       [](const std::string &filename) {
-                                           auto extension = ns_ikalibr::UpperString(
-                                               std::filesystem::path(filename).extension());
-                                           return extension != ".JPG" && extension != ".JPEG" &&
-                                                  extension != ".PNG";
-                                       }),
-                        filenames.cend());
+        if (!nameStampRegexStr.empty()) {
+            std::regex fileNameRegex(nameStampRegexStr);
+            auto iter = std::remove_if(
+                filenames.begin(), filenames.end(), [&fileNameRegex](const std::string &filename) {
+                    std::string sName = std::filesystem::path(filename).filename().string();
+                    return !std::regex_match(sName, fileNameRegex);
+                });
+            filenames.erase(iter, filenames.cend());
+        }
 
         std::sort(filenames.begin(), filenames.end());
 
         if (filenames.empty()) {
             throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL,
-                                     "there is no any image in this directory '{}'.", imgPath);
+                                     "there is no any matched image in this directory '{}'.",
+                                     imgPath);
         }
 
         spdlog::info("there are '{}' images in this directory.", filenames.size());
@@ -116,9 +122,22 @@ int main(int argc, char **argv) {
             spdlog::info("when using name as time stamp, the scale is: '{}'", nameToStampScale);
 
             for (int i = 0; i < static_cast<int>(filenames.size()); ++i) {
-                timestamps.at(i) =
-                    std::stod(std::filesystem::path(filenames.at(i)).filename().string()) *
-                    nameToStampScale;
+                std::regex fileNameRegex;
+
+                if (!nameStampRegexStr.empty()) {
+                    fileNameRegex = std::regex(nameStampRegexStr);
+                } else {
+                    fileNameRegex = std::regex(R"((\d+)\..+)");
+                }
+
+                std::string sName = std::filesystem::path(filenames.at(i)).filename().string();
+                std::smatch smatch;
+
+                if (std::regex_search(sName, smatch, fileNameRegex) && smatch.size() >= 2) {
+                    timestamps.at(i) = std::stod(smatch[1]) * nameToStampScale;
+                } else {
+                    spdlog::warn("filename '{}' was not matched using regex expression!!!", sName);
+                }
             }
 
         } else {
