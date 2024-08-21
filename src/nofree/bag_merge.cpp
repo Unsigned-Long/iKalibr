@@ -112,6 +112,15 @@ std::pair<ros::Time, ros::Time> BagMerger::Process() {
     }
     spdlog::info("start merge {} bag(s) to '{}'.", _configor->_bags.size(),
                  _configor->_outputBagPath);
+    auto dstParentPath = std::filesystem::path(_configor->_outputBagPath).parent_path();
+    if (!std::filesystem::exists(dstParentPath)) {
+        if (!std::filesystem::create_directories(dstParentPath)) {
+            throw Status(Status::CRITICAL,
+                         "the parent path of the dst bag, i.e., '{}', dose not exist and can not "
+                         "be created: '{}'",
+                         dstParentPath.string());
+        }
+    }
     auto dstBag = std::make_unique<rosbag::Bag>();
     dstBag->open(_configor->_outputBagPath, rosbag::BagMode::Write | rosbag::BagMode::Read);
     for (const auto &bagInfo : _configor->_bags) {
@@ -121,7 +130,11 @@ std::pair<ros::Time, ros::Time> BagMerger::Process() {
         srcBag->open(bagInfo.bagPath, rosbag::BagMode::Read);
         // query
         auto view = rosbag::View();
-        view.addQuery(*srcBag, rosbag::TopicQuery(bagInfo.GetSrcTopicVec()));
+        if (auto topicVec = bagInfo.GetSrcTopicVec(); topicVec.empty()) {
+            view.addQuery(*srcBag);
+        } else {
+            view.addQuery(*srcBag, rosbag::TopicQuery(bagInfo.GetSrcTopicVec()));
+        }
         for (const auto &item : view) {
             dstBag->write(bagInfo.GetDstTopic(item.getTopic()), item.getTime(), item,
                           item.getConnectionHeader());

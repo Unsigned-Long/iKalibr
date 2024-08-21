@@ -36,12 +36,9 @@
 MergeConfigor:
   Bags:
     - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/livox_avia.bag
+      # key: source topic, value: new destination topic
+      # if the 'TopicsToMerge' is empty, all topics would be merged to new rosbag
       TopicsToMerge:
-        # key: source topic, value: new destination topic
-        - key: /livox_avia/imu
-          value: /livox_avia/imu
-        - key: /livox_avia/lidar
-          value: /livox_avia/lidar
     - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/imu_mti.bag
       TopicsToMerge:
         # key: source topic, value: new destination topic
@@ -54,14 +51,10 @@ MergeConfigor:
           value: /vlp_32c/lidar
     - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/radar_0.bag
       TopicsToMerge:
-        # key: source topic, value: new destination topic
-        - key: /ti_mmwave/radar_0
-          value: /ti_mmwave/radar_0
+      # key: source topic, value: new destination topic
     - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/radar_1.bag
       TopicsToMerge:
-        # key: source topic, value: new destination topic
-        - key: /ti_mmwave/radar_1
-          value: /ti_mmwave/radar_1
+      # key: source topic, value: new destination topic
     - BagPath: /home/csl/ros_ws/iKalibr-driver/src/ikalibr_driver/dataset/ulong2/iKalibr-data-2024-06-25-20-31-47/cam_gs.bag
       TopicsToMerge:
         # key: source topic, value: new destination topic
