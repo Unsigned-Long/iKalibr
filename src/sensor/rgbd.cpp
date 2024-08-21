@@ -164,9 +164,9 @@ ColorPointCloud::Ptr RGBDFrame::CreatePointCloud(const RGBDIntrinsicsPtr& intri,
                 p.x = (float)lmInDn(0);
                 p.y = (float)lmInDn(1);
                 p.z = (float)lmInDn(2);
-                p.b = cData[2];
+                p.b = cData[0];
                 p.g = cData[1];
-                p.r = cData[0];
+                p.r = cData[2];
                 p.a = 255;
                 cloud->push_back(p);
             }
