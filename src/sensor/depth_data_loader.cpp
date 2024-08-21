@@ -44,10 +44,11 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-DepthDataLoader::DepthDataLoader(CameraModelType model)
-    : _model(model) {}
+DepthDataLoader::DepthDataLoader(CameraModelType model, bool isInverse)
+    : _model(model),
+      _isInverse(isInverse) {}
 
-DepthDataLoader::Ptr DepthDataLoader::GetLoader(const std::string &modelStr) {
+DepthDataLoader::Ptr DepthDataLoader::GetLoader(const std::string &modelStr, bool isInverse) {
     // try extract radar model
     CameraModelType model;
     try {
@@ -61,13 +62,13 @@ DepthDataLoader::Ptr DepthDataLoader::GetLoader(const std::string &modelStr) {
         case CameraModelType::SENSOR_IMAGE_RS_FIRST:
         case CameraModelType::SENSOR_IMAGE_RS_MID:
         case CameraModelType::SENSOR_IMAGE_RS_LAST:
-            dataLoader = DepthSensorImageLoader::Create(model);
+            dataLoader = DepthSensorImageLoader::Create(model, isInverse);
             break;
         case CameraModelType::SENSOR_IMAGE_COMP_GS:
         case CameraModelType::SENSOR_IMAGE_COMP_RS_FIRST:
         case CameraModelType::SENSOR_IMAGE_COMP_RS_MID:
         case CameraModelType::SENSOR_IMAGE_COMP_RS_LAST:
-            dataLoader = DepthSensorImageCompLoader::Create(model);
+            dataLoader = DepthSensorImageCompLoader::Create(model, isInverse);
             break;
         default:
             throw Status(Status::ERROR, CameraModel::UnsupportedCameraModelMsg(modelStr));
@@ -77,14 +78,34 @@ DepthDataLoader::Ptr DepthDataLoader::GetLoader(const std::string &modelStr) {
 
 CameraModelType DepthDataLoader::GetCameraModel() const { return _model; }
 
+void DepthDataLoader::InverseMat(cv::Mat &floatMat) {
+    int rowCnt = floatMat.rows;
+    int colCnt = floatMat.cols;
+
+    for (int row = 0; row < rowCnt; ++row) {
+        auto dData = floatMat.ptr<float>(row);
+        for (int col = 0; col < colCnt; ++col) {
+            auto depth = dData[0];
+            if (depth > 1E-6) {
+                // non-zero values
+                dData[0] = 1.0f / depth;
+            } else {
+                // zero values, keep zeros
+                dData[0] = 0.0f;
+            }
+            dData += 1;
+        }
+    }
+}
+
 // ----------------------
 // DepthSensorImageLoader
 // ----------------------
-DepthSensorImageLoader::DepthSensorImageLoader(CameraModelType model)
-    : DepthDataLoader(model) {}
+DepthSensorImageLoader::DepthSensorImageLoader(CameraModelType model, bool isInverse)
+    : DepthDataLoader(model, isInverse) {}
 
-DepthSensorImageLoader::Ptr DepthSensorImageLoader::Create(CameraModelType model) {
-    return std::make_shared<DepthSensorImageLoader>(model);
+DepthSensorImageLoader::Ptr DepthSensorImageLoader::Create(CameraModelType model, bool isInverse) {
+    return std::make_shared<DepthSensorImageLoader>(model, isInverse);
 }
 
 DepthFrame::Ptr DepthSensorImageLoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
@@ -101,6 +122,9 @@ DepthFrame::Ptr DepthSensorImageLoader::UnpackFrame(const rosbag::MessageInstanc
         // todo: the alpha=1.0, beta=0.0, assume that the depth factor is not provided
         dImg.convertTo(dImg, CV_32F, 1.0, 0.0);
     }
+    if (_isInverse) {
+        InverseMat(dImg);
+    }
 
     return DepthFrame::Create(msg->header.stamp.toSec(), dImg);
 }
@@ -108,11 +132,12 @@ DepthFrame::Ptr DepthSensorImageLoader::UnpackFrame(const rosbag::MessageInstanc
 // --------------------------
 // DepthSensorImageCompLoader
 // --------------------------
-DepthSensorImageCompLoader::DepthSensorImageCompLoader(CameraModelType model)
-    : DepthDataLoader(model) {}
+DepthSensorImageCompLoader::DepthSensorImageCompLoader(CameraModelType model, bool isInverse)
+    : DepthDataLoader(model, isInverse) {}
 
-DepthSensorImageCompLoader::Ptr DepthSensorImageCompLoader::Create(CameraModelType model) {
-    return std::make_shared<DepthSensorImageCompLoader>(model);
+DepthSensorImageCompLoader::Ptr DepthSensorImageCompLoader::Create(CameraModelType model,
+                                                                   bool isInverse) {
+    return std::make_shared<DepthSensorImageCompLoader>(model, isInverse);
 }
 
 DepthFrame::Ptr DepthSensorImageCompLoader::UnpackFrame(
@@ -131,7 +156,9 @@ DepthFrame::Ptr DepthSensorImageCompLoader::UnpackFrame(
         // todo: the alpha=1.0, beta=0.0, assume that the depth factor is not provided
         dImg.convertTo(dImg, CV_32F, 1.0, 0.0);
     }
-
+    if (_isInverse) {
+        InverseMat(dImg);
+    }
     return DepthFrame::Create(msg->header.stamp.toSec(), dImg);
 }
 

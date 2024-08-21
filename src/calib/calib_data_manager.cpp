@@ -150,7 +150,9 @@ void CalibDataManager::LoadCalibData() {
     }
     for (const auto &[topic, config] : Configor::DataStream::RGBDTopics) {
         rgbdColorDataLoaders.insert({topic, CameraDataLoader::GetLoader(config.Type)});
-        rgbdDepthDataLoaders.insert({config.DepthTopic, DepthDataLoader::GetLoader(config.Type)});
+        bool isInverse = config.DepthFactor < 0.0f;
+        rgbdDepthDataLoaders.insert(
+            {config.DepthTopic, DepthDataLoader::GetLoader(config.Type, isInverse)});
     }
 
     // read raw data

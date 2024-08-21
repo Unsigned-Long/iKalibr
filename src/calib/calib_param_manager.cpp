@@ -126,7 +126,7 @@ CalibParamManager::Ptr CalibParamManager::InitParamsFromConfigor() {
         intri = RGBDIntrinsics::Create(
             ParIntri::LoadCameraIntri(Configor::DataStream::RGBDTopics.at(topic).Intrinsics,
                                       Configor::Preference::OutputDataFormat),
-            Configor::DataStream::RGBDTopics.at(topic).DepthFactor, 0.0);
+            std::abs(Configor::DataStream::RGBDTopics.at(topic).DepthFactor), 0.0);
     }
 
     // align to the negative 'z' axis

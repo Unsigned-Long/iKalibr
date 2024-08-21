@@ -50,13 +50,14 @@ public:
 
 protected:
     CameraModelType _model;
+    bool _isInverse;
 
 public:
-    explicit DepthDataLoader(CameraModelType model);
+    explicit DepthDataLoader(CameraModelType model, bool isInverse);
 
     virtual DepthFrame ::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) = 0;
 
-    static DepthDataLoader::Ptr GetLoader(const std::string &modelStr);
+    static DepthDataLoader::Ptr GetLoader(const std::string &modelStr, bool isInverse);
 
     [[nodiscard]] CameraModelType GetCameraModel() const;
 
@@ -69,6 +70,8 @@ protected:
                 "' for rgbd cameras! It's incompatible with the type of ros message to load in!");
         }
     }
+
+    static void InverseMat(cv::Mat &floatMat);
 };
 
 class DepthSensorImageLoader : public DepthDataLoader {
@@ -76,9 +79,9 @@ public:
     using Ptr = std::shared_ptr<DepthSensorImageLoader>;
 
 public:
-    explicit DepthSensorImageLoader(CameraModelType model);
+    explicit DepthSensorImageLoader(CameraModelType model, bool isInverse);
 
-    static DepthSensorImageLoader::Ptr Create(CameraModelType model);
+    static DepthSensorImageLoader::Ptr Create(CameraModelType model, bool isInverse);
 
     DepthFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
 };
@@ -88,9 +91,9 @@ public:
     using Ptr = std::shared_ptr<DepthSensorImageCompLoader>;
 
 public:
-    explicit DepthSensorImageCompLoader(CameraModelType model);
+    explicit DepthSensorImageCompLoader(CameraModelType model, bool isInverse);
 
-    static DepthSensorImageCompLoader::Ptr Create(CameraModelType model);
+    static DepthSensorImageCompLoader::Ptr Create(CameraModelType model, bool isInverse);
 
     DepthFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
 };
