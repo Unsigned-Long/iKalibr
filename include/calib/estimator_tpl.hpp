@@ -806,10 +806,8 @@ void Estimator::AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
 
     // two cases we do not estimate the depth:
     // 1. without 'Opt::OPT_RGBD_DEPTH' option
-    // 2. the pixel moves too slow
-    if (!IsOptionWith(Opt::OPT_RGBD_DEPTH, option) ||
-        velCorr->MidPointVel(*RS_READOUT).norm() <
-            Configor::Prior::RGBDDynamicPixelVelThd /* pixels/sed */) {
+    // 2. the rgbd camera moves too slow, and without depth observability
+    if (!IsOptionWith(Opt::OPT_RGBD_DEPTH, option) || !velCorr->withDepthObservability) {
         this->SetParameterBlockConstant(&velCorr->depth);
     }
 }

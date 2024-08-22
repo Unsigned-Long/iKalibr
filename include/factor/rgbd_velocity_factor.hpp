@@ -63,6 +63,8 @@ public:
     std::array<double, 3> rdFactorAry;
     double depth;
     CameraFrame::Ptr frame;
+    // if this dynamic is with depth observability
+    bool withDepthObservability;
 
 public:
     RGBDVelocityCorr(const std::array<double, 3> &timeAry,
@@ -76,7 +78,8 @@ public:
           yDynamicAry(yDynamicAry),
           rdFactorAry(),
           depth(depth),
-          frame(frame) {
+          frame(frame),
+          withDepthObservability(false) {
         int imgHeight = frame->GetImage().rows;
         for (int i = 0; i < 3; ++i) {
             rdFactorAry[i] = yDynamicAry[i] / (double)imgHeight - rsExpFactor;

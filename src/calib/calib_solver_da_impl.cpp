@@ -294,7 +294,7 @@ std::vector<VisualPixelDynamic::Ptr> CalibSolver::CreateVisualPixelDynamicForRGB
     const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList,
     const std::string &topic) {
     std::vector<VisualPixelDynamic::Ptr> dynamics;
-    int trackThd = Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin;
+    const int trackThd = Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin;
     for (const auto &trackInfo : trackInfoList) {
         for (const auto &[id, info] : trackInfo) {
             // for each tracked feature
@@ -375,44 +375,48 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
         for (const auto &dynamic : dynamics) {
             auto corr = dynamic->CreateRGBDVelocityCorr(intri, rsExposureFactor, true);
 
+            double timeByBr = corr->MidPointTime(readout) + TO_DnToBr;
+            if (!so3Spline.TimeStampInRange(timeByBr) || !scaleSpline.TimeStampInRange(timeByBr)) {
+                continue;
+            }
+
+            Eigen::Vector3d LIN_VEL_BrToBr0InBr0;
+            switch (GetScaleType()) {
+                case TimeDeriv::LIN_ACCE_SPLINE:
+                    // this would not happen
+                    continue;
+                case TimeDeriv::LIN_VEL_SPLINE:
+                    LIN_VEL_BrToBr0InBr0 = scaleSpline.Evaluate<0>(timeByBr);
+                    break;
+                case TimeDeriv::LIN_POS_SPLINE:
+                    LIN_VEL_BrToBr0InBr0 = scaleSpline.Evaluate<1>(timeByBr);
+                    break;
+            }
+
+            Sophus::SO3d SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
+            Eigen::Vector3d ANG_VEL_BrToBr0InBr = so3Spline.VelocityBody(timeByBr);
+            Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * ANG_VEL_BrToBr0InBr;
+            Eigen::Vector3d ANG_VEL_DnToBr0InDn = SO3_BrToDn * ANG_VEL_BrToBr0InBr;
+
+            Eigen::Vector3d LIN_VEL_DnToBr0InBr0 =
+                -Sophus::SO3d::hat(SO3_BrToBr0 * POS_DnInBr) * ANG_VEL_BrToBr0InBr0 +
+                LIN_VEL_BrToBr0InBr0;
+
+            corr->withDepthObservability =
+                // cond. 1: the rgbd camera is moving
+                (LIN_VEL_DnToBr0InBr0.norm() > 0.3 /* m/sed */) &&
+                // cond. 2: this feature is moving (not necessary but involved here)
+                (corr->MidPointVel(readout).norm() > 100.0 /* pixels/sed */);
+
+            // for those tracked features, but without depth information.
+            // if the depth is ready to estimate, we assign rough depth for them if they have depth
+            // observability. otherwise, if the depth is not ready to be estimated, we do not
+            // introduce them to estimator.
             if (auto actualDepth = intri->ActualDepth(corr->depth); actualDepth < 1E-3) {
-                if (!estDepth) {
+                if (!estDepth || !corr->withDepthObservability) {
+                    // do not  introduce it to estimator.
                     continue;
                 }
-                // if depth is not measured, we assign a rough depth for it, as depth would be
-                // optimized in estimator
-                double timeByBr = corr->MidPointTime(readout) + TO_DnToBr;
-                if (!so3Spline.TimeStampInRange(timeByBr) ||
-                    !scaleSpline.TimeStampInRange(timeByBr)) {
-                    continue;
-                }
-                Eigen::Vector3d LIN_VEL_BrToBr0InBr0;
-                switch (GetScaleType()) {
-                    case TimeDeriv::LIN_ACCE_SPLINE:
-                        // this would not happen
-                        continue;
-                    case TimeDeriv::LIN_VEL_SPLINE:
-                        LIN_VEL_BrToBr0InBr0 = scaleSpline.Evaluate<0>(timeByBr);
-                        break;
-                    case TimeDeriv::LIN_POS_SPLINE:
-                        LIN_VEL_BrToBr0InBr0 = scaleSpline.Evaluate<1>(timeByBr);
-                        break;
-                }
-                // however, only when the camera is moving, we can compute the depth
-                if (LIN_VEL_BrToBr0InBr0.norm() < 0.05 /* m/s */ ||
-                    corr->MidPointVel(readout).norm() <
-                        Configor::Prior::RGBDDynamicPixelVelThd /* pixels/sed */) {
-                    continue;
-                }
-                Sophus::SO3d SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
-                Eigen::Vector3d ANG_VEL_BrToBr0InBr = so3Spline.VelocityBody(timeByBr);
-
-                Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * ANG_VEL_BrToBr0InBr;
-                Eigen::Vector3d ANG_VEL_DnToBr0InDn = SO3_BrToDn * ANG_VEL_BrToBr0InBr;
-
-                Eigen::Vector3d LIN_VEL_DnToBr0InBr0 =
-                    -Sophus::SO3d::hat(SO3_BrToBr0 * POS_DnInBr) * ANG_VEL_BrToBr0InBr0 +
-                    LIN_VEL_BrToBr0InBr0;
 
                 Eigen::Vector3d LIN_VEL_DnToBr0InDn =
                     SO3_BrToDn * SO3_BrToBr0.inverse() * LIN_VEL_DnToBr0InBr0;
@@ -426,25 +430,30 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
                 Eigen::Vector1d HMat = bMat.transpose() * bMat;
                 double estDepth = (HMat.inverse() * bMat.transpose() * lVec)(0, 0);
                 double newRawDepth = intri->RawDepth(estDepth);
+
                 // spdlog::info(
                 //     "raw depth: {:.3f}, actual depth: {:.3f}, est depth: {:.3f}, new raw depth: "
                 //     "{:.3f}",
                 //     corr->depth, actualDepth, estDepth, newRawDepth);
-                ++estDepthCount;
 
                 if (estDepth < 1E-3) {
-                    // depth is negative, invalid
+                    // depth is negative, do not  introduce it to estimator.
                     continue;
                 }
                 corr->depth = newRawDepth;
+                ++estDepthCount;
             }
 
             curCorrs.push_back(corr);
         }
 
+        auto dObvCount = std::count_if(curCorrs.begin(), curCorrs.end(), [&](const auto &item) {
+            return item->withDepthObservability;
+        });
         spdlog::info(
-            "total correspondences count for rgbd '{}': {}, with estimated depth count: {}", topic,
-            curCorrs.size(), estDepthCount);
+            "total correspondences count for rgbd '{}': {}, with roughly estimated initial depth "
+            "count: {}, with depth observability: {}",
+            topic, curCorrs.size(), estDepthCount, dObvCount);
 
         // std::default_random_engine
         // engine(std::chrono::system_clock::now().time_since_epoch().count());
