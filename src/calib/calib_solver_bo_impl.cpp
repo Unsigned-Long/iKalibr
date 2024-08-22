@@ -32,7 +32,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "calib/calib_solver.h"
+#include "calib/calib_solver_tpl.hpp"
 #include "magic_enum_flags.hpp"
 
 namespace {
@@ -192,4 +192,4 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     backUp->rgbdCorrs = rgbdCorrs;
     return backUp;
 }
-}
+}  // namespace ns_ikalibr

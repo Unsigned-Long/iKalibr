@@ -1,0 +1,111 @@
+// iKalibr: Unified Targetless Spatiotemporal Calibration Framework
+// Copyright 2024, the School of Geodesy and Geomatics (SGG), Wuhan University, China
+// https://github.com/Unsigned-Long/iKalibr.git
+//
+// Author: Shuolong Chen (shlchen@whu.edu.cn)
+// GitHub: https://github.com/Unsigned-Long
+//  ORCID: 0000-0002-5283-9057
+//
+// Purpose: See .h/.hpp file.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// * Redistributions of source code must retain the above copyright notice,
+//   this list of conditions and the following disclaimer.
+// * Redistributions in binary form must reproduce the above copyright notice,
+//   this list of conditions and the following disclaimer in the documentation
+//   and/or other materials provided with the distribution.
+// * The names of its contributors can not be
+//   used to endorse or promote products derived from this software without
+//   specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
+#ifndef IKALIBR_CALIB_SOLVER_TPL_HPP
+#define IKALIBR_CALIB_SOLVER_TPL_HPP
+
+#include "calib/calib_solver.h"
+#include "calib/estimator_tpl.hpp"
+
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
+
+namespace ns_ikalibr {
+
+template <TimeDeriv::ScaleSplineType type>
+void CalibSolver::AddRadarFactor(Estimator::Ptr &estimator,
+                                 const std::string &radarTopic,
+                                 Estimator::Opt option) {
+    double weight = Configor::DataStream::RadarTopics.at(radarTopic).Weight;
+
+    for (const auto &targetAry : _dataMagr->GetRadarMeasurements(radarTopic)) {
+        for (const auto &tar : targetAry->GetTargets()) {
+            estimator->AddRadarMeasurement<type>(tar, radarTopic, option, weight);
+        }
+    }
+}
+
+template <TimeDeriv::ScaleSplineType type>
+void CalibSolver::AddAcceFactor(Estimator::Ptr &estimator,
+                                const std::string &imuTopic,
+                                Estimator::Opt option) {
+    double weight = Configor::DataStream::IMUTopics.at(imuTopic).AcceWeight;
+
+    for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {
+        estimator->AddIMUAcceMeasurement<type>(item, imuTopic, option, weight);
+    }
+}
+
+template <TimeDeriv::ScaleSplineType type>
+void CalibSolver::AddPointToSurfelFactor(Estimator::Ptr &estimator,
+                                         const std::string &lidarTopic,
+                                         const std::vector<PointToSurfelCorr::Ptr> &corrs,
+                                         Estimator::Opt option) {
+    double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
+
+    for (const auto &corr : corrs) {
+        estimator->AddPointTiSurfelConstraint<type>(corr, lidarTopic, option, weight);
+    }
+}
+
+template <TimeDeriv::ScaleSplineType type>
+void CalibSolver::AddVisualReprojectionFactor(Estimator::Ptr &estimator,
+                                              const std::string &camTopic,
+                                              const std::vector<VisualReProjCorrSeq::Ptr> &corrs,
+                                              double *globalScale,
+                                              Estimator::Opt option) {
+    double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
+
+    for (const auto &corr : corrs) {
+        for (const auto &c : corr->corrs) {
+            estimator->AddVisualReprojection<type>(c, camTopic, globalScale,
+                                                   corr->invDepthFir.get(), option, weight);
+        }
+    }
+}
+
+template <TimeDeriv::ScaleSplineType type>
+void CalibSolver::AddRGBDVelocityFactor(Estimator::Ptr &estimator,
+                                        const std::string &rgbdTopic,
+                                        const std::vector<RGBDVelocityCorr::Ptr> &corrs,
+                                        Estimator::Opt option) {
+    double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
+    for (const auto &corr : corrs) {
+        estimator->AddRGBDVelocityConstraint<type>(corr, rgbdTopic, option, weight);
+    }
+}
+}  // namespace ns_ikalibr
+
+#endif  // IKALIBR_CALIB_SOLVER_TPL_HPP

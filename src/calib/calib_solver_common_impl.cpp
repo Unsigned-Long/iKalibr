@@ -678,6 +678,16 @@ ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) {
     return veta;
 }
 
+void CalibSolver::AddGyroFactor(Estimator::Ptr &estimator,
+                                const std::string &imuTopic,
+                                Estimator::Opt option) {
+    double weight = Configor::DataStream::IMUTopics.at(imuTopic).GyroWeight;
+
+    for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {
+        estimator->AddIMUGyroMeasurement(item, imuTopic, option, weight);
+    }
+}
+
 // ------------------
 // CeresDebugCallBack
 // ------------------

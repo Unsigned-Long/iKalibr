@@ -37,7 +37,7 @@
 
 #include "calib/calib_param_manager.h"
 #include "calib/calib_data_manager.h"
-#include "calib/estimator_tpl.hpp"
+#include "calib/estimator.h"
 #include "calib/calib_solver_io.h"
 #include "core/vision_only_sfm.h"
 #include "viewer/viewer.h"
@@ -188,75 +188,35 @@ protected:
     template <TimeDeriv::ScaleSplineType type>
     void AddRadarFactor(Estimator::Ptr &estimator,
                         const std::string &radarTopic,
-                        Estimator::Opt option) {
-        double weight = Configor::DataStream::RadarTopics.at(radarTopic).Weight;
-
-        for (const auto &targetAry : _dataMagr->GetRadarMeasurements(radarTopic)) {
-            for (const auto &tar : targetAry->GetTargets()) {
-                estimator->AddRadarMeasurement<type>(tar, radarTopic, option, weight);
-            }
-        }
-    }
+                        Estimator::Opt option);
 
     template <TimeDeriv::ScaleSplineType type>
     void AddAcceFactor(Estimator::Ptr &estimator,
                        const std::string &imuTopic,
-                       Estimator::Opt option) {
-        double weight = Configor::DataStream::IMUTopics.at(imuTopic).AcceWeight;
-
-        for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {
-            estimator->AddIMUAcceMeasurement<type>(item, imuTopic, option, weight);
-        }
-    }
+                       Estimator::Opt option);
 
     void AddGyroFactor(Estimator::Ptr &estimator,
                        const std::string &imuTopic,
-                       Estimator::Opt option) {
-        double weight = Configor::DataStream::IMUTopics.at(imuTopic).GyroWeight;
-
-        for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {
-            estimator->AddIMUGyroMeasurement(item, imuTopic, option, weight);
-        }
-    }
+                       Estimator::Opt option);
 
     template <TimeDeriv::ScaleSplineType type>
     void AddPointToSurfelFactor(Estimator::Ptr &estimator,
                                 const std::string &lidarTopic,
                                 const std::vector<PointToSurfelCorr::Ptr> &corrs,
-                                Estimator::Opt option) {
-        double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
-
-        for (const auto &corr : corrs) {
-            estimator->AddPointTiSurfelConstraint<type>(corr, lidarTopic, option, weight);
-        }
-    }
+                                Estimator::Opt option);
 
     template <TimeDeriv::ScaleSplineType type>
     void AddVisualReprojectionFactor(Estimator::Ptr &estimator,
                                      const std::string &camTopic,
                                      const std::vector<VisualReProjCorrSeq::Ptr> &corrs,
                                      double *globalScale,
-                                     Estimator::Opt option) {
-        double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
-
-        for (const auto &corr : corrs) {
-            for (const auto &c : corr->corrs) {
-                estimator->AddVisualReprojection<type>(c, camTopic, globalScale,
-                                                       corr->invDepthFir.get(), option, weight);
-            }
-        }
-    }
+                                     Estimator::Opt option);
 
     template <TimeDeriv::ScaleSplineType type>
     void AddRGBDVelocityFactor(Estimator::Ptr &estimator,
                                const std::string &rgbdTopic,
                                const std::vector<RGBDVelocityCorr::Ptr> &corrs,
-                               Estimator::Opt option) {
-        double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
-        for (const auto &corr : corrs) {
-            estimator->AddRGBDVelocityConstraint<type>(corr, rgbdTopic, option, weight);
-        }
-    }
+                               Estimator::Opt option);
 
     void StoreImagesForSfM(const std::string &camTopic, const std::set<IndexPair> &matchRes);
 
