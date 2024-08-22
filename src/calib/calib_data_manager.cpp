@@ -649,27 +649,35 @@ double CalibDataManager::GetCalibTimeRange() const {
 }
 
 double CalibDataManager::GetLiDARAvgFrequency() const {
-    if (_lidarMes.empty()) {
-        return -1.0;
-    }
-    double hz = 0.0;
-    for (const auto &[topic, mes] : _lidarMes) {
-        hz += static_cast<double>(mes.size()) /
-              (mes.back()->GetTimestamp() - mes.front()->GetTimestamp());
-    }
-    return hz / static_cast<double>(_lidarMes.size());
+    return GetSensorAvgFrequency<LiDARFrame>(_lidarMes);
 }
 
 double CalibDataManager::GetCameraAvgFrequency() const {
-    if (_camMes.empty()) {
-        return -1.0;
-    }
-    double hz = 0.0;
-    for (const auto &[topic, mes] : _camMes) {
-        hz += static_cast<double>(mes.size()) /
-              (mes.back()->GetTimestamp() - mes.front()->GetTimestamp());
-    }
-    return hz / static_cast<double>(_camMes.size());
+    return GetSensorAvgFrequency<CameraFrame>(_camMes);
+}
+
+double CalibDataManager::GetRGBDAvgFrequency() const {
+    return GetSensorAvgFrequency<RGBDFrame>(_rgbdMes);
+}
+
+double CalibDataManager::GetRadarAvgFrequency() const {
+    return GetSensorAvgFrequency<RadarTargetArray>(_radarMes);
+}
+
+double CalibDataManager::GetLiDARAvgFrequency(const std::string &topic) const {
+    return GetSensorAvgFrequency<LiDARFrame>(_lidarMes.at(topic));
+}
+
+double CalibDataManager::GetCameraAvgFrequency(const std::string &topic) const {
+    return GetSensorAvgFrequency<CameraFrame>(_camMes.at(topic));
+}
+
+double CalibDataManager::GetRGBDAvgFrequency(const std::string &topic) const {
+    return GetSensorAvgFrequency<RGBDFrame>(_rgbdMes.at(topic));
+}
+
+double CalibDataManager::GetRadarAvgFrequency(const std::string &topic) const {
+    return GetSensorAvgFrequency<RadarTargetArray>(_radarMes.at(topic));
 }
 
 // -----------

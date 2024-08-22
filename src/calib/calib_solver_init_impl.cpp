@@ -676,11 +676,10 @@ CalibSolver::Initialization() {
         // imu extrinsic translations and gravity
         OptOption::Option::OPT_POS_BiInBr | OptOption::Option::OPT_GRAVITY;
 
-    // this value should be considered carefully, make sure
-    // 'ALIGN_STEP' * 'TIME INTERVAL OF TWO FRAMES' < 'MAX_ALIGN_TIME'
-    static constexpr int ALIGN_STEP = 1;
+    // make sure 'ALIGN_STEP' * 'TIME INTERVAL OF TWO FRAMES' == 0.1
+    static constexpr double DESIRED_TIME_INTERVAL = 0.5 /* sed */;
     static constexpr double MIN_ALIGN_TIME = 1E-3;
-    static constexpr double MAX_ALIGN_TIME = 0.5;
+    static constexpr double MAX_ALIGN_TIME = 1.0;
     // lidar-inertial alignment
     std::map<std::string, std::vector<Eigen::Vector3d>> linVelSeqLk;
     for (const auto &[lidarTopic, odometer] : lidarOdometers) {
@@ -694,8 +693,12 @@ CalibSolver::Initialization() {
         double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
 
         const auto &imuFrames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
-        spdlog::info("add lidar-inertial alignment factors for '{}' and '{}'...", lidarTopic,
-                     Configor::DataStream::ReferIMU);
+
+        const int ALIGN_STEP =
+            std::max(1, int(DESIRED_TIME_INTERVAL * _dataMagr->GetLiDARAvgFrequency(lidarTopic)));
+
+        spdlog::info("add lidar-inertial alignment factors for '{}' and '{}', align step: {}",
+                     lidarTopic, Configor::DataStream::ReferIMU);
 
         for (int i = 0; i < static_cast<int>(poseSeq.size()) - ALIGN_STEP; ++i) {
             const auto &sPose = poseSeq.at(i), ePose = poseSeq.at(i + ALIGN_STEP);
@@ -771,8 +774,12 @@ CalibSolver::Initialization() {
         auto &scale = visualScaleSeq.at(camTopic);
 
         const auto &imuFrames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
-        spdlog::info("add visual-inertial alignment factors for '{}' and '{}'...", camTopic,
-                     Configor::DataStream::ReferIMU);
+
+        const int ALIGN_STEP =
+            std::max(1, int(DESIRED_TIME_INTERVAL * _dataMagr->GetCameraAvgFrequency(camTopic)));
+
+        spdlog::info("add visual-inertial alignment factors for '{}' and '{}', align step: {}",
+                     camTopic, Configor::DataStream::ReferIMU, ALIGN_STEP);
 
         for (int i = 0; i < static_cast<int>(constructedFrames.size()) - ALIGN_STEP; ++i) {
             const auto &sPose = constructedFrames.at(i);
@@ -796,7 +803,7 @@ CalibSolver::Initialization() {
     }
 
     // inertial alignment (only when more than or equal to 2 num IMUs are involved)
-    constexpr double dt = 0.1;
+    constexpr double dt = DESIRED_TIME_INTERVAL;
     std::vector<Eigen::Vector3d> linVelSeqBr(std::floor((et - st) / dt), Eigen::Vector3d::Zero());
     if (Configor::DataStream::IMUTopics.size() >= 2) {
         for (const auto &[topic, frames] : _dataMagr->GetIMUMeasurements()) {
@@ -820,8 +827,12 @@ CalibSolver::Initialization() {
         double TO_RjToBr = _parMagr->TEMPORAL.TO_RjToBr.at(radarTopic);
 
         const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
-        spdlog::info("add radar-inertial alignment factors for '{}' and '{}'...", radarTopic,
-                     Configor::DataStream::ReferIMU);
+
+        const int ALIGN_STEP =
+            std::max(1, int(DESIRED_TIME_INTERVAL * _dataMagr->GetRadarAvgFrequency(radarTopic)));
+
+        spdlog::info("add radar-inertial alignment factors for '{}' and '{}', align step: {}",
+                     radarTopic, Configor::DataStream::ReferIMU, ALIGN_STEP);
 
         for (int i = 0; i < static_cast<int>(radarMes.size()) - ALIGN_STEP; ++i) {
             const auto &sArray = radarMes.at(i), eArray = radarMes.at(i + ALIGN_STEP);
@@ -857,8 +868,12 @@ CalibSolver::Initialization() {
         double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(rgbdTopic);
 
         const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
-        spdlog::info("add rgbd-inertial alignment factors for '{}' and '{}'...", rgbdTopic,
-                     Configor::DataStream::ReferIMU);
+
+        const int ALIGN_STEP =
+            std::max(1, int(DESIRED_TIME_INTERVAL * _dataMagr->GetRGBDAvgFrequency(rgbdTopic)));
+
+        spdlog::info("add rgbd-inertial alignment factors for '{}' and '{}', align step: {}",
+                     rgbdTopic, Configor::DataStream::ReferIMU, ALIGN_STEP);
 
         for (int i = 0; i < static_cast<int>(bodyFrameVels.size()) - ALIGN_STEP; ++i) {
             const auto &[sFrame, sVel] = bodyFrameVels.at(i);

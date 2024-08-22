@@ -148,9 +148,23 @@ public:
 
     [[nodiscard]] double GetCalibTimeRange() const;
 
+    // sensor measurement frequency
+
     [[nodiscard]] double GetLiDARAvgFrequency() const;
 
     [[nodiscard]] double GetCameraAvgFrequency() const;
+
+    [[nodiscard]] double GetRGBDAvgFrequency() const;
+
+    [[nodiscard]] double GetRadarAvgFrequency() const;
+
+    [[nodiscard]] double GetLiDARAvgFrequency(const std::string &topic) const;
+
+    [[nodiscard]] double GetCameraAvgFrequency(const std::string &topic) const;
+
+    [[nodiscard]] double GetRGBDAvgFrequency(const std::string &topic) const;
+
+    [[nodiscard]] double GetRadarAvgFrequency(const std::string &topic) const;
 
     static auto ExtractIMUDataPiece(const std::vector<IMUFrame::Ptr> &data, double st, double et) {
         auto sIter = std::find_if(data.begin(), data.end(), [st](const IMUFrame::Ptr &frame) {
@@ -214,6 +228,30 @@ protected:
                          "there is no data in topic '{}'! "
                          "check your configure file and rosbag!",
                          topic);
+        }
+    }
+
+    template <typename MesType>
+    static double GetSensorAvgFrequency(const std::vector<typename MesType::Ptr> &mes) {
+        if (mes.empty()) {
+            return -1.0;
+        } else {
+            return static_cast<double>(mes.size()) /
+                   (mes.back()->GetTimestamp() - mes.front()->GetTimestamp());
+        }
+    }
+
+    template <typename MesType>
+    static double GetSensorAvgFrequency(
+        const std::map<std::string, std::vector<typename MesType::Ptr>> &mesMap) {
+        if (mesMap.empty()) {
+            return -1.0;
+        } else {
+            double hz = 0.0;
+            for (const auto &[topic, mes] : mesMap) {
+                if (double v = GetSensorAvgFrequency<MesType>(mes); v > 0.0) hz += v;
+            }
+            return hz / static_cast<double>(mesMap.size());
         }
     }
 };
