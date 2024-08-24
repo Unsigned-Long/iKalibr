@@ -38,6 +38,7 @@
 #include "util/utils.h"
 #include "util/cereal_archive_helper.hpp"
 #include "cereal/types/utility.hpp"
+#include "util/status.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -116,8 +117,20 @@ public:
         auto priori = SpatialTemporalPriori::Create();
         std::ifstream file(filename, std::ios::in);
         auto ar = GetInputArchive<CerealArchiveType>(file);
-
-        (*ar)(cereal::make_nvp("SpatialTemporalPriori", *priori));
+        try {
+            (*ar)(cereal::make_nvp("SpatialTemporalPriori", *priori));
+        } catch (const cereal::Exception &exception) {
+            throw Status(Status::CRITICAL,
+                         "The configuration file '{}' for 'SpatialTemporalPriori' is "
+                         "outdated or broken, and can not be loaded in iKalibr using cereal!!! "
+                         "To make it right, please refer to our latest configuration file "
+                         "template released at "
+                         "https://github.com/Unsigned-Long/iKalibr/blob/master/config/"
+                         "spat-temp-priori.yaml, and then fix your custom configuration "
+                         "file. Detailed cereal "
+                         "exception information: \n'{}'",
+                         filename, exception.what());
+        }
         return priori;
     }
 };

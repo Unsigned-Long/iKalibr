@@ -39,9 +39,7 @@
 #include "calib/calib_data_manager.h"
 #include "calib/estimator.h"
 #include "calib/calib_solver_io.h"
-#include "core/vision_only_sfm.h"
 #include "viewer/viewer.h"
-#include "calib/spat_temp_priori.h"
 #include "core/rot_only_vo.h"
 
 namespace {
@@ -52,6 +50,8 @@ namespace ns_ikalibr {
 
 struct VisualPixelDynamic;
 using VisualPixelDynamicPtr = std::shared_ptr<VisualPixelDynamic>;
+struct SpatialTemporalPriori;
+using SpatialTemporalPrioriPtr = std::shared_ptr<SpatialTemporalPriori>;
 
 struct ImagesInfo {
 public:
@@ -114,7 +114,7 @@ private:
     CalibDataManager::Ptr _dataMagr;
     CalibParamManager::Ptr _parMagr;
 
-    SpatialTemporalPriori::Ptr _priori;
+    SpatialTemporalPrioriPtr _priori;
 
     SplineBundleType::Ptr _splines;
     ceres::Solver::Options _ceresOption;
@@ -218,7 +218,8 @@ protected:
                                const std::vector<RGBDVelocityCorr::Ptr> &corrs,
                                Estimator::Opt option);
 
-    void StoreImagesForSfM(const std::string &camTopic, const std::set<IndexPair> &matchRes);
+    void StoreImagesForSfM(const std::string &camTopic,
+                           const std::set<std::pair<ns_veta::IndexT, ns_veta::IndexT>> &matchRes);
 
     ns_veta::Veta::Ptr TryLoadSfMData(const std::string &camTopic,
                                       double errorThd,

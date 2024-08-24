@@ -511,7 +511,21 @@ ns_veta::PinholeIntrinsic::Ptr CalibParamManager::ParIntri::LoadCameraIntri(
     auto intri = ns_veta::PinholeIntrinsic::Create(0, 0, 0, 0, 0, 0);
     std::ifstream file(filename, std::ios::in);
     auto ar = GetInputArchiveVariant(file, archiveType);
-    SerializeByInputArchiveVariant(ar, archiveType, cereal::make_nvp("Intrinsics", intri));
+    try {
+        SerializeByInputArchiveVariant(ar, archiveType, cereal::make_nvp("Intrinsics", intri));
+    } catch (const cereal::Exception &exception) {
+        throw Status(Status::CRITICAL,
+                     "The configuration file '{}' for 'PinholeIntrinsic' is "
+                     "outdated or broken, and can not be loaded in iKalibr using cereal!!! "
+                     "To make it right, please refer to our latest configuration file "
+                     "template released at "
+                     "https://github.com/Unsigned-Long/iKalibr/blob/master/config/"
+                     "cam-intri-pinhole-fisheye.yaml and "
+                     "https://github.com/Unsigned-Long/iKalibr/blob/master/config/"
+                     "cam-intri-pinhole-brown.yaml, and then fix your custom configuration file. "
+                     "Detailed cereal exception information: \n'{}'",
+                     filename, exception.what());
+    }
     return intri;
 }
 
@@ -520,7 +534,19 @@ IMUIntrinsics::Ptr CalibParamManager::ParIntri::LoadIMUIntri(const std::string &
     auto intri = IMUIntrinsics::Create();
     std::ifstream file(filename, std::ios::in);
     auto ar = GetInputArchiveVariant(file, archiveType);
-    SerializeByInputArchiveVariant(ar, archiveType, cereal::make_nvp("Intrinsics", intri));
+    try {
+        SerializeByInputArchiveVariant(ar, archiveType, cereal::make_nvp("Intrinsics", intri));
+    } catch (const cereal::Exception &exception) {
+        throw Status(Status::CRITICAL,
+                     "The configuration file '{}' for 'IMUIntrinsics' is "
+                     "outdated or broken, and can not be loaded in iKalibr using cereal!!! "
+                     "To make it right, please refer to our latest configuration file "
+                     "template released at "
+                     "https://github.com/Unsigned-Long/iKalibr/blob/master/config/imu-intri.yaml, "
+                     "and then fix your custom configuration file. Detailed cereal exception "
+                     "information: \n'{}'",
+                     filename, exception.what());
+    }
     return intri;
 }
 

@@ -399,7 +399,20 @@ bool Configor::LoadConfigure(const std::string &filename, CerealArchiveType::Enu
     }
     auto archive = GetInputArchiveVariant(file, archiveType);
     auto configor = Configor::Create();
-    SerializeByInputArchiveVariant(archive, archiveType, cereal::make_nvp("Configor", *configor));
+    try {
+        SerializeByInputArchiveVariant(archive, archiveType,
+                                       cereal::make_nvp("Configor", *configor));
+    } catch (const cereal::Exception &exception) {
+        throw Status(
+            Status::CRITICAL,
+            "The configuration file '{}' is outdated or broken, and can not be loaded in iKalibr "
+            "using cereal!!! To make it right, please refer to our latest configuration file "
+            "template released at "
+            "https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/"
+            "config_template_note.md, and then fix your custom configuration file. Detailed cereal "
+            "exception information: \n'{}'",
+            filename, exception.what());
+    }
 
     // perform internal data transformation
     try {

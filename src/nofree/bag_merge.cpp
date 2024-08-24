@@ -39,7 +39,6 @@
 #include "spdlog/spdlog.h"
 #include "filesystem"
 #include "cereal/types/map.hpp"
-#include "cereal/types/vector.hpp"
 #include "cereal/types/string.hpp"
 
 namespace {
@@ -69,8 +68,21 @@ MergeConfigor::Ptr MergeConfigor::LoadConfigure(const std::string &filename,
     }
     auto archive = GetInputArchiveVariant(file, archiveType);
     auto configor = MergeConfigor::Create();
-    SerializeByInputArchiveVariant(archive, archiveType,
-                                   cereal::make_nvp("MergeConfigor", *configor));
+    try {
+        SerializeByInputArchiveVariant(archive, archiveType,
+                                       cereal::make_nvp("MergeConfigor", *configor));
+    } catch (const cereal::Exception &exception) {
+        throw Status(Status::CRITICAL,
+                     "The configuration file '{}' for 'MergeConfigor' is "
+                     "outdated or broken, and can not be loaded in iKalibr using cereal!!! "
+                     "To make it right, please refer to our latest configuration file "
+                     "template released at "
+                     "https://github.com/Unsigned-Long/iKalibr/blob/master/config/tool/"
+                     "config-bag-merge.yaml, and then fix your custom configuration "
+                     "file. Detailed cereal "
+                     "exception information: \n'{}'",
+                     filename, exception.what());
+    }
     return configor;
 }
 

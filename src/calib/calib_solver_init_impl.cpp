@@ -41,6 +41,7 @@
 #include "util/tqdm.h"
 #include "core/visual_velocity_sac.h"
 #include "core/visual_pixel_dynamic.h"
+#include "core/vision_only_sfm.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

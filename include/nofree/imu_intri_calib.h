@@ -38,6 +38,7 @@
 #include "util/utils.h"
 #include "sensor/imu_intrinsic.hpp"
 #include "cereal/types/utility.hpp"
+#include "util/status.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -81,7 +82,20 @@ public:
             std::ifstream file(filename);
             auto archive = GetInputArchive<CerealArchiveType>(file);
             auto configor = Configor();
-            (*archive)(cereal::make_nvp("Configor", configor));
+            try {
+                (*archive)(cereal::make_nvp("Configor", configor));
+            } catch (const cereal::Exception &exception) {
+                throw Status(Status::CRITICAL,
+                             "The configuration file '{}' for 'IMUIntriCalibSolver::Configor' is "
+                             "outdated or broken, and can not be loaded in iKalibr using cereal!!! "
+                             "To make it right, please refer to our latest configuration file "
+                             "template released at "
+                             "https://github.com/Unsigned-Long/iKalibr/blob/master/config/tool/"
+                             "config-imu-intri-calib.yaml, and then fix your custom configuration "
+                             "file. Detailed cereal "
+                             "exception information: \n'{}'",
+                             filename, exception.what());
+            }
             return configor;
         }
 
