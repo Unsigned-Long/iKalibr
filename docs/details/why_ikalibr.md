@@ -24,9 +24,9 @@ As a well-known calibration toolbox, `Kalibr` has made great contributions in bo
     <a><strong>The Naming of iKalibr (Ours) »</strong></a>
 </p>
 
-As a calibrator, `iKalibr` focuses on continuous-time-based multi-sensor spatiotemporal determination. More specifically, `iKalibr` addresses calibration problems for resilient integrated inertial systems, which generally integrate several exteroceptive (such as cameras, LiDARs, and radars) and proprioceptive (IMU, here) sensors, see the following figure. 
+As a calibrator, `iKalibr` focuses on continuous-time-based multi-sensor spatiotemporal determination. More specifically, `iKalibr` addresses calibration problems for resilient integrated inertial systems, which generally integrate several exteroceptive (such as cameras, LiDARs, radars, and newly supported RGBDs) and proprioceptive (IMU, here) sensors, see the following figure. 
 
-<div align=center><img src="../img/intro.drawio.jpg" width =50%></div>
+<div align=center><img src="../img/intro.drawio.jpg" width =60%></div>
 
 Since `iKalibr` focuses on inertial systems, where at least one IMU is required in the suite, the first letter of `iKalibr` is a lowercase `i`, to better draw users’ attention to this. The most notable point of `iKalibr` different from `Kalibr` is that `iKalibr` is a targetless one, which means no artificial calibration target is required for spatiotemporal calibration, such as chessboards for cameras, geometries for LiDARs, or reflectors for radars. All you need to do for calibration is hold up your sensor suite and shake it for half a minute to a minute for data collection and further solving in `iKalibr`. Meanwhile, note that `iKalibr` supports more sensor suites, benefiting from its resilient calibration capability.
 

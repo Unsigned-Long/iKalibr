@@ -4,6 +4,7 @@ Configor:
     #   1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: m/s^2)
     #   2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git (acce unit: m/s^2)
     #   3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)
+    #   4. SENSOR_IMU_G_NEG: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: -G)
     IMUTopics:
       # at least one IMU is integrated in the sensor suite
       - key: "/imu0/frame"
@@ -19,7 +20,7 @@ Configor:
           # large noise level points to small weight
           AcceWeight: 17.68
           GyroWeight: 57.66
-      # the second IMU, if only one IMU is integrated, just comment out the following key item
+      # another IMU, if only one IMU is integrated, just comment out the following key item
       - key: "/imu1/frame"
         value:
           Type: "SBG_IMU"
@@ -51,7 +52,7 @@ Configor:
       # if no LiDAR is integrated in your sensor suite, just comment out the following key items
       - key: "/lidar0/scan"
         value:
-          Type: "VLP_POINTS"
+          Type: "VLP_32E_POINTS"
           Weight: 100.0
       - key: "/lidar1/scan"
         value:
@@ -86,9 +87,35 @@ Configor:
           Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/.../cam1-intri.yaml"
           Weight: 50.0
           TrackLengthMin: 10
+    # key: rgbd color image topic, value: camera type. Supported camera types are the same as the ones in 'CameraTopics'
+    RGBDTopics:
+      - key: "/rgbd1/color_frame"
+        value:
+          Type: "SENSOR_IMAGE_GS"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/.../rgbd1-intri.yaml"
+          # the depth map needs to correspond one-to-one with the pixels in the color image after undistorted.
+          DepthTopic: "/rgbd1/depth_frame"
+          # {real depth} = abs{DepthFactor} * {image depth}, if 'DepthFactor' is positive
+          # {real depth} = abs{DepthFactor} / {image depth}, if 'DepthFactor' is negative (depth images are inverse ones)
+          DepthFactor: 0.001
+          # too large weight would lead to poor convergence
+          Weight: 0.1
+          TrackLengthMin: 5
+      - key: "/rgbd2/color_frame"
+        value:
+          Type: "SENSOR_IMAGE_GS"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/.../rgbd2-intri.yaml"
+          # the depth map needs to correspond one-to-one with the pixels in the color image after undistorted.
+          DepthTopic: "/rgbd2/depth_frame"
+          # {real depth} = abs{DepthFactor} * {image depth}, if 'DepthFactor' is positive
+          # {real depth} = abs{DepthFactor} / {image depth}, if 'DepthFactor' is negative (depth images are inverse ones)
+          DepthFactor: 0.001
+          # too large weight would lead to poor convergence
+          Weight: 0.1
+          TrackLengthMin: 5
     # the reference IMU, it should be one of multiple IMUs (the ros topic of the IMU)
     ReferIMU: "/imu1/frame"
-    BagPath: "/home/csl/dataset/.../imus_radars_lidars_cameras.bag"
+    BagPath: "/home/csl/dataset/.../multi_sensor_mes.bag"
     # the time piece: [BegTime, BegTime + Duration], unit: second(s)
     # if you want to use all time data for calibration, please set them to negative numbers
     # Note that the 'BegTime' here is measured from the start time of bag
@@ -111,6 +138,10 @@ Configor:
     TimeOffsetPadding: 0.10
     # readout time padding for RS camera, make sure this range contains the ground truth
     ReadoutTimePadding: 0.01
+    # leaf size when down sample the map using 'pcl::VoxelGrid' filter
+    # note that this field just for visualization, no connection with calibration
+    # for outdoor, 0.05 is suggested, and for indoor: 0.1 is suggested
+    MapDownSample: 0.05
     # the time distance of two neighbor control points, which determines the accuracy
     # of the representation of the B-splines. Smaller distance would lead to longer optimization time
     # common choices: from '0.01' to '0.10'
@@ -131,12 +162,14 @@ Configor:
       PointToSurfelMax: 0.1
       # chose plane as a surfel for data association when planarity is larger than this value
       PlanarityMin: 0.6
-    # the loss function used for radar factor (m/s)
+    # the loss function used for radar factor (m/s) (on the direction of target)
     CauchyLossForRadarFactor: 0.1
     # the loss function used for lidar factor (m)
     CauchyLossForLiDARFactor: 0.5
     # the loss function used for visual reprojection factor (pixel)
     CauchyLossForCameraFactor: 1.0
+    # the loss function used for rgbd velocity factor (pixel) (on the image pixel plane)
+    CauchyLossForRGBDFactor: 5.0
   Preference:
     # whether using cuda to speed up when solving least-squares problems
     # if you do not install the cuda dependency, set it to 'false'
@@ -144,18 +177,13 @@ Configor:
     # currently available output content:
     # ParamInEachIter, BSplines, LiDARMaps, VisualMaps, RadarMaps, HessianMat,
     # VisualLiDARCovisibility, VisualKinematics, ColorizedLiDARMap
-    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors
+    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors, RGBDVelocityErrors
     # NONE, ALL
     Outputs:
       - LiDARMaps
       - VisualMaps
       - RadarMaps
       - VisualLiDARCovisibility
-      - VisualKinematics
-      - ColorizedLiDARMap
-      - AlignedInertialMes
-      - VisualReprojErrors
-      - RadarDopplerErrors
     # supported data output format:
     # 1. JSON
     # 2. XML

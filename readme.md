@@ -8,8 +8,9 @@
 </p>
 <p align="center"><i>"The naming of <strong>iKalibr</strong> is inspired by <a href="https://github.com/ethz-asl/kalibr.git">Kalibr</a>, but not an extension of it. Wonder <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/why_ikalibr.md">why</a>?"</i></p>
 <p align="center">
-    :tada: <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/news.md"><i><strong>News »</strong> show and share your own sensor kit in Discussion Area</i></a>
+    :tada: <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/news.md"><i><strong>News »</strong> iKalibr v2.0.0 is comming with support for RGBD cameras!</i></a>
 </p>
+
 
 
 
@@ -19,12 +20,13 @@
 
 + ***Targetless***: requires no additional artificial targets or facilities. This is perhaps the biggest difference between `iKalibr` and [Kalibr](https://github.com/ethz-asl/kalibr.git) (Kalibr is a chessboard-based visual-inertial calibrator).
 + ***Spatiotemporal***: determines both spatial (extrinsic rotations and translations) and temporal (time offsets, readout time of RS cameras) parameters.
-+ ***Resilient and compact***: supports a wide range of sensor suites for one-shot resilient calibration. The <u>IMUs</u>, <u>radars</u>, <u>LiDARs</u>, and <u>optical cameras</u> (both [GS](https://www.arducam.com/global-shutter-camera/) and [RS](https://en.wikipedia.org/wiki/Rolling_shutter) modes) are supported currently. See the following illustration of the full pipeline. "Compact" means that no additional sensors are required to calibrate a given sensor suite.
++ ***Resilient and compact***: supports a wide range of sensor suites for one-shot resilient calibration. The <u>IMUs</u>, <u>radars</u>, <u>LiDARs</u>, <u>optical cameras</u> (both [GS](https://www.arducam.com/global-shutter-camera/) and [RS](https://en.wikipedia.org/wiki/Rolling_shutter) modes), and <u>depth cameras</u> (RGBDs, newly supported), are supported currently. See the following illustration of the full pipeline. "Compact" means that no additional sensors are required to calibrate a given sensor suite.
 + ***Easy to extend***: `iKalibr` is a general spatiotemporal calibration pipeline, and easy to extend to support other sensor types, such as the popular [event](https://en.wikipedia.org/wiki/Event_camera) cameras.
 
 For more details, please refer to our article :point_down::
 
 + **S. Chen**, X. Li*, S. Li, Y. Zhou, and X. Yang. iKalibr: Unified Targetless Spatiotemporal Calibration for Resilient Integrated Inertial Systems[J]. arXiv:2407.11420 [cs.RO]. [[paper-arXiv](https://arxiv.org/abs/2407.11420)] [[video](https://www.bilibili.com/video/BV1Dm421G7FV/?vd_source=87245258ec5029cca67d77cef1a6201d)]
++ iKalibr-RGBD: todo
 
 ---
 
@@ -75,6 +77,9 @@ For more details, please refer to our article :point_down::
 + [LI-Calib (OA-Calib)](https://github.com/APRIL-ZJU/lidar_IMU_calib.git) dataset: a velodyne VLP-16 lidars, three IMUs.
 + [River](https://github.com/Unsigned-Long/River.git) dataset: two mmWave 3D radars, a MTI IMU.
 + [TUM GS-RS](https://cvg.cit.tum.de/data/datasets/rolling-shutter-dataset) dataset: a GS camera, a RS camera, a Bosch IMU.
++ <p align="center">
+      <a><strong>Version 2.0.0 » Refinement For Sensor Data IO & Open Discussion</strong></a>
+  </p>
 
 ---
 

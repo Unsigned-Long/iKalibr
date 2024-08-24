@@ -2,7 +2,7 @@
 
 ---
 
-<h3 align="center">Lastest News About iKalibr</h3>
+<h3 align="center">iKalibr: Unified Targetless Spatiotemporal Calibration Framework</h3>
 <p align="center">
     <a href="https://github.com/Unsigned-Long"><strong>Author » Shuolong Chen</strong></a>
 </p>
@@ -10,6 +10,33 @@
 
 
 ---
+
+<p align="center">
+    <a><strong>Version 2.0.0 » iKalibr Is Comming With Support for RGBD Cameras</strong></a>
+</p>
+
+:tada: ​RGBD cameras are now supported in `iKalibr`! It is **not an extension** of the normal optical cameras already in `iKalibr`, but a new modeling and calibration method. Because of this, it is no longer necessary to perform time-consuming SfM to calibrate RGBD-Inertial suites (SfM is required when calibrating normal optical camera-IMU suites in `iKalibr`). The corresponding datasets and codes has been open-sourced and integrated into the new version of `iKalibr`. Come and try it!
+
+<div align=center><img src="../img/intro.drawio.jpg" width =60%></div>
+
+For more details about the newly released RGBD-Inertial calibration method, please refer to our article :point_down::
+
+```tex
+# todo
+```
+
+Other small changes in this version are:
+
++ fix (a really severe) bug: when both the camera and LiDAR are introduced into `iKalibr` for calibration, the consistent depth map between the camera and LiDAR can be exported by the user (by specifying the `Preference::Outputs::VisualLiDARCovisibility` option in the configuration file). The inverse depth image is of type `CV_32FC1` and should not be of type `PNG` when exported to the disk. In the new version, this bug is fixed and the output type is `TIFF`.
++ For `cpp` header files with template functions, the description and definition of the template functions are separated to speed up recompilation. At the same time, the implementation of `CalibSolver` is also separated into multiple source files according to the processing steps to speed up recompilation.
++ Optimize some codes for logic, readability and efficiency.
+
+**Attention**: Due to the many new features brought by the version update, `iKalibr`'s configuration file have changed significantly. For the existing old configuration files, if you need to use them, please refer to the latest configuration file [template](https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/config_template_note.md) and modify them appropriately. This won't take long.
+
+
+
+
+
 
 <p align="center">
     <a><strong>Version 1.2.1 » Refinement For Sensor Data IO & Open Discussion</strong></a>

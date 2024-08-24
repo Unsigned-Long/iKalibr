@@ -49,7 +49,10 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   sudo apt-get install ros-noetic-velodyne
   ```
 
-**Key point**: both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`.
+**Key point**: 
+
++ both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`.
++ Third-party dependency libraries that do not specify version numbers use the system default version. For example, the default `pcl` version of `Ubuntu 20.04` is `1.10` (`pcl` can be installed together with `ROS`).
 
 <p align="left">
     <a><strong>Clone iKalibr and Its Modules »</strong></a>
