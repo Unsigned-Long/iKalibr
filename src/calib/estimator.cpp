@@ -1443,4 +1443,26 @@ void Estimator::AddPriorTimeOffsetConstraint(const double &TO_Sen1ToSen2,
     // pass to problem
     this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
 }
+
+void Estimator::PrintUninvolvedKnots() const {
+    {
+        const auto &so3Knots = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE).GetKnots();
+        spdlog::info("so3 spline knots count: {}", so3Knots.size());
+        for (int i = 0; i < static_cast<int>(so3Knots.size()); ++i) {
+            if (!this->HasParameterBlock(so3Knots.at(i).data())) {
+                spdlog::warn("so3 knot indexed as {} is not involved in estimation!!!", i);
+            }
+        }
+    }
+    {
+        const auto &scaleKnots =
+            splines->GetRdSpline(Configor::Preference::SCALE_SPLINE).GetKnots();
+        spdlog::info("scale spline knots count: {}", scaleKnots.size());
+        for (int i = 0; i < static_cast<int>(scaleKnots.size()); ++i) {
+            if (!this->HasParameterBlock(scaleKnots.at(i).data())) {
+                spdlog::warn("scale knot indexed as {} is not involved in estimation!!!", i);
+            }
+        }
+    }
+}
 }  // namespace ns_ikalibr

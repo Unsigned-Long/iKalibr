@@ -616,7 +616,7 @@ void CalibSolverIO::SaveAlignedInertialMes() {
     auto &so3Spline = _solver->_splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
 
     // folder
-    std::string saveDir = Configor::DataStream::OutputPath + "/residuals/lin_acce";
+    std::string saveDir = Configor::DataStream::OutputPath + "/residuals/inertial_error";
     if (TryCreatePath(saveDir)) {
         spdlog::info("saving aligned inertial measurements to dir: '{}'...", saveDir);
     } else {

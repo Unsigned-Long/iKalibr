@@ -89,16 +89,33 @@ double Configor::Prior::GravityNorm = {};
 double Configor::Prior::TimeOffsetPadding = {};
 double Configor::Prior::ReadoutTimePadding = {};
 double Configor::Prior::MapDownSample = {};
+
 double Configor::Prior::KnotTimeDist::SO3Spline = {};
 double Configor::Prior::KnotTimeDist::ScaleSpline = {};
+
 double Configor::Prior::NDTLiDAROdometer::Resolution = {};
 double Configor::Prior::NDTLiDAROdometer::KeyFrameDownSample = {};
+
 double Configor::Prior::LiDARDataAssociate::PointToSurfelMax = {};
 double Configor::Prior::LiDARDataAssociate::PlanarityMin = {};
-double Configor::Prior::CauchyLossForRadarFactor = {};
-double Configor::Prior::CauchyLossForLiDARFactor = {};
-double Configor::Prior::CauchyLossForCameraFactor = {};
-double Configor::Prior::CauchyLossForRGBDFactor = {};
+const double Configor::Prior::LiDARDataAssociate::QueryDepthMin = 1;
+const double Configor::Prior::LiDARDataAssociate::QueryDepthMax = 2;
+const double Configor::Prior::LiDARDataAssociate::SurfelPointMin = 100;
+//   0,   1,   2,   3,   4, ...
+// 0.1, 0.2, 0.4, 0.8, 1.6, ...
+const double Configor::Prior::LiDARDataAssociate::MapResolution = 0.1;
+const std::uint8_t Configor::Prior::LiDARDataAssociate::MapDepthLevels = 16;
+const double Configor::Prior::LiDARDataAssociate::PointToSurfelCountInScan = 200;
+
+// the loss function used for radar factor (m/s) (on the direction of target)
+const double Configor::Prior::CauchyLossForRadarFactor = 0.1;
+// the loss function used for lidar factor (m)
+const double Configor::Prior::CauchyLossForLiDARFactor = 0.02;
+// the loss function used for visual reprojection factor (pixel)
+const double Configor::Prior::CauchyLossForCameraFactor = 2.0;
+// the loss function used for rgbd velocity factor (pixel) (on the image pixel plane)
+const double Configor::Prior::CauchyLossForRGBDFactor = 20.0;
+
 bool Configor::Prior::OptTemporalParams = {};
 
 bool Configor::Preference::UseCudaInSolving = {};
@@ -363,19 +380,6 @@ void Configor::CheckConfigure() {
                      "Prior::NDTLiDAROdometer::KeyFrameDownSample) should be positive!");
     }
 
-    if (Prior::CauchyLossForRadarFactor <= 0.0) {
-        throw Status(Status::ERROR, "the Prior::CauchyLossForRadarFactor should be positive!");
-    }
-    if (Prior::CauchyLossForLiDARFactor <= 0.0) {
-        throw Status(Status::ERROR, "the Prior::CauchyLossForLiDARFactor should be positive!");
-    }
-    if (Prior::CauchyLossForCameraFactor <= 0.0) {
-        throw Status(Status::ERROR, "the Prior::CauchyLossForCameraFactor should be positive!");
-    }
-    if (Prior::CauchyLossForRGBDFactor <= 0.0) {
-        throw Status(Status::ERROR, "the Prior::CauchyLossForRGBDFactor should be positive!");
-    }
-
     if (Preference::SplineScaleInViewer <= 0.0) {
         throw Status(Status::ERROR, "the scale of splines in visualization should be positive!");
     }
@@ -438,7 +442,7 @@ bool Configor::LoadConfigure(const std::string &filename, CerealArchiveType::Enu
     }
 
     // perform checking
-    configor->CheckConfigure();
+    ns_ikalibr::Configor::CheckConfigure();
     return true;
 }
 

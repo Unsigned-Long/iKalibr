@@ -242,15 +242,15 @@ public:
             static double PointToSurfelMax;
             static double PlanarityMin;
 
-            static constexpr double QueryDepthMin = 1;
-            static constexpr double QueryDepthMax = 2;
-            static constexpr double SurfelPointMin = 100;
+            const static double QueryDepthMin;
+            const static double QueryDepthMax;
+            const static double SurfelPointMin;
             //   0,   1,   2,   3,   4, ...
             // 0.1, 0.2, 0.4, 0.8, 1.6, ...
-            static constexpr double MapResolution = 0.1;
-            static constexpr std::uint8_t MapDepthLevels = 16;
+            const static double MapResolution;
+            const static std::uint8_t MapDepthLevels;
 
-            static constexpr double PointToSurfelCountInScan = 200;
+            const static double PointToSurfelCountInScan;
 
         public:
             template <class Archive>
@@ -259,10 +259,14 @@ public:
             }
         } lidarDataAssociate;
 
-        static double CauchyLossForRadarFactor;
-        static double CauchyLossForLiDARFactor;
-        static double CauchyLossForCameraFactor;
-        static double CauchyLossForRGBDFactor;
+        // the loss function used for radar factor (m/s) (on the direction of target)
+        const static double CauchyLossForRadarFactor;
+        // the loss function used for lidar factor (m)
+        const static double CauchyLossForLiDARFactor;
+        // the loss function used for visual reprojection factor (pixel)
+        const static double CauchyLossForCameraFactor;
+        // the loss function used for rgbd velocity factor (pixel) (on the image pixel plane)
+        const static double CauchyLossForRGBDFactor;
 
     public:
         template <class Archive>
@@ -272,9 +276,7 @@ public:
                CEREAL_NVP(ReadoutTimePadding), CEREAL_NVP(MapDownSample),
                cereal::make_nvp("KnotTimeDist", knotTimeDist),
                cereal::make_nvp("NDTLiDAROdometer", ndtLiDAROdometer),
-               cereal::make_nvp("LiDARDataAssociate", lidarDataAssociate),
-               CEREAL_NVP(CauchyLossForRadarFactor), CEREAL_NVP(CauchyLossForLiDARFactor),
-               CEREAL_NVP(CauchyLossForCameraFactor), CEREAL_NVP(CauchyLossForRGBDFactor));
+               cereal::make_nvp("LiDARDataAssociate", lidarDataAssociate));
         }
     } prior;
 

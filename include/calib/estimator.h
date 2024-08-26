@@ -352,6 +352,8 @@ public:
                                       double *TO_Sen2ToRef,
                                       double weight);
 
+    void PrintUninvolvedKnots() const;
+
 protected:
     void AddSo3KnotsData(std::vector<double *> &paramBlockVec,
                          const SplineBundleType::So3SplineType &spline,

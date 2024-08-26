@@ -413,7 +413,8 @@ void Estimator::AddPointTiSurfelConstraint(const PointToSurfelCorr::Ptr &ptsCorr
 
     // pass to problem
     this->AddResidualBlock(
-        costFunc, new ceres::CauchyLoss(Configor::Prior::CauchyLossForLiDARFactor), paramBlockVec);
+        costFunc, new ceres::CauchyLoss(Configor::Prior::CauchyLossForLiDARFactor * weight),
+        paramBlockVec);
     this->SetManifold(SO3_LkToBr, QUATER_MANIFOLD.get());
 
     if (!IsOptionWith(Opt::OPT_SO3_LkToBr, option)) {
@@ -581,7 +582,8 @@ void Estimator::AddVisualReprojection(const VisualReProjCorr &visualCorr,
 
     // pass to problem
     this->AddResidualBlock(
-        costFunc, new ceres::CauchyLoss(Configor::Prior::CauchyLossForCameraFactor), paramBlockVec);
+        costFunc, new ceres::CauchyLoss(Configor::Prior::CauchyLossForCameraFactor * weight),
+        paramBlockVec);
     this->SetManifold(SO3_CmToBr, QUATER_MANIFOLD.get());
 
     if (!IsOptionWith(Opt::OPT_SO3_CmToBr, option)) {
@@ -758,8 +760,9 @@ void Estimator::AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
     paramBlockVec.push_back(&velCorr->depth);
 
     // pass to problem
-    this->AddResidualBlock(
-        costFunc, new ceres::CauchyLoss(Configor::Prior::CauchyLossForRGBDFactor), paramBlockVec);
+    this->AddResidualBlock(costFunc,
+                           new ceres::CauchyLoss(Configor::Prior::CauchyLossForRGBDFactor * weight),
+                           paramBlockVec);
     this->SetManifold(SO3_DnToBr, QUATER_MANIFOLD.get());
 
     if (!IsOptionWith(Opt::OPT_SO3_DnToBr, option)) {

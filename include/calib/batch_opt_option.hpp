@@ -73,16 +73,16 @@ protected:
     constexpr static std::array<Opt, 2> MultiCameraIMU = {
         // first batch optimization
         Opt::OPT_SO3_SPLINE | Opt::OPT_SCALE_SPLINE | Opt::OPT_GRAVITY | Opt::OPT_SO3_CmToBr |
-            Opt::OPT_POS_CmInBr | Opt::OPT_TO_CmToBr | Opt::OPT_VISUAL_INV_DEPTH,
+            Opt::OPT_POS_CmInBr | Opt::OPT_TO_CmToBr,
         // second batch optimization (append to last)
         Opt::OPT_SO3_BiToBr | Opt::OPT_POS_BiInBr | Opt::OPT_TO_BiToBr |
             Opt::OPT_RS_CAM_READOUT_TIME | Opt::OPT_CAM_FOCAL_LEN | Opt::OPT_CAM_PRINCIPAL_POINT |
-            Opt::OPT_ACCE_BIAS | Opt::OPT_GYRO_BIAS};
+            Opt::OPT_ACCE_BIAS | Opt::OPT_GYRO_BIAS | Opt::OPT_VISUAL_INV_DEPTH};
 
     constexpr static std::array<Opt, 2> MultiRGBDIMU = {
         // first batch optimization
         Opt::OPT_SO3_SPLINE | Opt::OPT_SCALE_SPLINE | Opt::OPT_GRAVITY | Opt::OPT_SO3_DnToBr |
-            Opt::OPT_POS_DnInBr | Opt::OPT_TO_DnToBr ,
+            Opt::OPT_POS_DnInBr | Opt::OPT_TO_DnToBr,
         // second batch optimization (append to last)
         Opt::OPT_SO3_BiToBr | Opt::OPT_POS_BiInBr | Opt::OPT_TO_BiToBr |
             Opt::OPT_RS_CAM_READOUT_TIME | Opt::OPT_CAM_FOCAL_LEN | Opt::OPT_CAM_PRINCIPAL_POINT |

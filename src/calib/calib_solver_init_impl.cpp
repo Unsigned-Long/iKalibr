@@ -1058,7 +1058,6 @@ CalibSolver::Initialization() {
 
         } break;
         case TimeDeriv::LIN_POS_SPLINE: {
-            CalibSolver::SplineBundleType::Ptr roughSplines;
             // this value equals to zero
             constexpr int PosDeriv =
                 TimeDeriv::Deriv<TimeDeriv::LIN_POS_SPLINE, TimeDeriv::LIN_POS>();
@@ -1076,8 +1075,8 @@ CalibSolver::Initialization() {
                 tailTimeVec.push_back(poseSeq.back().timeStamp + TO_CmToBr);
             }
 
-            const double minTime = *std::min_element(headTimeVec.begin(), headTimeVec.end()) - 1E-3;
-            const double maxTime = *std::max_element(tailTimeVec.begin(), tailTimeVec.end()) + 1E-3;
+            const double minTime = _dataMagr->GetCalibStartTimestamp();
+            const double maxTime = _dataMagr->GetCalibEndTimestamp();
 
             // create rough splines (the time distance is larger than that from configure as our
             // poses are not dense)
@@ -1092,7 +1091,10 @@ CalibSolver::Initialization() {
                 ++count;
             }
             const double dtRough = dtRoughSum / count;
-            roughSplines = CreateSplineBundle(minTime, maxTime, dtRough, dtRough);
+            auto roughSplines = CreateSplineBundle(minTime, maxTime, dtRough, dtRough);
+            const auto &rSo3Spline = roughSplines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+            const auto &rScaleSpline =
+                roughSplines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
 
             estimator = Estimator::Create(roughSplines, _parMagr);
 
@@ -1158,14 +1160,13 @@ CalibSolver::Initialization() {
             this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU, optOption);
 
             // we don't want to output the solving information
+            spdlog::info("fitting rough splines using sensor-derived pose sequence...");
+            // estimator->PrintUninvolvedKnots();
             estimator->Solve(
                 Estimator::DefaultSolverOptions(Configor::Preference::AvailableThreads(), false,
                                                 Configor::Preference::UseCudaInSolving),
                 _priori);
-
-            const auto &rSo3Spline = roughSplines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
-            const auto &rScaleSpline =
-                roughSplines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+            spdlog::info("fitting rough splines finished.");
 
             estimator = Estimator::Create(_splines, _parMagr);
 
@@ -1175,6 +1176,10 @@ CalibSolver::Initialization() {
                                                               optOption, 1.0);
                 t += 0.01;
             }
+            // add tail factors (constraints) to maintain enough observability
+            estimator->AddLinScaleTailConstraint(optOption, 1.0);
+            estimator->AddSO3TailConstraint(optOption, 1.0);
+            // estimator->PrintUninvolvedKnots();
         } break;
     }
     sum = estimator->Solve(_ceresOption, this->_priori);
