@@ -3,13 +3,24 @@
 
     <node pkg="ikalibr" type="ikalibr_raw_inertial_to_bag" name="ikalibr_raw_inertial_to_bag" output="screen">
         <!-- raw inertial path  -->
-        <param name="raw_inertial_path" value="/home/csl/dataset/tum/rolling-shutter/dataset-seq10/dso/imu.txt" type="string"/>
+        <param name="raw_inertial_path" value="/home/csl/dataset/tum/rolling-shutter/dataset-seq10/dso/imu.txt"
+               type="string"/>
         <!-- image topic (what message topic for images in the generated rosbag you want) -->
         <param name="imu_topic" value="/imu/frame" type="string"/>
         <!-- output bag path  -->
         <param name="bag_path" value="/home/csl/dataset/tum/rolling-shutter/dataset-seq10/imu.bag" type="string"/>
-        <!-- timestamp (second) = stamp * ${stamp_to_sed_scale}  -->
-        <param name="stamp_to_sed_scale" value="1E-9" type="double"/>
+        <!--
+         scale_factors = {scale_factor_on_timestamp;scale_factor_on_gyro_mes;scale_factor_on_acce_mes},
+         split by a semicolon. For example:
+         (1) If your time unit is nanoseconds, you need to use {1E-9} to convert it to single seconds. Converting time
+             units to seconds is necessary when making ros bags.
+         (2) If your angular velocity is in deg/s, if you want to convert it to rad/s, you need to use {0.01745329} to
+             convert. This is not necessary, if you want to keep the original unit, just fill in {1.0}.
+         (3) If your acceleration is in G, if you want to convert it to m/s^2, you need to convert it by the
+             local gravity (about 9.8 m/s^2). This is not necessary, if you want to keep the original units,
+             just fill in {1.0}.
+         -->
+        <param name="scale_factors" value="1E-9;1.0;1.0" type="double"/>
         <!-- how many lines to jump at head (invalid lines, which are only notes) -->
         <param name="head_line_count" value="1" type="int"/>
         <!-- the split character (only one character), pass it in the middle of the big parentheses -->

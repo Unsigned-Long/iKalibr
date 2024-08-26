@@ -76,14 +76,24 @@ int main(int argc, char **argv) {
                                      parPath.string());
         }
 
-        auto stampToSedScale =
-            ns_ikalibr::GetParamFromROS<double>("/ikalibr_raw_inertial_to_bag/stamp_to_sed_scale");
+        auto scaleFactorsStr =
+            ns_ikalibr::GetParamFromROS<std::string>("/ikalibr_raw_inertial_to_bag/scale_factors");
+        auto scaleFactorsVec = ns_ikalibr::SplitString(scaleFactorsStr, ';');
+        if (scaleFactorsVec.size() != 3) {
+            throw ns_ikalibr::Status(ns_ikalibr::Status::ERROR,
+                                     "the element count in 'scale_factors' should be three!!!");
+        }
+        double stampToSedScale = std::stod(scaleFactorsVec.at(0));
         spdlog::info("raw stamp to second-unit timestamp scale: '{}'", stampToSedScale);
         if (stampToSedScale <= 0.0) {
             throw ns_ikalibr::Status(
                 ns_ikalibr::Status::ERROR,
                 "raw stamp to second-unit timestamp scale should be positive!!! '{}'");
         }
+        double gyroScale = std::stod(scaleFactorsVec.at(1));
+        spdlog::info("gyroscope measurements scale: '{}'", gyroScale);
+        double acceScale = std::stod(scaleFactorsVec.at(2));
+        spdlog::info("accelerator measurements scale: '{}'", acceScale);
 
         auto headLineCount =
             ns_ikalibr::GetParamFromROS<int>("/ikalibr_raw_inertial_to_bag/head_line_count");
@@ -148,12 +158,12 @@ int main(int argc, char **argv) {
             }
             sensor_msgs::Imu imu;
             imu.header.stamp = ros::Time(std::stod(elems.at(index.at(TIME))) * stampToSedScale);
-            imu.linear_acceleration.x = std::stod(elems.at(index.at(AX)));
-            imu.linear_acceleration.y = std::stod(elems.at(index.at(AY)));
-            imu.linear_acceleration.z = std::stod(elems.at(index.at(AZ)));
-            imu.angular_velocity.x = std::stod(elems.at(index.at(GX)));
-            imu.angular_velocity.y = std::stod(elems.at(index.at(GY)));
-            imu.angular_velocity.z = std::stod(elems.at(index.at(GZ)));
+            imu.linear_acceleration.x = std::stod(elems.at(index.at(AX))) * acceScale;
+            imu.linear_acceleration.y = std::stod(elems.at(index.at(AY))) * acceScale;
+            imu.linear_acceleration.z = std::stod(elems.at(index.at(AZ))) * acceScale;
+            imu.angular_velocity.x = std::stod(elems.at(index.at(GX))) * gyroScale;
+            imu.angular_velocity.y = std::stod(elems.at(index.at(GY))) * gyroScale;
+            imu.angular_velocity.z = std::stod(elems.at(index.at(GZ))) * gyroScale;
             // std::cout << imu.header.stamp << std::endl;
             // std::cout << imu.linear_acceleration << std::endl;
             // std::cout << imu.angular_velocity << std::endl;
