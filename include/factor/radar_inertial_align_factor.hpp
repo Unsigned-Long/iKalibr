@@ -106,7 +106,7 @@ protected:
         opengv::sac::Ransac<RadarVelocitySacProblem> ransac;
         std::shared_ptr<RadarVelocitySacProblem> probPtr(new RadarVelocitySacProblem(ary));
         ransac.sac_model_ = probPtr;
-        ransac.threshold_ = Configor::Prior::CauchyLossForRadarFactor;
+        ransac.threshold_ = Configor::Prior::LossForRadarFactor;
         ransac.max_iterations_ = 20;
         bool res = ransac.computeModel();
         if (res) {

@@ -455,9 +455,8 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
             "count: {}, with depth observability: {}",
             topic, curCorrs.size(), estDepthCount, dObvCount);
 
-        // std::default_random_engine
-        // engine(std::chrono::system_clock::now().time_since_epoch().count());
-
+        // std::default_random_engine engine(
+        //     std::chrono::system_clock::now().time_since_epoch().count());
         // constexpr int CorrCountPerFrame = 20;
         // auto desiredCount = CorrCountPerFrame * _dataMagr->GetRGBDMeasurements(topic).size();
         // if (desiredCount < curCorrs.size()) {

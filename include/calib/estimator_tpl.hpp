@@ -262,9 +262,9 @@ void Estimator::AddRadarMeasurement(const RadarTarget::Ptr &radarFrame,
     // remove dynamic targets (outliers)
     // this->AddResidualBlockToProblem(costFunc, new ceres::HuberLoss(weight * weight * 0.125),
     // paramBlockVec);
-    this->AddResidualBlock(
-        costFunc, new ceres::CauchyLoss(Configor::Prior::CauchyLossForRadarFactor * weight),
-        paramBlockVec);
+    this->AddResidualBlock(costFunc,
+                           new ceres::HuberLoss(Configor::Prior::LossForRadarFactor * weight),
+                           paramBlockVec);
     this->SetManifold(SO3_RjToBr, QUATER_MANIFOLD.get());
 
     // lock param or not
@@ -412,9 +412,9 @@ void Estimator::AddPointTiSurfelConstraint(const PointToSurfelCorr::Ptr &ptsCorr
     paramBlockVec.push_back(TO_LkToBr);
 
     // pass to problem
-    this->AddResidualBlock(
-        costFunc, new ceres::CauchyLoss(Configor::Prior::CauchyLossForLiDARFactor * weight),
-        paramBlockVec);
+    this->AddResidualBlock(costFunc,
+                           new ceres::HuberLoss(Configor::Prior::LossForLiDARFactor * weight),
+                           paramBlockVec);
     this->SetManifold(SO3_LkToBr, QUATER_MANIFOLD.get());
 
     if (!IsOptionWith(Opt::OPT_SO3_LkToBr, option)) {
@@ -581,9 +581,9 @@ void Estimator::AddVisualReprojection(const VisualReProjCorr &visualCorr,
     paramBlockVec.push_back(invDepth);
 
     // pass to problem
-    this->AddResidualBlock(
-        costFunc, new ceres::CauchyLoss(Configor::Prior::CauchyLossForCameraFactor * weight),
-        paramBlockVec);
+    this->AddResidualBlock(costFunc,
+                           new ceres::HuberLoss(Configor::Prior::LossForCameraFactor * weight),
+                           paramBlockVec);
     this->SetManifold(SO3_CmToBr, QUATER_MANIFOLD.get());
 
     if (!IsOptionWith(Opt::OPT_SO3_CmToBr, option)) {
@@ -656,7 +656,7 @@ void Estimator::AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
     double *RS_READOUT = &parMagr->TEMPORAL.RS_READOUT.at(topic);
     double *TO_DnToBr = &parMagr->TEMPORAL.TO_DnToBr.at(topic);
 
-    if (velCorr->MidPointVel(*RS_READOUT).norm() < Configor::Prior::CauchyLossForRGBDFactor) {
+    if (velCorr->MidPointVel(*RS_READOUT).norm() < Configor::Prior::LossForRGBDFactor) {
         // small pixel velocity
         return;
     }
@@ -760,9 +760,8 @@ void Estimator::AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
     paramBlockVec.push_back(&velCorr->depth);
 
     // pass to problem
-    this->AddResidualBlock(costFunc,
-                           new ceres::CauchyLoss(Configor::Prior::CauchyLossForRGBDFactor * weight),
-                           paramBlockVec);
+    this->AddResidualBlock(
+        costFunc, new ceres::HuberLoss(Configor::Prior::LossForRGBDFactor * weight), paramBlockVec);
     this->SetManifold(SO3_DnToBr, QUATER_MANIFOLD.get());
 
     if (!IsOptionWith(Opt::OPT_SO3_DnToBr, option)) {

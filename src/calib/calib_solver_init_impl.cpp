@@ -340,7 +340,7 @@ CalibSolver::Initialization() {
             for (int i = 0; i < static_cast<int>(frameVec.size()); ++i) {
                 bar->progress(i, static_cast<int>(frameVec.size()));
 
-                if (i % 10 == 0) {
+                if (i % 30 == 0) {
                     _viewer->ClearViewer(Viewer::VIEW_MAP);
                     // rgbd camera
                     static auto rgbd = ns_viewer::CubeCamera::Create(

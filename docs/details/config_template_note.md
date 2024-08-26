@@ -74,11 +74,11 @@ Configor:
       - key: "/lidar0/scan"
         value:
           Type: "VLP_32E_POINTS"
-          Weight: 100.0
+          Weight: 60.0
       - key: "/lidar1/scan"
         value:
           Type: "LIVOX_AVIA"
-          Weight: 80.0
+          Weight: 50.0
     # key: camera topic, value: camera type. Supported camera types:
     #   1. SENSOR_IMAGE_GS: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
     #   2. SENSOR_IMAGE_RS_FIRST: first-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Image.html\n"
@@ -183,14 +183,6 @@ Configor:
       PointToSurfelMax: 0.1
       # chose plane as a surfel for data association when planarity is larger than this value
       PlanarityMin: 0.6
-    # the loss function used for radar factor (m/s) (on the direction of target)
-    CauchyLossForRadarFactor: 0.1
-    # the loss function used for lidar factor (m)
-    CauchyLossForLiDARFactor: 0.5
-    # the loss function used for visual reprojection factor (pixel)
-    CauchyLossForCameraFactor: 1.0
-    # the loss function used for rgbd velocity factor (pixel) (on the image pixel plane)
-    CauchyLossForRGBDFactor: 5.0
   Preference:
     # whether using cuda to speed up when solving least-squares problems
     # if you do not install the cuda dependency, set it to 'false'

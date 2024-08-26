@@ -260,13 +260,13 @@ public:
         } lidarDataAssociate;
 
         // the loss function used for radar factor (m/s) (on the direction of target)
-        const static double CauchyLossForRadarFactor;
+        const static double LossForRadarFactor;
         // the loss function used for lidar factor (m)
-        const static double CauchyLossForLiDARFactor;
+        const static double LossForLiDARFactor;
         // the loss function used for visual reprojection factor (pixel)
-        const static double CauchyLossForCameraFactor;
+        const static double LossForCameraFactor;
         // the loss function used for rgbd velocity factor (pixel) (on the image pixel plane)
-        const static double CauchyLossForRGBDFactor;
+        const static double LossForRGBDFactor;
 
     public:
         template <class Archive>
