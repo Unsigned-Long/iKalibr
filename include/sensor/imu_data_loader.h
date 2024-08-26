@@ -51,6 +51,8 @@ namespace ns_ikalibr {
 class IMUDataLoader {
 public:
     using Ptr = std::shared_ptr<IMUDataLoader>;
+    // trans degree angle to radian angle
+    constexpr static double DEG_TO_RAD = M_PI / 180.0;
 
 protected:
     IMUModelType _imuModel;
@@ -78,11 +80,13 @@ protected:
 class SensorIMULoader : public IMUDataLoader {
 public:
     using Ptr = std::shared_ptr<SensorIMULoader>;
+    const double g2StdUnit;
+    const double a2StdUnit;
 
 public:
-    explicit SensorIMULoader(IMUModelType imuModel);
+    explicit SensorIMULoader(IMUModelType imuModel, double g2StdUnit, double a2StdUnit);
 
-    static SensorIMULoader::Ptr Create(IMUModelType imuModel);
+    static SensorIMULoader::Ptr Create(IMUModelType imuModel, double g2StdUnit, double a2StdUnit);
 
     IMUFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
 };
@@ -95,21 +99,6 @@ public:
     explicit SbgIMULoader(IMUModelType imuModel);
 
     static SbgIMULoader::Ptr Create(IMUModelType imuModel);
-
-    IMUFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
-};
-
-class SensorIMUGUnitLoader : public IMUDataLoader {
-public:
-    using Ptr = std::shared_ptr<SensorIMUGUnitLoader>;
-
-protected:
-    double g;
-
-public:
-    explicit SensorIMUGUnitLoader(IMUModelType imuModel, double gNorm);
-
-    static SensorIMUGUnitLoader::Ptr Create(IMUModelType imuModel, double gNorm);
 
     IMUFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
 };

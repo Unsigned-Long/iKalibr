@@ -57,18 +57,30 @@ IMUDataLoader::Ptr IMUDataLoader::GetLoader(const std::string &imuModelStr) {
         throw Status(Status::WARNING, IMUModel::UnsupportedIMUModelMsg(imuModelStr));
     }
     IMUDataLoader::Ptr dataLoader;
+
     switch (imuModel) {
-        case IMUModelType::SENSOR_IMU:
-            dataLoader = SensorIMULoader::Create(imuModel);
-            break;
         case IMUModelType::SBG_IMU:
             dataLoader = SbgIMULoader::Create(imuModel);
             break;
+        case IMUModelType::SENSOR_IMU:
+            dataLoader = SensorIMULoader::Create(imuModel, 1.0, 1.0);
+            break;
         case IMUModelType::SENSOR_IMU_G:
-            dataLoader = SensorIMUGUnitLoader::Create(imuModel, Configor::Prior::GravityNorm);
+            dataLoader = SensorIMULoader::Create(imuModel, 1.0, Configor::Prior::GravityNorm);
             break;
         case IMUModelType::SENSOR_IMU_G_NEG:
-            dataLoader = SensorIMUGUnitLoader::Create(imuModel, -Configor::Prior::GravityNorm);
+            dataLoader = SensorIMULoader::Create(imuModel, 1.0, -Configor::Prior::GravityNorm);
+            break;
+        case IMUModelType::SENSOR_IMU_DEG:
+            dataLoader = SensorIMULoader::Create(imuModel, DEG_TO_RAD, 1.0);
+            break;
+        case IMUModelType::SENSOR_IMU_DEG_G:
+            dataLoader =
+                SensorIMULoader::Create(imuModel, DEG_TO_RAD, Configor::Prior::GravityNorm);
+            break;
+        case IMUModelType::SENSOR_IMU_DEG_G_NEG:
+            dataLoader =
+                SensorIMULoader::Create(imuModel, DEG_TO_RAD, -Configor::Prior::GravityNorm);
             break;
         default:
             throw Status(Status::WARNING, IMUModel::UnsupportedIMUModelMsg(imuModelStr));
@@ -81,11 +93,15 @@ IMUModelType IMUDataLoader::GetIMUModel() const { return _imuModel; }
 // ---------------
 // SensorIMULoader
 // ---------------
-SensorIMULoader::SensorIMULoader(IMUModelType imuModel)
-    : IMUDataLoader(imuModel) {}
+SensorIMULoader::SensorIMULoader(IMUModelType imuModel, double g2StdUnit, double a2StdUnit)
+    : IMUDataLoader(imuModel),
+      g2StdUnit(g2StdUnit),
+      a2StdUnit(a2StdUnit) {}
 
-SensorIMULoader::Ptr SensorIMULoader::Create(IMUModelType imuModel) {
-    return std::make_shared<SensorIMULoader>(imuModel);
+SensorIMULoader::Ptr SensorIMULoader::Create(IMUModelType imuModel,
+                                             double g2StdUnit,
+                                             double a2StdUnit) {
+    return std::make_shared<SensorIMULoader>(imuModel, g2StdUnit, a2StdUnit);
 }
 
 IMUFrame::Ptr SensorIMULoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
@@ -94,9 +110,11 @@ IMUFrame::Ptr SensorIMULoader::UnpackFrame(const rosbag::MessageInstance &msgIns
 
     CheckMessage<sensor_msgs::Imu>(msg);
 
-    Eigen::Vector3d acce = Eigen::Vector3d(msg->linear_acceleration.x, msg->linear_acceleration.y,
-                                           msg->linear_acceleration.z);
+    Eigen::Vector3d acce =
+        a2StdUnit * Eigen::Vector3d(msg->linear_acceleration.x, msg->linear_acceleration.y,
+                                    msg->linear_acceleration.z);
     Eigen::Vector3d gyro =
+        g2StdUnit *
         Eigen::Vector3d(msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z);
 
     return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
@@ -120,35 +138,6 @@ IMUFrame::Ptr SbgIMULoader::UnpackFrame(const rosbag::MessageInstance &msgInstan
 
     Eigen::Vector3d acce = Eigen::Vector3d(msg->accel.x, msg->accel.y, msg->accel.z);
     Eigen::Vector3d gyro = Eigen::Vector3d(msg->gyro.x, msg->gyro.y, msg->gyro.z);
-
-    return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
-}
-
-// --------------------
-// SensorIMUGUnitLoader
-// --------------------
-SensorIMUGUnitLoader::SensorIMUGUnitLoader(IMUModelType imuModel, double gNorm)
-    : IMUDataLoader(imuModel),
-      g(gNorm) {}
-
-SensorIMUGUnitLoader::Ptr SensorIMUGUnitLoader::Create(IMUModelType imuModel, double gNorm) {
-    return std::make_shared<SensorIMUGUnitLoader>(imuModel, gNorm);
-}
-
-IMUFrame::Ptr SensorIMUGUnitLoader::UnpackFrame(const rosbag::MessageInstance &msgInstance) {
-    // imu data item
-    sensor_msgs::ImuConstPtr msg = msgInstance.instantiate<sensor_msgs::Imu>();
-
-    CheckMessage<sensor_msgs::Imu>(msg);
-
-    Eigen::Vector3d acce = Eigen::Vector3d(msg->linear_acceleration.x, msg->linear_acceleration.y,
-                                           msg->linear_acceleration.z);
-
-    // special output of mid 360 IMU
-    acce *= g;
-
-    Eigen::Vector3d gyro =
-        Eigen::Vector3d(msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z);
 
     return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
 }

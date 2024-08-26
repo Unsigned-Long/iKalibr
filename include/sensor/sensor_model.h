@@ -80,7 +80,26 @@ struct CameraModel {
 using CameraModelType = CameraModel::CameraModelType;
 
 struct IMUModel {
-    enum class IMUModelType { SENSOR_IMU, SBG_IMU, SENSOR_IMU_G, SENSOR_IMU_G_NEG };
+    enum class IMUModelType : std::uint32_t {
+        /**
+         * @brief options
+         */
+        NONE = 1 << 0,
+        SBG_IMU = 1 << 1,
+        STD_SENSOR_IMU = 1 << 2,
+        G = 1 << 3,
+        G_NEG = 1 << 4,
+        RAD = 1 << 5,
+        DEG = 1 << 6,
+
+        SENSOR_IMU = STD_SENSOR_IMU | RAD,      // rad/s, m/s^2
+        SENSOR_IMU_G = SENSOR_IMU | G,          // rad/s, g
+        SENSOR_IMU_G_NEG = SENSOR_IMU | G_NEG,  // rad/s, -g
+
+        SENSOR_IMU_DEG = STD_SENSOR_IMU | DEG,          // deg/s, m/s^2
+        SENSOR_IMU_DEG_G = SENSOR_IMU_DEG | G,          // deg/s, g
+        SENSOR_IMU_DEG_G_NEG = SENSOR_IMU_DEG | G_NEG,  // deg/s, -g
+    };
 
     static std::string UnsupportedIMUModelMsg(const std::string &modelStr);
 };
@@ -119,6 +138,6 @@ struct RadarModel {
 
 using RadarModelType = RadarModel::RadarModelType;
 
-}
+}  // namespace ns_ikalibr
 
 #endif  // IKALIBR_SENSOR_MODEL_H

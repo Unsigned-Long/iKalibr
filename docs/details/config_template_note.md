@@ -19,10 +19,13 @@ After reading this, perhaps the left questions are about how to choose the senso
 Configor:
   DataStream:
     # key: IMU topic, value: IMU type. Supported IMU types are:
-    #   1. SENSOR_IMU: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: m/s^2)
-    #   2.    SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git (acce unit: m/s^2)
-    #   3. SENSOR_IMU_G: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: G)
-    #   4. SENSOR_IMU_G_NEG: https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html (acce unit: -G)
+    #   1.              SBG_IMU: https://github.com/SBG-Systems/sbg_ros_driver.git
+    #   2.           SENSOR_IMU: gyro unit (rad/s), acce unit (m/s^2), https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html
+    #   3.         SENSOR_IMU_G: gyro unit (rad/s), acce unit (G)
+    #   4.     SENSOR_IMU_G_NEG: gyro unit (rad/s), acce unit (-G)
+    #   5.       SENSOR_IMU_DEG: gyro unit (deg/s), acce unit (m/s^2), https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/Imu.html
+    #   6.     SENSOR_IMU_DEG_G: gyro unit (deg/s), acce unit (G)
+    #   7. SENSOR_IMU_DEG_G_NEG: gyro unit (deg/s), acce unit (-G)
     IMUTopics:
       # at least one IMU is integrated in the sensor suite
       - key: "/imu0/frame"
