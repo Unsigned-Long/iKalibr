@@ -147,7 +147,7 @@ Configor:
     MapDownSample: 0.05
     # the time distance of two neighbor control points, which determines the accuracy
     # of the representation of the B-splines. Smaller distance would lead to longer optimization time
-    # common choices: from '0.01' to '0.10'
+    # common choices: from '0.02' to '0.10'
     KnotTimeDist:
       SO3Spline: 0.05
       ScaleSpline: 0.05
@@ -164,6 +164,7 @@ Configor:
       # associate point and surfel when distance is less than this value
       PointToSurfelMax: 0.1
       # chose plane as a surfel for data association when planarity is larger than this value
+      # range: 0.0-1.0, 0.5-1.0 is suggested
       PlanarityMin: 0.6
   Preference:
     # whether using cuda to speed up when solving least-squares problems
@@ -171,8 +172,8 @@ Configor:
     UseCudaInSolving: false
     # currently available output content:
     # ParamInEachIter, BSplines, LiDARMaps, VisualMaps, RadarMaps, HessianMat,
-    # VisualLiDARCovisibility, VisualKinematics, ColorizedLiDARMap
-    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors, RGBDVelocityErrors
+    # VisualLiDARCovisibility, VisualKinematics, ColorizedLiDARMap,
+    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors, RGBDVelocityErrors, LiDARPointToSurfelErrors
     # NONE, ALL
     Outputs:
       - LiDARMaps

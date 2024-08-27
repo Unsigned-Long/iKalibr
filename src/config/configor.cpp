@@ -61,6 +61,7 @@ const static std::map<std::string, OutputOption> OutputOptionMap = {
     {"VisualReprojErrors", OutputOption::VisualReprojErrors},
     {"RadarDopplerErrors", OutputOption::RadarDopplerErrors},
     {"RGBDVelocityErrors", OutputOption::RGBDVelocityErrors},
+    {"LiDARPointToSurfelErrors", OutputOption::LiDARPointToSurfelErrors},
     {"ALL", OutputOption::ALL},
 };
 

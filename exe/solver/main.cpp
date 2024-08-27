@@ -132,6 +132,11 @@ int main(int argc, char **argv) {
             solverIO->SaveRGBDVelocityError();
         }
 
+        if (IsOptionWith(ns_ikalibr::OutputOption::LiDARPointToSurfelErrors,
+                         ns_ikalibr::Configor::Preference::Outputs)) {
+            solverIO->SaveLiDARPointToSurfelError();
+        }
+
         if (IsOptionWith(ns_ikalibr::OutputOption::VisualKinematics,
                          ns_ikalibr::Configor::Preference::Outputs)) {
             solverIO->SaveVisualKinematics();

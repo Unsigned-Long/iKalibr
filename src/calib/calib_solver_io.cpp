@@ -1101,6 +1101,7 @@ void CalibSolverIO::SaveRGBDVelocityError() {
     const auto &so3Spline = _solver->_splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _solver->_splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
     auto scaleType = ns_ikalibr::CalibSolver::GetScaleType();
+    const auto &parMagr = _solver->_parMagr;
 
     for (const auto &[topic, corrVec] : _solver->_backup->rgbdCorrs) {
         auto subSaveDir = saveDir + "/" + topic;
@@ -1109,7 +1110,6 @@ void CalibSolverIO::SaveRGBDVelocityError() {
             continue;
         }
 
-        const auto &parMagr = _solver->_parMagr;
         const double readout = parMagr->TEMPORAL.RS_READOUT.at(topic);
         const double TO_DnToBr = parMagr->TEMPORAL.TO_DnToBr.at(topic);
         auto SE3_DnToBr = parMagr->EXTRI.SE3_DnToBr(topic);
@@ -1176,5 +1176,71 @@ void CalibSolverIO::SaveRGBDVelocityError() {
     }
 
     spdlog::info("saving rgbd velocity errors finished!");
+}
+
+void CalibSolverIO::SaveLiDARPointToSurfelError() {
+    if (!Configor::IsLiDARIntegrated()) {
+        return;
+    }
+
+    // folder
+    std::string saveDir = Configor::DataStream::OutputPath + "/residuals/lidar_pts_error";
+    if (TryCreatePath(saveDir)) {
+        spdlog::info("saving lidar point-to-surfel errors to dir: '{}'...", saveDir);
+    } else {
+        return;
+    }
+
+    const auto &so3Spline = _solver->_splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    const auto &posSpline = _solver->_splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+    const auto &parMagr = _solver->_parMagr;
+
+    for (const auto &elem : _solver->_backup->lidarCorrs) {
+        const auto &topic = elem.first;
+        const auto &corrVec = elem.second;
+        auto subSaveDir = saveDir + "/" + topic;
+        if (!TryCreatePath(subSaveDir)) {
+            spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
+            continue;
+        }
+
+        const auto SO3_LkToBr = parMagr->EXTRI.SO3_LkToBr.at(topic);
+        const Eigen::Vector3d POS_LkInBr = parMagr->EXTRI.POS_LkInBr.at(topic);
+        const double TO_LkToBr = parMagr->TEMPORAL.TO_LkToBr.at(topic);
+
+        std::list<double> ptsErrors;
+#pragma omp parallel for num_threads(omp_get_max_threads()) default(none) \
+    shared(corrVec, TO_LkToBr, so3Spline, posSpline, SO3_LkToBr, POS_LkInBr, ptsErrors)
+        for (int i = 0; i < static_cast<int>(corrVec.size()); ++i) {
+            const auto &corr = corrVec.at(i);
+
+            auto timeByBr = corr->timestamp + TO_LkToBr;
+            if (!so3Spline.TimeStampInRange(timeByBr) || !posSpline.TimeStampInRange(timeByBr)) {
+                continue;
+            }
+
+            auto SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
+
+            Eigen::Vector3d POS_BrInBr0 = posSpline.Evaluate(timeByBr);
+
+            // construct the residuals
+            Eigen::Vector3d pointInBr = SO3_LkToBr * corr->pInScan + POS_LkInBr;
+            Eigen::Vector3d pointInBr0 = SO3_BrToBr0 * pointInBr + POS_BrInBr0;
+
+            Eigen::Vector3d planeNorm = corr->surfelInW.head(3);
+            double distance = pointInBr0.dot(planeNorm) + corr->surfelInW(3);
+#pragma omp critical
+            {
+                ptsErrors.push_back(distance);
+            }
+        }
+
+        std::ofstream file(subSaveDir + "/residuals" + Configor::GetFormatExtension(),
+                           std::ios::out);
+        auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
+        SerializeByOutputArchiveVariant(ar, Configor::Preference::OutputDataFormat,
+                                        cereal::make_nvp("pts_errors", ptsErrors));
+    }
+    spdlog::info("saving lidar point-to-surfel errors finished!", saveDir);
 }
 }  // namespace ns_ikalibr
