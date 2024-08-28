@@ -48,6 +48,7 @@
 #include "factor/prior_extri_so3_factor.hpp"
 #include "factor/prior_extri_pos_factor.hpp"
 #include "factor/prior_time_offset_factor.hpp"
+#include "factor/visual_velocity_depth_factor.hpp"
 #include "calib/spat_temp_priori.h"
 
 namespace {
@@ -1464,5 +1465,71 @@ void Estimator::PrintUninvolvedKnots() const {
             }
         }
     }
+}
+
+/**
+ * param blocks:
+ * [ LIN_VEL_CmToWInCm | DEPTH ]
+ */
+void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                             const RGBDVelocityCorr::Ptr &corr,
+                                             double TO_CamToBr,
+                                             double readout,
+                                             const Sophus::SO3d &SO3_CamToBr,
+                                             const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                             double weight,
+                                             bool estDepth,
+                                             bool estVelDirOnly) {
+    const auto &so3Spline = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    const double midTime = corr->MidPointTime(readout);
+
+    if (!so3Spline.TimeStampInRange(midTime + TO_CamToBr)) {
+        return;
+    }
+
+    Eigen::Vector3d ANG_VEL_BrToWInBr = so3Spline.VelocityBody(midTime + TO_CamToBr);
+    Eigen::Vector3d ANG_VEL_CamToWInCam = SO3_CamToBr.inverse() * ANG_VEL_BrToWInBr;
+
+    auto costFunc = VisualVelocityDepthFactor::Create(corr->MidPoint(), corr->MidPointVel(readout),
+                                                      ANG_VEL_CamToWInCam, intri, weight);
+
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(1);
+
+    costFunc->SetNumResiduals(2);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // LIN_VEL_CmToWInCm
+    paramBlockVec.push_back(LIN_VEL_CmToWInCm->data());
+    // DEPTH
+    paramBlockVec.push_back(&corr->depth);
+
+    // pass to problem, the loss function factor is the same as
+    // 'Configor::Prior::LossForRGBDFactor', as this model is the same as rgbd velocity model
+    this->AddResidualBlock(costFunc, new ceres::HuberLoss(Configor::Prior::LossForRGBDFactor),
+                           paramBlockVec);
+
+    // the 'GRAVITY_MANIFOLD' manifold is used to make the vel vector keep const norm, as we only
+    // estimate its directory
+    if (estVelDirOnly) {
+        this->SetManifold(LIN_VEL_CmToWInCm->data(), GRAVITY_MANIFOLD.get());
+    }
+    if (!estDepth) {
+        this->SetParameterBlockConstant(&corr->depth);
+    }
+}
+
+void Estimator::AddVisualVelocityDepthFactorForRGBD(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                                    const RGBDVelocityCorr::Ptr &corr,
+                                                    const std::string &rgbdTopic,
+                                                    double weight,
+                                                    bool estDepth,
+                                                    bool estVelDirOnly) {
+    this->AddVisualVelocityDepthFactor(
+        LIN_VEL_CmToWInCm, corr, parMagr->TEMPORAL.TO_DnToBr.at(rgbdTopic),
+        parMagr->TEMPORAL.RS_READOUT.at(rgbdTopic), parMagr->EXTRI.SO3_DnToBr.at(rgbdTopic),
+        parMagr->INTRI.RGBD.at(rgbdTopic)->intri, weight, estDepth, estVelDirOnly);
 }
 }  // namespace ns_ikalibr

@@ -354,6 +354,23 @@ public:
 
     void PrintUninvolvedKnots() const;
 
+    void AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                      const RGBDVelocityCorr::Ptr &corr,
+                                      double TO_CamToBr,
+                                      double readout,
+                                      const Sophus::SO3d &SO3_CamToBr,
+                                      const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                      double weight,
+                                      bool estDepth,
+                                      bool estVelDirOnly);
+
+    void AddVisualVelocityDepthFactorForRGBD(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                             const RGBDVelocityCorr::Ptr &corr,
+                                             const std::string &rgbdTopic,
+                                             double weight,
+                                             bool estDepth,
+                                             bool estVelDirOnly);
+
 protected:
     void AddSo3KnotsData(std::vector<double *> &paramBlockVec,
                          const SplineBundleType::So3SplineType &spline,
