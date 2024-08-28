@@ -39,7 +39,7 @@ namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-namespace ns_ikalibr{
+namespace ns_ikalibr {
 void CalibSolver::Process() {
     if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
         SaveStageCalibParam(_parMagr, "stage_0_init");
@@ -48,7 +48,25 @@ void CalibSolver::Process() {
     // initialization
     // --------------
     spdlog::info("initialization...");
-    auto [globalMap, undistFramesInMap] = Initialization();
+
+    // recover so3 spline
+    this->InitSO3Spline();
+
+    // prepare for sensor-alignment alignment
+    this->InitPrepCameraInertialAlign();
+    this->InitPrepRGBDInertialAlign();
+    this->InitPrepLiDARInertialAlign();
+    this->InitPrepRadarInertialAlign();
+
+    // sensor-alignment alignment
+    this->InitSensorInertialAlign();
+
+    // recover scale spline
+    this->InitScaleSpline();
+
+    // prepare for final batch optimizations
+    this->InitPrepBatchOpt();
+
     _parMagr->ShowParamStatus();
 
     // ------------------
@@ -71,14 +89,15 @@ void CalibSolver::Process() {
                 // optimization option
                 options.at(i),
                 // point to surfel data association for LiDARs
-                DataAssociationForLiDARs(globalMap, undistFramesInMap, ptsCountInEachScan),
+                DataAssociationForLiDARs(_initAsset->globalMap, _initAsset->undistFramesInMap,
+                                         ptsCountInEachScan),
                 // visual reprojection data association for cameras
                 DataAssociationForCameras(),
                 // visual velocity creation for rgbd cameras
                 DataAssociationForRGBDs(
                     IsOptionWith(OptOption::Option::OPT_RGBD_DEPTH, options.at(i))));
-            // deconstruct data
-            globalMap.reset(), undistFramesInMap.clear();
+            // deconstruct data from initialization
+            _initAsset = nullptr;
         } else {
             auto [curGlobalMap, curUndistFramesInMap] = BuildGlobalMapOfLiDAR();
             _backup = this->BatchOptimization(

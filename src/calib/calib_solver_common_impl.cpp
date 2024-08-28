@@ -94,6 +94,7 @@ CalibSolver::CalibSolver(CalibDataManager::Ptr calibDataManager,
       _ceresOption(Estimator::DefaultSolverOptions(
           Configor::Preference::AvailableThreads(), true, Configor::Preference::UseCudaInSolving)),
       _viewer(nullptr),
+      _initAsset(new InitAsset),
       _solveFinished(false) {
     // create so3 and linear scale splines given start and end times, knot distances
     _splines = CreateSplineBundle(

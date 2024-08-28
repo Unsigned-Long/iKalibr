@@ -52,6 +52,8 @@ struct VisualPixelDynamic;
 using VisualPixelDynamicPtr = std::shared_ptr<VisualPixelDynamic>;
 struct SpatialTemporalPriori;
 using SpatialTemporalPrioriPtr = std::shared_ptr<SpatialTemporalPriori>;
+struct LiDAROdometer;
+using LiDAROdometerPtr = std::shared_ptr<LiDAROdometer>;
 
 struct ImagesInfo {
 public:
@@ -110,6 +112,26 @@ public:
         std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> rgbdCorrs;
     };
 
+    struct InitAsset {
+    public:
+        using Ptr = std::shared_ptr<InitAsset>;
+
+    public:
+        // lidar-only odometers for each lidar
+        std::map<std::string, LiDAROdometerPtr> lidarOdometers;
+        // undistorted scans for each lidar
+        std::map<std::string, std::vector<LiDARFrame::Ptr>> undistFramesInScan;
+        // rgbd-derived rgbd-frame velocities for each rgbd camera
+        std::map<std::string, std::vector<std::pair<CameraFrame::Ptr, Eigen::Vector3d>>>
+            rgbdBodyFrameVels;
+        // SfM pose sequence for each camera
+        std::map<std::string, std::vector<ns_ctraj::Posed>> sfmPoseSeq;
+        // the global lidar map expressed in world frame
+        IKalibrPointCloud::Ptr globalMap;
+        // undistorted scans for each lidar expressed in the world frame
+        std::map<std::string, std::vector<LiDARFrame::Ptr>> undistFramesInMap;
+    };
+
 private:
     CalibDataManager::Ptr _dataMagr;
     CalibParamManager::Ptr _parMagr;
@@ -121,6 +143,7 @@ private:
 
     Viewer::Ptr _viewer;
     BackUp::Ptr _backup;
+    InitAsset::Ptr _initAsset;
 
     bool _solveFinished;
 
@@ -142,8 +165,21 @@ protected:
 
     void AlignStatesToGravity();
 
-    std::tuple<IKalibrPointCloud::Ptr, std::map<std::string, std::vector<LiDARFrame::Ptr>>>
-    Initialization();
+    void InitSO3Spline();
+
+    void InitSensorInertialAlign();
+
+    void InitPrepCameraInertialAlign();
+
+    void InitPrepLiDARInertialAlign();
+
+    void InitPrepRGBDInertialAlign();
+
+    void InitPrepRadarInertialAlign();
+
+    void InitScaleSpline();
+
+    void InitPrepBatchOpt();
 
     std::tuple<IKalibrPointCloud::Ptr, std::map<std::string, std::vector<LiDARFrame::Ptr>>>
     BuildGlobalMapOfLiDAR();

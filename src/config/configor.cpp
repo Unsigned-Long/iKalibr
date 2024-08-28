@@ -106,7 +106,7 @@ const double Configor::Prior::LiDARDataAssociate::SurfelPointMin = 100;
 // 0.1, 0.2, 0.4, 0.8, 1.6, ...
 const double Configor::Prior::LiDARDataAssociate::MapResolution = 0.1;
 const std::uint8_t Configor::Prior::LiDARDataAssociate::MapDepthLevels = 16;
-const double Configor::Prior::LiDARDataAssociate::PointToSurfelCountInScan = 200;
+const int Configor::Prior::LiDARDataAssociate::PointToSurfelCountInScan = 200;
 
 // the loss function used for radar factor (m/s) (on the direction of target)
 const double Configor::Prior::LossForRadarFactor = 0.1;

@@ -251,7 +251,7 @@ public:
             const static double MapResolution;
             const static std::uint8_t MapDepthLevels;
 
-            const static double PointToSurfelCountInScan;
+            const static int PointToSurfelCountInScan;
 
         public:
             template <class Archive>
