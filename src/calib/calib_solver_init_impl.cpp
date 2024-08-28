@@ -439,51 +439,40 @@ CalibSolver::Initialization() {
         rgbdBodyFrameVels;
     for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
         spdlog::info("estimate RGBD-derived linear velocities for '{}'...", topic);
-        // reorganize rgbd-dynamics, store them by frame index
-        // camera frame, dynamics in this frame (pixel, velocity, depth)
-        std::map<CameraFrame::Ptr,
-                 std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>>>
-            dynamicsInFrame;
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
         const auto &rsExposureFactor =
             CameraModel::RSCameraExposureFactor(EnumCast::stringToEnum<CameraModelType>(
                 Configor::DataStream::RGBDTopics.at(topic).Type));
-        const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
+
+        // reorganize rgbd-dynamics, store them by frame index
+        std::map<CameraFrame::Ptr, std::vector<RGBDVelocityCorr::Ptr>> dynamicsInFrame;
         for (const auto &dynamic : dynamics) {
             auto midCamFrame = dynamic->GetMidCameraFrame();
-            const auto &rgbdVelCorr =
-                dynamic->CreateRGBDVelocityCorr(intri, rsExposureFactor, false);
-            if (rgbdVelCorr->depth < 1E-3 /* 1 mm */) {
+            const auto &corr = dynamic->CreateRGBDVelocityCorr(intri, rsExposureFactor, false);
+            if (corr->depth < 1E-3 /* 1 mm */) {
                 continue;
             }
-            const Eigen::Vector2d vel = rgbdVelCorr->MidPointVel(readout);
-            // if (vel.norm() < 0.5f * Configor::Prior::RGBDDynamicPixelVelThd /* pixels/sed */) {
-            //     continue;
-            // }
             // a valid depth
-            dynamicsInFrame[midCamFrame].emplace_back(rgbdVelCorr->MidPoint(), vel,
-                                                      rgbdVelCorr->depth);
+            dynamicsInFrame[midCamFrame].emplace_back(corr);
 
             // show the visual pixel dynamic image (tracking features, mid-point pixel velocity)
             // auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic)->intri,
-            //                                           rgbdVelCorr->MidPointVel(readout));
+            //                                           corr->MidPointVel(readout));
         }
 
         // estimate rgbd-derived linear velocities for each frame
         const auto &rgbdIntri = _parMagr->INTRI.RGBD.at(topic);
         const double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
+        const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
         const Sophus::SO3d &SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
-        for (const auto &[frame, curDynamics] : dynamicsInFrame) {
-            // at least two measurements are required, here we up the ante
-            if (curDynamics.size() < 5) {
-                continue;
-            }
+        for (const auto &[frame, corrVec] : dynamicsInFrame) {
             const double timeByBr = frame->GetTimestamp() + TO_DnToBr;
-            if (timeByBr < st || timeByBr > et) {
+            // at least two measurements are required, here we up the ante
+            if (timeByBr < st || timeByBr > et || corrVec.size() < 5) {
                 continue;
             }
             auto res = VisualVelocitySacProblem::VisualVelocityEstimationRANSAC(
-                curDynamics, rgbdIntri->intri, timeByBr, so3Spline, SO3_DnToBr);
+                corrVec, readout, rgbdIntri->intri, timeByBr, so3Spline, SO3_DnToBr);
             if (res) {
                 rgbdBodyFrameVels[topic].emplace_back(frame, *res);
                 // auto img = VisualVelocityEstimator::DrawVisualVelocityMat(

@@ -121,4 +121,21 @@ std::optional<Eigen::Vector3d> VisualVelocitySacProblem::VisualVelocityEstimatio
         return vvEstimator->Estimate(timeByBr, spline, SO3_DnToBr);
     }
 }
+
+std::optional<Eigen::Vector3d> VisualVelocitySacProblem::VisualVelocityEstimationRANSAC(
+    const std::vector<RGBDVelocityCorrPtr> &corrVec,
+    double readout,
+    const ns_veta::PinholeIntrinsic::Ptr &intri,
+    double timeByBr,
+    const VisualVelocityEstimator::So3SplineType &spline,
+    const Sophus::SO3d &SO3_DnToBr) {
+    // dynamics in this frame (pixel, velocity, depth)
+    std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>> rawDynamicsInFrame(
+        corrVec.size());
+    for (int i = 0; i < static_cast<int>(corrVec.size()); ++i) {
+        const auto &corr = corrVec.at(i);
+        rawDynamicsInFrame.at(i) = {corr->MidPoint(), corr->MidPointVel(readout), corr->depth};
+    }
+    return VisualVelocityEstimationRANSAC(rawDynamicsInFrame, intri, timeByBr, spline, SO3_DnToBr);
+}
 }  // namespace ns_ikalibr

@@ -36,7 +36,6 @@
 #define IKALIBR_VISUAL_VELOCITY_SAC_H
 
 #include <utility>
-
 #include "core/visual_velocity_estimator.h"
 #include "opengv/sac/SampleConsensusProblem.hpp"
 
@@ -45,6 +44,9 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
+struct RGBDVelocityCorr;
+using RGBDVelocityCorrPtr = std::shared_ptr<RGBDVelocityCorr>;
+
 class VisualVelocitySacProblem : public opengv::sac::SampleConsensusProblem<Eigen::Vector3d> {
 public:
     /** The model we are trying to fit (transformation) */
@@ -105,7 +107,16 @@ public:
     [[nodiscard]] int getSampleSize() const override;
 
     static std::optional<Eigen::Vector3d> VisualVelocityEstimationRANSAC(
+        // dynamics in this frame (pixel, velocity, depth)
         const std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>> &dynamics,
+        const ns_veta::PinholeIntrinsic::Ptr &intri,
+        double timeByBr,
+        const VisualVelocityEstimator::So3SplineType &spline,
+        const Sophus::SO3d &SO3_DnToBr);
+
+    static std::optional<Eigen::Vector3d> VisualVelocityEstimationRANSAC(
+        const std::vector<RGBDVelocityCorrPtr> &corrVec,
+        double readout,
         const ns_veta::PinholeIntrinsic::Ptr &intri,
         double timeByBr,
         const VisualVelocityEstimator::So3SplineType &spline,
