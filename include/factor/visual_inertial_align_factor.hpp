@@ -41,6 +41,7 @@
 #include "ctraj/spline/ceres_spline_helper.h"
 #include "ctraj/spline/ceres_spline_helper_jet.h"
 #include "ctraj/core/spline_bundle.h"
+#include "ctraj/core/pose.hpp"
 #include "ceres/ceres.h"
 #include "util/utils.h"
 

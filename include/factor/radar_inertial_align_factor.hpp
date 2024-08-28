@@ -80,15 +80,16 @@ public:
                              const RadarTargetArray::Ptr &sRadarAry,
                              const RadarTargetArray::Ptr &eRadarAry,
                              double TO_RjToBr,
-                             const std::pair<Eigen::Vector3d, Eigen::Matrix3d> &velVecMat) {
+                             const std::pair<Eigen::Vector3d, Eigen::Matrix3d> &velVecMat,
+                             double ransacThd) {
         double st = sRadarAry->GetTimestamp(), et = eRadarAry->GetTimestamp();
         dt = et - st;
 
         velVec = velVecMat.first;
         velMat = velVecMat.second;
 
-        sDVec = RadarVelocityFromStaticTargetArray(sRadarAry);
-        eDVec = RadarVelocityFromStaticTargetArray(eRadarAry);
+        sDVec = RadarVelocityFromStaticTargetArray(sRadarAry, ransacThd);
+        eDVec = RadarVelocityFromStaticTargetArray(eRadarAry, ransacThd);
 
         sANG_VEL_BcToBc0 = AngularVelBrToBr0(so3Spline, st + TO_RjToBr);
         eANG_VEL_BcToBc0 = AngularVelBrToBr0(so3Spline, et + TO_RjToBr);
@@ -102,11 +103,12 @@ protected:
         return so3Spline.Evaluate(t) * so3Spline.VelocityBody(t);
     }
 
-    static Eigen::Vector3d RadarVelocityFromStaticTargetArray(const RadarTargetArray::Ptr &ary) {
+    static Eigen::Vector3d RadarVelocityFromStaticTargetArray(const RadarTargetArray::Ptr &ary,
+                                                              double ransacThd) {
         opengv::sac::Ransac<RadarVelocitySacProblem> ransac;
         std::shared_ptr<RadarVelocitySacProblem> probPtr(new RadarVelocitySacProblem(ary));
         ransac.sac_model_ = probPtr;
-        ransac.threshold_ = Configor::Prior::LossForRadarFactor;
+        ransac.threshold_ = ransacThd;
         ransac.max_iterations_ = 20;
         bool res = ransac.computeModel();
         if (res) {

@@ -554,7 +554,8 @@ void Estimator::AddRadarInertialAlignment(const std::vector<IMUFrame::Ptr> &data
     }
     // create a cost function
     auto helper = RadarInertialAlignHelper<Configor::Prior::SplineOrder>(
-        so3Spline, sRadarAry, eRadarAry, TO_RjToBr, *velVecMat);
+        so3Spline, sRadarAry, eRadarAry, TO_RjToBr, *velVecMat,
+        Configor::Prior::LossForRadarFactor);
     auto costFunc = RadarInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
 
     costFunc->AddParameterBlock(3);
