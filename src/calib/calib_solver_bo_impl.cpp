@@ -55,6 +55,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
 
     auto estimator = Estimator::Create(_splines, _parMagr);
     auto visualGlobalScale = std::make_shared<double>(1.0);
+    constexpr bool RGBD_EST_INV_DEPTH = false;
 
     switch (GetScaleType()) {
         case TimeDeriv::LIN_ACCE_SPLINE: {
@@ -87,8 +88,8 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                             topic);
                     }
                 }
-                this->AddRGBDVelocityFactor<TimeDeriv::LIN_VEL_SPLINE>(estimator, topic, corrs,
-                                                                       visualOpt);
+                this->AddRGBDVelocityFactor<TimeDeriv::LIN_VEL_SPLINE, RGBD_EST_INV_DEPTH>(
+                    estimator, topic, corrs, visualOpt);
             }
         } break;
         case TimeDeriv::LIN_POS_SPLINE: {
@@ -138,8 +139,8 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                             topic);
                     }
                 }
-                this->AddRGBDVelocityFactor<TimeDeriv::LIN_POS_SPLINE>(estimator, topic, corrs,
-                                                                       visualOpt);
+                this->AddRGBDVelocityFactor<TimeDeriv::LIN_POS_SPLINE, RGBD_EST_INV_DEPTH>(
+                    estimator, topic, corrs, visualOpt);
             }
         } break;
     }
@@ -179,6 +180,19 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
             auto pose = veta->poses.at(veta->views.at(reprojCorrSeq->firObvViewId)->poseId);
             Eigen::Vector3d pInW = pose.Rotation() * pInCam + pose.Translation();
             veta->structure.at(reprojCorrSeq->lmId).X = pInW;
+        }
+    }
+
+    // update depth information for rgbds
+    for (const auto &[topic, corrs] : rgbdCorrs) {
+        for (const auto &corr : corrs) {
+            if constexpr (RGBD_EST_INV_DEPTH) {
+                // the inverse depth is estimated, we update the depth
+                corr->depth = corr->invDepth > 1E-3 ? 1.0 / corr->invDepth : -1.0;
+            } else {
+                // the depth is estimated, we update the inverse depth
+                corr->invDepth = corr->depth > 1E-3 ? 1.0 / corr->depth : -1.0;
+            }
         }
     }
 

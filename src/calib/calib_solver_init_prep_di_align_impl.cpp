@@ -90,7 +90,7 @@ void CalibSolver::InitPrepRGBDInertialAlign() {
                     _viewer->ClearViewer(Viewer::VIEW_MAP);
                     // rgbd camera
                     static auto rgbd = ns_viewer::CubeCamera::Create(
-                        ns_viewer::Posef(), 0.04, ns_viewer::Colour(0.33f, 0.0f, 0.5f, 1.0f));
+                        ns_viewer::Posef(), 0.04, ns_viewer::Colour(1.0f, 0.5f, 0.0f, 1.0f));
                     _viewer->AddEntityLocal({rgbd}, Viewer::VIEW_MAP);
                     // depth point could
                     _viewer->AddRGBDFrame(frameVec.at(i), intri, Viewer::VIEW_MAP, true, 2.0f);

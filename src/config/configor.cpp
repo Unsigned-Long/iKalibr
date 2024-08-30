@@ -115,7 +115,7 @@ const double Configor::Prior::LossForLiDARFactor = 0.02;
 // the loss function used for visual reprojection factor (pixel)
 const double Configor::Prior::LossForCameraFactor = 2.0;
 // the loss function used for rgbd velocity factor (pixel) (on the image pixel plane)
-const double Configor::Prior::LossForRGBDFactor = 10.0;
+const double Configor::Prior::LossForRGBDFactor = 50.0;
 
 bool Configor::Prior::OptTemporalParams = {};
 

@@ -248,7 +248,7 @@ protected:
                                      double *globalScale,
                                      Estimator::Opt option);
 
-    template <TimeDeriv::ScaleSplineType type>
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
     void AddRGBDVelocityFactor(Estimator::Ptr &estimator,
                                const std::string &rgbdTopic,
                                const std::vector<RGBDVelocityCorr::Ptr> &corrs,

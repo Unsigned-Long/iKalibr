@@ -441,6 +441,7 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
                     continue;
                 }
                 corr->depth = newRawDepth;
+                corr->invDepth = 1.0 / corr->depth;
                 ++estDepthCount;
             }
 

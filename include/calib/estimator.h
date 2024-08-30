@@ -306,9 +306,9 @@ public:
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr |
-     *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH ]
+     *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH_INFO ]
      */
-    template <TimeDeriv::ScaleSplineType type>
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
     void AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
                                    const std::string &topic,
                                    Opt option,

@@ -62,6 +62,7 @@ public:
     // row / image height - rsExpFactor
     std::array<double, 3> rdFactorAry;
     double depth;
+    double invDepth;
     CameraFrame::Ptr frame;
     // if this dynamic is with depth observability
     bool withDepthObservability;
@@ -78,6 +79,7 @@ public:
           yDynamicAry(yDynamicAry),
           rdFactorAry(),
           depth(depth),
+          invDepth(depth > 1E-3 ? 1.0 / depth : -1.0),
           frame(frame),
           withDepthObservability(false) {
         int imgHeight = frame->GetImage().rows;
@@ -131,7 +133,7 @@ public:
     }
 };
 
-template <int Order, int TimeDeriv>
+template <int Order, int TimeDeriv, bool IsInvDepth = true>
 struct RGBDVelocityFactor {
 private:
     ns_ctraj::SplineMeta<Order> _so3Meta, _scaleMeta;
@@ -202,7 +204,7 @@ public:
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr |
-     *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH ]
+     *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH_INFO ]
      */
     template <class T>
     bool operator()(T const *const *sKnots, T *sResiduals) const {
@@ -217,7 +219,7 @@ public:
         std::size_t CY_OFFSET = CX_OFFSET + 1;
         std::size_t ALPHA_OFFSET = CY_OFFSET + 1;
         std::size_t BETA_OFFSET = ALPHA_OFFSET + 1;
-        std::size_t DEPTH_OFFSET = BETA_OFFSET + 1;
+        std::size_t DEPTH_INFO_OFFSET = BETA_OFFSET + 1;
 
         // get value
         Eigen::Map<const Sophus::SO3<T>> SO3_DnToBr(sKnots[SO3_DnToBr_OFFSET]);
@@ -234,7 +236,7 @@ public:
 
         T ALPHA = sKnots[ALPHA_OFFSET][0];
         T BETA = sKnots[BETA_OFFSET][0];
-        T DEPTH = sKnots[DEPTH_OFFSET][0];
+        T DEPTH_INFO = sKnots[DEPTH_INFO_OFFSET][0];
 
         auto timeByBr = _corr->MidPointTime(READOUT_TIME) + TO_DnToBr;
 
@@ -268,8 +270,17 @@ public:
 
         Eigen::Matrix<T, 2, 3> subAMat, subBMat;
         SubMats<T>(&FX, &FY, &CX, &CY, _corr->MidPoint().cast<T>(), &subAMat, &subBMat);
-        Eigen::Vector2<T> pred = 1.0 / (ALPHA * DEPTH + BETA) * subAMat * LIN_VEL_DnToBr0InDn +
-                                 subBMat * ANG_VEL_DnToBr0InDn;
+
+        Eigen::Vector2<T> pred;
+        if constexpr (IsInvDepth) {
+            // inverse depth
+            pred = DEPTH_INFO / (ALPHA + BETA * DEPTH_INFO) * subAMat * LIN_VEL_DnToBr0InDn +
+                   subBMat * ANG_VEL_DnToBr0InDn;
+        } else {
+            // depth
+            pred = 1.0 / (ALPHA * DEPTH_INFO + BETA) * subAMat * LIN_VEL_DnToBr0InDn +
+                   subBMat * ANG_VEL_DnToBr0InDn;
+        }
 
         Eigen::Map<Eigen::Vector2<T>> residuals(sResiduals);
         residuals = T(_weight) * (pred - _corr->template MidPointVel(READOUT_TIME));

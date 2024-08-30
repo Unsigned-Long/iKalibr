@@ -160,8 +160,7 @@ public:
         T distance = pointInBr0.template dot(planeNorm) + T(_ptsCorr->surfelInW(3));
 
         Eigen::Map<Eigen::Matrix11<T>> residuals(sResiduals);
-        residuals.template block<1, 1>(0, 0) =
-            T(_weight * _ptsCorr->weight) * Eigen::Matrix11<T>(distance);
+        residuals.template block<1, 1>(0, 0) = T(_weight) * Eigen::Matrix11<T>(distance);
 
         return true;
     }

@@ -238,7 +238,7 @@ public:
 
         Eigen::Map<Eigen::Vector2<T>> residuals(sResiduals);
         residuals = fjPred - _corr.fj.cast<T>();
-        residuals = T(_weight) * T(_corr.weight) * residuals;
+        residuals = T(_weight) * residuals;
 
         return true;
     }

@@ -638,9 +638,9 @@ void Estimator::AddVisualReprojection(const VisualReProjCorr &visualCorr,
 /**
  * param blocks:
  * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr |
- *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH ]
+ *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH_INFO ]
  */
-template <TimeDeriv::ScaleSplineType type>
+template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
 void Estimator::AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
                                           const std::string &topic,
                                           Opt option,
@@ -700,7 +700,7 @@ void Estimator::AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
 
     static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_VEL>();
     // create a cost function
-    auto costFunc = RGBDVelocityFactor<Configor::Prior::SplineOrder, deriv>::Create(
+    auto costFunc = RGBDVelocityFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth>::Create(
         so3Meta, scaleMeta, velCorr, weight);
 
     // so3 knots param block [each has four sub params]
@@ -757,7 +757,11 @@ void Estimator::AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
 
     paramBlockVec.push_back(&intri->alpha);
     paramBlockVec.push_back(&intri->beta);
-    paramBlockVec.push_back(&velCorr->depth);
+    if constexpr (IsInvDepth) {
+        paramBlockVec.push_back(&velCorr->invDepth);
+    } else {
+        paramBlockVec.push_back(&velCorr->depth);
+    }
 
     // pass to problem
     this->AddResidualBlock(
@@ -810,7 +814,11 @@ void Estimator::AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
     // 1. without 'Opt::OPT_RGBD_DEPTH' option
     // 2. the rgbd camera moves too slow, and without depth observability
     if (!IsOptionWith(Opt::OPT_RGBD_DEPTH, option) || !velCorr->withDepthObservability) {
-        this->SetParameterBlockConstant(&velCorr->depth);
+        if constexpr (IsInvDepth) {
+            this->SetParameterBlockConstant(&velCorr->invDepth);
+        } else {
+            this->SetParameterBlockConstant(&velCorr->depth);
+        }
     }
 }
 }  // namespace ns_ikalibr

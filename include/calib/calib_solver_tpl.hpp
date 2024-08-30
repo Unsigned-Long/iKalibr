@@ -76,7 +76,8 @@ void CalibSolver::AddPointToSurfelFactor(Estimator::Ptr &estimator,
     double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
 
     for (const auto &corr : corrs) {
-        estimator->AddPointTiSurfelConstraint<type>(corr, lidarTopic, option, weight);
+        estimator->AddPointTiSurfelConstraint<type>(corr, lidarTopic, option,
+                                                    weight * corr->weight);
     }
 }
 
@@ -90,20 +91,25 @@ void CalibSolver::AddVisualReprojectionFactor(Estimator::Ptr &estimator,
 
     for (const auto &corr : corrs) {
         for (const auto &c : corr->corrs) {
-            estimator->AddVisualReprojection<type>(c, camTopic, globalScale,
-                                                   corr->invDepthFir.get(), option, weight);
+            estimator->AddVisualReprojection<type>(
+                c, camTopic, globalScale, corr->invDepthFir.get(), option, weight * c.weight);
         }
     }
 }
 
-template <TimeDeriv::ScaleSplineType type>
+template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
 void CalibSolver::AddRGBDVelocityFactor(Estimator::Ptr &estimator,
                                         const std::string &rgbdTopic,
                                         const std::vector<RGBDVelocityCorr::Ptr> &corrs,
                                         Estimator::Opt option) {
     double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
+    const auto &intri = _parMagr->INTRI.RGBD.at(rgbdTopic);
     for (const auto &corr : corrs) {
-        estimator->AddRGBDVelocityConstraint<type>(corr, rgbdTopic, option, weight);
+        double depth = intri->ActualDepth(corr->depth);
+        estimator->AddRGBDVelocityConstraint<type, IsInvDepth>(
+            corr, rgbdTopic, option,
+            // large depth (small inverse depth) is more difficult to perform rgbd data association
+            weight / (depth > 1E-3 ? depth : 1.0));
     }
 }
 }  // namespace ns_ikalibr
