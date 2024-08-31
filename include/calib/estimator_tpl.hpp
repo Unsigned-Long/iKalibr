@@ -36,6 +36,12 @@
 #define IKALIBR_ESTIMATOR_TPL_HPP
 
 #include "calib/estimator.h"
+#include "factor/imu_acce_factor.hpp"
+#include "factor/radar_factor.hpp"
+#include "factor/lin_scale_factor.hpp"
+#include "factor/point_to_surfel_factor.hpp"
+#include "factor/visual_reproj_factor.hpp"
+#include "factor/rgbd_velocity_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -440,7 +446,7 @@ void Estimator::AddPointTiSurfelConstraint(const PointToSurfelCorr::Ptr &ptsCorr
  * READOUT_TIME | FX | FY | CX | CY | GLOBAL_SCALE | INV_DEPTH ]
  */
 template <TimeDeriv::ScaleSplineType type>
-void Estimator::AddVisualReprojection(const VisualReProjCorr &visualCorr,
+void Estimator::AddVisualReprojection(const VisualReProjCorr::Ptr &visualCorr,
                                       const std::string &topic,
                                       double *globalScale,
                                       double *invDepth,
@@ -454,11 +460,11 @@ void Estimator::AddVisualReprojection(const VisualReProjCorr &visualCorr,
     double *RS_READOUT = &parMagr->TEMPORAL.RS_READOUT.at(topic);
     double *TO_CmToBr = &parMagr->TEMPORAL.TO_CmToBr.at(topic);
 
-    double minTimeI = visualCorr.ti;
-    double maxTimeI = visualCorr.ti;
+    double minTimeI = visualCorr->ti;
+    double maxTimeI = visualCorr->ti;
 
-    double minTimeJ = visualCorr.tj;
-    double maxTimeJ = visualCorr.tj;
+    double minTimeJ = visualCorr->tj;
+    double maxTimeJ = visualCorr->tj;
 
     // different relative control points finding [single vs. range]
     if (IsOptionWith(Opt::OPT_TO_CmToBr, option)) {
@@ -476,17 +482,17 @@ void Estimator::AddVisualReprojection(const VisualReProjCorr &visualCorr,
     }
 
     if (IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option)) {
-        minTimeI += std::min(visualCorr.li * 0.0, visualCorr.li * RT_PADDING);
-        maxTimeI += std::max(visualCorr.li * 0.0, visualCorr.li * RT_PADDING);
+        minTimeI += std::min(visualCorr->li * 0.0, visualCorr->li * RT_PADDING);
+        maxTimeI += std::max(visualCorr->li * 0.0, visualCorr->li * RT_PADDING);
 
-        minTimeJ += std::min(visualCorr.lj * 0.0, visualCorr.lj * RT_PADDING);
-        maxTimeJ += std::max(visualCorr.lj * 0.0, visualCorr.lj * RT_PADDING);
+        minTimeJ += std::min(visualCorr->lj * 0.0, visualCorr->lj * RT_PADDING);
+        maxTimeJ += std::max(visualCorr->lj * 0.0, visualCorr->lj * RT_PADDING);
     } else {
-        minTimeI += visualCorr.li * *RS_READOUT;
-        maxTimeI += visualCorr.li * *RS_READOUT;
+        minTimeI += visualCorr->li * *RS_READOUT;
+        maxTimeI += visualCorr->li * *RS_READOUT;
 
-        minTimeJ += visualCorr.lj * *RS_READOUT;
-        maxTimeJ += visualCorr.lj * *RS_READOUT;
+        minTimeJ += visualCorr->lj * *RS_READOUT;
+        maxTimeJ += visualCorr->lj * *RS_READOUT;
     }
 
     // invalid time stamp

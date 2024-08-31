@@ -54,6 +54,8 @@ struct SpatialTemporalPriori;
 using SpatialTemporalPrioriPtr = std::shared_ptr<SpatialTemporalPriori>;
 struct LiDAROdometer;
 using LiDAROdometerPtr = std::shared_ptr<LiDAROdometer>;
+struct VisualReProjCorrSeq;
+using VisualReProjCorrSeqPtr = std::shared_ptr<VisualReProjCorrSeq>;
 
 struct ImagesInfo {
 public:
@@ -101,15 +103,15 @@ public:
         // visual global scale
         std::shared_ptr<double> visualGlobalScale;
         // visual reprojection correspondences contains inverse depth parameters
-        std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> visualCorrs;
+        std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> visualCorrs;
         // lidar global map
         IKalibrPointCloud::Ptr lidarMap;
         // lidar point-to-surfel correspondences
-        std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> lidarCorrs;
+        std::map<std::string, std::vector<PointToSurfelCorrPtr>> lidarCorrs;
         // radar global map
         IKalibrPointCloud::Ptr radarMap;
         // rgbd velocity correspondences
-        std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> rgbdCorrs;
+        std::map<std::string, std::vector<RGBDVelocityCorrPtr>> rgbdCorrs;
     };
 
     struct InitAsset {
@@ -191,18 +193,18 @@ protected:
 
     ns_veta::Veta::Ptr CreateVetaFromRGBD(const std::string &topic);
 
-    std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> DataAssociationForLiDARs(
+    std::map<std::string, std::vector<PointToSurfelCorrPtr>> DataAssociationForLiDARs(
         const IKalibrPointCloud::Ptr &map,
         const std::map<std::string, std::vector<LiDARFrame::Ptr>> &undistFrames,
         int ptsCountInEachScan);
 
-    std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> DataAssociationForCameras();
+    std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> DataAssociationForCameras();
 
     BackUp::Ptr BatchOptimization(
         OptOption::Option optOption,
-        const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &ptsCorrs,
-        const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualCorrs,
-        const std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> &rgbdCorrs);
+        const std::map<std::string, std::vector<PointToSurfelCorrPtr>> &ptsCorrs,
+        const std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> &visualCorrs,
+        const std::map<std::string, std::vector<RGBDVelocityCorrPtr>> &rgbdCorrs);
 
     std::optional<Sophus::SE3d> CurBrToW(double timeByBr);
 
@@ -238,20 +240,20 @@ protected:
     template <TimeDeriv::ScaleSplineType type>
     void AddPointToSurfelFactor(Estimator::Ptr &estimator,
                                 const std::string &lidarTopic,
-                                const std::vector<PointToSurfelCorr::Ptr> &corrs,
+                                const std::vector<PointToSurfelCorrPtr> &corrs,
                                 Estimator::Opt option);
 
     template <TimeDeriv::ScaleSplineType type>
     void AddVisualReprojectionFactor(Estimator::Ptr &estimator,
                                      const std::string &camTopic,
-                                     const std::vector<VisualReProjCorrSeq::Ptr> &corrs,
+                                     const std::vector<VisualReProjCorrSeqPtr> &corrs,
                                      double *globalScale,
                                      Estimator::Opt option);
 
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
     void AddRGBDVelocityFactor(Estimator::Ptr &estimator,
                                const std::string &rgbdTopic,
-                               const std::vector<RGBDVelocityCorr::Ptr> &corrs,
+                               const std::vector<RGBDVelocityCorrPtr> &corrs,
                                Estimator::Opt option);
 
     void StoreImagesForSfM(const std::string &camTopic,
@@ -273,7 +275,7 @@ protected:
         const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList,
         const std::string &topic);
 
-    std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> DataAssociationForRGBDs(
+    std::map<std::string, std::vector<RGBDVelocityCorrPtr>> DataAssociationForRGBDs(
         bool estDepth);
 };
 

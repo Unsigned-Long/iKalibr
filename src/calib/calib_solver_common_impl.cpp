@@ -43,6 +43,7 @@
 #include "core/visual_pixel_dynamic.h"
 #include "calib/spat_temp_priori.h"
 #include "core/vision_only_sfm.h"
+#include "factor/rgbd_velocity_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

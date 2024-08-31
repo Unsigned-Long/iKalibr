@@ -37,8 +37,8 @@
 
 #include "config/configor.h"
 #include "util/cloud_define.hpp"
-#include "factor/point_to_surfel_factor.hpp"
 #include "ufo/map/point_cloud.h"
+#include "ufo/map/surfel_map.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -46,18 +46,21 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
+struct PointToSurfelCorr;
+using PointToSurfelCorrPtr = std::shared_ptr<PointToSurfelCorr>;
+
 struct PointToSurfelCondition {
     double pointToSurfelMax;
-    uint8_t queryDepthMin;
-    uint8_t queryDepthMax;
+    std::uint8_t queryDepthMin;
+    std::uint8_t queryDepthMax;
     std::size_t surfelPointMin;
     double planarityMin;
 
     explicit PointToSurfelCondition(
         double pointToSurfelMax = Configor::Prior::LiDARDataAssociate::PointToSurfelMax,
-        uint8_t queryDepthMin = Configor::Prior::LiDARDataAssociate::QueryDepthMin,
-        uint8_t queryDepthMax = Configor::Prior::LiDARDataAssociate::QueryDepthMax,
-        size_t surfelPointMin = Configor::Prior::LiDARDataAssociate::SurfelPointMin,
+        std::uint8_t queryDepthMin = Configor::Prior::LiDARDataAssociate::QueryDepthMin,
+        std::uint8_t queryDepthMax = Configor::Prior::LiDARDataAssociate::QueryDepthMax,
+        std::size_t surfelPointMin = Configor::Prior::LiDARDataAssociate::SurfelPointMin,
         double planarityMin = Configor::Prior::LiDARDataAssociate::PlanarityMin);
 
     PointToSurfelCondition &WithPointToSurfelMax(double val);
@@ -85,9 +88,9 @@ public:
 
     static Ptr Create(const IKalibrPointCloud::Ptr &mapInW, double resolution, std::uint8_t depth);
 
-    std::vector<PointToSurfelCorr::Ptr> Association(const IKalibrPointCloud::Ptr &mapCloud,
-                                                    const IKalibrPointCloud::Ptr &rawCloud,
-                                                    const PointToSurfelCondition &condition);
+    std::vector<PointToSurfelCorrPtr> Association(const IKalibrPointCloud::Ptr &mapCloud,
+                                                  const IKalibrPointCloud::Ptr &rawCloud,
+                                                  const PointToSurfelCondition &condition);
 
     static double SurfelScore(const ufo::map::SurfelMap &m, const ufo::map::Node &n);
 

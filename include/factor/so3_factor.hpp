@@ -40,7 +40,7 @@
 #include "ctraj/spline/spline_segment.h"
 #include "ctraj/spline/ceres_spline_helper.h"
 #include "ctraj/spline/ceres_spline_helper_jet.h"
-#include "ceres/ceres.h"
+#include "ceres/dynamic_autodiff_cost_function.h"
 #include "util/utils.h"
 
 namespace {
@@ -91,7 +91,7 @@ public:
 
         // calculate the so3 offset
         std::pair<std::size_t, double> iuCur;
-        _so3Meta.template ComputeSplineIndex(_time, iuCur.first, iuCur.second);
+        _so3Meta.ComputeSplineIndex(_time, iuCur.first, iuCur.second);
         SO3_OFFSET = iuCur.first;
 
         Sophus::SO3<T> SO3_BrToBr0;

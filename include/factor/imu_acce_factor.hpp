@@ -40,7 +40,7 @@
 #include "ctraj/spline/spline_segment.h"
 #include "ctraj/spline/ceres_spline_helper.h"
 #include "ctraj/spline/ceres_spline_helper_jet.h"
-#include "ceres/ceres.h"
+#include "ceres/dynamic_autodiff_cost_function.h"
 #include "sensor/imu.h"
 #include "util/utils.h"
 
@@ -107,15 +107,15 @@ public:
 
         // calculate the so3 and lin scale offset
         std::pair<std::size_t, T> iuSo3, iuScale;
-        _so3Meta.template ComputeSplineIndex(timeByBr, iuSo3.first, iuSo3.second);
-        _scaleMeta.template ComputeSplineIndex(timeByBr, iuScale.first, iuScale.second);
+        _so3Meta.ComputeSplineIndex(timeByBr, iuSo3.first, iuSo3.second);
+        _scaleMeta.ComputeSplineIndex(timeByBr, iuScale.first, iuScale.second);
 
         SO3_OFFSET = iuSo3.first;
         LIN_SCALE_OFFSET = iuScale.first + _so3Meta.NumParameters();
 
         Sophus::SO3<T> SO3_BrToBr0;
         Sophus::SO3Tangent<T> SO3_VEL_BrToBr0InBr, SO3_ACCE_BrToBr0InBr;
-        ns_ctraj::CeresSplineHelperJet<T, Order>::template EvaluateLie(
+        ns_ctraj::CeresSplineHelperJet<T, Order>::EvaluateLie(
             sKnots + SO3_OFFSET, iuSo3.second, _so3DtInv, &SO3_BrToBr0, &SO3_VEL_BrToBr0InBr,
             &SO3_ACCE_BrToBr0InBr);
         Sophus::SO3Tangent<T> SO3_VEL_BrToBr0InBr0 = SO3_BrToBr0 * SO3_VEL_BrToBr0InBr;

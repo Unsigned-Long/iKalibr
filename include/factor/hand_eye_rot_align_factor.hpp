@@ -40,7 +40,7 @@
 #include "ctraj/spline/spline_segment.h"
 #include "ctraj/spline/ceres_spline_helper.h"
 #include "ctraj/spline/ceres_spline_helper_jet.h"
-#include "ceres/ceres.h"
+#include "ceres/dynamic_autodiff_cost_function.h"
 #include "util/utils.h"
 
 namespace {
@@ -103,20 +103,20 @@ public:
 
         // calculate the so3 offset
         std::pair<std::size_t, T> iuLast;
-        _so3Meta.template ComputeSplineIndex(tLastByBr, iuLast.first, iuLast.second);
+        _so3Meta.ComputeSplineIndex(tLastByBr, iuLast.first, iuLast.second);
         LAST_SO3_OFFSET = iuLast.first;
 
         Sophus::SO3<T> SO3_LastBrToBr0;
-        ns_ctraj::CeresSplineHelperJet<T, Order>::template EvaluateLie(
+        ns_ctraj::CeresSplineHelperJet<T, Order>::EvaluateLie(
             sKnots + LAST_SO3_OFFSET, iuLast.second, _so3DtInv, &SO3_LastBrToBr0);
 
         std::pair<std::size_t, T> iuCur;
-        _so3Meta.template ComputeSplineIndex(tCurByBr, iuCur.first, iuCur.second);
+        _so3Meta.ComputeSplineIndex(tCurByBr, iuCur.first, iuCur.second);
         CUR_SO3_OFFSET = iuCur.first;
 
         Sophus::SO3<T> SO3_CurBrToBr0;
-        ns_ctraj::CeresSplineHelperJet<T, Order>::template EvaluateLie(
-            sKnots + CUR_SO3_OFFSET, iuCur.second, _so3DtInv, &SO3_CurBrToBr0);
+        ns_ctraj::CeresSplineHelperJet<T, Order>::EvaluateLie(sKnots + CUR_SO3_OFFSET, iuCur.second,
+                                                              _so3DtInv, &SO3_CurBrToBr0);
 
         Sophus::SO3<T> left = SO3_LkToBr * SO3_CurLkToLastLk;
         Sophus::SO3<T> right = (SO3_LastBrToBr0.inverse() * SO3_CurBrToBr0) * SO3_LkToBr;

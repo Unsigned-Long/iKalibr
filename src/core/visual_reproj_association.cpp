@@ -34,6 +34,7 @@
 
 #include "core/visual_reproj_association.h"
 #include "spdlog/spdlog.h"
+#include "factor/visual_reproj_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -87,7 +88,7 @@ std::vector<VisualReProjCorrSeq::Ptr> VisualReProjAssociator::Association(
                 intri->GetDistoPixel(featCur.x)(1) / static_cast<double>(viewCur->imgHeight) -
                 ExposureFactor;
 
-            corrSeq->corrs.emplace_back(
+            corrSeq->corrs.push_back(VisualReProjCorr::Create(
                 // timestamps
                 viewFir->timestamp, viewCur->timestamp,
                 // feature location in image plane (has been undistorted)
@@ -95,7 +96,7 @@ std::vector<VisualReProjCorrSeq::Ptr> VisualReProjAssociator::Association(
                 // row / image height - ExposureFactor: v/h - ExposureFactor
                 lFir, lCur,
                 // rough weight
-                weight);
+                weight));
         }
         corrVec.push_back(corrSeq);
     }

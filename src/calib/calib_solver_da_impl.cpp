@@ -40,6 +40,9 @@
 #include "core/pts_association.h"
 #include "pcl/filters/voxel_grid.h"
 #include "pcl/common/transforms.h"
+#include "factor/visual_reproj_factor.hpp"
+#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/point_to_surfel_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

@@ -37,7 +37,7 @@
 #include "core/pts_association.h"
 #include "calib/calib_param_manager.h"
 #include "sensor/rgbd.h"
-#include "sensor/rgbd_intrinsic.hpp"
+#include "factor/point_to_surfel_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

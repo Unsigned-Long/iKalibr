@@ -40,7 +40,7 @@
 #include "ctraj/spline/spline_segment.h"
 #include "ctraj/spline/ceres_spline_helper.h"
 #include "ctraj/spline/ceres_spline_helper_jet.h"
-#include "ceres/ceres.h"
+#include "ceres/dynamic_autodiff_cost_function.h"
 #include "sensor/imu.h"
 #include "util/utils.h"
 
@@ -95,12 +95,12 @@ public:
 
         // calculate the so3 offset
         std::pair<std::size_t, T> iuCur;
-        _so3Meta.template ComputeSplineIndex(timeByBr, iuCur.first, iuCur.second);
+        _so3Meta.ComputeSplineIndex(timeByBr, iuCur.first, iuCur.second);
         SO3_OFFSET = iuCur.first;
 
         Sophus::SO3<T> SO3_BrToBr0;
         Sophus::SO3Tangent<T> SO3_VEL_BrToBr0InBr;
-        ns_ctraj::CeresSplineHelperJet<T, Order>::template EvaluateLie(
+        ns_ctraj::CeresSplineHelperJet<T, Order>::EvaluateLie(
             sKnots + SO3_OFFSET, iuCur.second, _so3DtInv, &SO3_BrToBr0, &SO3_VEL_BrToBr0InBr);
 
         Eigen::Map<const Eigen::Vector3<T>> gyroBias(sKnots[GYRO_BIAS_OFFSET]);

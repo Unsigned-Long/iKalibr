@@ -40,13 +40,8 @@
 #include "ctraj/core/pose.hpp"
 #include "calib/calib_param_manager.h"
 #include "calib/calib_data_manager.h"
-#include "factor/imu_acce_factor.hpp"
-#include "factor/radar_factor.hpp"
-#include "factor/lin_scale_factor.hpp"
-#include "factor/point_to_surfel_factor.hpp"
-#include "factor/visual_reproj_factor.hpp"
-#include "factor/rgbd_velocity_factor.hpp"
 #include "calib/time_deriv.hpp"
+#include "ceres/ceres.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -54,6 +49,12 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 using namespace magic_enum::bitwise_operators;
+struct PointToSurfelCorr;
+using PointToSurfelCorrPtr = std::shared_ptr<PointToSurfelCorr>;
+struct VisualReProjCorr;
+using VisualReProjCorrPtr = std::shared_ptr<VisualReProjCorr>;
+struct RGBDVelocityCorr;
+using RGBDVelocityCorrPtr = std::shared_ptr<RGBDVelocityCorr>;
 
 struct OptOption {
     // myenumGenor Option OPT_SO3_SPLINE OPT_SCALE_SPLINE OPT_SO3_BiToBr OPT_POS_BiInBr
@@ -285,7 +286,7 @@ public:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_LkToBr | POS_LkInBr | TO_LkToBr ]
      */
     template <TimeDeriv::ScaleSplineType type>
-    void AddPointTiSurfelConstraint(const PointToSurfelCorr::Ptr &ptsCorr,
+    void AddPointTiSurfelConstraint(const PointToSurfelCorrPtr &ptsCorr,
                                     const std::string &topic,
                                     Opt option,
                                     double weight);
@@ -296,7 +297,7 @@ public:
      * READOUT_TIME | FX | FY | CX | CY | GLOBAL_SCALE | INV_DEPTH ]
      */
     template <TimeDeriv::ScaleSplineType type>
-    void AddVisualReprojection(const VisualReProjCorr &visualCorr,
+    void AddVisualReprojection(const VisualReProjCorrPtr &visualCorr,
                                const std::string &topic,
                                double *globalScale,
                                double *invDepth,
@@ -309,7 +310,7 @@ public:
      *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH_INFO ]
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-    void AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
+    void AddRGBDVelocityConstraint(const RGBDVelocityCorrPtr &velCorr,
                                    const std::string &topic,
                                    Opt option,
                                    double weight);
@@ -355,7 +356,7 @@ public:
     void PrintUninvolvedKnots() const;
 
     void AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
-                                      const RGBDVelocityCorr::Ptr &corr,
+                                      const RGBDVelocityCorrPtr &corr,
                                       double TO_CamToBr,
                                       double readout,
                                       const Sophus::SO3d &SO3_CamToBr,
@@ -365,7 +366,7 @@ public:
                                       bool estVelDirOnly);
 
     void AddVisualVelocityDepthFactorForRGBD(Eigen::Vector3d *LIN_VEL_CmToWInCm,
-                                             const RGBDVelocityCorr::Ptr &corr,
+                                             const RGBDVelocityCorrPtr &corr,
                                              const std::string &rgbdTopic,
                                              double weight,
                                              bool estDepth,

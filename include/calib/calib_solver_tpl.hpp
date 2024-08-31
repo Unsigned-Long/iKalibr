@@ -92,7 +92,7 @@ void CalibSolver::AddVisualReprojectionFactor(Estimator::Ptr &estimator,
     for (const auto &corr : corrs) {
         for (const auto &c : corr->corrs) {
             estimator->AddVisualReprojection<type>(
-                c, camTopic, globalScale, corr->invDepthFir.get(), option, weight * c.weight);
+                c, camTopic, globalScale, corr->invDepthFir.get(), option, weight * c->weight);
         }
     }
 }

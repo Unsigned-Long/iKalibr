@@ -42,7 +42,7 @@
 #include "ctraj/spline/ceres_spline_helper.h"
 #include "ctraj/spline/ceres_spline_helper_jet.h"
 #include "ctraj/core/spline_bundle.h"
-#include "ceres/ceres.h"
+#include "ceres/dynamic_autodiff_cost_function.h"
 #include "sensor/radar.h"
 #include "core/radar_velocity_sac.h"
 #include "opengv/sac/Ransac.hpp"

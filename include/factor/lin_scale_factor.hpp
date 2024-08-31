@@ -40,7 +40,7 @@
 #include "ctraj/spline/spline_segment.h"
 #include "ctraj/spline/ceres_spline_helper.h"
 #include "ctraj/spline/ceres_spline_helper_jet.h"
-#include "ceres/ceres.h"
+#include "ceres/dynamic_autodiff_cost_function.h"
 #include "sensor/imu.h"
 #include "util/utils.h"
 
@@ -91,7 +91,7 @@ public:
 
         // calculate the so3 and pos offset
         std::pair<std::size_t, double> iuScale;
-        _scaleMeta.template ComputeSplineIndex(_time, iuScale.first, iuScale.second);
+        _scaleMeta.ComputeSplineIndex(_time, iuScale.first, iuScale.second);
         LIN_SCALE_OFFSET = iuScale.first;
 
         Eigen::Vector3<T> linScaleOfDeriv;

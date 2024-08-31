@@ -243,9 +243,9 @@ public:
             static double PointToSurfelMax;
             static double PlanarityMin;
 
-            const static double QueryDepthMin;
-            const static double QueryDepthMax;
-            const static double SurfelPointMin;
+            const static std::uint8_t QueryDepthMin;
+            const static std::uint8_t QueryDepthMax;
+            const static std::size_t SurfelPointMin;
             //   0,   1,   2,   3,   4, ...
             // 0.1, 0.2, 0.4, 0.8, 1.6, ...
             const static double MapResolution;

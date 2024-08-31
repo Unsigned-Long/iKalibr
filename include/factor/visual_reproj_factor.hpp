@@ -35,13 +35,12 @@
 #ifndef IKALIBR_VISUAL_REPROJ_FACTOR_HPP
 #define IKALIBR_VISUAL_REPROJ_FACTOR_HPP
 
-#include <utility>
 #include "ctraj/utils/eigen_utils.hpp"
 #include "ctraj/utils/sophus_utils.hpp"
 #include "ctraj/spline/spline_segment.h"
 #include "ctraj/spline/ceres_spline_helper.h"
 #include "ctraj/spline/ceres_spline_helper_jet.h"
-#include "ceres/ceres.h"
+#include "ceres/dynamic_autodiff_cost_function.h"
 #include "veta/veta.h"
 #include "util/utils.h"
 
@@ -80,6 +79,16 @@ public:
           lj(lj),
           weight(weight) {}
 
+    static Ptr Create(double ti,
+                      double tj,
+                      const Eigen::Vector2d &fi,
+                      const Eigen::Vector2d &fj,
+                      double li,
+                      double lj,
+                      double weight) {
+        return std::make_shared<VisualReProjCorr>(ti, tj, fi, fj, li, lj, weight);
+    }
+
     VisualReProjCorr() = default;
 };
 
@@ -88,7 +97,7 @@ public:
     using Ptr = std::shared_ptr<VisualReProjCorrSeq>;
 
 public:
-    std::vector<VisualReProjCorr> corrs;
+    std::vector<VisualReProjCorr::Ptr> corrs;
 
     std::unique_ptr<double> invDepthFir;
 
@@ -105,7 +114,7 @@ template <int Order, int TimeDeriv>
 struct VisualReProjFactor {
 private:
     ns_ctraj::SplineMeta<Order> _so3Meta, _scaleMeta;
-    VisualReProjCorr _corr;
+    VisualReProjCorr::Ptr _corr;
 
     double _so3DtInv, _scaleDtInv;
     double _weight;
@@ -113,7 +122,7 @@ private:
 public:
     explicit VisualReProjFactor(ns_ctraj::SplineMeta<Order> rotMeta,
                                 ns_ctraj::SplineMeta<Order> linScaleMeta,
-                                VisualReProjCorr visualCorr,
+                                VisualReProjCorr::Ptr visualCorr,
                                 double weight)
         : _so3Meta(rotMeta),
           _scaleMeta(std::move(linScaleMeta)),
@@ -124,7 +133,7 @@ public:
 
     static auto Create(const ns_ctraj::SplineMeta<Order> &rotMeta,
                        const ns_ctraj::SplineMeta<Order> &linScaleMeta,
-                       const VisualReProjCorr &visualCorr,
+                       const VisualReProjCorr::Ptr &visualCorr,
                        double weight) {
         return new ceres::DynamicAutoDiffCostFunction<VisualReProjFactor>(
             new VisualReProjFactor(rotMeta, linScaleMeta, visualCorr, weight));
@@ -138,14 +147,14 @@ public:
                            Sophus::SO3<T> *SO3_BrToBr0,
                            Eigen::Vector3<T> *POS_BrInBr0) const {
         std::pair<std::size_t, T> iuSo3, iuScale;
-        _so3Meta.template ComputeSplineIndex(*timeByBr, iuSo3.first, iuSo3.second);
-        _scaleMeta.template ComputeSplineIndex(*timeByBr, iuScale.first, iuScale.second);
+        _so3Meta.ComputeSplineIndex(*timeByBr, iuSo3.first, iuSo3.second);
+        _scaleMeta.ComputeSplineIndex(*timeByBr, iuScale.first, iuScale.second);
 
         std::size_t SO3_OFFSET = iuSo3.first;
         std::size_t LIN_SCALE_OFFSET = iuScale.first + _so3Meta.NumParameters();
 
-        ns_ctraj::CeresSplineHelperJet<T, Order>::template EvaluateLie(
-            sKnots + SO3_OFFSET, iuSo3.second, _so3DtInv, SO3_BrToBr0);
+        ns_ctraj::CeresSplineHelperJet<T, Order>::EvaluateLie(sKnots + SO3_OFFSET, iuSo3.second,
+                                                              _so3DtInv, SO3_BrToBr0);
 
         ns_ctraj::CeresSplineHelperJet<T, Order>::template Evaluate<3, TimeDeriv>(
             sKnots + LIN_SCALE_OFFSET, iuScale.second, _scaleDtInv, POS_BrInBr0);
@@ -213,13 +222,13 @@ public:
         T DEPTH = (T)1.0 / INV_DEPTH;
 
         // calculate the so3 and lin scale offset for i-feat
-        T timeIByBr = _corr.ti + TO_CmToBr + _corr.li * READOUT_TIME;
+        T timeIByBr = _corr->ti + TO_CmToBr + _corr->li * READOUT_TIME;
         Sophus::SE3<T> SE3_BrToBr0_I;
         ComputeSE3BrToBr0<T>(sKnots, &timeIByBr, &SE3_BrToBr0_I.so3(),
                              &SE3_BrToBr0_I.translation());
 
         // calculate the so3 and lin scale offset for j-feat
-        auto timeJByBr = _corr.tj + TO_CmToBr + _corr.lj * READOUT_TIME;
+        auto timeJByBr = _corr->tj + TO_CmToBr + _corr->lj * READOUT_TIME;
         Sophus::SE3<T> SE3_BrToBr0_J;
         ComputeSE3BrToBr0<T>(sKnots, &timeJByBr, &SE3_BrToBr0_J.so3(),
                              &SE3_BrToBr0_J.translation());
@@ -228,7 +237,7 @@ public:
         Sophus::SE3<T> SE3_CmIToCmJ = SE3_CmToBr.inverse() * SE3_BrIToBrJ * SE3_CmToBr;
 
         Eigen::Vector3<T> PI;
-        TransformImgToCam<T>(&FX_INV, &FY_INV, &CX, &CY, _corr.fi.cast<T>(), &PI);
+        TransformImgToCam<T>(&FX_INV, &FY_INV, &CX, &CY, _corr->fi.cast<T>(), &PI);
         PI *= DEPTH * GLOBAL_SCALE;
 
         Eigen::Vector3<T> PJ = SE3_CmIToCmJ * PI;
@@ -237,7 +246,7 @@ public:
         TransformCamToImg<T>(&FX, &FY, &CX, &CY, PJ, &fjPred);
 
         Eigen::Map<Eigen::Vector2<T>> residuals(sResiduals);
-        residuals = fjPred - _corr.fj.cast<T>();
+        residuals = fjPred - _corr->fj.cast<T>();
         residuals = T(_weight) * residuals;
 
         return true;

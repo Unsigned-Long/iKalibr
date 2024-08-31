@@ -44,6 +44,9 @@
 #include "cereal/types/utility.hpp"
 #include "cereal/types/list.hpp"
 #include "util/tqdm.h"
+#include "factor/visual_reproj_factor.hpp"
+#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/point_to_surfel_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -791,16 +794,16 @@ void CalibSolverIO::SaveVisualReprojectionError() {
             const double INV_DEPTH = *corrs->invDepthFir;
             const double DEPTH = 1.0 / INV_DEPTH;
 
-            for (const auto &_corr : corrs->corrs) {
+            for (const auto &corr : corrs->corrs) {
                 // calculate the so3 and lin scale offset for i-feat
-                double timeIByBr = _corr.ti + TO_CmToBr + _corr.li * READOUT_TIME;
+                double timeIByBr = corr->ti + TO_CmToBr + corr->li * READOUT_TIME;
                 auto SE3_BrToBr0_I = _solver->CurBrToW(timeIByBr);
                 if (SE3_BrToBr0_I == std::nullopt) {
                     continue;
                 }
 
                 // calculate the so3 and lin scale offset for j-feat
-                auto timeJByBr = _corr.tj + TO_CmToBr + _corr.lj * READOUT_TIME;
+                auto timeJByBr = corr->tj + TO_CmToBr + corr->lj * READOUT_TIME;
                 auto SE3_BrToBr0_J = _solver->CurBrToW(timeJByBr);
                 if (SE3_BrToBr0_J == std::nullopt) {
                     continue;
@@ -810,7 +813,7 @@ void CalibSolverIO::SaveVisualReprojectionError() {
                 Sophus::SE3d SE3_CmIToCmJ = SE3_CmToBr.inverse() * SE3_BrIToBrJ * SE3_CmToBr;
 
                 Eigen::Vector3d PI;
-                VisualProjFactor::TransformImgToCam<double>(&FX_INV, &FY_INV, &CX, &CY, _corr.fi,
+                VisualProjFactor::TransformImgToCam<double>(&FX_INV, &FY_INV, &CX, &CY, corr->fi,
                                                             &PI);
                 PI *= DEPTH * GLOBAL_SCALE;
 
@@ -819,7 +822,7 @@ void CalibSolverIO::SaveVisualReprojectionError() {
                 Eigen::Vector2d fjPred;
                 VisualProjFactor::TransformCamToImg<double>(&FX, &FY, &CX, &CY, PJ, &fjPred);
 
-                Eigen::Vector2d residuals = fjPred - _corr.fj;
+                Eigen::Vector2d residuals = fjPred - corr->fj;
                 reprojErrors.push_back(residuals);
             }
         }

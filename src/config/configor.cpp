@@ -99,9 +99,9 @@ double Configor::Prior::NDTLiDAROdometer::KeyFrameDownSample = {};
 
 double Configor::Prior::LiDARDataAssociate::PointToSurfelMax = {};
 double Configor::Prior::LiDARDataAssociate::PlanarityMin = {};
-const double Configor::Prior::LiDARDataAssociate::QueryDepthMin = 1;
-const double Configor::Prior::LiDARDataAssociate::QueryDepthMax = 2;
-const double Configor::Prior::LiDARDataAssociate::SurfelPointMin = 100;
+const std::uint8_t Configor::Prior::LiDARDataAssociate::QueryDepthMin = 1;
+const std::uint8_t Configor::Prior::LiDARDataAssociate::QueryDepthMax = 2;
+const std::size_t Configor::Prior::LiDARDataAssociate::SurfelPointMin = 100;
 //   0,   1,   2,   3,   4, ...
 // 0.1, 0.2, 0.4, 0.8, 1.6, ...
 const double Configor::Prior::LiDARDataAssociate::MapResolution = 0.1;

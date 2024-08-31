@@ -35,7 +35,6 @@
 #ifndef IKALIBR_VISUAL_VELOCITY_DEPTH_FACTOR_HPP
 #define IKALIBR_VISUAL_VELOCITY_DEPTH_FACTOR_HPP
 
-#include <utility>
 #include "factor/rgbd_velocity_factor.hpp"
 
 namespace {
