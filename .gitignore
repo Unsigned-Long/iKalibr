@@ -165,6 +165,21 @@ add_gitmodules.sh
 !/data/real-world/iKalibr-data-2024-06-25-17-37-20/config-real.yaml
 !/data/real-world/iKalibr-data-2024-06-25-17-37-20/*-imu-intri.yaml
 
+!/data/vector
+!/data/vector/cam-left-intri-pinhole-brown.yaml
+!/data/vector/cam-right-intri-pinhole-brown.yaml
+
+/data/vector/desk-fast/*
+!/data/vector/desk-fast/config-real.yaml
+/data/vector/hdr-fast/*
+!/data/vector/hdr-fast/config-real.yaml
+/data/vector/mountain-fast/*
+!/data/vector/mountain-fast/config-real.yaml
+/data/vector/robot-fast/*
+!/data/vector/robot-fast/config-real.yaml
+/data/vector/sofa-fast/*
+!/data/vector/sofa-fast/config-real.yaml
+
 /docs/img/priori_constraints.drawio
 /docs/sensor_kit/iKalibr_result.png
 /docs/sensor_kit/iKalibr_kit.jpg
