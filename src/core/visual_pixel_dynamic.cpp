@@ -111,12 +111,12 @@ cv::Mat VisualPixelDynamic::CreatePixelDynamicMat(const ns_veta::PinholeIntrinsi
     }
     // draw mid-point dynamics (points in mid image)
     const auto& [midFrame, midFeat] = _movement.at(MID);
-    Eigen::Vector2d endPixel = midFeat - 0.1 * midVel;
+    Eigen::Vector2d endPixel = midFeat + 0.1 * midVel;
     DrawLineOnCVMat(imgs[MID], midFeat, endPixel);
 
     // concat images
     for (int i = 0; i < static_cast<int>(_movement.size()); ++i) {
-        imgs[i] = GetInRangeSubMat(imgs[i], _movement.at(i).second, 200);
+        imgs[i] = GetInRangeSubMat(imgs[i], _movement.at(MID).second, 120);
     }
     cv::Mat img;
     cv::hconcat(imgs[0], imgs[1], img);

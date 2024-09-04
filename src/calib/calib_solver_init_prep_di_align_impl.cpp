@@ -191,6 +191,7 @@ void CalibSolver::InitPrepRGBDInertialAlign() {
                 Configor::DataStream::RGBDTopics.at(topic).Type));
 
         // reorganize rgbd-dynamics, store them by frame index
+        const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
         std::map<CameraFrame::Ptr, std::vector<RGBDVelocityCorr::Ptr>> dynamicsInFrame;
         for (const auto &dynamic : dynamics) {
             auto midCamFrame = dynamic->GetMidCameraFrame();
@@ -201,15 +202,24 @@ void CalibSolver::InitPrepRGBDInertialAlign() {
             // a valid depth
             dynamicsInFrame[midCamFrame].emplace_back(corr);
 
-            // show the visual pixel dynamic image (tracking features, mid-point pixel velocity)
-            // auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic)->intri,
-            //                                           corr->MidPointVel(readout));
+            // if (Eigen::Vector2d vel = corr->MidPointVel(readout);
+            //     vel.norm() > Configor::Prior::LossForRGBDFactor) {
+            //     // show the visual pixel dynamic image (features, mid-point pixel velocity)
+            //     auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic)->intri,
+            //                                               corr->MidPointVel(readout));
+            //     Eigen::Vector2d mp = corr->MidPoint();
+            //     const auto filename =
+            //         fmt::format("{}/{}-{}-{}.png", Configor::DataStream::DebugPath,
+            //                     corr->frame->GetId(), int(mp(0)), int(mp(1)));
+            //     cv::imwrite(filename, img);
+            //     cv::imshow("img", img);
+            //     cv::waitKey(0);
+            // }
         }
 
         // estimate rgbd-derived linear velocities for each frame
         const auto &rgbdIntri = _parMagr->INTRI.RGBD.at(topic);
         const double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
-        const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
         const Sophus::SO3d &SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
         for (const auto &[frame, corrVec] : dynamicsInFrame) {
             const double timeByBr = frame->GetTimestamp() + TO_DnToBr;
