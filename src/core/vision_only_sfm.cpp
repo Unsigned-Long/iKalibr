@@ -34,6 +34,7 @@
 
 #include "core/vision_only_sfm.h"
 #include "util/status.hpp"
+#include "util/utils_tpl.hpp"
 
 #include "calib/calib_param_manager.h"
 #include "calib/estimator.h"

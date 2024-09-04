@@ -35,6 +35,7 @@
 #include "calib/spat_temp_priori.h"
 #include "config/configor.h"
 #include "util/status.hpp"
+#include "util/utils_tpl.hpp"
 #include "sensor/camera_data_loader.h"
 #include "calib/estimator.h"
 #include "calib/calib_param_manager.h"

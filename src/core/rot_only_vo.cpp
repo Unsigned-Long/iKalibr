@@ -36,6 +36,7 @@
 #include "sensor/camera.h"
 #include "calib/calib_param_manager.h"
 #include "util/status.hpp"
+#include "util/utils_tpl.hpp"
 
 #include "opencv2/highgui.hpp"
 #include "opencv2/video/tracking.hpp"

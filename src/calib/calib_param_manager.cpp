@@ -34,6 +34,7 @@
 
 #include "calib/calib_param_manager.h"
 #include "util/status.hpp"
+#include "util/utils_tpl.hpp"
 #include "spdlog/fmt/bundled/color.h"
 #include "opencv2/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"

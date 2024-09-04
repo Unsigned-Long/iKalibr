@@ -42,6 +42,7 @@
 #include "ctraj/spline/ceres_spline_helper_jet.h"
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "util/utils.h"
+#include "util/utils_tpl.hpp"
 #include "sensor/camera.h"
 
 namespace {

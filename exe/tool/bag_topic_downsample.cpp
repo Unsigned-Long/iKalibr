@@ -37,6 +37,7 @@
 #include "spdlog/fmt/bundled/color.h"
 #include "spdlog/spdlog.h"
 #include "util/status.hpp"
+#include "util/utils_tpl.hpp"
 #include "filesystem"
 #include "rosbag/bag.h"
 #include "rosbag/view.h"

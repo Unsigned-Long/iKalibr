@@ -50,6 +50,7 @@
 #include "factor/prior_time_offset_factor.hpp"
 #include "factor/visual_velocity_depth_factor.hpp"
 #include "calib/spat_temp_priori.h"
+#include "util/utils_tpl.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

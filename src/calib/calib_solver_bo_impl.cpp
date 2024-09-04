@@ -34,6 +34,7 @@
 
 #include "calib/calib_solver_tpl.hpp"
 #include "magic_enum_flags.hpp"
+#include "util/utils_tpl.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

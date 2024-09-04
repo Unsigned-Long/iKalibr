@@ -35,6 +35,7 @@
 #include "util/utils.h"
 #include "spdlog/spdlog.h"
 #include "util/status.hpp"
+#include "util/utils_tpl.hpp"
 #include "cereal/types/utility.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include "sensor_msgs/Image.h"

@@ -42,6 +42,7 @@
 #include "factor/point_to_surfel_factor.hpp"
 #include "factor/visual_reproj_factor.hpp"
 #include "factor/rgbd_velocity_factor.hpp"
+#include "util/utils_tpl.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

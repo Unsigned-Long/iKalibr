@@ -36,6 +36,7 @@
 #include "spdlog/spdlog.h"
 #include "config/configor.h"
 #include "util/status.hpp"
+#include "util/utils_tpl.hpp"
 #include "calib/calib_solver.h"
 #include "cereal/types/utility.hpp"
 #include "cereal/types/list.hpp"

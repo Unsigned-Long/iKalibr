@@ -35,6 +35,7 @@
 #include "ros/ros.h"
 #include "spdlog/spdlog.h"
 #include "util/utils.h"
+#include "util/utils_tpl.hpp"
 #include "util/status.hpp"
 #include "cereal/types/utility.hpp"
 #include "rosbag/bag.h"

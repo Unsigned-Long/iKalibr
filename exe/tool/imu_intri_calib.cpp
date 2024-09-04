@@ -37,6 +37,7 @@
 #include "util/status.hpp"
 #include "spdlog/fmt/bundled/color.h"
 #include "nofree/imu_intri_calib.h"
+#include "util/utils_tpl.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

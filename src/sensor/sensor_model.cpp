@@ -34,6 +34,7 @@
 
 #include "sensor/sensor_model.h"
 #include "spdlog/spdlog.h"
+#include "util/utils_tpl.hpp"
 
 namespace ns_ikalibr {
 
