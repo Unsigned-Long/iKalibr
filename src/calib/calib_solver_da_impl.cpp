@@ -447,6 +447,10 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
                 corr->invDepth = 1.0 / corr->depth;
                 ++estDepthCount;
             }
+            // const double depth = intri->ActualDepth(corr->depth);
+            // corr->weight = 1.0 / (depth > 1E-3 ? depth : 1.0);
+            const double pVelNorm = corr->MidPointVel(readout).norm();
+            corr->weight = pVelNorm / (pVelNorm + Configor::Prior::LossForRGBDFactor);
 
             curCorrs.push_back(corr);
         }
@@ -459,16 +463,15 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
             "count: {}, with depth observability: {}",
             topic, curCorrs.size(), estDepthCount, dObvCount);
 
-        // std::default_random_engine engine(
-        //     std::chrono::system_clock::now().time_since_epoch().count());
-        // constexpr int CorrCountPerFrame = 20;
-        // auto desiredCount = CorrCountPerFrame * _dataMagr->GetRGBDMeasurements(topic).size();
-        // if (desiredCount < curCorrs.size()) {
-        //     curCorrs = SamplingWoutReplace2(engine, curCorrs, desiredCount);
-        //     spdlog::info("total correspondences count for rgbd '{}' after down sampled: {}",
-        //     topic,
-        //                  curCorrs.size());
-        // }
+        std::default_random_engine engine(
+            std::chrono::system_clock::now().time_since_epoch().count());
+        constexpr int CorrCountPerFrame = 50;
+        auto desiredCount = CorrCountPerFrame * _dataMagr->GetRGBDMeasurements(topic).size();
+        if (desiredCount < curCorrs.size()) {
+            curCorrs = SamplingWoutReplace2(engine, curCorrs, desiredCount);
+            spdlog::info("total correspondences count for rgbd '{}' after down sampled: {}", topic,
+                         curCorrs.size());
+        }
     }
     return corrs;
 }

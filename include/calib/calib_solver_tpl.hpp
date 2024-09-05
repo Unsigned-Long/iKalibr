@@ -103,13 +103,9 @@ void CalibSolver::AddRGBDVelocityFactor(Estimator::Ptr &estimator,
                                         const std::vector<RGBDVelocityCorr::Ptr> &corrs,
                                         Estimator::Opt option) {
     double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
-    const auto &intri = _parMagr->INTRI.RGBD.at(rgbdTopic);
     for (const auto &corr : corrs) {
-        double depth = intri->ActualDepth(corr->depth);
-        estimator->AddRGBDVelocityConstraint<type, IsInvDepth>(
-            corr, rgbdTopic, option,
-            // large depth (small inverse depth) is more difficult to perform rgbd data association
-            weight / (depth > 1E-3 ? depth : 1.0));
+        estimator->AddRGBDVelocityConstraint<type, IsInvDepth>(corr, rgbdTopic, option,
+                                                               weight * corr->weight);
     }
 }
 }  // namespace ns_ikalibr

@@ -67,6 +67,7 @@ public:
     CameraFrame::Ptr frame;
     // if this dynamic is with depth observability
     bool withDepthObservability;
+    double weight = 1.0;
 
 public:
     RGBDVelocityCorr(const std::array<double, 3> &timeAry,
