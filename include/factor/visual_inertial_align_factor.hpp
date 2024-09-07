@@ -44,6 +44,7 @@
 #include "ctraj/core/pose.hpp"
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "util/utils.h"
+#include "config/configor.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -108,6 +109,8 @@ protected:
     }
 };
 
+extern template struct VisualInertialAlignHelper<Configor::Prior::SplineOrder>;
+
 template <int Order>
 struct VisualInertialAlignFactor {
 private:
@@ -168,6 +171,8 @@ public:
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+
+extern template struct VisualInertialAlignFactor<Configor::Prior::SplineOrder>;
 }  // namespace ns_ikalibr
 
 #endif  // IKALIBR_VISUAL_INERTIAL_ALIGN_FACTOR_HPP

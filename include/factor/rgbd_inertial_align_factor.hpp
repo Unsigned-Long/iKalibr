@@ -45,6 +45,7 @@
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "sensor/camera.h"
 #include "spdlog/spdlog.h"
+#include "config/configor.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -101,6 +102,8 @@ protected:
     }
 };
 
+extern template struct RGBDInertialAlignHelper<Configor::Prior::SplineOrder>;
+
 template <int Order>
 struct RGBDInertialAlignFactor {
 private:
@@ -151,6 +154,8 @@ public:
         return true;
     }
 };
+
+extern template struct RGBDInertialAlignFactor<Configor::Prior::SplineOrder>;
 }  // namespace ns_ikalibr
 
 #endif  // IKALIBR_RGBD_INERTIAL_ALIGN_FACTOR_HPP

@@ -47,6 +47,7 @@
 #include "core/radar_velocity_sac.h"
 #include "opengv/sac/Ransac.hpp"
 #include "spdlog/spdlog.h"
+#include "config/configor.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -129,6 +130,8 @@ protected:
     }
 };
 
+extern template struct RadarInertialAlignHelper<Configor::Prior::SplineOrder>;
+
 template <int Order>
 struct RadarInertialAlignFactor {
 private:
@@ -179,5 +182,8 @@ public:
         return true;
     }
 };
+
+extern template struct RadarInertialAlignFactor<Configor::Prior::SplineOrder>;
+
 }  // namespace ns_ikalibr
 #endif  // IKALIBR_RADAR_INERTIAL_ALIGN_FACTOR_HPP

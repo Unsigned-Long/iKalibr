@@ -193,6 +193,7 @@ aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/sensor SENSOR_SRC_FILES)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/config CONFIG_SRC_FILES)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/viewer VIEWER_SRC_FILES)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/util UTIL_SRC_FILES)
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/factor FACTOR_SRC_FILES)
 
 
 ## Specify additional locations of header files
@@ -220,6 +221,7 @@ target_link_libraries(
         ctraj
         veta
 )
+
 #####################
 # libikalibr_sensor #
 #####################
@@ -245,35 +247,8 @@ target_link_libraries(
 )
 
 #####################
-# libikalibr_viewer #
-#####################
-
-add_library(
-        ${PROJECT_NAME}_viewer SHARED
-        # source files
-        ${VIEWER_SRC_FILES}
-)
-
-target_include_directories(
-        ${PROJECT_NAME}_viewer PUBLIC
-        # include
-        ${catkin_INCLUDE_DIRS}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(
-        ${PROJECT_NAME}_viewer PUBLIC
-        ${catkin_LIBRARIES}
-        # thirdparty
-        ctraj
-        veta
-        UFO::Map
-)
-
-#####################
 # libikalibr_config #
 #####################
-
 add_library(
         ${PROJECT_NAME}_config SHARED
         # source files
@@ -295,10 +270,73 @@ target_link_libraries(
         veta
 )
 
+#####################
+# libikalibr_factor #
+#####################
+add_library(
+        ${PROJECT_NAME}_factor SHARED
+        # source files
+        ${FACTOR_SRC_FILES}
+)
+
+target_include_directories(
+        ${PROJECT_NAME}_factor PUBLIC
+        # include
+        ${catkin_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(
+        ${PROJECT_NAME}_factor PUBLIC
+        ${catkin_LIBRARIES}
+        # thirdparty
+        ctraj
+        veta
+        UFO::Map
+        opengv
+)
+######################
+# precompile headers #
+######################
+#file(GLOB FACTOR_HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/factor/*.h"
+#        "${CMAKE_CURRENT_SOURCE_DIR}/include/factor/*.hpp")
+#target_precompile_headers(
+#        ${PROJECT_NAME}_factor PUBLIC
+#        ${FACTOR_HEADER_FILES}
+#)
+
+#####################
+# libikalibr_viewer #
+#####################
+add_library(
+        ${PROJECT_NAME}_viewer SHARED
+        # source files
+        ${VIEWER_SRC_FILES}
+)
+
+target_include_directories(
+        ${PROJECT_NAME}_viewer PUBLIC
+        # include
+        ${catkin_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(
+        ${PROJECT_NAME}_viewer PUBLIC
+        ${catkin_LIBRARIES}
+        # thirdparty
+        ctraj
+        veta
+        UFO::Map
+        ${PROJECT_NAME}_factor
+)
+#target_precompile_headers(
+#        ${PROJECT_NAME}_viewer REUSE_FROM
+#        ${PROJECT_NAME}_factor
+#)
 ###################
 # libikalibr_core #
 ###################
-
 add_library(
         ${PROJECT_NAME}_core SHARED
         # source files
@@ -320,13 +358,15 @@ target_link_libraries(
         veta
         opengv
         UFO::Map
+        ${PROJECT_NAME}_factor
 )
-
-
+#target_precompile_headers(
+#        ${PROJECT_NAME}_core REUSE_FROM
+#        ${PROJECT_NAME}_factor
+#)
 ####################
 # libikalibr_calib #
 ####################
-
 add_library(
         ${PROJECT_NAME}_calib SHARED
         # source files
@@ -348,8 +388,12 @@ target_link_libraries(
         veta
         opengv
         UFO::Map
+        ${PROJECT_NAME}_factor
 )
-
+#target_precompile_headers(
+#        ${PROJECT_NAME}_calib REUSE_FROM
+#        ${PROJECT_NAME}_factor
+#)
 ###################################
 ## catkin specific configuration ##
 ###################################

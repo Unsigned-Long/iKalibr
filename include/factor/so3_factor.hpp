@@ -42,6 +42,7 @@
 #include "ctraj/spline/ceres_spline_helper_jet.h"
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "util/utils.h"
+#include "config/configor.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -107,6 +108,8 @@ public:
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+
+extern template struct SO3Factor<Configor::Prior::SplineOrder>;
 }  // namespace ns_ikalibr
 
 #endif  // IKALIBR_SO3_FACTOR_HPP

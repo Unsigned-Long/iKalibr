@@ -44,6 +44,7 @@
 #include "util/utils.h"
 #include "util/utils_tpl.hpp"
 #include "sensor/camera.h"
+#include "config/configor.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -290,6 +291,13 @@ public:
         return true;
     }
 };
+
+extern template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 2, true>;
+extern template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 2, false>;
+extern template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 1, true>;
+extern template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 1, false>;
+extern template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 0, true>;
+extern template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 0, false>;
 }  // namespace ns_ikalibr
 
 #endif  // IKALIBR_RGBD_VELOCITY_FACTOR_HPP

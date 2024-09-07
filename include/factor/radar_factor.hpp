@@ -43,6 +43,7 @@
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "sensor/radar.h"
 #include "util/utils.h"
+#include "config/configor.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -136,6 +137,9 @@ public:
     }
 };
 
+extern template struct RadarFactor<Configor::Prior::SplineOrder, 2>;
+extern template struct RadarFactor<Configor::Prior::SplineOrder, 1>;
+extern template struct RadarFactor<Configor::Prior::SplineOrder, 0>;
 }  // namespace ns_ikalibr
 
 #endif  // IKALIBR_RADAR_FACTOR_HPP

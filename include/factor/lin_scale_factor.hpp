@@ -43,6 +43,7 @@
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "sensor/imu.h"
 #include "util/utils.h"
+#include "config/configor.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -107,6 +108,10 @@ public:
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+
+extern template struct LinearScaleDerivFactor<Configor::Prior::SplineOrder, 2>;
+extern template struct LinearScaleDerivFactor<Configor::Prior::SplineOrder, 1>;
+extern template struct LinearScaleDerivFactor<Configor::Prior::SplineOrder, 0>;
 }  // namespace ns_ikalibr
 
 #endif  // IKALIBR_LIN_SCALE_FACTOR_HPP

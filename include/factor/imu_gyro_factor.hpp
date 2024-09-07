@@ -43,6 +43,7 @@
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "sensor/imu.h"
 #include "util/utils.h"
+#include "config/configor.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -130,6 +131,8 @@ public:
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+
+extern template struct IMUGyroFactor<Configor ::Prior::SplineOrder>;
 }  // namespace ns_ikalibr
 
 #endif  // IKALIBR_IMU_GYRO_FACTOR_HPP
