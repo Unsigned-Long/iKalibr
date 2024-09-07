@@ -63,7 +63,7 @@ Configor:
           DepthFactor: 0.001
           # too large weight would lead to poor convergence
           Weight: 0.1
-          TrackLengthMin: 3
+          TrackLengthMin: 5
       - key: "/camera/right/image_mono_undistort"
         value:
           Type: "SENSOR_IMAGE_GS"
@@ -74,7 +74,7 @@ Configor:
           # {real depth} = abs{DepthFactor} / {image depth}, if 'DepthFactor' is negative (depth images are inverse ones)
           DepthFactor: 0.001
           Weight: 0.1
-          TrackLengthMin: 3
+          TrackLengthMin: 5
     ReferIMU: "/imu/data"
     BagPath: "/home/csl/dataset/vector/mountain_fast/mountain_fast1.synced.bag"
     # the time piece: [BegTime, BegTime + Duration], unit: second(s)

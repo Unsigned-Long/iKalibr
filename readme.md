@@ -31,9 +31,11 @@ For more details, please refer to our article :point_down::
 ---
 
 <p align="middle">
-    <a href="https://www.bilibili.com/video/BV1Dm421G7FV/?vd_source=87245258ec5029cca67d77cef1a6201d"><strong>« Demo Video of iKalibr (Click To Jump) »</strong></a>
+    <a href="https://www.bilibili.com/video/BV1Dm421G7FV/?vd_source=87245258ec5029cca67d77cef1a6201d"><strong>« Demo Video of iKalibr »</strong></a>
 </p> 
 <p align="center"><i>"Targetless, Spatial & Temporal, Resilient, Easy To Use, You Only Calibrate Once"</i></p>
+
+<div align=center><img src="docs/img/supported_sensors.drawio.svg" width =100%></div>
 
 ---
 
