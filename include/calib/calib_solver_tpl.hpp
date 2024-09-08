@@ -100,7 +100,7 @@ void CalibSolver::AddVisualReprojectionFactor(Estimator::Ptr &estimator,
 template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
 void CalibSolver::AddRGBDVelocityFactor(Estimator::Ptr &estimator,
                                         const std::string &rgbdTopic,
-                                        const std::vector<RGBDVelocityCorr::Ptr> &corrs,
+                                        const std::vector<OpticalFlowCorr::Ptr> &corrs,
                                         Estimator::Opt option) {
     double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
     for (const auto &corr : corrs) {

@@ -1474,7 +1474,7 @@ void Estimator::PrintUninvolvedKnots() const {
  * [ LIN_VEL_CmToWInCm | DEPTH ]
  */
 void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
-                                             const RGBDVelocityCorr::Ptr &corr,
+                                             const OpticalFlowCorr::Ptr &corr,
                                              double TO_CamToBr,
                                              double readout,
                                              const Sophus::SO3d &SO3_CamToBr,
@@ -1524,7 +1524,7 @@ void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
 }
 
 void Estimator::AddVisualVelocityDepthFactorForRGBD(Eigen::Vector3d *LIN_VEL_CmToWInCm,
-                                                    const RGBDVelocityCorr::Ptr &corr,
+                                                    const OpticalFlowCorr::Ptr &corr,
                                                     const std::string &rgbdTopic,
                                                     double weight,
                                                     bool estDepth,

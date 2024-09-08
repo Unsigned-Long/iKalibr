@@ -648,7 +648,7 @@ void Estimator::AddVisualReprojection(const VisualReProjCorr::Ptr &visualCorr,
  *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH_INFO ]
  */
 template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-void Estimator::AddRGBDVelocityConstraint(const RGBDVelocityCorr::Ptr &velCorr,
+void Estimator::AddRGBDVelocityConstraint(const OpticalFlowCorr::Ptr &velCorr,
                                           const std::string &topic,
                                           Opt option,
                                           double weight) {

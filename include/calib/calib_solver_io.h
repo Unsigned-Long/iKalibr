@@ -36,6 +36,7 @@
 #define IKALIBR_CALIB_SOLVER_IO_H
 
 #include "util/cereal_archive_helper.hpp"
+#include "ctraj/core/pose.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

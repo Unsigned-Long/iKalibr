@@ -35,12 +35,12 @@
 #ifndef IKALIBR_CALIB_SOLVER_H
 #define IKALIBR_CALIB_SOLVER_H
 
-#include "calib/calib_param_manager.h"
 #include "calib/calib_data_manager.h"
-#include "calib/estimator.h"
+#include "calib/calib_param_manager.h"
 #include "calib/calib_solver_io.h"
-#include "viewer/viewer.h"
+#include "calib/estimator.h"
 #include "core/rot_only_vo.h"
+#include "viewer/viewer.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -48,8 +48,8 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-struct VisualPixelDynamic;
-using VisualPixelDynamicPtr = std::shared_ptr<VisualPixelDynamic>;
+struct OpticalFlowTripleTrace;
+using OpticalFlowTripleTracePtr = std::shared_ptr<OpticalFlowTripleTrace>;
 struct SpatialTemporalPriori;
 using SpatialTemporalPrioriPtr = std::shared_ptr<SpatialTemporalPriori>;
 struct LiDAROdometer;
@@ -271,12 +271,11 @@ protected:
 
     static void SaveStageCalibParam(const CalibParamManager::Ptr &par, const std::string &desc);
 
-    static std::vector<VisualPixelDynamicPtr> CreateVisualPixelDynamicForRGBD(
+    static std::vector<OpticalFlowTripleTracePtr> CreateOpticalFlowTraceForRGBD(
         const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList,
         const std::string &topic);
 
-    std::map<std::string, std::vector<RGBDVelocityCorrPtr>> DataAssociationForRGBDs(
-        bool estDepth);
+    std::map<std::string, std::vector<RGBDVelocityCorrPtr>> DataAssociationForRGBDs(bool estDepth);
 };
 
 struct CeresDebugCallBack : public ceres::IterationCallback {

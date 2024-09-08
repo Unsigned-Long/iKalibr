@@ -32,7 +32,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "core/visual_pixel_dynamic.h"
+#include "core/optical_flow_trace.h"
 #include "sensor/camera.h"
 #include "sensor/rgbd.h"
 #include "opencv2/imgproc.hpp"
@@ -45,61 +45,64 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-VisualPixelDynamic::VisualPixelDynamic(
+OpticalFlowTripleTrace::OpticalFlowTripleTrace(
     const std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3>& movement)
-    : _movement(movement) {}
+    : _trace(movement) {}
 
-VisualPixelDynamic::Ptr VisualPixelDynamic::Create(
+OpticalFlowTripleTrace::Ptr OpticalFlowTripleTrace::Create(
     const std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3>& movement) {
-    return std::make_shared<VisualPixelDynamic>(movement);
+    return std::make_shared<OpticalFlowTripleTrace>(movement);
 }
 
-const CameraFrame::Ptr& VisualPixelDynamic::GetMidCameraFrame() const {
-    return _movement.at(MID).first;
+const CameraFrame::Ptr& OpticalFlowTripleTrace::GetMidCameraFrame() const {
+    return _trace.at(MID).first;
 }
 
-RGBDVelocityCorr::Ptr VisualPixelDynamic::CreateRGBDVelocityCorr(const RGBDIntrinsics::Ptr& intri,
-                                                                 double rsExposureFactor,
-                                                                 bool rawDepth) const {
+OpticalFlowCorr::Ptr OpticalFlowTripleTrace::CreateOpticalFlowCorr(double rsExposureFactor) const {
     std::array<double, 3> timeAry{}, xAry{}, yAry{};
     for (int i = 0; i < 3; ++i) {
-        timeAry[i] = _movement[i].first->GetTimestamp();
-        xAry[i] = _movement[i].second(0);
-        yAry[i] = _movement[i].second(1);
+        timeAry[i] = _trace[i].first->GetTimestamp();
+        xAry[i] = _trace[i].second(0);
+        yAry[i] = _trace[i].second(1);
     }
-    const auto& midFrame = _movement.at(MID).first;
-    const Eigen::Vector2d& midPoint = _movement.at(MID).second;
-    double depth = -1.0;
-    if (auto rgbdFrame = std::dynamic_pointer_cast<RGBDFrame>(midFrame); rgbdFrame) {
+    return OpticalFlowCorr::Create(timeAry, xAry, yAry, -1.0, _trace.at(MID).first,
+                                   rsExposureFactor);
+}
+
+OpticalFlowCorr::Ptr OpticalFlowTripleTrace::CreateOpticalFlowCorr(
+    double rsExposureFactor, const RGBDIntrinsicsPtr& intri) const {
+    auto corr = CreateOpticalFlowCorr(rsExposureFactor);
+    if (auto rgbdFrame = std::dynamic_pointer_cast<RGBDFrame>(_trace.at(MID).first); rgbdFrame) {
         if (auto depthMat = rgbdFrame->GetDepthImage(); !depthMat.empty()) {
-            if (rawDepth) {
-                depth = depthMat.at<float>((int)midPoint(1), (int)midPoint(0));
+            const Eigen::Vector2d& midPoint = _trace.at(MID).second;
+            const auto rawDepth = depthMat.at<float>((int)midPoint(1), (int)midPoint(0));
+            if (intri == nullptr) {
+                corr->depth = rawDepth;
             } else {
-                depth = intri->ActualDepth(depthMat.at<float>((int)midPoint(1), (int)midPoint(0)));
+                corr->depth = intri->ActualDepth(rawDepth);
             }
         }
     }
-    auto depthMat = std::dynamic_pointer_cast<RGBDFrame>(midFrame)->GetDepthImage();
-    return RGBDVelocityCorr::Create(timeAry, xAry, yAry, depth, midFrame, rsExposureFactor);
+    return corr;
 }
 
 // -------------
 // visualization
 // -------------
-cv::Mat VisualPixelDynamic::CreatePixelDynamicMat(const ns_veta::PinholeIntrinsic::Ptr& intri,
-                                                  const Eigen::Vector2d& midVel) const {
+cv::Mat OpticalFlowTripleTrace::CreateOpticalFlowMat(const ns_veta::PinholeIntrinsic::Ptr& intri,
+                                                     const Eigen::Vector2d& midVel) const {
     std::array<cv::Mat, 3> imgs;
     // obtain images
-    for (int i = 0; i < static_cast<int>(_movement.size()); ++i) {
-        imgs[i] = CalibParamManager::ParIntri::UndistortImage(
-            intri, _movement.at(i).first->GetColorImage());
+    for (int i = 0; i < static_cast<int>(_trace.size()); ++i) {
+        imgs[i] =
+            CalibParamManager::ParIntri::UndistortImage(intri, _trace.at(i).first->GetColorImage());
     }
     // trace of point
     DrawTrace(imgs[MID], midVel, 2);
 
     // draw point in each image
-    for (int i = 0; i < static_cast<int>(_movement.size()); ++i) {
-        const auto& [frame, feat] = _movement.at(i);
+    for (int i = 0; i < static_cast<int>(_trace.size()); ++i) {
+        const auto& [frame, feat] = _trace.at(i);
         // draw point
         DrawKeypointOnCVMat(imgs[i], feat);
         // put index text
@@ -110,13 +113,13 @@ cv::Mat VisualPixelDynamic::CreatePixelDynamicMat(const ns_veta::PinholeIntrinsi
         PutTextOnCVMat(imgs[MID], fmt::format("{}", i), feat);
     }
     // draw mid-point dynamics (points in mid image)
-    const auto& [midFrame, midFeat] = _movement.at(MID);
+    const auto& [midFrame, midFeat] = _trace.at(MID);
     Eigen::Vector2d endPixel = midFeat + 0.1 * midVel;
     DrawLineOnCVMat(imgs[MID], midFeat, endPixel);
 
     // concat images
-    for (int i = 0; i < static_cast<int>(_movement.size()); ++i) {
-        imgs[i] = GetInRangeSubMat(imgs[i], _movement.at(MID).second, 120);
+    for (int i = 0; i < static_cast<int>(_trace.size()); ++i) {
+        imgs[i] = GetInRangeSubMat(imgs[i], _trace.at(MID).second, 120);
     }
     cv::Mat img;
     cv::hconcat(imgs[0], imgs[1], img);
@@ -124,9 +127,9 @@ cv::Mat VisualPixelDynamic::CreatePixelDynamicMat(const ns_veta::PinholeIntrinsi
     return img;
 }
 
-cv::Mat VisualPixelDynamic::GetInRangeSubMat(const cv::Mat& image,
-                                             const Eigen::Vector2d& p,
-                                             int padding) {
+cv::Mat OpticalFlowTripleTrace::GetInRangeSubMat(const cv::Mat& image,
+                                                 const Eigen::Vector2d& p,
+                                                 int padding) {
     int x = (int)p(0);
     int y = (int)p(1);
 
@@ -146,21 +149,21 @@ cv::Mat VisualPixelDynamic::GetInRangeSubMat(const cv::Mat& image,
     return result;
 }
 
-void VisualPixelDynamic::DrawTrace(cv::Mat& img,
-                                   const Eigen::Vector2d& midVel,
-                                   const int pixelDist) const {
+void OpticalFlowTripleTrace::DrawTrace(cv::Mat& img,
+                                       const Eigen::Vector2d& midVel,
+                                       const int pixelDist) const {
     const double duration =
-        _movement.back().first->GetTimestamp() - _movement.front().first->GetTimestamp();
-    const double sTime = _movement.front().first->GetTimestamp() - duration * 0.25;
-    const double eTime = _movement.back().first->GetTimestamp() + duration * 0.25;
+        _trace.back().first->GetTimestamp() - _trace.front().first->GetTimestamp();
+    const double sTime = _trace.front().first->GetTimestamp() - duration * 0.25;
+    const double eTime = _trace.back().first->GetTimestamp() + duration * 0.25;
     const double deltaTime = pixelDist / midVel.norm();
     std::array<double, 3> tData{};
     std::array<double, 3> xData{};
     std::array<double, 3> yData{};
     for (int i = 0; i < 3; ++i) {
-        tData[i] = _movement[i].first->GetTimestamp();
-        xData[i] = _movement[i].second(0);
-        yData[i] = _movement[i].second(1);
+        tData[i] = _trace[i].first->GetTimestamp();
+        xData[i] = _trace[i].second(0);
+        yData[i] = _trace[i].second(1);
     }
     double xLast = LagrangePolynomial<double, 3>(sTime, tData, xData);
     double yLast = LagrangePolynomial<double, 3>(sTime, tData, yData);

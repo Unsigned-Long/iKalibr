@@ -53,8 +53,8 @@ struct PointToSurfelCorr;
 using PointToSurfelCorrPtr = std::shared_ptr<PointToSurfelCorr>;
 struct VisualReProjCorr;
 using VisualReProjCorrPtr = std::shared_ptr<VisualReProjCorr>;
-struct RGBDVelocityCorr;
-using RGBDVelocityCorrPtr = std::shared_ptr<RGBDVelocityCorr>;
+struct OpticalFlowCorr;
+using RGBDVelocityCorrPtr = std::shared_ptr<OpticalFlowCorr>;
 
 struct OptOption {
     // myenumGenor Option OPT_SO3_SPLINE OPT_SCALE_SPLINE OPT_SO3_BiToBr OPT_POS_BiInBr

@@ -46,7 +46,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     OptOption::Option optOption,
     const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &ptsCorrs,
     const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualCorrs,
-    const std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> &rgbdCorrs) {
+    const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &rgbdCorrs) {
     auto GetOptString = [](OptOption::Option opt) -> std::string {
         std::stringstream stringStream;
         stringStream << magic_enum::enum_flags_name(opt);

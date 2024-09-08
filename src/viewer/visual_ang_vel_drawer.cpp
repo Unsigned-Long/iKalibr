@@ -116,7 +116,7 @@ cv::Mat VisualAngVelDrawer::CreateAngVelImg(const CameraFrame::Ptr &frame, float
 // ----------------------
 
 RGBDVisualAngVelDrawer::RGBDVisualAngVelDrawer(const std::string &topic,
-                                               const std::vector<RGBDVelocityCorr::Ptr> &corrs,
+                                               const std::vector<OpticalFlowCorr::Ptr> &corrs,
                                                SplineBundleType::Ptr splines,
                                                const CalibParamManager::Ptr &parMagr)
     : _splines(std::move(splines)) {
@@ -135,7 +135,7 @@ RGBDVisualAngVelDrawer::RGBDVisualAngVelDrawer(const std::string &topic,
 
 RGBDVisualAngVelDrawer::Ptr RGBDVisualAngVelDrawer::Create(
     const std::string &topic,
-    const std::vector<RGBDVelocityCorr::Ptr> &corrs,
+    const std::vector<OpticalFlowCorr::Ptr> &corrs,
     const SplineBundleType::Ptr &splines,
     const CalibParamManager::Ptr &parMagr) {
     return std::make_shared<RGBDVisualAngVelDrawer>(topic, corrs, splines, parMagr);

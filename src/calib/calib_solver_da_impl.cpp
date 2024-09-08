@@ -34,7 +34,7 @@
 
 #include "calib/calib_solver.h"
 #include "core/scan_undistortion.h"
-#include "core/visual_pixel_dynamic.h"
+#include "core/optical_flow_trace.h"
 #include "core/visual_reproj_association.h"
 #include "util/tqdm.h"
 #include "core/pts_association.h"
@@ -293,10 +293,10 @@ CalibSolver::DataAssociationForCameras() {
     return corrs;
 }
 
-std::vector<VisualPixelDynamic::Ptr> CalibSolver::CreateVisualPixelDynamicForRGBD(
+std::vector<OpticalFlowTripleTrace::Ptr> CalibSolver::CreateOpticalFlowTraceForRGBD(
     const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList,
     const std::string &topic) {
-    std::vector<VisualPixelDynamic::Ptr> dynamics;
+    std::vector<OpticalFlowTripleTrace::Ptr> dynamics;
     const int trackThd = Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin;
     for (const auto &trackInfo : trackInfoList) {
         for (const auto &[id, info] : trackInfo) {
@@ -323,14 +323,14 @@ std::vector<VisualPixelDynamic::Ptr> CalibSolver::CreateVisualPixelDynamicForRGB
                     iter2->first,
                     Eigen::Vector2d(iter2->second.undistorted.x, iter2->second.undistorted.y),
                 };
-                dynamics.push_back(VisualPixelDynamic::Create(movement));
+                dynamics.push_back(OpticalFlowTripleTrace::Create(movement));
             }
         }
     }
     return dynamics;
 }
 
-std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssociationForRGBDs(
+std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssociationForRGBDs(
     bool estDepth) {
     // add rgbd point cloud map
     // if (auto map = BuildGlobalMapOfRGBD(0.05f); map != nullptr) {
@@ -351,9 +351,9 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
 
-    std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> corrs;
+    std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> corrs;
 
-    for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
+    for (const auto &[topic, traceVec] : _dataMagr->GetRGBDOpticalFlowTrace()) {
         spdlog::info("perform data association for RGBD camera '{}'...", topic);
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
         const double fx = intri->intri->FocalX(), fy = intri->intri->FocalY();
@@ -371,12 +371,13 @@ std::map<std::string, std::vector<RGBDVelocityCorr::Ptr>> CalibSolver::DataAssoc
         Eigen::Vector3d POS_DnInBr = _parMagr->EXTRI.POS_DnInBr.at(topic);
 
         auto &curCorrs = corrs[topic];
-        curCorrs.reserve(dynamics.size());
+        curCorrs.reserve(traceVec.size());
 
         int estDepthCount = 0;
 
-        for (const auto &dynamic : dynamics) {
-            auto corr = dynamic->CreateRGBDVelocityCorr(intri, rsExposureFactor, true);
+        for (const auto &trace : traceVec) {
+            // we use raw depth here (intrinsics is nullptr)
+            auto corr = trace->CreateOpticalFlowCorr(rsExposureFactor, nullptr);
 
             double timeByBr = corr->MidPointTime(readout) + TO_DnToBr;
             if (!so3Spline.TimeStampInRange(timeByBr) || !scaleSpline.TimeStampInRange(timeByBr)) {

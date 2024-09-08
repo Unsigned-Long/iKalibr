@@ -52,15 +52,15 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-struct RGBDVelocityCorr {
+struct OpticalFlowCorr {
 public:
-    using Ptr = std::shared_ptr<RGBDVelocityCorr>;
+    using Ptr = std::shared_ptr<OpticalFlowCorr>;
     static constexpr int MID = 1;
 
 public:
     std::array<double, 3> timeAry;
-    std::array<double, 3> xDynamicAry;
-    std::array<double, 3> yDynamicAry;
+    std::array<double, 3> xTraceAry;
+    std::array<double, 3> yTraceAry;
     // row / image height - rsExpFactor
     std::array<double, 3> rdFactorAry;
     double depth;
@@ -71,15 +71,15 @@ public:
     double weight = 1.0;
 
 public:
-    RGBDVelocityCorr(const std::array<double, 3> &timeAry,
-                     const std::array<double, 3> &xDynamicAry,
-                     const std::array<double, 3> &yDynamicAry,
-                     double depth,
-                     const CameraFrame::Ptr &frame,
-                     double rsExpFactor)
+    OpticalFlowCorr(const std::array<double, 3> &timeAry,
+                    const std::array<double, 3> &xTraceAry,
+                    const std::array<double, 3> &yTraceAry,
+                    double depth,
+                    const CameraFrame::Ptr &frame,
+                    double rsExpFactor)
         : timeAry(timeAry),
-          xDynamicAry(xDynamicAry),
-          yDynamicAry(yDynamicAry),
+          xTraceAry(xTraceAry),
+          yTraceAry(yTraceAry),
           rdFactorAry(),
           depth(depth),
           invDepth(depth > 1E-3 ? 1.0 / depth : -1.0),
@@ -87,7 +87,7 @@ public:
           withDepthObservability(false) {
         int imgHeight = frame->GetImage().rows;
         for (int i = 0; i < 3; ++i) {
-            rdFactorAry[i] = yDynamicAry[i] / (double)imgHeight - rsExpFactor;
+            rdFactorAry[i] = yTraceAry[i] / (double)imgHeight - rsExpFactor;
         }
     }
 
@@ -97,12 +97,12 @@ public:
                       double depth,
                       const CameraFrame::Ptr &frame,
                       double rsExpFactor) {
-        return std::make_shared<RGBDVelocityCorr>(timeAry, xDynamicAry, yDynamicAry, depth, frame,
-                                                  rsExpFactor);
+        return std::make_shared<OpticalFlowCorr>(timeAry, xDynamicAry, yDynamicAry, depth, frame,
+                                                 rsExpFactor);
     }
 
     [[nodiscard]] Eigen::Vector2d MidPoint() const {
-        return {xDynamicAry.at(MID), yDynamicAry.at(MID)};
+        return {xTraceAry.at(MID), yTraceAry.at(MID)};
     }
 
     template <class Type>
@@ -119,16 +119,16 @@ public:
             for (int i = 0; i < 3; ++i) {
                 newTimeAry[i] = timeAry[i] + rdFactorAry[i] * readout;
             }
-            return {ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, xDynamicAry),
-                    ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, yDynamicAry)};
+            return {ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, xTraceAry),
+                    ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, yTraceAry)};
         } else {
             std::array<Type, 3> newTimeAry{};
             std::array<Type, 3> newXAry{};
             std::array<Type, 3> newYAry{};
             for (int i = 0; i < 3; ++i) {
                 newTimeAry[i] = timeAry[i] + rdFactorAry[i] * readout;
-                newXAry[i] = (Type)xDynamicAry[i];
-                newYAry[i] = (Type)yDynamicAry[i];
+                newXAry[i] = (Type)xTraceAry[i];
+                newYAry[i] = (Type)yTraceAry[i];
             }
             return {ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, newXAry),
                     ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, newYAry)};
@@ -141,7 +141,7 @@ struct RGBDVelocityFactor {
 private:
     ns_ctraj::SplineMeta<Order> _so3Meta, _scaleMeta;
 
-    RGBDVelocityCorr::Ptr _corr;
+    OpticalFlowCorr::Ptr _corr;
 
     double _so3DtInv, _scaleDtInv;
     double _weight;
@@ -149,7 +149,7 @@ private:
 public:
     explicit RGBDVelocityFactor(const ns_ctraj::SplineMeta<Order> &so3Meta,
                                 const ns_ctraj::SplineMeta<Order> &scaleMeta,
-                                RGBDVelocityCorr::Ptr corr,
+                                OpticalFlowCorr::Ptr corr,
                                 double weight)
         : _so3Meta(so3Meta),
           _scaleMeta(scaleMeta),
@@ -160,7 +160,7 @@ public:
 
     static auto Create(const ns_ctraj::SplineMeta<Order> &so3Meta,
                        const ns_ctraj::SplineMeta<Order> &scaleMeta,
-                       const RGBDVelocityCorr::Ptr &corr,
+                       const OpticalFlowCorr::Ptr &corr,
                        double weight) {
         return new ceres::DynamicAutoDiffCostFunction<RGBDVelocityFactor>(
             new RGBDVelocityFactor(so3Meta, scaleMeta, corr, weight));

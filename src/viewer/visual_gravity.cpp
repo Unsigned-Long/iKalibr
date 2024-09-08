@@ -117,7 +117,7 @@ cv::Mat VisualGravityDrawer::CreateGravityImg(const CameraFrame::Ptr &frame, flo
 // -----------------------
 
 RGBDVisualGravityDrawer::RGBDVisualGravityDrawer(const std::string &topic,
-                                                 const std::vector<RGBDVelocityCorr::Ptr> &corrs,
+                                                 const std::vector<OpticalFlowCorr::Ptr> &corrs,
                                                  SplineBundleType::Ptr splines,
                                                  const CalibParamManager::Ptr &parMagr)
     : _splines(std::move(splines)) {
@@ -136,7 +136,7 @@ RGBDVisualGravityDrawer::RGBDVisualGravityDrawer(const std::string &topic,
 
 RGBDVisualGravityDrawer::Ptr RGBDVisualGravityDrawer::Create(
     const std::string &topic,
-    const std::vector<RGBDVelocityCorr::Ptr> &corrs,
+    const std::vector<OpticalFlowCorr::Ptr> &corrs,
     const SplineBundleType::Ptr &splines,
     const CalibParamManager::Ptr &parMagr) {
     return std::make_shared<RGBDVisualGravityDrawer>(topic, corrs, splines, parMagr);

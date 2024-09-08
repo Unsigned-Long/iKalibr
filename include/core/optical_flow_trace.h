@@ -32,8 +32,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IKALIBR_VISUAL_PIXEL_DYNAMIC_H
-#define IKALIBR_VISUAL_PIXEL_DYNAMIC_H
+#ifndef IKALIBR_OPTICAL_FLOW_TRACE_H
+#define IKALIBR_OPTICAL_FLOW_TRACE_H
 
 #include "util/utils.h"
 #include "opencv4/opencv2/core.hpp"
@@ -45,36 +45,38 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-struct RGBDVelocityCorr;
-using RGBDVelocityCorrPtr = std::shared_ptr<RGBDVelocityCorr>;
+struct OpticalFlowCorr;
+using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
 struct RGBDIntrinsics;
 using RGBDIntrinsicsPtr = std::shared_ptr<RGBDIntrinsics>;
 
-class VisualPixelDynamic {
+struct OpticalFlowTripleTrace {
 public:
-    using Ptr = std::shared_ptr<VisualPixelDynamic>;
+    using Ptr = std::shared_ptr<OpticalFlowTripleTrace>;
     static constexpr int MID = 1;
 
 protected:
     // camera frame, pixel (undistorted)
-    std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3> _movement;
+    std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3> _trace;
 
 public:
-    explicit VisualPixelDynamic(
+    explicit OpticalFlowTripleTrace(
         const std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3>& movement);
 
     static Ptr Create(const std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3>& movement);
 
     [[nodiscard]] const CameraFrame::Ptr& GetMidCameraFrame() const;
 
+    [[nodiscard]] OpticalFlowCorrPtr CreateOpticalFlowCorr(double rsExposureFactor) const;
+
     // for rgbd cameras whose have depth images
-    [[nodiscard]] RGBDVelocityCorrPtr CreateRGBDVelocityCorr(const RGBDIntrinsicsPtr& intri,
-                                                             double rsExposureFactor,
-                                                             bool rawDepth) const;
+    // if rgbd intrinsic pointer is nullptr, use raw depth, otherwise, use actual depth (mapped one)
+    [[nodiscard]] OpticalFlowCorrPtr CreateOpticalFlowCorr(double rsExposureFactor,
+                                                           const RGBDIntrinsicsPtr& intri) const;
 
     // visualization
-    [[nodiscard]] cv::Mat CreatePixelDynamicMat(const ns_veta::PinholeIntrinsic::Ptr& intri,
-                                                const Eigen::Vector2d& midVel) const;
+    [[nodiscard]] cv::Mat CreateOpticalFlowMat(const ns_veta::PinholeIntrinsic::Ptr& intri,
+                                               const Eigen::Vector2d& midVel) const;
 
 protected:
     static cv::Mat GetInRangeSubMat(const cv::Mat& img, const Eigen::Vector2d& p, int padding);
@@ -83,4 +85,4 @@ protected:
 };
 }  // namespace ns_ikalibr
 
-#endif  // IKALIBR_VISUAL_PIXEL_DYNAMIC_H
+#endif  // IKALIBR_OPTICAL_FLOW_TRACE_H

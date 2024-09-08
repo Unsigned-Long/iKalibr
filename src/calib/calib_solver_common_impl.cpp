@@ -40,7 +40,7 @@
 #include "util/tqdm.h"
 #include "ros/package.h"
 #include "sensor/camera_data_loader.h"
-#include "core/visual_pixel_dynamic.h"
+#include "core/optical_flow_trace.h"
 #include "calib/spat_temp_priori.h"
 #include "core/vision_only_sfm.h"
 #include "factor/rgbd_velocity_factor.hpp"
@@ -636,9 +636,9 @@ ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) {
     veta->intrinsics.insert({INTRI_ID, intri->intri});
 
     ns_veta::IndexT LM_ID_COUNTER = 0;
-    for (const auto &dynamic : _dataMagr->GetRGBDPixelDynamics(topic)) {
+    for (const auto &dynamic : _dataMagr->GetRGBDOpticalFlowTrace(topic)) {
         // we use actual depth here
-        auto corr = dynamic->CreateRGBDVelocityCorr(intri, rsExposureFactor, false);
+        auto corr = dynamic->CreateOpticalFlowCorr(rsExposureFactor, intri);
         if (corr->depth < 1E-3 /* 1 mm */) {
             continue;
         }

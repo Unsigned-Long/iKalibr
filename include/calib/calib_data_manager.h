@@ -36,12 +36,12 @@
 #define IKALIBR_CALIB_DATA_MANAGER_H
 
 #include "config/configor.h"
-#include "util/status.hpp"
-#include "sensor/imu.h"
-#include "sensor/radar.h"
-#include "sensor/lidar.h"
 #include "sensor/camera.h"
+#include "sensor/imu.h"
+#include "sensor/lidar.h"
+#include "sensor/radar.h"
 #include "sensor/rgbd.h"
+#include "util/status.hpp"
 #include "veta/veta.h"
 
 namespace {
@@ -50,8 +50,8 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-struct VisualPixelDynamic;
-using VisualPixelDynamicPtr = std::shared_ptr<VisualPixelDynamic>;
+struct OpticalFlowTripleTrace;
+using OpticalFlowTripleTracePtr = std::shared_ptr<OpticalFlowTripleTrace>;
 
 class CalibDataManager {
 public:
@@ -66,7 +66,7 @@ private:
 
     std::map<std::string, ns_veta::Veta::Ptr> _sfmData;
 
-    std::map<std::string, std::vector<VisualPixelDynamicPtr>> _rgbdPixelDynamics;
+    std::map<std::string, std::vector<OpticalFlowTripleTracePtr>> _rgbdOpticalFlowTrace;
 
     double _rawStartTimestamp{};
     double _rawEndTimestamp{};
@@ -123,14 +123,14 @@ public:
 
     void SetSfMData(const std::string &camTopic, const ns_veta::Veta::Ptr &veta);
 
-    [[nodiscard]] const std::map<std::string, std::vector<VisualPixelDynamicPtr>> &
-    GetRGBDPixelDynamics() const;
+    [[nodiscard]] const std::map<std::string, std::vector<OpticalFlowTripleTracePtr>> &
+    GetRGBDOpticalFlowTrace() const;
 
-    [[nodiscard]] const std::vector<VisualPixelDynamicPtr> &GetRGBDPixelDynamics(
+    [[nodiscard]] const std::vector<OpticalFlowTripleTracePtr> &GetRGBDOpticalFlowTrace(
         const std::string &rgbdTopic) const;
 
-    void SetRGBDPixelDynamics(const std::string &rgbdTopic,
-                              const std::vector<VisualPixelDynamicPtr> &dynamics);
+    void SetRGBDOpticalFlowTrace(const std::string &rgbdTopic,
+                                 const std::vector<OpticalFlowTripleTracePtr> &dynamics);
 
     [[nodiscard]] double GetRawStartTimestamp() const;
 

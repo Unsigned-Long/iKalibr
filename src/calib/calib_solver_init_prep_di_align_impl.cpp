@@ -36,7 +36,7 @@
 #include "opencv2/highgui.hpp"
 #include "core/rotation_estimator.h"
 #include "util/tqdm.h"
-#include "core/visual_pixel_dynamic.h"
+#include "core/optical_flow_trace.h"
 #include "core/visual_velocity_sac.h"
 #include "factor/rgbd_velocity_factor.hpp"
 #include "tiny-viewer/object/camera.h"
@@ -179,24 +179,25 @@ void CalibSolver::InitPrepRGBDInertialAlign() {
     // --------------------------------------------------
     for (const auto &[topic, trackInfoList] : RGBDTrackingInfo) {
         // store
-        _dataMagr->SetRGBDPixelDynamics(topic,
-                                        CreateVisualPixelDynamicForRGBD(trackInfoList, topic));
+        _dataMagr->SetRGBDOpticalFlowTrace(topic,
+                                           CreateOpticalFlowTraceForRGBD(trackInfoList, topic));
     }
     // topic, camera frame, body-frame velocity
     auto &rgbdBodyFrameVels = _initAsset->rgbdBodyFrameVels;
-    for (const auto &[topic, dynamics] : _dataMagr->GetRGBDPixelDynamics()) {
+    for (const auto &[topic, traceVec] : _dataMagr->GetRGBDOpticalFlowTrace()) {
         spdlog::info("estimate RGBD-derived linear velocities for '{}'...", topic);
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
         const auto &rsExposureFactor =
             CameraModel::RSCameraExposureFactor(EnumCast::stringToEnum<CameraModelType>(
                 Configor::DataStream::RGBDTopics.at(topic).Type));
 
-        // reorganize rgbd-dynamics, store them by frame index
+        // reorganize rgbd-traceVec, store them by frame index
         const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
-        std::map<CameraFrame::Ptr, std::vector<RGBDVelocityCorr::Ptr>> dynamicsInFrame;
-        for (const auto &dynamic : dynamics) {
-            auto midCamFrame = dynamic->GetMidCameraFrame();
-            const auto &corr = dynamic->CreateRGBDVelocityCorr(intri, rsExposureFactor, false);
+        std::map<CameraFrame::Ptr, std::vector<OpticalFlowCorr::Ptr>> dynamicsInFrame;
+        for (const auto &trace : traceVec) {
+            auto midCamFrame = trace->GetMidCameraFrame();
+            // we use actual depth here (intrinsics is not nullptr)
+            const auto &corr = trace->CreateOpticalFlowCorr(rsExposureFactor, intri);
             if (corr->depth < 1E-3 /* 1 mm */) {
                 continue;
             }
@@ -205,8 +206,8 @@ void CalibSolver::InitPrepRGBDInertialAlign() {
 
             // if (Eigen::Vector2d vel = corr->MidPointVel(readout);
             //     vel.norm() > Configor::Prior::LossForRGBDFactor) {
-            //     // show the visual pixel dynamic image (features, mid-point pixel velocity)
-            //     auto img = dynamic->CreatePixelDynamicMat(_parMagr->INTRI.RGBD.at(topic)->intri,
+            //     // show the visual pixel trace image (features, mid-point pixel velocity)
+            //     auto img = trace->CreateOpticalFlowMat(_parMagr->INTRI.RGBD.at(topic)->intri,
             //                                               corr->MidPointVel(readout));
             //     Eigen::Vector2d mp = corr->MidPoint();
             //     const auto filename =

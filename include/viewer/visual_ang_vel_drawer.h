@@ -51,8 +51,8 @@ struct CalibParamManager;
 using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
 struct CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
-struct RGBDVelocityCorr;
-using RGBDVelocityCorrPtr = std::shared_ptr<RGBDVelocityCorr>;
+struct OpticalFlowCorr;
+using RGBDVelocityCorrPtr = std::shared_ptr<OpticalFlowCorr>;
 
 class VisualAngVelDrawer {
 public:

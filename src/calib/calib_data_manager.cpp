@@ -33,16 +33,16 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "calib/calib_data_manager.h"
+#include "core/optical_flow_trace.h"
+#include "opencv4/opencv2/imgcodecs.hpp"
 #include "rosbag/view.h"
-#include "spdlog/spdlog.h"
-#include "sensor/imu_data_loader.h"
-#include "sensor/radar_data_loader.h"
-#include "sensor/lidar_data_loader.h"
 #include "sensor/camera_data_loader.h"
 #include "sensor/depth_data_loader.h"
-#include "opencv4/opencv2/imgcodecs.hpp"
+#include "sensor/imu_data_loader.h"
+#include "sensor/lidar_data_loader.h"
+#include "sensor/radar_data_loader.h"
+#include "spdlog/spdlog.h"
 #include "util/tqdm.h"
-#include "core/visual_pixel_dynamic.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -745,18 +745,18 @@ const ns_veta::Veta::Ptr &CalibDataManager::GetSfMData(const std::string &camTop
 void CalibDataManager::SetSfMData(const std::string &camTopic, const ns_veta::Veta::Ptr &veta) {
     _sfmData[camTopic] = veta;
 }
-void CalibDataManager::SetRGBDPixelDynamics(const std::string &rgbdTopic,
-                                            const std::vector<VisualPixelDynamic::Ptr> &dynamics) {
-    _rgbdPixelDynamics[rgbdTopic] = dynamics;
+void CalibDataManager::SetRGBDOpticalFlowTrace(
+    const std::string &rgbdTopic, const std::vector<OpticalFlowTripleTrace::Ptr> &dynamics) {
+    _rgbdOpticalFlowTrace[rgbdTopic] = dynamics;
 }
 
-const std::map<std::string, std::vector<VisualPixelDynamicPtr>> &
-CalibDataManager::GetRGBDPixelDynamics() const {
-    return _rgbdPixelDynamics;
+const std::map<std::string, std::vector<OpticalFlowTripleTrace::Ptr>> &
+CalibDataManager::GetRGBDOpticalFlowTrace() const {
+    return _rgbdOpticalFlowTrace;
 }
 
-const std::vector<VisualPixelDynamicPtr> &CalibDataManager::GetRGBDPixelDynamics(
+const std::vector<OpticalFlowTripleTrace::Ptr> &CalibDataManager::GetRGBDOpticalFlowTrace(
     const std::string &rgbdTopic) const {
-    return _rgbdPixelDynamics.at(rgbdTopic);
+    return _rgbdOpticalFlowTrace.at(rgbdTopic);
 }
 }  // namespace ns_ikalibr

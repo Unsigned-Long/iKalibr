@@ -123,7 +123,7 @@ cv::Mat VisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame, float
 // ----------------------
 
 RGBDVisualLinVelDrawer::RGBDVisualLinVelDrawer(const std::string &topic,
-                                               const std::vector<RGBDVelocityCorr::Ptr> &corrs,
+                                               const std::vector<OpticalFlowCorr::Ptr> &corrs,
                                                SplineBundleType::Ptr splines,
                                                const CalibParamManager::Ptr &parMagr)
     : _splines(std::move(splines)) {
@@ -142,7 +142,7 @@ RGBDVisualLinVelDrawer::RGBDVisualLinVelDrawer(const std::string &topic,
 
 RGBDVisualLinVelDrawer::Ptr RGBDVisualLinVelDrawer::Create(
     const std::string &topic,
-    const std::vector<RGBDVelocityCorr::Ptr> &corrs,
+    const std::vector<OpticalFlowCorr::Ptr> &corrs,
     const SplineBundleType::Ptr &splines,
     const CalibParamManager::Ptr &parMagr) {
     return std::make_shared<RGBDVisualLinVelDrawer>(topic, corrs, splines, parMagr);

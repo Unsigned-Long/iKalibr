@@ -44,8 +44,8 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-struct RGBDVelocityCorr;
-using RGBDVelocityCorrPtr = std::shared_ptr<RGBDVelocityCorr>;
+struct OpticalFlowCorr;
+using RGBDVelocityCorrPtr = std::shared_ptr<OpticalFlowCorr>;
 
 class VisualVelocitySacProblem : public opengv::sac::SampleConsensusProblem<Eigen::Vector3d> {
 public:
