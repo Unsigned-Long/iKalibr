@@ -95,7 +95,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 + compile `ikalibr` package:
 
   ```sh
-  catkin_make -j8
+  catkin_make -j8 -DUSE_CMAKE_UNITY_BUILD=ON
   ```
 
 Congratulations :clap:, if everything goes well and no error happened. At the end, you would obtain several binary programs, such as `ikalibr_prog`, `ikalibr_imu_intri_calib`, etc. Each program is exactly an executable ros node, and can be launched by `rosrun` or provided `roslaunch` (recommend).

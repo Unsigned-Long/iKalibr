@@ -35,6 +35,15 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(ikalibr)
 
+set(USE_CMAKE_UNITY_BUILD ON CACHE STRINGS "whether use 'CMAKE_UNITY_BUILD' in building")
+
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16" AND USE_CMAKE_UNITY_BUILD)
+    set(CMAKE_UNITY_BUILD ON)
+    message(STATUS "use 'CMAKE_UNITY_BUILD' in building!")
+else ()
+    message(STATUS "do not use 'CMAKE_UNITY_BUILD' in building!")
+endif ()
+
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++17)
 set(CMAKE_BUILD_TYPE "RELEASE")
