@@ -40,6 +40,11 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "spdlog/spdlog.h"
 #include "sensor/lidar_data_loader.h"
+#include "tiny-viewer/object/radar.h"
+#include "tiny-viewer/object/lidar.h"
+#include "tiny-viewer/object/imu.h"
+#include "tiny-viewer/object/camera.h"
+#include "tiny-viewer/core/pose.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

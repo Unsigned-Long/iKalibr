@@ -37,7 +37,7 @@
 
 #include "config/configor.h"
 #include "tiny-viewer/core/multi_viewer.h"
-#include "tiny-viewer/entity/point_cloud.hpp"
+#include "tiny-viewer/object/aligned_cloud.hpp"
 #include "cereal/types/polymorphic.hpp"
 #include "ctraj/core/spline_bundle.h"
 #include "util/cloud_define.hpp"

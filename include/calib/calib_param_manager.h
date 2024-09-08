@@ -308,7 +308,7 @@ public:
     }
 
 private:
-    [[nodiscard]] std::vector<ns_viewer::Entity::Ptr> EntitiesForVisualization() const;
+    [[nodiscard]] std::vector<ns_viewer::EntityPtr> EntitiesForVisualization() const;
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

@@ -42,6 +42,8 @@
 #include "util/cloud_define.hpp"
 #include "spdlog/fmt/bundled/color.h"
 #include "util/utils_tpl.hpp"
+#include "tiny-viewer/object/aligned_cloud.hpp"
+#include "tiny-viewer/core/pose.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

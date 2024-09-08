@@ -34,6 +34,8 @@
 
 #include "nofree/data_collect_demo.h"
 #include "tiny-viewer/core/multi_viewer.h"
+#include "tiny-viewer/object/imu.h"
+#include "tiny-viewer/entity/line.h"
 #include "ros/package.h"
 #include "filesystem"
 #include "spdlog/spdlog.h"

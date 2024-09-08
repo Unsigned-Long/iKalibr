@@ -38,6 +38,12 @@
 #include "calib/calib_param_manager.h"
 #include "sensor/rgbd.h"
 #include "factor/point_to_surfel_factor.hpp"
+#include "tiny-viewer/object/landmark.h"
+#include "tiny-viewer/object/camera.h"
+#include "tiny-viewer/core/pose.hpp"
+#include "tiny-viewer/entity/arrow.h"
+#include "tiny-viewer/entity/line.h"
+#include "tiny-viewer/object/surfel.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

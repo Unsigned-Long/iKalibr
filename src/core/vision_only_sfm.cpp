@@ -41,6 +41,9 @@
 #include "sensor/camera.h"
 #include "viewer/viewer.h"
 
+#include "tiny-viewer/entity/cube.h"
+#include "tiny-viewer/entity/line.h"
+
 #include "boost/geometry.hpp"
 
 #include "opencv2/highgui.hpp"
