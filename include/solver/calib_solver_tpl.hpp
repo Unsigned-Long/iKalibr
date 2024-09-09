@@ -69,15 +69,28 @@ void CalibSolver::AddAcceFactor(Estimator::Ptr &estimator,
 }
 
 template <TimeDeriv::ScaleSplineType type>
-void CalibSolver::AddPointToSurfelFactor(Estimator::Ptr &estimator,
-                                         const std::string &lidarTopic,
-                                         const std::vector<PointToSurfelCorr::Ptr> &corrs,
-                                         Estimator::Opt option) {
+void CalibSolver::AddLiDARPointToSurfelFactor(Estimator::Ptr &estimator,
+                                              const std::string &lidarTopic,
+                                              const std::vector<PointToSurfelCorrPtr> &corrs,
+                                              Estimator::Opt option) {
     double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
 
     for (const auto &corr : corrs) {
-        estimator->AddPointTiSurfelConstraint<type>(corr, lidarTopic, option,
-                                                    weight * corr->weight);
+        estimator->AddLiDARPointTiSurfelConstraint<type>(corr, lidarTopic, option,
+                                                         weight * corr->weight);
+    }
+}
+
+template <TimeDeriv::ScaleSplineType type>
+void CalibSolver::AddRGBDPointToSurfelFactor(Estimator::Ptr &estimator,
+                                             const std::string &rgbdTopic,
+                                             const std::vector<PointToSurfelCorrPtr> &corrs,
+                                             Estimator::Opt option) {
+    double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
+
+    for (const auto &corr : corrs) {
+        estimator->AddRGBDPointTiSurfelConstraint<type>(corr, rgbdTopic, option,
+                                                        weight * corr->weight);
     }
 }
 

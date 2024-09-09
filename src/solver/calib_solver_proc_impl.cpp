@@ -35,6 +35,7 @@
 #include "solver/calib_solver.h"
 #include "solver/batch_opt_option.hpp"
 #include "util/utils_tpl.hpp"
+#include "factor/point_to_surfel_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -85,33 +86,43 @@ void CalibSolver::Process() {
             _viewer->AddCloud(BuildGlobalMapOfRadar(), Viewer::VIEW_MAP, color, 2.0f);
         }
         if (i == 0) {
+            std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> lidarPtsCorr;
+            {
+                lidarPtsCorr = DataAssociationForLiDARs(
+                    _initAsset->globalMap, _initAsset->undistFramesInMap, ptsCountInEachScan);
+                // deconstruct data from initialization
+                _initAsset = nullptr;
+            }
             // here we store the estimator just for output the hessian matrix
             _backup = this->BatchOptimization(
                 // optimization option
                 options.at(i),
                 // point to surfel data association for LiDARs
-                DataAssociationForLiDARs(_initAsset->globalMap, _initAsset->undistFramesInMap,
-                                         ptsCountInEachScan),
+                lidarPtsCorr,
                 // visual reprojection data association for cameras
                 DataAssociationForCameras(),
                 // visual velocity creation for rgbd cameras
                 DataAssociationForRGBDs(
                     IsOptionWith(OptOption::Option::OPT_RGBD_DEPTH, options.at(i))));
-            // deconstruct data from initialization
-            _initAsset = nullptr;
         } else {
-            auto [curGlobalMap, curUndistFramesInMap] = BuildGlobalMapOfLiDAR();
+            std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> lidarPtsCorr;
+            {
+                auto [curGlobalMap, curUndistFramesInMap] = BuildGlobalMapOfLiDAR();
+                lidarPtsCorr = DataAssociationForLiDARs(curGlobalMap,
+                                                        // frames in map
+                                                        curUndistFramesInMap, ptsCountInEachScan);
+                // 'curGlobalMap' and 'curUndistFramesInMap' would be deconstructed here
+            }
             _backup = this->BatchOptimization(
                 // optimization option
                 options.at(i),
                 // point to surfel data association for LiDARs
-                DataAssociationForLiDARs(curGlobalMap, curUndistFramesInMap, ptsCountInEachScan),
+                lidarPtsCorr,
                 // visual reprojection data association for cameras
                 DataAssociationForCameras(),
                 // visual velocity creation for rgbd cameras
                 DataAssociationForRGBDs(
                     IsOptionWith(OptOption::Option::OPT_RGBD_DEPTH, options.at(i))));
-            // 'curGlobalMap' and 'curUndistFramesInMap' would be deconstructed here
         }
 
         _viewer->UpdateSplineViewer();
@@ -121,6 +132,61 @@ void CalibSolver::Process() {
             SaveStageCalibParam(_parMagr, "stage_4_bo_" + std::to_string(i));
         }
     }
+    // ----------------------
+    // cross-model refinement
+    // ----------------------
+#ifdef USE_CROSS_MODEL_REFINEMENT
+    for (int i = 0; i < 3; ++i) {
+        spdlog::info("perform '{}-th' cross-model batch optimization...", i);
+        _viewer->ClearViewer(Viewer::VIEW_MAP);
+        // add radar cloud if radars and pose spline is maintained
+        if (Configor::IsRadarIntegrated() && GetScaleType() == TimeDeriv::LIN_POS_SPLINE) {
+            auto color = ns_viewer::Colour::Black().WithAlpha(0.2f);
+            _viewer->AddCloud(BuildGlobalMapOfRadar(), Viewer::VIEW_MAP, color, 2.0f);
+        }
+
+        std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> lidarPtsCorr;
+        {
+            auto [curGlobalMap, curUndistFramesInMap] = BuildGlobalMapOfLiDAR();
+            lidarPtsCorr = DataAssociationForLiDARs(curGlobalMap,
+                                                    // frames in map
+                                                    curUndistFramesInMap, ptsCountInEachScan);
+            // 'curGlobalMap' and 'curUndistFramesInMap' would be deconstructed here
+        }
+        std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> rgbdPtsCorr;
+        {
+            auto [rgbdGlobalMap, rgbdScansInGFrame, rgbdScansInLFrame] = BuildGlobalMapOfRGBD();
+            rgbdPtsCorr = DataAssociationForRGBDs(rgbdGlobalMap,
+                                                  // scans in global frame
+                                                  rgbdScansInGFrame,
+                                                  // scans in local frame
+                                                  rgbdScansInLFrame, ptsCountInEachScan);
+            // 'rgbdGlobalMap', 'rgbdScansInGFrame', and 'rgbdScansInLFrame' would be deconstructed
+        }
+        _backup = this->BatchOptimization(
+            // optimization option, here we use the final one
+            options.back(),
+            // point to surfel data association for LiDARs
+            lidarPtsCorr,
+            // visual reprojection data association for cameras
+            DataAssociationForCameras(),
+            // visual velocity creation for rgbd cameras
+            {},  // DataAssociationForRGBDs(IsOptionWith(OptOption::Option::OPT_RGBD_DEPTH,
+                 // options.back())),
+            // point to surfel data association for RGBDs
+            // attention!!! if depth images are not well-matched with rgb images
+            // the spatiotemporal parameters between rgb camera and depth camera would be conflict
+            rgbdPtsCorr);
+
+        _viewer->UpdateSplineViewer();
+        _parMagr->ShowParamStatus();
+
+        if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
+            SaveStageCalibParam(_parMagr, "stage_4_bo_" + std::to_string(i));
+        }
+    }
+#endif
+
     // backup data and update the viewer
     _viewer->ClearViewer(Viewer::VIEW_MAP);
     if (Configor::IsLiDARIntegrated()) {

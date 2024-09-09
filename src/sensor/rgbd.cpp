@@ -179,6 +179,43 @@ ColorPointCloud::Ptr RGBDFrame::CreatePointCloud(const RGBDIntrinsicsPtr& intri,
     return cloud;
 }
 
+IKalibrPointCloud::Ptr RGBDFrame::CreatePointCloud(
+    double rsExpFactor, double readout, const RGBDIntrinsicsPtr& intri, float zMin, float zMax) {
+    auto cMat = _colorImg;
+    auto dMat = _depthImg;
+    int rowCnt = cMat.rows;
+    int colCnt = cMat.cols;
+
+    if (cMat.empty() || dMat.empty() || cMat.size != dMat.size) {
+        return nullptr;
+    }
+
+    IKalibrPointCloud::Ptr cloud(new IKalibrPointCloud);
+    cloud->reserve(rowCnt * colCnt);
+    const int imgHeight = _greyImg.rows;
+    for (int row = 0; row < rowCnt; ++row) {
+        auto dData = dMat.ptr<float>(row);
+        const double rdFactorAry = row / (double)imgHeight - rsExpFactor;
+        for (int col = 0; col < colCnt; ++col) {
+            auto depth = (float)intri->ActualDepth(dData[0]);
+            if (depth > zMin && depth < zMax) {
+                Eigen::Vector2d lmInDnPlane = intri->intri->ImgToCam({col, row});
+                Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);
+
+                IKalibrPoint p;
+                p.timestamp = _timestamp + rdFactorAry * readout;
+                p.x = (float)lmInDn(0);
+                p.y = (float)lmInDn(1);
+                p.z = (float)lmInDn(2);
+                cloud->push_back(p);
+            }
+            // depth mat ptr
+            dData += 1;
+        }
+    }
+    return cloud;
+}
+
 // ----------
 // DepthFrame
 // ----------

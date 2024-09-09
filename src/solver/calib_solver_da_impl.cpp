@@ -39,6 +39,7 @@
 #include "util/tqdm.h"
 #include "core/pts_association.h"
 #include "pcl/filters/voxel_grid.h"
+#include "pcl/filters/random_sample.h"
 #include "pcl/common/transforms.h"
 #include "factor/visual_reproj_factor.hpp"
 #include "factor/rgbd_velocity_factor.hpp"
@@ -128,7 +129,7 @@ IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() {
     return radarCloud;
 }
 
-ColorPointCloud::Ptr CalibSolver::BuildGlobalMapOfRGBD(const std::string &topic) {
+ColorPointCloud::Ptr CalibSolver::BuildGlobalColorMapOfRGBD(const std::string &topic) {
     if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return {};
     }
@@ -138,11 +139,10 @@ ColorPointCloud::Ptr CalibSolver::BuildGlobalMapOfRGBD(const std::string &topic)
     auto intri = _parMagr->INTRI.RGBD.at(topic);
 
     ColorPointCloud::Ptr map(new ColorPointCloud);
-    const auto downsampleSize = static_cast<float>(Configor::Prior::MapDownSample);
 
     auto bar = std::make_shared<tqdm>();
     const auto &frames = _dataMagr->GetRGBDMeasurements(topic);
-    for (int i = 0; i < static_cast<int>(frames.size()); i += 5) {
+    for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
         bar->progress(i, static_cast<int>(frames.size()));
         const auto &frame = frames.at(i);
 
@@ -158,29 +158,95 @@ ColorPointCloud::Ptr CalibSolver::BuildGlobalMapOfRGBD(const std::string &topic)
             continue;
         }
 
+        // down sample the map cloud
+        ColorPointCloud::Ptr cloudDownSampled(new ColorPointCloud);
+
+        pcl::RandomSample<ColorPoint> filter;
+        filter.setInputCloud(cloud);
+        filter.setSample(1E4);
+        filter.filter(*cloudDownSampled);
+
+        // transform cloud to map coordinate frame
         ColorPointCloud::Ptr cloudTransformed(new ColorPointCloud);
-        if (downsampleSize > 0.0f) {
-            // down sample the map cloud
-            pcl::VoxelGrid<ColorPoint> filter;
-            filter.setInputCloud(cloud);
-            filter.setLeafSize(downsampleSize, downsampleSize, downsampleSize);
+        pcl::transformPointCloud(*cloudDownSampled, *cloudTransformed,
+                                 SE3_CurDnToW->matrix().cast<float>());
 
-            ColorPointCloud::Ptr cloudDownSampled(new ColorPointCloud);
-            filter.filter(*cloudDownSampled);
-
-            // transform cloud to map coordinate frame
-            pcl::transformPointCloud(*cloudDownSampled, *cloudTransformed,
-                                     SE3_CurDnToW->matrix().cast<float>());
-        } else {
-            // transform cloud to map coordinate frame
-            pcl::transformPointCloud(*cloud, *cloudTransformed,
-                                     SE3_CurDnToW->matrix().cast<float>());
-        }
         *map += *cloudTransformed;
     }
     bar->finish();
 
     return map;
+}
+
+std::tuple<IKalibrPointCloud::Ptr,
+           // scans in global frame
+           std::map<std::string, std::vector<IKalibrPointCloud::Ptr>>,
+           // scans in local frame
+           std::map<std::string, std::vector<IKalibrPointCloud::Ptr>>>
+CalibSolver::BuildGlobalMapOfRGBD() {
+    if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
+        return {};
+    }
+    IKalibrPointCloud::Ptr globalMap(new IKalibrPointCloud);
+    std::map<std::string, std::vector<IKalibrPointCloud::Ptr>> scanInGFrame;
+    std::map<std::string, std::vector<IKalibrPointCloud::Ptr>> scanInLFrame;
+
+    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+        spdlog::info("build global map for rgbd '{}'...", topic);
+
+        auto intri = _parMagr->INTRI.RGBD.at(topic);
+        const double rsExpFactor =
+            CameraModel::RSCameraExposureFactor(EnumCast::stringToEnum<CameraModelType>(
+                Configor::DataStream::RGBDTopics.at(topic).Type));
+        const double readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
+
+        const auto &frames = _dataMagr->GetRGBDMeasurements(topic);
+        IKalibrPointCloud::Ptr map(new IKalibrPointCloud);
+        auto &curScanInGFrame = scanInGFrame[topic];
+        curScanInGFrame.reserve(frames.size());
+        auto &curScanInLFrame = scanInLFrame[topic];
+        curScanInLFrame.reserve(frames.size());
+
+        auto bar = std::make_shared<tqdm>();
+        for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
+            bar->progress(i, static_cast<int>(frames.size()));
+            const auto &frame = frames.at(i);
+
+            // transformation
+            auto SE3_CurDnToW = CurDnToW(frame->GetTimestamp(), topic);
+            if (SE3_CurDnToW == std::nullopt) {
+                continue;
+            }
+
+            // save points to 'cloud'
+            IKalibrPointCloud::Ptr cloud =
+                frame->CreatePointCloud(rsExpFactor, readout, intri, 0.1f, 8.0f);
+            if (cloud == nullptr) {
+                continue;
+            }
+
+            // down sample the map cloud
+            IKalibrPointCloud::Ptr cloudDownSampled(new IKalibrPointCloud);
+
+            pcl::RandomSample<IKalibrPoint> filter;
+            filter.setInputCloud(cloud);
+            filter.setSample(1E4);
+            filter.filter(*cloudDownSampled);
+
+            // transform cloud to map coordinate frame
+            IKalibrPointCloud::Ptr cloudTransformed(new IKalibrPointCloud);
+            pcl::transformPointCloud(*cloudDownSampled, *cloudTransformed,
+                                     SE3_CurDnToW->matrix().cast<float>());
+
+            curScanInLFrame.push_back(cloudDownSampled);
+            curScanInGFrame.push_back(cloudTransformed);
+            *map += *cloudTransformed;
+        }
+        bar->finish();
+        *globalMap += *map;
+    }
+
+    return {globalMap, scanInGFrame, scanInLFrame};
 }
 
 std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> CalibSolver::DataAssociationForLiDARs(
@@ -274,6 +340,102 @@ std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> CalibSolver::DataAsso
     return pointToSurfel;
 }
 
+std::map<std::string, std::vector<PointToSurfelCorrPtr>> CalibSolver::DataAssociationForRGBDs(
+    const IKalibrPointCloud::Ptr &map,
+    const std::map<std::string, std::vector<IKalibrPointCloud::Ptr>> &scanInGFrame,
+    const std::map<std::string, std::vector<IKalibrPointCloud::Ptr>> &scanInLFrame,
+    int ptsCountInEachScan) {
+    if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
+        return {};
+    }
+
+    // ---------------------------------
+    // Step 1: down sample the map cloud
+    // ---------------------------------
+    pcl::VoxelGrid<IKalibrPoint> filter;
+    filter.setInputCloud(map);
+    auto size = static_cast<float>(Configor::Prior::MapDownSample);
+    filter.setLeafSize(size, size, size);
+
+    IKalibrPointCloud::Ptr mapDownSampled(new IKalibrPointCloud);
+    filter.filter(*mapDownSampled);
+
+    _viewer->AddAlignedCloud(mapDownSampled, Viewer::VIEW_MAP, -_parMagr->GRAVITY.cast<float>(),
+                             2.0f);
+
+    // ------------------------------------------------
+    // Step 2: perform data association for each frames
+    // ------------------------------------------------
+    auto associator = PointToSurfelAssociator::Create(
+        // we use the dense map to create data associator for high-perform point-to-surfel search
+        map, Configor::Prior::LiDARDataAssociate::MapResolution,
+        Configor::Prior::LiDARDataAssociate::MapDepthLevels);
+    auto condition = PointToSurfelCondition(Configor::Prior::LiDARDataAssociate::PointToSurfelMax,
+                                            // for rgbds we relax the conditions
+                                            Configor::Prior::LiDARDataAssociate::QueryDepthMin + 1,
+                                            // for rgbds we relax the conditions
+                                            Configor::Prior::LiDARDataAssociate::QueryDepthMax + 1,
+                                            Configor::Prior::LiDARDataAssociate::SurfelPointMin,
+                                            Configor::Prior::LiDARDataAssociate::PlanarityMin);
+    _viewer->ClearViewer(Viewer::VIEW_ASSOCIATION);
+    _viewer->AddSurfelMap(associator->GetSurfelMap(), condition, Viewer::VIEW_ASSOCIATION);
+    _viewer->AddCloud(mapDownSampled, Viewer::VIEW_ASSOCIATION,
+                      ns_viewer::Colour::Black().WithAlpha(0.2f), 2.0f);
+
+    // deconstruction
+    mapDownSampled.reset();
+
+    std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> pointToSurfel;
+
+    std::size_t count = 0;
+    std::shared_ptr<tqdm> bar;
+    for (const auto &[topic, framesInMap] : scanInGFrame) {
+        spdlog::info("perform point to surfel association for rgbd '{}'...", topic);
+
+        // for each scan, we keep 'ptsCountInEachScan' point to surfel corrs
+        const auto &rawFrames = scanInLFrame.at(topic);
+        auto &curPointToSurfel = pointToSurfel[topic];
+        bar = std::make_shared<tqdm>();
+        for (int i = 0; i < static_cast<int>(framesInMap.size()); ++i) {
+            bar->progress(i, static_cast<int>(framesInMap.size()));
+
+            if (framesInMap.at(i) == nullptr || rawFrames.at(i) == nullptr) {
+                continue;
+            }
+
+            auto ptsVec = associator->Association(framesInMap.at(i), rawFrames.at(i), condition);
+
+            curPointToSurfel.insert(curPointToSurfel.end(), ptsVec.cbegin(), ptsVec.cend());
+        }
+        bar->finish();
+
+        // downsample
+        int expectCount = ptsCountInEachScan * static_cast<int>(rawFrames.size());
+        if (static_cast<int>(curPointToSurfel.size()) > expectCount) {
+            std::map<ufo::map::Node, std::vector<PointToSurfelCorr::Ptr>> nodes;
+            for (const auto &corr : curPointToSurfel) {
+                nodes[corr->node].push_back(corr);
+            }
+            std::size_t numEachNode = expectCount / nodes.size() + 1;
+            curPointToSurfel.clear();
+
+            // uniform sampling
+            std::default_random_engine engine(
+                std::chrono::steady_clock::now().time_since_epoch().count());
+            for (const auto &[node, corrs] : nodes) {
+                auto newCorrs =
+                    SamplingWoutReplace2(engine, corrs, std::min(corrs.size(), numEachNode));
+                curPointToSurfel.insert(curPointToSurfel.end(), newCorrs.cbegin(), newCorrs.cend());
+            }
+        }
+        count += curPointToSurfel.size();
+    }
+    spdlog::info("total point to surfel count for RGBDs: {}", count);
+    _viewer->AddPointToSurfel(associator->GetSurfelMap(), pointToSurfel, Viewer::VIEW_ASSOCIATION);
+
+    return pointToSurfel;
+}
+
 std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>>
 CalibSolver::DataAssociationForCameras() {
     if (!Configor::IsCameraIntegrated()) {
@@ -333,7 +495,7 @@ std::vector<OpticalFlowTripleTrace::Ptr> CalibSolver::CreateOpticalFlowTraceForR
 std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssociationForRGBDs(
     bool estDepth) {
     // add rgbd point cloud map
-    // if (auto map = BuildGlobalMapOfRGBD(0.05f); map != nullptr) {
+    // if (auto map = BuildGlobalColorMapOfRGBD(0.05f); map != nullptr) {
     //     _viewer->AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(map, 2.0f)},
     //                             Viewer::VIEW_MAP);
     // }

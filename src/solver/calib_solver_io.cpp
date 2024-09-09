@@ -34,6 +34,7 @@
 
 #include "solver/calib_solver.h"
 #include "solver/calib_solver_io.h"
+#include "solver/calib_solver_tpl.hpp"
 #include "viewer/visual_lidar_covisibility.h"
 #include "viewer/visual_ang_vel_drawer.h"
 #include "viewer/visual_lin_vel_drawer.h"
@@ -975,7 +976,7 @@ void CalibSolverIO::SaveVisualMaps() {
                 }
                 // point cloud map
                 spdlog::info("save rgbd point cloud map for rgbd '{}'...", topic);
-                auto map = _solver->BuildGlobalMapOfRGBD(topic);
+                auto map = _solver->BuildGlobalColorMapOfRGBD(topic);
                 filename = subSaveDir + "/rgbd_map.pcd";
                 if (pcl::io::savePCDFile(filename, *map, true) == -1) {
                     spdlog::warn("save rgbd map as : '{}' failed!", filename);

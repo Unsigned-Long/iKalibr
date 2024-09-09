@@ -337,10 +337,10 @@ void Estimator::AddLinearScaleConstraint(double timeByBr,
  * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_LkToBr | POS_LkInBr | TO_LkToBr ]
  */
 template <TimeDeriv::ScaleSplineType type>
-void Estimator::AddPointTiSurfelConstraint(const PointToSurfelCorr::Ptr &ptsCorr,
-                                           const std::string &topic,
-                                           Opt option,
-                                           double weight) {
+void Estimator::AddLiDARPointTiSurfelConstraint(const PointToSurfelCorrPtr &ptsCorr,
+                                                const std::string &topic,
+                                                Opt option,
+                                                double weight) {
     // prepare metas for splines
     SplineMetaType so3Meta, scaleMeta;
 
@@ -438,6 +438,116 @@ void Estimator::AddPointTiSurfelConstraint(const PointToSurfelCorr::Ptr &ptsCorr
         // set bound
         this->SetParameterLowerBound(TO_LkToBr, 0, -Configor::Prior::TimeOffsetPadding);
         this->SetParameterUpperBound(TO_LkToBr, 0, Configor::Prior::TimeOffsetPadding);
+    }
+}
+
+/**
+ * param blocks:
+ * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr ]
+ */
+template <TimeDeriv::ScaleSplineType type>
+void Estimator::AddRGBDPointTiSurfelConstraint(const PointToSurfelCorrPtr &ptsCorr,
+                                               const std::string &topic,
+                                               Opt option,
+                                               double weight) {
+    // prepare metas for splines
+    SplineMetaType so3Meta, scaleMeta;
+
+    // different relative control points finding [single vs. range]
+    if (IsOptionWith(Opt::OPT_TO_DnToBr, option)) {
+        double maxTime = ptsCorr->timestamp + Configor::Prior::TimeOffsetPadding;
+        double minTime = ptsCorr->timestamp - Configor::Prior::TimeOffsetPadding;
+
+        // invalid time stamp
+        if (!splines->TimeInRangeForSo3(minTime, Configor::Preference::SO3_SPLINE) ||
+            !splines->TimeInRangeForSo3(maxTime, Configor::Preference::SO3_SPLINE) ||
+            !splines->TimeInRangeForRd(minTime, Configor::Preference::SCALE_SPLINE) ||
+            !splines->TimeInRangeForRd(maxTime, Configor::Preference::SCALE_SPLINE)) {
+            return;
+        }
+
+        splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE, {{minTime, maxTime}},
+                                        so3Meta);
+        splines->CalculateRdSplineMeta(Configor::Preference::SCALE_SPLINE, {{minTime, maxTime}},
+                                       scaleMeta);
+    } else {
+        double curTime = ptsCorr->timestamp + parMagr->TEMPORAL.TO_DnToBr.at(topic);
+
+        // check point time stamp
+        if (!splines->TimeInRangeForSo3(curTime, Configor::Preference::SO3_SPLINE) ||
+            !splines->TimeInRangeForRd(curTime, Configor::Preference::SCALE_SPLINE)) {
+            return;
+        }
+
+        splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE, {{curTime, curTime}},
+                                        so3Meta);
+        splines->CalculateRdSplineMeta(Configor::Preference::SCALE_SPLINE, {{curTime, curTime}},
+                                       scaleMeta);
+    }
+    static constexpr int derivLiDAR = TimeDeriv::Deriv<type, TimeDeriv::LIN_POS>();
+    // create a cost function
+    auto costFunc = PointToSurfelFactor<Configor::Prior::SplineOrder, derivLiDAR>::Create(
+        so3Meta, scaleMeta, ptsCorr, weight);
+
+    // so3 knots param block [each has four sub params]
+    for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
+        costFunc->AddParameterBlock(4);
+    }
+    // pos knots param block [each has three sub params]
+    for (int i = 0; i < static_cast<int>(scaleMeta.NumParameters()); ++i) {
+        costFunc->AddParameterBlock(3);
+    }
+
+    costFunc->AddParameterBlock(4);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(1);
+
+    costFunc->SetNumResiduals(1);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // so3 knots param block
+    AddSo3KnotsData(paramBlockVec, splines->GetSo3Spline(Configor::Preference::SO3_SPLINE), so3Meta,
+                    !IsOptionWith(Opt::OPT_SO3_SPLINE, option));
+
+    // lin acce knots
+    AddRdKnotsData(paramBlockVec, splines->GetRdSpline(Configor::Preference::SCALE_SPLINE),
+                   scaleMeta, !IsOptionWith(Opt::OPT_SCALE_SPLINE, option));
+
+    // SO3_DnToBr
+    auto SO3_DnToBr = parMagr->EXTRI.SO3_DnToBr.at(topic).data();
+    paramBlockVec.push_back(SO3_DnToBr);
+
+    // POS_DnInBr
+    auto POS_DnInBr = parMagr->EXTRI.POS_DnInBr.at(topic).data();
+    paramBlockVec.push_back(POS_DnInBr);
+
+    // TO_DnToBr
+    auto TO_DnToBr = &parMagr->TEMPORAL.TO_DnToBr.at(topic);
+    paramBlockVec.push_back(TO_DnToBr);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc,
+                           // we use 'Configor::Prior::LossForLiDARFactor' for rgbds here
+                           new ceres::HuberLoss(Configor::Prior::LossForLiDARFactor * weight),
+                           paramBlockVec);
+    this->SetManifold(SO3_DnToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_SO3_DnToBr, option)) {
+        this->SetParameterBlockConstant(SO3_DnToBr);
+    }
+
+    if (!IsOptionWith(Opt::OPT_POS_DnInBr, option)) {
+        this->SetParameterBlockConstant(POS_DnInBr);
+    }
+
+    if (!IsOptionWith(Opt::OPT_TO_DnToBr, option)) {
+        this->SetParameterBlockConstant(TO_DnToBr);
+    } else {
+        // set bound
+        this->SetParameterLowerBound(TO_DnToBr, 0, -Configor::Prior::TimeOffsetPadding);
+        this->SetParameterUpperBound(TO_DnToBr, 0, Configor::Prior::TimeOffsetPadding);
     }
 }
 

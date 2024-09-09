@@ -41,6 +41,7 @@
 #include "calib/estimator.h"
 #include "core/rot_only_vo.h"
 #include "viewer/viewer.h"
+#include "optional"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -188,8 +189,14 @@ protected:
 
     IKalibrPointCloud::Ptr BuildGlobalMapOfRadar();
 
-    // negative value means no down sample
-    ColorPointCloud::Ptr BuildGlobalMapOfRGBD(const std::string &topic);
+    ColorPointCloud::Ptr BuildGlobalColorMapOfRGBD(const std::string &topic);
+
+    std::tuple<IKalibrPointCloud::Ptr,
+               // scans in global frame
+               std::map<std::string, std::vector<IKalibrPointCloud::Ptr>>,
+               // scans in local frame
+               std::map<std::string, std::vector<IKalibrPointCloud::Ptr>>>
+    BuildGlobalMapOfRGBD();
 
     ns_veta::Veta::Ptr CreateVetaFromRGBD(const std::string &topic);
 
@@ -200,11 +207,21 @@ protected:
 
     std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> DataAssociationForCameras();
 
+    std::map<std::string, std::vector<RGBDVelocityCorrPtr>> DataAssociationForRGBDs(bool estDepth);
+
+    std::map<std::string, std::vector<PointToSurfelCorrPtr>> DataAssociationForRGBDs(
+        const IKalibrPointCloud::Ptr &map,
+        const std::map<std::string, std::vector<IKalibrPointCloud::Ptr>> &scanInGFrame,
+        const std::map<std::string, std::vector<IKalibrPointCloud::Ptr>> &scanInLFrame,
+        int ptsCountInEachScan);
+
     BackUp::Ptr BatchOptimization(
         OptOption::Option optOption,
-        const std::map<std::string, std::vector<PointToSurfelCorrPtr>> &ptsCorrs,
+        const std::map<std::string, std::vector<PointToSurfelCorrPtr>> &lidarPtsCorrs,
         const std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> &visualCorrs,
-        const std::map<std::string, std::vector<RGBDVelocityCorrPtr>> &rgbdCorrs);
+        const std::map<std::string, std::vector<RGBDVelocityCorrPtr>> &rgbdCorrs,
+        const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>>
+            &rgbdPtsCorrs = std::nullopt);
 
     std::optional<Sophus::SE3d> CurBrToW(double timeByBr);
 
@@ -238,10 +255,16 @@ protected:
                        Estimator::Opt option);
 
     template <TimeDeriv::ScaleSplineType type>
-    void AddPointToSurfelFactor(Estimator::Ptr &estimator,
-                                const std::string &lidarTopic,
-                                const std::vector<PointToSurfelCorrPtr> &corrs,
-                                Estimator::Opt option);
+    void AddLiDARPointToSurfelFactor(Estimator::Ptr &estimator,
+                                     const std::string &lidarTopic,
+                                     const std::vector<PointToSurfelCorrPtr> &corrs,
+                                     Estimator::Opt option);
+
+    template <TimeDeriv::ScaleSplineType type>
+    void AddRGBDPointToSurfelFactor(Estimator::Ptr &estimator,
+                                    const std::string &rgbdTopic,
+                                    const std::vector<PointToSurfelCorrPtr> &corrs,
+                                    Estimator::Opt option);
 
     template <TimeDeriv::ScaleSplineType type>
     void AddVisualReprojectionFactor(Estimator::Ptr &estimator,
@@ -274,8 +297,6 @@ protected:
     static std::vector<OpticalFlowTripleTracePtr> CreateOpticalFlowTraceForRGBD(
         const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList,
         const std::string &topic);
-
-    std::map<std::string, std::vector<RGBDVelocityCorrPtr>> DataAssociationForRGBDs(bool estDepth);
 };
 
 struct CeresDebugCallBack : public ceres::IterationCallback {

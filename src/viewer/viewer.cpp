@@ -359,7 +359,7 @@ Viewer &Viewer::FillEmptyViews(const std::string &objPath) {
 
     // cameras
     occupy[2] = {
-        {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, false}};
+        {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, true}};
     senIntegrated[2] = Configor::IsCameraIntegrated();
 
     // lidars

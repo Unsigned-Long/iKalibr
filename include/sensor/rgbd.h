@@ -81,6 +81,12 @@ public:
     ColorPointCloud::Ptr CreatePointCloud(const RGBDIntrinsicsPtr &intri,
                                           float zMin = 0.1f,
                                           float zMax = 80.0f);
+
+    IKalibrPointCloud::Ptr CreatePointCloud(double rsExpFactor,
+                                            double readout,
+                                            const RGBDIntrinsicsPtr &intri,
+                                            float zMin = 0.1f,
+                                            float zMax = 80.0f);
 };
 
 class DepthFrame {

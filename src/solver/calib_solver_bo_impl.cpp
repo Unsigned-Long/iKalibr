@@ -44,9 +44,10 @@ namespace ns_ikalibr {
 
 CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     OptOption::Option optOption,
-    const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &ptsCorrs,
+    const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &lidarPtsCorrs,
     const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualCorrs,
-    const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &rgbdCorrs) {
+    const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &rgbdCorrs,
+    const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>> &rgbdPtsCorrs) {
     auto GetOptString = [](OptOption::Option opt) -> std::string {
         std::stringstream stringStream;
         stringStream << magic_enum::enum_flags_name(opt);
@@ -94,9 +95,9 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
             }
         } break;
         case TimeDeriv::LIN_POS_SPLINE: {
-            for (const auto &[lidarTopic, corrSeqVec] : ptsCorrs) {
-                this->AddPointToSurfelFactor<TimeDeriv::LIN_POS_SPLINE>(estimator, lidarTopic,
-                                                                        corrSeqVec, optOption);
+            for (const auto &[lidarTopic, corrSeqVec] : lidarPtsCorrs) {
+                this->AddLiDARPointToSurfelFactor<TimeDeriv::LIN_POS_SPLINE>(estimator, lidarTopic,
+                                                                             corrSeqVec, optOption);
             }
             for (const auto &[camTopic, corrSeqVec] : visualCorrs) {
                 OptOption::Option visualOpt = optOption;
@@ -142,6 +143,12 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 }
                 this->AddRGBDVelocityFactor<TimeDeriv::LIN_POS_SPLINE, RGBD_EST_INV_DEPTH>(
                     estimator, topic, corrs, visualOpt);
+            }
+            if (rgbdPtsCorrs != std::nullopt) {
+                for (const auto &[rgbdTopic, corrSeqVec] : *rgbdPtsCorrs) {
+                    this->AddRGBDPointToSurfelFactor<TimeDeriv::LIN_POS_SPLINE>(
+                        estimator, rgbdTopic, corrSeqVec, optOption);
+                }
             }
         } break;
     }
