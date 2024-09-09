@@ -35,7 +35,7 @@
 #ifndef IKALIBR_CALIB_SOLVER_TPL_HPP
 #define IKALIBR_CALIB_SOLVER_TPL_HPP
 
-#include "calib/calib_solver.h"
+#include "calib_solver.h"
 #include "calib/estimator_tpl.hpp"
 
 namespace {

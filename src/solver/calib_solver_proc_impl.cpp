@@ -32,8 +32,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "calib/calib_solver.h"
-#include "calib/batch_opt_option.hpp"
+#include "solver/calib_solver.h"
+#include "solver/batch_opt_option.hpp"
 #include "util/utils_tpl.hpp"
 
 namespace {

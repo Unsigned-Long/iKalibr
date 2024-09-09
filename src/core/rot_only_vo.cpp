@@ -316,6 +316,10 @@ void RotOnlyVisualOdometer::ShowCurrentFrame() const {
     cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
 
     for (const auto &[id, feat] : _ptsInLast) {
+        int count = static_cast<int>(_lmTrackInfo.at(_featId2lmIdInLast.at(id)).size());
+        if (count < 2) {
+            continue;
+        }
         const auto &pt = feat.raw;
         const auto &upt = feat.undistorted;
 
@@ -327,7 +331,6 @@ void RotOnlyVisualOdometer::ShowCurrentFrame() const {
         DrawKeypointOnCVMat(img, pt);
 
         // text: track count
-        int count = static_cast<int>(_lmTrackInfo.at(_featId2lmIdInLast.at(id)).size());
         PutTextOnCVMat(img, std::to_string(count), pt);
     }
     // auto [K, D] = CalibParamManager().INTRI.ObtainKDMatForUndisto(_intri);

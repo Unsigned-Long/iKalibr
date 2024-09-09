@@ -197,6 +197,7 @@ find_package(PCL REQUIRED)
 add_definitions(-DPCL_NO_PRECOMPILE)
 
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/calib CALIB_SRC_FILES)
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/solver SOLVER_SRC_FILES)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/core CORE_SRC_FILES)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/sensor SENSOR_SRC_FILES)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/config CONFIG_SRC_FILES)
@@ -337,7 +338,6 @@ target_link_libraries(
         ctraj
         veta
         UFO::Map
-        ${PROJECT_NAME}_factor
 )
 #target_precompile_headers(
 #        ${PROJECT_NAME}_viewer REUSE_FROM
@@ -367,7 +367,6 @@ target_link_libraries(
         veta
         opengv
         UFO::Map
-        ${PROJECT_NAME}_factor
 )
 #target_precompile_headers(
 #        ${PROJECT_NAME}_core REUSE_FROM
@@ -396,11 +395,38 @@ target_link_libraries(
         ctraj
         veta
         opengv
-        UFO::Map
-        ${PROJECT_NAME}_factor
 )
 #target_precompile_headers(
 #        ${PROJECT_NAME}_calib REUSE_FROM
+#        ${PROJECT_NAME}_factor
+#)
+#####################
+# libikalibr_solver #
+#####################
+add_library(
+        ${PROJECT_NAME}_solver SHARED
+        # source files
+        ${SOLVER_SRC_FILES}
+)
+
+target_include_directories(
+        ${PROJECT_NAME}_solver PUBLIC
+        # include
+        ${catkin_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(
+        ${PROJECT_NAME}_solver PUBLIC
+        ${catkin_LIBRARIES}
+        # thirdparty
+
+        veta
+        ctraj
+        opengv
+)
+#target_precompile_headers(
+#        ${PROJECT_NAME}_solver REUSE_FROM
 #        ${PROJECT_NAME}_factor
 #)
 ###################################
@@ -501,13 +527,15 @@ target_include_directories(
 target_link_libraries(
         ${PROJECT_NAME}_prog PRIVATE
 
-        # iKalibr libraries
-        ${PROJECT_NAME}_util
+        # the dependent library is placed after the library that depends on it.
+        ${PROJECT_NAME}_solver
         ${PROJECT_NAME}_calib
-        ${PROJECT_NAME}_config
-        ${PROJECT_NAME}_sensor
+        ${PROJECT_NAME}_factor
         ${PROJECT_NAME}_core
         ${PROJECT_NAME}_viewer
+        ${PROJECT_NAME}_sensor
+        ${PROJECT_NAME}_config
+        ${PROJECT_NAME}_util
 
         # thirdparty
         ${YAML_CPP_LIBRARIES}
@@ -526,11 +554,6 @@ target_link_libraries(
 
         # iKalibr libraries
         ${PROJECT_NAME}_util
-        ${PROJECT_NAME}_calib
-        ${PROJECT_NAME}_config
-        ${PROJECT_NAME}_sensor
-        ${PROJECT_NAME}_core
-        ${PROJECT_NAME}_viewer
 
         # thirdparty
         ${YAML_CPP_LIBRARIES}
@@ -549,7 +572,6 @@ target_link_libraries(
 
         # thirdparty
         ${PROJECT_NAME}_util
-        UFO::Map
 )
 ######################################
 # libikalibr_data_format_transformer #
@@ -563,13 +585,14 @@ target_include_directories(
 target_link_libraries(
         ${PROJECT_NAME}_data_format_transformer PRIVATE
 
-        # iKalibr libraries
-        ${PROJECT_NAME}_util
+        # the dependent library is placed after the library that depends on it.
         ${PROJECT_NAME}_calib
-        ${PROJECT_NAME}_config
-        ${PROJECT_NAME}_sensor
+        ${PROJECT_NAME}_factor
         ${PROJECT_NAME}_core
         ${PROJECT_NAME}_viewer
+        ${PROJECT_NAME}_sensor
+        ${PROJECT_NAME}_config
+        ${PROJECT_NAME}_util
 
         # thirdparty
         ${YAML_CPP_LIBRARIES}
@@ -633,13 +656,14 @@ target_include_directories(
 target_link_libraries(
         ${PROJECT_NAME}_imu_intri_calib PRIVATE
 
-        # iKalibr libraries
-        ${PROJECT_NAME}_util
+        # the dependent library is placed after the library that depends on it.
         ${PROJECT_NAME}_calib
-        ${PROJECT_NAME}_config
-        ${PROJECT_NAME}_sensor
+        ${PROJECT_NAME}_factor
         ${PROJECT_NAME}_core
         ${PROJECT_NAME}_viewer
+        ${PROJECT_NAME}_sensor
+        ${PROJECT_NAME}_config
+        ${PROJECT_NAME}_util
 
         # thirdparty
         ${YAML_CPP_LIBRARIES}

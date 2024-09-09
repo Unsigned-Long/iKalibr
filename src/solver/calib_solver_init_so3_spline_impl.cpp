@@ -32,7 +32,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "calib/calib_solver.h"
+#include "solver/calib_solver.h"
+#include "util/utils_tpl.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -40,11 +41,41 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-void CalibSolver::InitPrepRadarInertialAlign() {
-    if (!Configor::IsRadarIntegrated()) {
-        return;
+void CalibSolver::InitSO3Spline() {
+    // --------------------------------------------------------------------------------------------
+    // initialize (i) so3 spline of the reference IMU, (ii) extrinsic rotations, (iii) time offsets
+    // --------------------------------------------------------------------------------------------
+    spdlog::info("fitting rotation b-spline...");
+
+    // here we  recover the so3 spline first using only the angular velocities from the reference
+    // IMU, then estimates other quantities by involving angular velocity measurements from other
+    // IMUs. For better readability, we could also optimize them together (not current version)
+    auto estimator = Estimator::Create(_splines, _parMagr);
+    auto optOption = OptOption::Option::OPT_SO3_SPLINE;
+    this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU, optOption);
+    auto sum = estimator->Solve(_ceresOption, this->_priori);
+    spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
+
+    if (Configor::DataStream::IMUTopics.size() > 1) {
+        estimator = Estimator::Create(_splines, _parMagr);
+        optOption = OptOption::Option::OPT_SO3_BiToBr;
+        if (Configor::Prior::OptTemporalParams) {
+            optOption |= OptOption::Option::OPT_TO_BiToBr;
+        }
+        for (const auto &[topic, _] : Configor::DataStream::IMUTopics) {
+            this->AddGyroFactor(estimator, topic, optOption);
+        }
+        // make this problem full rank
+        estimator->SetRefIMUParamsConstant();
+        // estimator->FixFirSO3ControlPoint();
+
+        sum = estimator->Solve(_ceresOption, this->_priori);
+        spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
     }
-    // There is no need to prepare for radar-inertial alignment
+
+    if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
+        SaveStageCalibParam(_parMagr, "stage_1_rot_fit");
+    }
 }
 
 }  // namespace ns_ikalibr

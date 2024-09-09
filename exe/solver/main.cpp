@@ -37,9 +37,9 @@
 #include "config/configor.h"
 #include "util/status.hpp"
 #include "util/utils_tpl.hpp"
-#include "calib/calib_solver.h"
+#include "solver/calib_solver.h"
 #include "spdlog/fmt/bundled/color.h"
-#include "calib/calib_solver_io.h"
+#include "solver/calib_solver_io.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

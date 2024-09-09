@@ -32,8 +32,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "calib/calib_solver.h"
-#include "calib/calib_solver_io.h"
+#include "solver/calib_solver.h"
+#include "solver/calib_solver_io.h"
 #include "viewer/visual_lidar_covisibility.h"
 #include "viewer/visual_ang_vel_drawer.h"
 #include "viewer/visual_lin_vel_drawer.h"

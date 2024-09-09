@@ -32,7 +32,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "calib/calib_solver_tpl.hpp"
+#include "solver/calib_solver_tpl.hpp"
 #include "core/lidar_odometer.h"
 #include "util/utils_tpl.hpp"
 

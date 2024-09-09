@@ -32,7 +32,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "calib/calib_solver.h"
+#include "solver/calib_solver.h"
 #include "core/scan_undistortion.h"
 #include "core/optical_flow_trace.h"
 #include "core/visual_reproj_association.h"

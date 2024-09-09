@@ -32,7 +32,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "calib/calib_solver.h"
+#include "solver/calib_solver.h"
 #include "pangolin/display/display.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "core/colmap_data_io.h"

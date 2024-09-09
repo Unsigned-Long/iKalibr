@@ -37,7 +37,7 @@
 
 #include "calib/calib_data_manager.h"
 #include "calib/calib_param_manager.h"
-#include "calib/calib_solver_io.h"
+#include "calib_solver_io.h"
 #include "calib/estimator.h"
 #include "core/rot_only_vo.h"
 #include "viewer/viewer.h"
