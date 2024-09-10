@@ -101,8 +101,24 @@ void CalibSolver::InitPrepRGBDInertialAlign() {
                     // cv::waitKey();
                 }
 
+                // try to compute the prior rotation
+                std::optional<Sophus::SO3d> SO3_LastToCur = std::nullopt;
+                if (rotEstimator->SolveStatus() && i > 0) {
+                    const auto SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
+                    const auto TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
+                    double lastTimeByBr = frameVec.at(i - 1)->GetTimestamp() + TO_DnToBr;
+                    double curTimeByBr = frameVec.at(i)->GetTimestamp() + TO_DnToBr;
+                    if (so3Spline.TimeStampInRange(lastTimeByBr) &&
+                        so3Spline.TimeStampInRange(curTimeByBr)) {
+                        auto SO3_LastBrToW = so3Spline.Evaluate(lastTimeByBr);
+                        auto SO3_CurBrToW = so3Spline.Evaluate(lastTimeByBr);
+                        auto SO3_LastBrToCurBr = SO3_CurBrToW.inverse() * SO3_LastBrToW;
+                        SO3_LastToCur = SO3_DnToBr.inverse() * SO3_LastBrToCurBr * SO3_DnToBr;
+                    }
+                }
+
                 // if tracking current frame failed, the rotation-only odometer would re-initialize
-                if (!odometer->GrabFrame(frameVec.at(i))) {
+                if (!odometer->GrabFrame(frameVec.at(i), SO3_LastToCur)) {
                     spdlog::warn(
                         "tracking failed when grab the '{}' image frame!!! try to reinitialize", i);
                     // save the tracking information

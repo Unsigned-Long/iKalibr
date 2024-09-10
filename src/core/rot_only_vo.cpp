@@ -59,7 +59,8 @@ RotOnlyVisualOdometer::Ptr RotOnlyVisualOdometer::Create(
     return std::make_shared<RotOnlyVisualOdometer>(featNumPerImg, minDist, intri);
 }
 
-bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame) {
+bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
+                                      const std::optional<Sophus::SO3d> &SO3_LastToCur) {
 #define VISUALIZATION 0
 
     // first curFrame
@@ -100,11 +101,39 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame) {
         // perform optical flow tracking
         // -----------------------------
         auto [idsLast, rawFeatLast] = ExtractFeatMapAsRawFeatVec(_ptsInLast);
-        std::vector<cv::Point2f> rawFeatCur;
+        std::vector<cv::Point2f> rawFeatCur = rawFeatLast;
+        if (SO3_LastToCur != std::nullopt) {
+            // use prior rotation to update feats in the last image
+            // we do not consider the image distortion here
+            for (auto &feat : rawFeatCur) {
+                Eigen::Vector2d pCam = _intri->ImgToCam({feat.x, feat.y});
+                Eigen::Vector3d pCamNew = *SO3_LastToCur * Eigen::Vector3d(pCam(0), pCam(1), 1.0);
+                Eigen::Vector2d featNew = _intri->CamToImg({pCamNew(0), pCamNew(1)});
+                feat.x = (float)featNew(0);
+                feat.y = (float)featNew(1);
+            }
+        }
+#if VISUALIZATION
+        if (SO3_LastToCur != std::nullopt) {
+            std::map<int, Feat> rawPtsInLast;
+            std::map<int, Feat> rawPtsInCur;
+            std::map<int, int> rawMatches;
+            for (int i = 0; i < static_cast<int>(rawFeatCur.size()); ++i) {
+                rawPtsInLast.insert({i, Feat(rawFeatLast.at(i), rawFeatLast.at(i))});
+                rawPtsInCur.insert({i, Feat(rawFeatCur.at(i), rawFeatCur.at(i))});
+                rawMatches.insert({i, i});
+            }
+            ShowFeatureTracking(rawPtsInLast, rawPtsInCur, rawMatches, matImg, bias,
+                                "Prior Optical Flow Tracking", {255, 255, 255});
+        }
+#endif
         std::vector<uchar> status;
         std::vector<float> errors;
+        cv::TermCriteria termCrit =
+            cv::TermCriteria(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 30, 0.01);
         cv::calcOpticalFlowPyrLK(_lastFrame->GetImage(), curFrame->GetImage(), rawFeatLast,
-                                 rawFeatCur, status, errors, cv::Size(21, 21), 3);
+                                 rawFeatCur, status, errors, cv::Size(21, 21), 5, termCrit,
+                                 cv::OPTFLOW_USE_INITIAL_FLOW);
         for (int i = 0; i < int(rawFeatCur.size()); i++) {
             // if the feature is tracked but not in border, we set its status as 'fail = 0'
             if (status[i] && !InImageBorder(rawFeatCur[i], curFrame, 1)) {
@@ -123,7 +152,7 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame) {
                 int newFeatId = idxCounter++;
                 trackIdsCur2Last.insert({newFeatId, idsLast.at(i)});
 
-                cv::Point2f p = rawFeatCur.at(i);
+                const cv::Point2f &p = rawFeatCur.at(i);
                 ns_veta::Vec2d up = _intri->GetUndistoPixel(ns_veta::Vec2d(p.x, p.y));
                 auto feat =
                     Feat(p, cv::Point2f(static_cast<float>(up(0)), static_cast<float>(up(1))));

@@ -45,7 +45,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-struct CameraFrame;
+class CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
 
 struct ORBFeatExtMatConfig {
@@ -96,7 +96,8 @@ public:
 
     static Ptr Create(int featNumPerImg, int minDist, const ns_veta::PinholeIntrinsic::Ptr &intri);
 
-    bool GrabFrame(const CameraFramePtr &curFrame);
+    bool GrabFrame(const CameraFramePtr &curFrame,
+                   const std::optional<Sophus::SO3d> &SO3_LastToCur = std::nullopt);
 
     [[nodiscard]] const std::vector<std::pair<double, Sophus::SO3d>> &GetRotations() const;
 
