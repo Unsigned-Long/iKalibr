@@ -32,11 +32,11 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "solver/calib_solver.h"
-#include "solver/batch_opt_option.hpp"
-#include "util/utils_tpl.hpp"
-#include "factor/point_to_surfel_factor.hpp"
 #include "calib/estimator.h"
+#include "factor/point_to_surfel_factor.hpp"
+#include "solver/batch_opt_option.hpp"
+#include "solver/calib_solver.h"
+#include "util/utils_tpl.hpp"
 #include "viewer/viewer.h"
 
 namespace {

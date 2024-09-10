@@ -32,24 +32,24 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "solver/calib_solver.h"
-#include "pangolin/display/display.h"
-#include "spdlog/sinks/basic_file_sink.h"
-#include "core/colmap_data_io.h"
-#include "opencv2/highgui.hpp"
-#include "util/tqdm.h"
-#include "ros/package.h"
-#include "sensor/camera_data_loader.h"
-#include "core/optical_flow_trace.h"
+#include "calib/calib_data_manager.h"
+#include "calib/calib_param_manager.h"
+#include "calib/ceres_callback.h"
+#include "calib/estimator.h"
 #include "calib/spat_temp_priori.h"
+#include "core/colmap_data_io.h"
+#include "core/optical_flow_trace.h"
 #include "core/vision_only_sfm.h"
 #include "factor/rgbd_velocity_factor.hpp"
+#include "opencv2/highgui.hpp"
+#include "pangolin/display/display.h"
+#include "ros/package.h"
+#include "sensor/camera_data_loader.h"
+#include "solver/calib_solver.h"
+#include "spdlog/sinks/basic_file_sink.h"
+#include "util/tqdm.h"
 #include "util/utils_tpl.hpp"
-#include "calib/ceres_callback.h"
 #include "viewer/viewer.h"
-#include "calib/calib_param_manager.h"
-#include "calib/calib_data_manager.h"
-#include "calib/estimator.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

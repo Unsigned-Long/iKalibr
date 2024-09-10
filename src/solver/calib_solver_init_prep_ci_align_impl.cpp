@@ -32,15 +32,15 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "solver/calib_solver.h"
-#include "util/tqdm.h"
-#include "opencv2/highgui.hpp"
+#include "calib/calib_data_manager.h"
+#include "calib/calib_param_manager.h"
+#include "calib/estimator.h"
 #include "core/rotation_estimator.h"
 #include "core/vision_only_sfm.h"
-#include "calib/calib_param_manager.h"
-#include "calib/calib_data_manager.h"
+#include "opencv2/highgui.hpp"
+#include "solver/calib_solver.h"
+#include "util/tqdm.h"
 #include "viewer/viewer.h"
-#include "calib/estimator.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

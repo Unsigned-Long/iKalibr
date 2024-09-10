@@ -35,17 +35,14 @@
 #ifndef IKALIBR_CALIB_SOLVER_H
 #define IKALIBR_CALIB_SOLVER_H
 
-// #include "calib_solver_io.h"
-// #include "calib/estimator.h"
-#include "core/rot_only_vo.h"
-// #include "viewer/viewer.h"
-#include "optional"
 #include "calib/time_deriv.hpp"
-#include "ctraj/core/spline_bundle.h"
-#include "ctraj/core/pose.hpp"
-#include "pcl/point_cloud.h"
 #include "ceres/solver.h"
 #include "config/configor.h"
+#include "core/rot_only_vo.h"
+#include "ctraj/core/pose.hpp"
+#include "ctraj/core/spline_bundle.h"
+#include "optional"
+#include "pcl/point_cloud.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

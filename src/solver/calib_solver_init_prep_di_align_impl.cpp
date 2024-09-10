@@ -32,19 +32,19 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "solver/calib_solver.h"
-#include "opencv2/highgui.hpp"
-#include "core/rotation_estimator.h"
-#include "util/tqdm.h"
-#include "core/optical_flow_trace.h"
-#include "core/visual_velocity_sac.h"
-#include "factor/rgbd_velocity_factor.hpp"
-#include "tiny-viewer/object/camera.h"
 #include "calib/calib_data_manager.h"
 #include "calib/calib_param_manager.h"
-#include "spdlog/spdlog.h"
-#include "viewer/viewer.h"
 #include "calib/estimator.h"
+#include "core/optical_flow_trace.h"
+#include "core/rotation_estimator.h"
+#include "core/visual_velocity_sac.h"
+#include "factor/rgbd_velocity_factor.hpp"
+#include "opencv2/highgui.hpp"
+#include "solver/calib_solver.h"
+#include "spdlog/spdlog.h"
+#include "tiny-viewer/object/camera.h"
+#include "util/tqdm.h"
+#include "viewer/viewer.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

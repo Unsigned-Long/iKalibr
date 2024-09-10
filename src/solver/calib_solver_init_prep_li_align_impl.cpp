@@ -32,16 +32,16 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "solver/calib_solver.h"
-#include "core/rotation_estimator.h"
-#include "core/lidar_odometer.h"
-#include "core/scan_undistortion.h"
-#include "util/tqdm.h"
 #include "calib/calib_data_manager.h"
 #include "calib/calib_param_manager.h"
-#include "spdlog/spdlog.h"
-#include "viewer/viewer.h"
 #include "calib/estimator.h"
+#include "core/lidar_odometer.h"
+#include "core/rotation_estimator.h"
+#include "core/scan_undistortion.h"
+#include "solver/calib_solver.h"
+#include "spdlog/spdlog.h"
+#include "util/tqdm.h"
+#include "viewer/viewer.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

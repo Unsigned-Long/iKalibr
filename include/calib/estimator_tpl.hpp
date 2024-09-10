@@ -37,11 +37,11 @@
 
 #include "calib/estimator.h"
 #include "factor/imu_acce_factor.hpp"
-#include "factor/radar_factor.hpp"
 #include "factor/lin_scale_factor.hpp"
 #include "factor/point_to_surfel_factor.hpp"
-#include "factor/visual_reproj_factor.hpp"
+#include "factor/radar_factor.hpp"
 #include "factor/rgbd_velocity_factor.hpp"
+#include "factor/visual_reproj_factor.hpp"
 #include "util/utils_tpl.hpp"
 
 namespace {
