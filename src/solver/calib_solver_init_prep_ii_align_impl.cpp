@@ -32,14 +32,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IKALIBR_CAMERA_DATA_LOADER_H
-#define IKALIBR_CAMERA_DATA_LOADER_H
-
-#include "sensor/camera.h"
-#include "sensor/sensor_model.h"
-#include "rosbag/message_instance.h"
-#include "util/enum_cast.hpp"
-#include "sensor_msgs/Image.h"
+#include "solver/calib_solver.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -47,60 +40,8 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-class CameraDataLoader {
-public:
-    using Ptr = std::shared_ptr<CameraDataLoader>;
+void CalibSolver::InitPrepInertialInertialAlign() {
+    // There is no need to prepare for inertial-inertial alignment
+}
 
-protected:
-    CameraModelType _model;
-
-public:
-    explicit CameraDataLoader(CameraModelType model);
-
-    virtual CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) = 0;
-
-    static CameraDataLoader::Ptr GetLoader(const std::string &modelStr);
-
-    [[nodiscard]] CameraModelType GetCameraModel() const;
-
-    virtual ~CameraDataLoader() = default;
-
-protected:
-    template <class MsgType>
-    void CheckMessage(typename MsgType::ConstPtr msg) {
-        if (msg == nullptr) {
-            throw std::runtime_error(
-                "Wrong sensor model: '" + std::string(EnumCast::enumToString(GetCameraModel())) +
-                "' for cameras! It's incompatible with the type of ros message to load in!");
-        }
-    }
-
-    static void RefineImgMsgWrongEncoding(const sensor_msgs::Image::Ptr &msg);
-};
-
-class SensorImageLoader : public CameraDataLoader {
-public:
-    using Ptr = std::shared_ptr<SensorImageLoader>;
-
-public:
-    explicit SensorImageLoader(CameraModelType model);
-
-    static SensorImageLoader::Ptr Create(CameraModelType model);
-
-    CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
-};
-
-class SensorImageCompLoader : public CameraDataLoader {
-public:
-    using Ptr = std::shared_ptr<SensorImageCompLoader>;
-
-public:
-    explicit SensorImageCompLoader(CameraModelType model);
-
-    static SensorImageCompLoader::Ptr Create(CameraModelType model);
-
-    CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
-};
 }  // namespace ns_ikalibr
-
-#endif  // IKALIBR_CAMERA_DATA_LOADER_H

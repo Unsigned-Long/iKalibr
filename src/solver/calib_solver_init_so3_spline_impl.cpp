@@ -34,6 +34,8 @@
 
 #include "solver/calib_solver.h"
 #include "util/utils_tpl.hpp"
+#include "spdlog/spdlog.h"
+#include "calib/estimator.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -51,16 +53,16 @@ void CalibSolver::InitSO3Spline() {
     // IMU, then estimates other quantities by involving angular velocity measurements from other
     // IMUs. For better readability, we could also optimize them together (not current version)
     auto estimator = Estimator::Create(_splines, _parMagr);
-    auto optOption = OptOption::Option::OPT_SO3_SPLINE;
+    auto optOption = OptOption::OPT_SO3_SPLINE;
     this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU, optOption);
     auto sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
     if (Configor::DataStream::IMUTopics.size() > 1) {
         estimator = Estimator::Create(_splines, _parMagr);
-        optOption = OptOption::Option::OPT_SO3_BiToBr;
+        optOption = OptOption::OPT_SO3_BiToBr;
         if (Configor::Prior::OptTemporalParams) {
-            optOption |= OptOption::Option::OPT_TO_BiToBr;
+            optOption |= OptOption::OPT_TO_BiToBr;
         }
         for (const auto &[topic, _] : Configor::DataStream::IMUTopics) {
             this->AddGyroFactor(estimator, topic, optOption);

@@ -44,6 +44,11 @@
 #include "factor/visual_reproj_factor.hpp"
 #include "factor/rgbd_velocity_factor.hpp"
 #include "factor/point_to_surfel_factor.hpp"
+#include "util/cloud_define.hpp"
+#include "calib/calib_param_manager.h"
+#include "calib/calib_data_manager.h"
+#include "spdlog/spdlog.h"
+#include "viewer/viewer.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

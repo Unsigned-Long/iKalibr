@@ -40,6 +40,9 @@
 #include "solver/calib_solver.h"
 #include "spdlog/fmt/bundled/color.h"
 #include "solver/calib_solver_io.h"
+#include "calib/calib_param_manager.h"
+#include "calib/calib_data_manager.h"
+#include "filesystem"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

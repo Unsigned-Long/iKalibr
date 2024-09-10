@@ -64,6 +64,7 @@ public:
 
     [[nodiscard]] LidarModelType GetLiDARModel() const;
 
+    virtual ~LiDARDataLoader() = default;
 protected:
     template <class MsgType>
     void CheckMessage(typename MsgType::ConstPtr msg) {

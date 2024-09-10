@@ -61,6 +61,8 @@ public:
 
     [[nodiscard]] CameraModelType GetCameraModel() const;
 
+    virtual ~DepthDataLoader() = default;
+
 protected:
     template <class MsgType>
     void CheckMessage(typename MsgType::ConstPtr msg) {

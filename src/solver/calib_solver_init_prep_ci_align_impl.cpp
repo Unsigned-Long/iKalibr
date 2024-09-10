@@ -37,6 +37,10 @@
 #include "opencv2/highgui.hpp"
 #include "core/rotation_estimator.h"
 #include "core/vision_only_sfm.h"
+#include "calib/calib_param_manager.h"
+#include "calib/calib_data_manager.h"
+#include "viewer/viewer.h"
+#include "calib/estimator.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -132,9 +136,9 @@ void CalibSolver::InitPrepCameraInertialAlign() {
         // are considered.
         spdlog::info("perform rotation alignment to initialize time offset for each camera...");
         auto estimator = Estimator::Create(_splines, _parMagr);
-        auto optOption = OptOption::Option::OPT_SO3_CmToBr;
+        auto optOption = OptOption::OPT_SO3_CmToBr;
         if (Configor::Prior::OptTemporalParams) {
-            optOption |= OptOption::Option::OPT_TO_CmToBr;
+            optOption |= OptOption::OPT_TO_CmToBr;
         }
 
         // perform time offset estimation and extrinsic rotation refinement
@@ -226,9 +230,9 @@ void CalibSolver::InitPrepCameraInertialAlign() {
             "perform rotation alignment to refine time offset for each camera using SfM "
             "results...");
         auto estimator = Estimator::Create(_splines, _parMagr);
-        auto optOption = OptOption::Option::OPT_SO3_CmToBr;
+        auto optOption = OptOption::OPT_SO3_CmToBr;
         if (Configor::Prior::OptTemporalParams) {
-            optOption |= OptOption::Option::OPT_TO_CmToBr;
+            optOption |= OptOption::OPT_TO_CmToBr;
         }
 
         for (const auto &[camTopic, veta] : _dataMagr->GetSfMData()) {

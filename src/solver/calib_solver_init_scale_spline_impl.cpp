@@ -51,7 +51,7 @@ void CalibSolver::InitScaleSpline() {
     spdlog::info("performing scale spline recovery...");
 
     auto estimator = Estimator::Create(_splines, _parMagr);
-    auto optOption = OptOption::Option::OPT_SCALE_SPLINE;
+    auto optOption = OptOption::OPT_SCALE_SPLINE;
 
     switch (GetScaleType()) {
         case TimeDeriv::LIN_ACCE_SPLINE: {
@@ -63,7 +63,7 @@ void CalibSolver::InitScaleSpline() {
             // only multiple radars and imus are involved
             constexpr int VelDeriv =
                 TimeDeriv::Deriv<TimeDeriv::LIN_VEL_SPLINE, TimeDeriv::LIN_VEL>();
-            optOption |= OptOption::Option::OPT_SO3_SPLINE;
+            optOption |= OptOption::OPT_SO3_SPLINE;
             // radar-derived velocities
             for (const auto &[topic, data] : _dataMagr->GetRadarMeasurements()) {
                 const double TO_RjToBr = _parMagr->TEMPORAL.TO_RjToBr.at(topic);
@@ -127,7 +127,7 @@ void CalibSolver::InitScaleSpline() {
                                                     Configor::Preference::UseCudaInSolving));
 
                 estimator = Estimator::Create(_splines, _parMagr);
-                optOption = OptOption::Option::OPT_TO_RjToBr;
+                optOption = OptOption::OPT_TO_RjToBr;
                 for (const auto &[topic, _] : Configor::DataStream::RadarTopics) {
                     this->AddRadarFactor<TimeDeriv::LIN_VEL_SPLINE>(estimator, topic, optOption);
                 }
@@ -138,7 +138,7 @@ void CalibSolver::InitScaleSpline() {
             // this value equals to zero
             constexpr int PosDeriv =
                 TimeDeriv::Deriv<TimeDeriv::LIN_POS_SPLINE, TimeDeriv::LIN_POS>();
-            optOption |= OptOption::Option::OPT_SO3_SPLINE;
+            optOption |= OptOption::OPT_SO3_SPLINE;
 
             std::vector<double> headTimeVec, tailTimeVec;
             for (const auto &[lidarTopic, odometer] : _initAsset->lidarOdometers) {
@@ -268,7 +268,7 @@ void CalibSolver::InitScaleSpline() {
         estimator = Estimator::Create(_splines, _parMagr);
         for (const auto &[topic, _] : Configor::DataStream::RadarTopics) {
             this->AddRadarFactor<TimeDeriv::LIN_POS_SPLINE>(estimator, topic,
-                                                            OptOption::Option::OPT_TO_RjToBr);
+                                                            OptOption::OPT_TO_RjToBr);
         }
         sum = estimator->Solve(_ceresOption, this->_priori);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());

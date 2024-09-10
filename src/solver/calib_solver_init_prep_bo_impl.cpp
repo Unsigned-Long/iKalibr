@@ -34,6 +34,8 @@
 
 #include "solver/calib_solver.h"
 #include "core/lidar_odometer.h"
+#include "calib/calib_data_manager.h"
+#include "viewer/viewer.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

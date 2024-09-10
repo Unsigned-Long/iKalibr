@@ -17,7 +17,13 @@
 
 :tada: ​RGBD cameras are now supported in `iKalibr`! It is **not an extension** of the normal optical cameras already in `iKalibr`, but a new modeling and calibration method. Because of this, it is no longer necessary to perform time-consuming SfM to calibrate RGBD-Inertial suites (SfM is required when calibrating normal optical camera-IMU suites in `iKalibr`). The corresponding datasets and codes has been open-sourced and integrated into the new version of `iKalibr`. Come and try it!
 
-<div align=center><img src="../img/intro.drawio.jpg" width =60%></div>
+<div align=center>
+    <img src="../img/intro.drawio.jpg" width =60%>
+</div>
+
+<div align=center>
+    <img src="../img/supported_sensors.drawio.svg" width =80%>
+</div>
 
 For more details about the newly released RGBD-Inertial calibration method, please refer to our article :point_down::
 

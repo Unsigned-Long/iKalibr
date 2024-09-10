@@ -35,6 +35,10 @@
 #include "solver/calib_solver.h"
 #include "core/lidar_odometer.h"
 #include "util/utils_tpl.hpp"
+#include "calib/calib_data_manager.h"
+#include "calib/calib_param_manager.h"
+#include "viewer/viewer.h"
+#include "calib/estimator.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -70,15 +74,15 @@ void CalibSolver::InitSensorInertialAlign() {
     // LiDARs') here
     auto optOption =
         // lidar extrinsic translations
-        OptOption::Option::OPT_POS_LkInBr |
+        OptOption::OPT_POS_LkInBr |
         // camera extrinsic translations and visual scale
-        OptOption::Option::OPT_POS_CmInBr | OptOption::Option::OPT_VISUAL_GLOBAL_SCALE |
+        OptOption::OPT_POS_CmInBr | OptOption::OPT_VISUAL_GLOBAL_SCALE |
         // radar extrinsics
-        OptOption::Option::OPT_SO3_RjToBr | OptOption::Option::OPT_POS_RjInBr |
+        OptOption::OPT_SO3_RjToBr | OptOption::OPT_POS_RjInBr |
         // rgbd extrinsics
-        OptOption::Option::OPT_POS_DnInBr |
+        OptOption::OPT_POS_DnInBr |
         // imu extrinsic translations and gravity
-        OptOption::Option::OPT_POS_BiInBr | OptOption::Option::OPT_GRAVITY;
+        OptOption::OPT_POS_BiInBr | OptOption::OPT_GRAVITY;
 
     // make sure 'ALIGN_STEP' * 'TIME INTERVAL OF TWO FRAMES' == 0.1
     static constexpr double DESIRED_TIME_INTERVAL = 0.5 /* sed */;

@@ -34,7 +34,6 @@
 
 #include "solver/calib_solver.h"
 #include "solver/calib_solver_io.h"
-#include "solver/calib_solver_tpl.hpp"
 #include "viewer/visual_lidar_covisibility.h"
 #include "viewer/visual_ang_vel_drawer.h"
 #include "viewer/visual_lin_vel_drawer.h"
@@ -48,6 +47,10 @@
 #include "factor/visual_reproj_factor.hpp"
 #include "factor/rgbd_velocity_factor.hpp"
 #include "factor/point_to_surfel_factor.hpp"
+#include "tiny-viewer/object/aligned_cloud.hpp"
+#include "calib/calib_data_manager.h"
+#include "calib/calib_param_manager.h"
+#include "calib/estimator.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

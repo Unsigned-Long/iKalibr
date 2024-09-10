@@ -45,7 +45,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_ikalibr {
 struct BatchOptOption {
 public:
-    using Opt = OptOption::Option;
+    using Opt = OptOption;
 
 protected:
     constexpr static std::array<Opt, 1> MultiIMU = {Opt::OPT_SO3_SPLINE | Opt::OPT_SCALE_SPLINE |

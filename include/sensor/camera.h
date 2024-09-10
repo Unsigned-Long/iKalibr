@@ -83,6 +83,8 @@ public:
     void SetId(ns_veta::IndexT id);
 
     friend std::ostream &operator<<(std::ostream &os, const CameraFrame &frame);
+
+    virtual ~CameraFrame() = default;
 };
 }  // namespace ns_ikalibr
 

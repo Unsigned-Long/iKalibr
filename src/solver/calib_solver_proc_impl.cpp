@@ -36,6 +36,8 @@
 #include "solver/batch_opt_option.hpp"
 #include "util/utils_tpl.hpp"
 #include "factor/point_to_surfel_factor.hpp"
+#include "calib/estimator.h"
+#include "viewer/viewer.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -59,6 +61,7 @@ void CalibSolver::Process() {
     this->InitPrepRGBDInertialAlign();
     this->InitPrepLiDARInertialAlign();
     this->InitPrepRadarInertialAlign();
+    this->InitPrepInertialInertialAlign();
 
     // sensor-alignment alignment
     this->InitSensorInertialAlign();
@@ -102,8 +105,7 @@ void CalibSolver::Process() {
                 // visual reprojection data association for cameras
                 DataAssociationForCameras(),
                 // visual velocity creation for rgbd cameras
-                DataAssociationForRGBDs(
-                    IsOptionWith(OptOption::Option::OPT_RGBD_DEPTH, options.at(i))));
+                DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_RGBD_DEPTH, options.at(i))));
         } else {
             std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> lidarPtsCorr;
             {
@@ -121,8 +123,7 @@ void CalibSolver::Process() {
                 // visual reprojection data association for cameras
                 DataAssociationForCameras(),
                 // visual velocity creation for rgbd cameras
-                DataAssociationForRGBDs(
-                    IsOptionWith(OptOption::Option::OPT_RGBD_DEPTH, options.at(i))));
+                DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_RGBD_DEPTH, options.at(i))));
         }
 
         _viewer->UpdateSplineViewer();
@@ -171,7 +172,7 @@ void CalibSolver::Process() {
             // visual reprojection data association for cameras
             DataAssociationForCameras(),
             // visual velocity creation for rgbd cameras
-            {},  // DataAssociationForRGBDs(IsOptionWith(OptOption::Option::OPT_RGBD_DEPTH,
+            {},  // DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_RGBD_DEPTH,
                  // options.back())),
             // point to surfel data association for RGBDs
             // attention!!! if depth images are not well-matched with rgb images

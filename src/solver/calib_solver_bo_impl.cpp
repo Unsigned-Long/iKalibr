@@ -43,12 +43,12 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_ikalibr {
 
 CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
-    OptOption::Option optOption,
+    OptOption optOption,
     const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &lidarPtsCorrs,
     const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &rgbdCorrs,
     const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>> &rgbdPtsCorrs) {
-    auto GetOptString = [](OptOption::Option opt) -> std::string {
+    auto GetOptString = [](OptOption opt) -> std::string {
         std::stringstream stringStream;
         stringStream << magic_enum::enum_flags_name(opt);
         return stringStream.str();
@@ -75,15 +75,15 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddGyroFactor(estimator, topic, optOption);
             }
             for (const auto &[topic, corrs] : rgbdCorrs) {
-                OptOption::Option visualOpt = optOption;
-                if (IsOptionWith(OptOption::Option::OPT_RS_CAM_READOUT_TIME, visualOpt)) {
+                OptOption visualOpt = optOption;
+                if (IsOptionWith(OptOption::OPT_RS_CAM_READOUT_TIME, visualOpt)) {
                     if (IsRSCamera(topic)) {
                         spdlog::info(
                             "rgbd camera '{}' is a rolling shutter (RS) camera, "
                             "use optimization option 'OPT_RS_CAM_READOUT_TIME'",
                             topic);
                     } else {
-                        visualOpt ^= OptOption::Option::OPT_RS_CAM_READOUT_TIME;
+                        visualOpt ^= OptOption::OPT_RS_CAM_READOUT_TIME;
                         spdlog::info(
                             "rgbd camera '{}' is a global shutter (GS) camera, "
                             "remove optimization option 'OPT_RS_CAM_READOUT_TIME'",
@@ -100,15 +100,15 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                                                                              corrSeqVec, optOption);
             }
             for (const auto &[camTopic, corrSeqVec] : visualCorrs) {
-                OptOption::Option visualOpt = optOption;
-                if (IsOptionWith(OptOption::Option::OPT_RS_CAM_READOUT_TIME, visualOpt)) {
+                OptOption visualOpt = optOption;
+                if (IsOptionWith(OptOption::OPT_RS_CAM_READOUT_TIME, visualOpt)) {
                     if (IsRSCamera(camTopic)) {
                         spdlog::info(
                             "camera '{}' is a rolling shutter (RS) camera, "
                             "use optimization option 'OPT_RS_CAM_READOUT_TIME'",
                             camTopic);
                     } else {
-                        visualOpt ^= OptOption::Option::OPT_RS_CAM_READOUT_TIME;
+                        visualOpt ^= OptOption::OPT_RS_CAM_READOUT_TIME;
                         spdlog::info(
                             "camera '{}' is a global shutter (GS) camera, "
                             "remove optimization option 'OPT_RS_CAM_READOUT_TIME'",
@@ -126,15 +126,15 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddGyroFactor(estimator, topic, optOption);
             }
             for (const auto &[topic, corrs] : rgbdCorrs) {
-                OptOption::Option visualOpt = optOption;
-                if (IsOptionWith(OptOption::Option::OPT_RS_CAM_READOUT_TIME, visualOpt)) {
+                OptOption visualOpt = optOption;
+                if (IsOptionWith(OptOption::OPT_RS_CAM_READOUT_TIME, visualOpt)) {
                     if (IsRSCamera(topic)) {
                         spdlog::info(
                             "rgbd camera '{}' is a rolling shutter (RS) camera, "
                             "use optimization option 'OPT_RS_CAM_READOUT_TIME'",
                             topic);
                     } else {
-                        visualOpt ^= OptOption::Option::OPT_RS_CAM_READOUT_TIME;
+                        visualOpt ^= OptOption::OPT_RS_CAM_READOUT_TIME;
                         spdlog::info(
                             "rgbd camera '{}' is a global shutter (GS) camera, "
                             "remove optimization option 'OPT_RS_CAM_READOUT_TIME'",

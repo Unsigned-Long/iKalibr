@@ -112,7 +112,7 @@ public:
     cv::Mat &GetDepthImage();
 
     // release the image mat data to save memory when needed
-    virtual void ReleaseMat();
+    void ReleaseMat();
 
     [[nodiscard]] double GetTimestamp() const;
 

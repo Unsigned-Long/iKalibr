@@ -45,6 +45,11 @@
 #include "core/vision_only_sfm.h"
 #include "factor/rgbd_velocity_factor.hpp"
 #include "util/utils_tpl.hpp"
+#include "calib/ceres_callback.h"
+#include "viewer/viewer.h"
+#include "calib/calib_param_manager.h"
+#include "calib/calib_data_manager.h"
+#include "calib/estimator.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -691,54 +696,5 @@ void CalibSolver::AddGyroFactor(Estimator::Ptr &estimator,
     for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {
         estimator->AddIMUGyroMeasurement(item, imuTopic, option, weight);
     }
-}
-
-// ------------------
-// CeresDebugCallBack
-// ------------------
-
-CeresDebugCallBack::CeresDebugCallBack(CalibParamManager::Ptr calibParamManager)
-    : _parMagr(std::move(calibParamManager)),
-      _outputDir(Configor::DataStream::OutputPath + "/iteration/epoch"),
-      _idx(0) {
-    if (std::filesystem::exists(_outputDir)) {
-        std::filesystem::remove_all(_outputDir);
-    }
-
-    if (!std::filesystem::create_directories(_outputDir)) {
-        spdlog::warn("create directory failed: '{}'", _outputDir);
-    } else {
-        _iterInfoFile = std::ofstream(_outputDir + "/epoch_info.csv", std::ios::out);
-        _iterInfoFile << "cost,gradient,tr_radius(1/lambda)" << std::endl;
-    }
-}
-
-ceres::CallbackReturnType CeresDebugCallBack::operator()(const ceres::IterationSummary &summary) {
-    if (std::filesystem::exists(_outputDir)) {
-        // save param
-        const std::string paramFilename = _outputDir + "/ikalibr_param_" + std::to_string(_idx) +
-                                          ns_ikalibr::Configor::GetFormatExtension();
-        _parMagr->Save(paramFilename, ns_ikalibr::Configor::Preference::OutputDataFormat);
-
-        // save iter info
-        _iterInfoFile << _idx << ',' << summary.cost << ',' << summary.gradient_norm << ','
-                      << summary.trust_region_radius << std::endl;
-
-        ++_idx;
-    }
-    return ceres::SOLVER_CONTINUE;
-}
-
-CeresDebugCallBack::~CeresDebugCallBack() { _iterInfoFile.close(); }
-
-// -------------------
-// CeresViewerCallBack
-// -------------------
-CeresViewerCallBack::CeresViewerCallBack(Viewer::Ptr viewer)
-    : _viewer(std::move(viewer)) {}
-
-ceres::CallbackReturnType CeresViewerCallBack::operator()(const ceres::IterationSummary &summary) {
-    _viewer->UpdateSensorViewer().UpdateSplineViewer();
-    return ceres::CallbackReturnType::SOLVER_CONTINUE;
 }
 }  // namespace ns_ikalibr

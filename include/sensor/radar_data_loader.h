@@ -63,6 +63,8 @@ public:
 
     [[nodiscard]] RadarModelType GetRadarModel() const;
 
+    virtual ~RadarDataLoader() = default;
+
 protected:
     template <class MsgType>
     void CheckMessage(typename MsgType::ConstPtr msg) {

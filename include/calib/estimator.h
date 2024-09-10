@@ -54,72 +54,70 @@ using PointToSurfelCorrPtr = std::shared_ptr<PointToSurfelCorr>;
 struct VisualReProjCorr;
 using VisualReProjCorrPtr = std::shared_ptr<VisualReProjCorr>;
 struct OpticalFlowCorr;
-using RGBDVelocityCorrPtr = std::shared_ptr<OpticalFlowCorr>;
+using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
 
-struct OptOption {
-    // myenumGenor Option OPT_SO3_SPLINE OPT_SCALE_SPLINE OPT_SO3_BiToBr OPT_POS_BiInBr
-    // OPT_SO3_RjToBr OPT_POS_RjInBr OPT_SO3_LkToBr OPT_POS_LkInBr OPT_SO3_CmToBr OPT_POS_CmInBr
-    // OPT_SO3_DnToBr OPT_POS_DnInBr OPT_TO_BiToBr OPT_TO_RjToBr OPT_TO_LkToBr OPT_TO_CmToBr
-    // OPT_TO_DnToBr OPT_GYRO_BIAS OPT_GYRO_MAP_COEFF OPT_ACCE_BIAS OPT_ACCE_MAP_COEFF OPT_SO3_AtoG
-    // OPT_GRAVITY OPT_VISUAL_GLOBAL_SCALE OPT_VISUAL_INV_DEPTH OPT_RGBD_DEPTH OPT_RGBD_ALPHA
-    // OPT_RGBD_BETA OPT_CAM_FOCAL_LEN OPT_CAM_PRINCIPAL_POINT OPT_RS_CAM_READOUT_TIME
-    enum Option : std::uint32_t {
-        /**
-         * @brief options
-         */
-        NONE = std::uint32_t(1) << 0,
-        OPT_SO3_SPLINE = std::uint32_t(1) << 1,
-        OPT_SCALE_SPLINE = std::uint32_t(1) << 2,
+// myenumGenor Option OPT_SO3_SPLINE OPT_SCALE_SPLINE OPT_SO3_BiToBr OPT_POS_BiInBr
+// OPT_SO3_RjToBr OPT_POS_RjInBr OPT_SO3_LkToBr OPT_POS_LkInBr OPT_SO3_CmToBr OPT_POS_CmInBr
+// OPT_SO3_DnToBr OPT_POS_DnInBr OPT_TO_BiToBr OPT_TO_RjToBr OPT_TO_LkToBr OPT_TO_CmToBr
+// OPT_TO_DnToBr OPT_GYRO_BIAS OPT_GYRO_MAP_COEFF OPT_ACCE_BIAS OPT_ACCE_MAP_COEFF OPT_SO3_AtoG
+// OPT_GRAVITY OPT_VISUAL_GLOBAL_SCALE OPT_VISUAL_INV_DEPTH OPT_RGBD_DEPTH OPT_RGBD_ALPHA
+// OPT_RGBD_BETA OPT_CAM_FOCAL_LEN OPT_CAM_PRINCIPAL_POINT OPT_RS_CAM_READOUT_TIME
+enum class OptOption : std::uint32_t {
+    /**
+     * @brief options
+     */
+    NONE = std::uint32_t(1) << 0,
+    OPT_SO3_SPLINE = std::uint32_t(1) << 1,
+    OPT_SCALE_SPLINE = std::uint32_t(1) << 2,
 
-        OPT_SO3_BiToBr = std::uint32_t(1) << 3,
-        OPT_POS_BiInBr = std::uint32_t(1) << 4,
+    OPT_SO3_BiToBr = std::uint32_t(1) << 3,
+    OPT_POS_BiInBr = std::uint32_t(1) << 4,
 
-        OPT_SO3_RjToBr = std::uint32_t(1) << 5,
-        OPT_POS_RjInBr = std::uint32_t(1) << 6,
+    OPT_SO3_RjToBr = std::uint32_t(1) << 5,
+    OPT_POS_RjInBr = std::uint32_t(1) << 6,
 
-        OPT_SO3_LkToBr = std::uint32_t(1) << 7,
-        OPT_POS_LkInBr = std::uint32_t(1) << 8,
+    OPT_SO3_LkToBr = std::uint32_t(1) << 7,
+    OPT_POS_LkInBr = std::uint32_t(1) << 8,
 
-        OPT_SO3_CmToBr = std::uint32_t(1) << 9,
-        OPT_POS_CmInBr = std::uint32_t(1) << 10,
+    OPT_SO3_CmToBr = std::uint32_t(1) << 9,
+    OPT_POS_CmInBr = std::uint32_t(1) << 10,
 
-        OPT_SO3_DnToBr = std::uint32_t(1) << 11,
-        OPT_POS_DnInBr = std::uint32_t(1) << 12,
+    OPT_SO3_DnToBr = std::uint32_t(1) << 11,
+    OPT_POS_DnInBr = std::uint32_t(1) << 12,
 
-        OPT_TO_BiToBr = std::uint32_t(1) << 13,
-        OPT_TO_RjToBr = std::uint32_t(1) << 14,
-        OPT_TO_LkToBr = std::uint32_t(1) << 15,
-        OPT_TO_CmToBr = std::uint32_t(1) << 16,
-        OPT_TO_DnToBr = std::uint32_t(1) << 17,
+    OPT_TO_BiToBr = std::uint32_t(1) << 13,
+    OPT_TO_RjToBr = std::uint32_t(1) << 14,
+    OPT_TO_LkToBr = std::uint32_t(1) << 15,
+    OPT_TO_CmToBr = std::uint32_t(1) << 16,
+    OPT_TO_DnToBr = std::uint32_t(1) << 17,
 
-        OPT_GYRO_BIAS = std::uint32_t(1) << 18,
-        OPT_GYRO_MAP_COEFF = std::uint32_t(1) << 19,
-        OPT_ACCE_BIAS = std::uint32_t(1) << 20,
-        OPT_ACCE_MAP_COEFF = std::uint32_t(1) << 21,
-        OPT_SO3_AtoG = std::uint32_t(1) << 22,
+    OPT_GYRO_BIAS = std::uint32_t(1) << 18,
+    OPT_GYRO_MAP_COEFF = std::uint32_t(1) << 19,
+    OPT_ACCE_BIAS = std::uint32_t(1) << 20,
+    OPT_ACCE_MAP_COEFF = std::uint32_t(1) << 21,
+    OPT_SO3_AtoG = std::uint32_t(1) << 22,
 
-        OPT_GRAVITY = std::uint32_t(1) << 23,
+    OPT_GRAVITY = std::uint32_t(1) << 23,
 
-        OPT_VISUAL_GLOBAL_SCALE = std::uint32_t(1) << 24,
-        OPT_VISUAL_INV_DEPTH = std::uint32_t(1) << 25,
+    OPT_VISUAL_GLOBAL_SCALE = std::uint32_t(1) << 24,
+    OPT_VISUAL_INV_DEPTH = std::uint32_t(1) << 25,
 
-        OPT_RGBD_ALPHA = std::uint32_t(1) << 26,
-        OPT_RGBD_BETA = std::uint32_t(1) << 27,
-        OPT_RGBD_DEPTH = std::uint32_t(1) << 28,
+    OPT_RGBD_ALPHA = std::uint32_t(1) << 26,
+    OPT_RGBD_BETA = std::uint32_t(1) << 27,
+    OPT_RGBD_DEPTH = std::uint32_t(1) << 28,
 
-        OPT_CAM_FOCAL_LEN = std::uint32_t(1) << 29,
-        OPT_CAM_PRINCIPAL_POINT = std::uint32_t(1) << 30,
+    OPT_CAM_FOCAL_LEN = std::uint32_t(1) << 29,
+    OPT_CAM_PRINCIPAL_POINT = std::uint32_t(1) << 30,
 
-        OPT_RS_CAM_READOUT_TIME = std::uint32_t(1) << 31,
+    OPT_RS_CAM_READOUT_TIME = std::uint32_t(1) << 31,
 
-        ALL = OPT_SO3_SPLINE | OPT_SCALE_SPLINE | OPT_SO3_BiToBr | OPT_POS_BiInBr | OPT_SO3_RjToBr |
-              OPT_POS_RjInBr | OPT_SO3_LkToBr | OPT_POS_LkInBr | OPT_SO3_CmToBr | OPT_POS_CmInBr |
-              OPT_SO3_DnToBr | OPT_POS_DnInBr | OPT_TO_BiToBr | OPT_TO_RjToBr | OPT_TO_LkToBr |
-              OPT_TO_CmToBr | OPT_TO_DnToBr | OPT_GYRO_BIAS | OPT_GYRO_MAP_COEFF | OPT_ACCE_BIAS |
-              OPT_ACCE_MAP_COEFF | OPT_SO3_AtoG | OPT_GRAVITY | OPT_VISUAL_GLOBAL_SCALE |
-              OPT_VISUAL_INV_DEPTH | OPT_RGBD_ALPHA | OPT_RGBD_BETA | OPT_RGBD_DEPTH |
-              OPT_CAM_FOCAL_LEN | OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME
-    };
+    ALL = OPT_SO3_SPLINE | OPT_SCALE_SPLINE | OPT_SO3_BiToBr | OPT_POS_BiInBr | OPT_SO3_RjToBr |
+          OPT_POS_RjInBr | OPT_SO3_LkToBr | OPT_POS_LkInBr | OPT_SO3_CmToBr | OPT_POS_CmInBr |
+          OPT_SO3_DnToBr | OPT_POS_DnInBr | OPT_TO_BiToBr | OPT_TO_RjToBr | OPT_TO_LkToBr |
+          OPT_TO_CmToBr | OPT_TO_DnToBr | OPT_GYRO_BIAS | OPT_GYRO_MAP_COEFF | OPT_ACCE_BIAS |
+          OPT_ACCE_MAP_COEFF | OPT_SO3_AtoG | OPT_GRAVITY | OPT_VISUAL_GLOBAL_SCALE |
+          OPT_VISUAL_INV_DEPTH | OPT_RGBD_ALPHA | OPT_RGBD_BETA | OPT_RGBD_DEPTH |
+          OPT_CAM_FOCAL_LEN | OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME
 };
 
 struct SpatialTemporalPriori;
@@ -130,7 +128,7 @@ public:
     using Ptr = std::shared_ptr<Estimator>;
     using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
     using SplineMetaType = ns_ctraj::SplineMeta<Configor::Prior::SplineOrder>;
-    using Opt = OptOption::Option;
+    using Opt = OptOption;
 
 private:
     SplineBundleType::Ptr splines;
@@ -320,7 +318,7 @@ public:
      *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH_INFO ]
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-    void AddRGBDVelocityConstraint(const RGBDVelocityCorrPtr &velCorr,
+    void AddRGBDVelocityConstraint(const OpticalFlowCorrPtr &velCorr,
                                    const std::string &topic,
                                    Opt option,
                                    double weight);
@@ -366,7 +364,7 @@ public:
     void PrintUninvolvedKnots() const;
 
     void AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
-                                      const RGBDVelocityCorrPtr &corr,
+                                      const OpticalFlowCorrPtr &corr,
                                       double TO_CamToBr,
                                       double readout,
                                       const Sophus::SO3d &SO3_CamToBr,
@@ -376,7 +374,7 @@ public:
                                       bool estVelDirOnly);
 
     void AddVisualVelocityDepthFactorForRGBD(Eigen::Vector3d *LIN_VEL_CmToWInCm,
-                                             const RGBDVelocityCorrPtr &corr,
+                                             const OpticalFlowCorrPtr &corr,
                                              const std::string &rgbdTopic,
                                              double weight,
                                              bool estDepth,

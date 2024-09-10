@@ -40,6 +40,11 @@
 #include "core/visual_velocity_sac.h"
 #include "factor/rgbd_velocity_factor.hpp"
 #include "tiny-viewer/object/camera.h"
+#include "calib/calib_data_manager.h"
+#include "calib/calib_param_manager.h"
+#include "spdlog/spdlog.h"
+#include "viewer/viewer.h"
+#include "calib/estimator.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -146,8 +151,7 @@ void CalibSolver::InitPrepRGBDInertialAlign() {
                     if (Configor::Prior::OptTemporalParams) {
                         auto estimator = Estimator::Create(_splines, _parMagr);
 
-                        auto optOption =
-                            OptOption::Option::OPT_SO3_DnToBr | OptOption::Option::OPT_TO_DnToBr;
+                        auto optOption = OptOption::OPT_SO3_DnToBr | OptOption::OPT_TO_DnToBr;
                         double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
                         double weight = Configor::DataStream::RGBDTopics.at(topic).Weight;
 

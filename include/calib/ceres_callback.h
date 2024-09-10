@@ -32,14 +32,11 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IKALIBR_CAMERA_DATA_LOADER_H
-#define IKALIBR_CAMERA_DATA_LOADER_H
+#ifndef IKALIBR_CERES_CALLBACK_H
+#define IKALIBR_CERES_CALLBACK_H
 
-#include "sensor/camera.h"
-#include "sensor/sensor_model.h"
-#include "rosbag/message_instance.h"
-#include "util/enum_cast.hpp"
-#include "sensor_msgs/Image.h"
+#include "ceres/iteration_callback.h"
+#include "util/utils.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -47,60 +44,36 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-class CameraDataLoader {
+struct CalibParamManager;
+using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
+struct Viewer;
+using ViewerPtr = std::shared_ptr<Viewer>;
+
+struct CeresDebugCallBack : public ceres::IterationCallback {
+private:
+    CalibParamManagerPtr _parMagr;
+    const std::string _outputDir;
+    std::ofstream _iterInfoFile;
+    int _idx;
+
 public:
-    using Ptr = std::shared_ptr<CameraDataLoader>;
+    explicit CeresDebugCallBack(CalibParamManagerPtr calibParamManager);
 
-protected:
-    CameraModelType _model;
+    ~CeresDebugCallBack() override;
 
-public:
-    explicit CameraDataLoader(CameraModelType model);
-
-    virtual CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) = 0;
-
-    static CameraDataLoader::Ptr GetLoader(const std::string &modelStr);
-
-    [[nodiscard]] CameraModelType GetCameraModel() const;
-
-    virtual ~CameraDataLoader() = default;
-
-protected:
-    template <class MsgType>
-    void CheckMessage(typename MsgType::ConstPtr msg) {
-        if (msg == nullptr) {
-            throw std::runtime_error(
-                "Wrong sensor model: '" + std::string(EnumCast::enumToString(GetCameraModel())) +
-                "' for cameras! It's incompatible with the type of ros message to load in!");
-        }
-    }
-
-    static void RefineImgMsgWrongEncoding(const sensor_msgs::Image::Ptr &msg);
+    ceres::CallbackReturnType operator()(const ceres::IterationSummary &summary) override;
 };
 
-class SensorImageLoader : public CameraDataLoader {
-public:
-    using Ptr = std::shared_ptr<SensorImageLoader>;
+struct CeresViewerCallBack : public ceres::IterationCallback {
+private:
+    ViewerPtr _viewer;
 
 public:
-    explicit SensorImageLoader(CameraModelType model);
+    explicit CeresViewerCallBack(ViewerPtr viewer);
 
-    static SensorImageLoader::Ptr Create(CameraModelType model);
-
-    CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
+    ceres::CallbackReturnType operator()(const ceres::IterationSummary &summary) override;
 };
 
-class SensorImageCompLoader : public CameraDataLoader {
-public:
-    using Ptr = std::shared_ptr<SensorImageCompLoader>;
-
-public:
-    explicit SensorImageCompLoader(CameraModelType model);
-
-    static SensorImageCompLoader::Ptr Create(CameraModelType model);
-
-    CameraFrame::Ptr UnpackFrame(const rosbag::MessageInstance &msgInstance) override;
-};
 }  // namespace ns_ikalibr
 
-#endif  // IKALIBR_CAMERA_DATA_LOADER_H
+#endif  // IKALIBR_CERES_CALLBACK_H

@@ -66,6 +66,8 @@ public:
 
     [[nodiscard]] IMUModelType GetIMUModel() const;
 
+    virtual ~IMUDataLoader() = default;
+
 protected:
     template <class MsgType>
     void CheckMessage(typename MsgType::ConstPtr msg) {

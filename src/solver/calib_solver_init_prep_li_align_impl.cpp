@@ -37,6 +37,11 @@
 #include "core/lidar_odometer.h"
 #include "core/scan_undistortion.h"
 #include "util/tqdm.h"
+#include "calib/calib_data_manager.h"
+#include "calib/calib_param_manager.h"
+#include "spdlog/spdlog.h"
+#include "viewer/viewer.h"
+#include "calib/estimator.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -180,9 +185,9 @@ void CalibSolver::InitPrepLiDARInertialAlign() {
     {
         spdlog::info("performing  hand eye rotation alignment for LiDARs...");
         auto estimator = Estimator::Create(_splines, _parMagr);
-        auto optOption = OptOption::Option::OPT_SO3_LkToBr;
+        auto optOption = OptOption::OPT_SO3_LkToBr;
         if (Configor::Prior::OptTemporalParams) {
-            optOption |= OptOption::Option::OPT_TO_LkToBr;
+            optOption |= OptOption::OPT_TO_LkToBr;
         }
 
         for (const auto &[lidarTopic, odometer] : lidarOdometers) {
