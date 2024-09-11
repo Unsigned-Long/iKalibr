@@ -37,8 +37,9 @@ For more details, please refer to our article :point_down::
 </p> 
 <p align="center"><i>"Targetless, Spatial & Temporal, Resilient, Easy To Use, You Only Calibrate Once"</i></p>
 
-<div align=center><img src="docs/img/supported_sensors.drawio.svg" width =100%></div>
-
+<div style="text-align: center;">
+    <img src="docs/img/supported_sensors.drawio.svg" style="width: 100vw; height: auto;">
+</div>
 ---
 
 <div align=center><img src="docs/img/overview.drawio.jpg" width =100%></div>
