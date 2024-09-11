@@ -37,7 +37,6 @@ echo "----------------------------------------------------"
 echo "update submodules remotely, it may take some time..."
 echo "----------------------------------------------------"
 git submodule update --init --recursive
-git submodule update --remote --recursive
 if [ $? -ne 0 ]; then
     echo "--------------------------------------------"
     echo "error occurs when updating submodules, exit!"

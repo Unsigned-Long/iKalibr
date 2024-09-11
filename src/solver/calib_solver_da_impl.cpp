@@ -599,15 +599,15 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
                 Eigen::Vector2d lVec = subAMat * LIN_VEL_DnToBr0InDn;
                 Eigen::Vector2d bMat = corr->MidPointVel(readout) - subBMat * ANG_VEL_DnToBr0InDn;
                 Eigen::Vector1d HMat = bMat.transpose() * bMat;
-                double estDepth = (HMat.inverse() * bMat.transpose() * lVec)(0, 0);
-                double newRawDepth = intri->RawDepth(estDepth);
+                double estimatedDepth = (HMat.inverse() * bMat.transpose() * lVec)(0, 0);
+                double newRawDepth = intri->RawDepth(estimatedDepth);
 
                 // spdlog::info(
                 //     "raw depth: {:.3f}, actual depth: {:.3f}, est depth: {:.3f}, new raw depth: "
                 //     "{:.3f}",
                 //     corr->depth, actualDepth, estDepth, newRawDepth);
 
-                if (estDepth < 1E-3) {
+                if (estimatedDepth < 1E-3) {
                     // depth is negative, do not  introduce it to estimator.
                     continue;
                 }
