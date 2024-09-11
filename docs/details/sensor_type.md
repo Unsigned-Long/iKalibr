@@ -1,6 +1,6 @@
-
-
-<div align=center><img src="../img/logo.svg" width =100%></div>
+<div style="text-align: center;">
+    <img src="../img/logo.svg" style="width: 100vw; height: auto;">
+</div>
 
 ---
 
