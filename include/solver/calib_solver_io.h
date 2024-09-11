@@ -59,33 +59,36 @@ public:
 
     static CalibSolverIO::Ptr Create(const CalibSolverPtr &solver);
 
-public:
-    void SaveBSplines(int hz = 400);
+    void SaveByProductsToDisk() const;
 
-    void SaveLiDARMaps();
+protected:
+    void SaveBSplines(int hz = 400) const;
 
-    void SaveVisualMaps();
+    void SaveLiDARMaps() const;
 
-    void SaveRadarMaps();
+    void SaveVisualMaps() const;
 
-    void SaveHessianMatrix();
+    void SaveRadarMaps() const;
 
-    void VerifyVisualLiDARConsistency();
+    void SaveHessianMatrix() const;
 
-    void SaveVisualKinematics();
+    void VerifyVisualLiDARConsistency() const;
 
-    void SaveVisualColorizedMap();
+    void SaveVisualKinematics() const;
 
-    void SaveAlignedInertialMes();
+    void SaveVisualColorizedMap() const;
 
-    void SaveVisualReprojectionError();
+    void SaveAlignedInertialMes() const;
 
-    void SaveRadarDopplerError();
+    void SaveVisualReprojectionError() const;
 
-    void SaveRGBDVelocityError();
+    void SaveRadarDopplerError() const;
 
-    void SaveLiDARPointToSurfelError();
+    void SaveRGBDVelocityError() const;
 
+    void SaveLiDARPointToSurfelError() const;
+
+protected:
     static bool SavePoseSequence(const Eigen::aligned_vector<ns_ctraj::Posed> &poseSeq,
                                  const std::string &filename,
                                  CerealArchiveType::Enum archiveType);

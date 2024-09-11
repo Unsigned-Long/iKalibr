@@ -273,9 +273,5 @@ void CalibSolver::InitScaleSpline() {
         sum = estimator->Solve(_ceresOption, this->_priori);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
     }
-
-    if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
-        SaveStageCalibParam(_parMagr, "stage_3_scale_fit");
-    }
 }
 }  // namespace ns_ikalibr

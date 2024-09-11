@@ -64,6 +64,16 @@ int main(int argc, char **argv) {
         }
 
         if (!ns_ikalibr::Configor::LoadConfigure(configPath)) {
+            /**
+             * Attention: once the configure information is loaded in to this program, anywhere this
+             * configure infomoration can be used, as the 'Configor' is a large state mechine (a
+             * struct that contains all static configure fields), just like the one in OpenGL, such
+             * a design may lead to confuse to the new, and not easy to understand, however it can
+             * make code cleaner.
+             *
+             * Suggestion from authors: such a design is not recommanded in other programs,
+             * especially those multi-thread programs!!!
+             */
             throw ns_ikalibr::Status(ns_ikalibr::Status::CRITICAL,
                                      "load configure file from '{}' failed!", configPath);
         } else {
@@ -85,85 +95,26 @@ int main(int argc, char **argv) {
         solver->Process();
 
         // solve finished, save calibration results (file type: JSON | YAML | XML | BINARY)
-        auto filename = ns_ikalibr::Configor::DataStream::OutputPath + "/ikalibr_param" +
-                        ns_ikalibr::Configor::GetFormatExtension();
+        const auto filename = ns_ikalibr::Configor::DataStream::OutputPath + "/ikalibr_param" +
+                              ns_ikalibr::Configor::GetFormatExtension();
         paramMagr->Save(filename, ns_ikalibr::Configor::Preference::OutputDataFormat);
 
-        auto solverIO = ns_ikalibr::CalibSolverIO::Create(solver);
+        // save the by-products from the spatiotemporal calibration to the disk
+        ns_ikalibr::CalibSolverIO::Create(solver)->SaveByProductsToDisk();
 
-        if (IsOptionWith(ns_ikalibr::OutputOption::LiDARMaps,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveLiDARMaps();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::VisualMaps,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveVisualMaps();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::RadarMaps,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveRadarMaps();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::BSplines,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveBSplines();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::HessianMat,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveHessianMatrix();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::AlignedInertialMes,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveAlignedInertialMes();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::VisualReprojErrors,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveVisualReprojectionError();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::RadarDopplerErrors,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveRadarDopplerError();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::RGBDVelocityErrors,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveRGBDVelocityError();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::LiDARPointToSurfelErrors,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveLiDARPointToSurfelError();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::VisualKinematics,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveVisualKinematics();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::VisualLiDARCovisibility,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->VerifyVisualLiDARConsistency();
-        }
-
-        if (IsOptionWith(ns_ikalibr::OutputOption::ColorizedLiDARMap,
-                         ns_ikalibr::Configor::Preference::Outputs)) {
-            solverIO->SaveVisualColorizedMap();
-        }
-
-        static const auto FStyle = fmt::emphasis::italic | fmt::fg(fmt::color::green);
+        static constexpr auto FStyle = fmt::emphasis::italic | fmt::fg(fmt::color::green);
         spdlog::info(
             fmt::format(FStyle, "solving and outputting finished!!! Everything is fine!!!"));
 
+        /**
+         * this program would continue running here, until the viewer is closed by the users.
+         * the viewer is maintained by the 'CalibSolver'.
+         */
+
     } catch (const ns_ikalibr::IKalibrStatus &status) {
         // if error happened, print it
-        static const auto FStyle = fmt::emphasis::italic | fmt::fg(fmt::color::green);
-        static const auto WECStyle = fmt::emphasis::italic | fmt::fg(fmt::color::red);
+        static constexpr auto FStyle = fmt::emphasis::italic | fmt::fg(fmt::color::green);
+        static constexpr auto WECStyle = fmt::emphasis::italic | fmt::fg(fmt::color::red);
         switch (status.flag) {
             case ns_ikalibr::Status::FINE:
                 // this case usually won't happen
@@ -181,7 +132,7 @@ int main(int argc, char **argv) {
         }
     } catch (const std::exception &e) {
         // an unknown exception not thrown by this program
-        static const auto WECStyle = fmt::emphasis::italic | fmt::fg(fmt::color::red);
+        static constexpr auto WECStyle = fmt::emphasis::italic | fmt::fg(fmt::color::red);
         spdlog::critical(fmt::format(WECStyle, "unknown error happened: '{}'", e.what()));
     }
 

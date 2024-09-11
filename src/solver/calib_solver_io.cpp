@@ -69,7 +69,61 @@ CalibSolverIO::Ptr CalibSolverIO::Create(const CalibSolver::Ptr &solver) {
     return std::make_shared<CalibSolverIO>(solver);
 }
 
-void CalibSolverIO::SaveBSplines(int hz) {
+void CalibSolverIO::SaveByProductsToDisk() const {
+    if (IsOptionWith(OutputOption::LiDARMaps, Configor::Preference::Outputs)) {
+        this->SaveLiDARMaps();
+    }
+
+    if (IsOptionWith(OutputOption::VisualMaps, Configor::Preference::Outputs)) {
+        this->SaveVisualMaps();
+    }
+
+    if (IsOptionWith(OutputOption::RadarMaps, Configor::Preference::Outputs)) {
+        this->SaveRadarMaps();
+    }
+
+    if (IsOptionWith(OutputOption::BSplines, Configor::Preference::Outputs)) {
+        this->SaveBSplines();
+    }
+
+    if (IsOptionWith(OutputOption::HessianMat, Configor::Preference::Outputs)) {
+        this->SaveHessianMatrix();
+    }
+
+    if (IsOptionWith(OutputOption::AlignedInertialMes, Configor::Preference::Outputs)) {
+        this->SaveAlignedInertialMes();
+    }
+
+    if (IsOptionWith(OutputOption::VisualReprojErrors, Configor::Preference::Outputs)) {
+        this->SaveVisualReprojectionError();
+    }
+
+    if (IsOptionWith(OutputOption::RadarDopplerErrors, Configor::Preference::Outputs)) {
+        this->SaveRadarDopplerError();
+    }
+
+    if (IsOptionWith(OutputOption::RGBDVelocityErrors, Configor::Preference::Outputs)) {
+        this->SaveRGBDVelocityError();
+    }
+
+    if (IsOptionWith(OutputOption::LiDARPointToSurfelErrors, Configor::Preference::Outputs)) {
+        this->SaveLiDARPointToSurfelError();
+    }
+
+    if (IsOptionWith(OutputOption::VisualKinematics, Configor::Preference::Outputs)) {
+        this->SaveVisualKinematics();
+    }
+
+    if (IsOptionWith(OutputOption::VisualLiDARCovisibility, Configor::Preference::Outputs)) {
+        this->VerifyVisualLiDARConsistency();
+    }
+
+    if (IsOptionWith(OutputOption::ColorizedLiDARMap, Configor::Preference::Outputs)) {
+        this->SaveVisualColorizedMap();
+    }
+}
+
+void CalibSolverIO::SaveBSplines(int hz) const {
     std::string saveDir = Configor::DataStream::OutputPath + "/splines";
     if (TryCreatePath(saveDir)) {
         spdlog::info("saving splines to dir: '{}'...", saveDir);
@@ -111,7 +165,7 @@ void CalibSolverIO::SaveBSplines(int hz) {
     spdlog::info("saving splines finished!");
 }
 
-void CalibSolverIO::SaveHessianMatrix() {
+void CalibSolverIO::SaveHessianMatrix() const {
     std::string saveDir = Configor::DataStream::OutputPath + "/hessian";
     if (TryCreatePath(saveDir)) {
         spdlog::info("saving hessian matrix to dir: '{}'...", saveDir);
@@ -236,7 +290,7 @@ void CalibSolverIO::SaveHessianMatrix() {
     spdlog::info("saving hessian matrix finished!");
 }
 
-void CalibSolverIO::VerifyVisualLiDARConsistency() {
+void CalibSolverIO::VerifyVisualLiDARConsistency() const {
     if (!Configor::IsLiDARIntegrated()) {
         return;
     }
@@ -378,7 +432,7 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() {
     spdlog::info("verify consistency finished!");
 }
 
-void CalibSolverIO::SaveVisualKinematics() {
+void CalibSolverIO::SaveVisualKinematics() const {
     if (!Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
         return;
     }
@@ -557,7 +611,7 @@ void CalibSolverIO::SaveVisualKinematics() {
     spdlog::info("saving visual kinematics finished!");
 }
 
-void CalibSolverIO::SaveVisualColorizedMap() {
+void CalibSolverIO::SaveVisualColorizedMap() const {
     if (!Configor::IsLiDARIntegrated()) {
         return;
     }
@@ -582,7 +636,7 @@ void CalibSolverIO::SaveVisualColorizedMap() {
             continue;
         }
 
-        auto shader =
+        const auto shader =
             ColorizedCloudMap::Create(topic, frames, _solver->_dataMagr->GetSfMData(topic),
                                       _solver->_splines, _solver->_parMagr);
         auto colorizedMap = shader->Colorize(_solver->_backup->lidarMap);
@@ -606,8 +660,8 @@ void CalibSolverIO::SaveVisualColorizedMap() {
             continue;
         }
         // todo: this has not been tested!!!
-        auto shader = RGBDColorizedCloudMap::Create(topic, frames, veta, _solver->_splines,
-                                                    _solver->_parMagr);
+        const auto shader = RGBDColorizedCloudMap::Create(topic, frames, veta, _solver->_splines,
+                                                          _solver->_parMagr);
         auto colorizedMap = shader->Colorize(_solver->_backup->lidarMap);
         auto filename = subSaveDir + "/colorized_map.pcd";
         if (pcl::io::savePCDFile(filename, *colorizedMap, true) == -1) {
@@ -618,7 +672,7 @@ void CalibSolverIO::SaveVisualColorizedMap() {
     spdlog::info("saving visual colorized map finished!");
 }
 
-void CalibSolverIO::SaveAlignedInertialMes() {
+void CalibSolverIO::SaveAlignedInertialMes() const {
     auto &scaleSpline = _solver->_splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
     auto &so3Spline = _solver->_splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
 
@@ -757,7 +811,7 @@ void CalibSolverIO::SaveAlignedInertialMes() {
     spdlog::info("saving aligned inertial measurements finished!");
 }
 
-void CalibSolverIO::SaveVisualReprojectionError() {
+void CalibSolverIO::SaveVisualReprojectionError() const {
     if (!Configor::IsCameraIntegrated()) {
         return;
     }
@@ -858,7 +912,7 @@ bool CalibSolverIO::TryCreatePath(const std::string &path) {
     }
 }
 
-void CalibSolverIO::SaveLiDARMaps() {
+void CalibSolverIO::SaveLiDARMaps() const {
     if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
         !Configor::IsLiDARIntegrated()) {
         return;
@@ -927,7 +981,7 @@ void CalibSolverIO::SaveLiDARMaps() {
     }
 }
 
-void CalibSolverIO::SaveVisualMaps() {
+void CalibSolverIO::SaveVisualMaps() const {
     if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
         return;
     }
@@ -991,7 +1045,7 @@ void CalibSolverIO::SaveVisualMaps() {
     }
 }
 
-void CalibSolverIO::SaveRadarMaps() {
+void CalibSolverIO::SaveRadarMaps() const {
     if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
         !Configor::IsRadarIntegrated()) {
         return;
@@ -1020,7 +1074,7 @@ void CalibSolverIO::SaveRadarMaps() {
     }
 }
 
-void CalibSolverIO::SaveRadarDopplerError() {
+void CalibSolverIO::SaveRadarDopplerError() const {
     if (!Configor::IsRadarIntegrated()) {
         return;
     }
@@ -1092,7 +1146,7 @@ void CalibSolverIO::SaveRadarDopplerError() {
     spdlog::info("saving radar doppler errors finished!");
 }
 
-void CalibSolverIO::SaveRGBDVelocityError() {
+void CalibSolverIO::SaveRGBDVelocityError() const {
     if (!Configor::IsRGBDIntegrated()) {
         return;
     }
@@ -1185,7 +1239,7 @@ void CalibSolverIO::SaveRGBDVelocityError() {
     spdlog::info("saving rgbd velocity errors finished!");
 }
 
-void CalibSolverIO::SaveLiDARPointToSurfelError() {
+void CalibSolverIO::SaveLiDARPointToSurfelError() const {
     if (!Configor::IsLiDARIntegrated()) {
         return;
     }
@@ -1237,9 +1291,7 @@ void CalibSolverIO::SaveLiDARPointToSurfelError() {
             Eigen::Vector3d planeNorm = corr->surfelInW.head(3);
             double distance = pointInBr0.dot(planeNorm) + corr->surfelInW(3);
 #pragma omp critical
-            {
-                ptsErrors.push_back(distance);
-            }
+            { ptsErrors.push_back(distance); }
         }
 
         std::ofstream file(subSaveDir + "/residuals" + Configor::GetFormatExtension(),

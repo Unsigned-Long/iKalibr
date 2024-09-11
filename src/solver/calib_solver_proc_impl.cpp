@@ -45,98 +45,137 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 void CalibSolver::Process() {
-    if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
+    auto outputParams = IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs);
+    if (outputParams) {
         SaveStageCalibParam(_parMagr, "stage_0_init");
     }
-    // --------------
-    // initialization
-    // --------------
-    spdlog::info("initialization...");
+    /**
+     * perform the initialization procedure to recover spatiotemporal parameters and
+     * interested states in the estimator, such as the splines and the gravity vector
+     */
 
-    // recover so3 spline
+    /* initialize (recover) the rotation spline using raw angular velocity measurements from the
+     * gyroscope. If multiple gyroscopes (IMUs) are involved, the extrinsic rotations and time
+     * offsets would be also recovered
+     */
     this->InitSO3Spline();
+    if (outputParams) {
+        SaveStageCalibParam(_parMagr, "stage_1_rot_fit");
+    }
 
-    // prepare for sensor-alignment alignment
-    this->InitPrepCameraInertialAlign();
-    this->InitPrepRGBDInertialAlign();
-    this->InitPrepLiDARInertialAlign();
-    this->InitPrepRadarInertialAlign();
-    this->InitPrepInertialInertialAlign();
+    /**
+     * perform sensor-inertial alignment to recover the gravity vector and extrinsic translations.
+     * for each type of sensor, the preparation is first performed to obtain necessary quantities
+     * for one-shot sensor-inertial alignment
+     */
+    this->InitPrepCameraInertialAlign();    // visual-inertial
+    this->InitPrepRGBDInertialAlign();      // rgbd-inertial
+    this->InitPrepLiDARInertialAlign();     // lidar-inertial
+    this->InitPrepRadarInertialAlign();     // radar-inertial
+    this->InitPrepInertialInertialAlign();  // inertial-inertial
+    this->InitSensorInertialAlign();        // one-shot sensor-inertial alignment
 
-    // sensor-alignment alignment
-    this->InitSensorInertialAlign();
+    if (outputParams) {
+        SaveStageCalibParam(_parMagr, "stage_2_align");
+    }
 
-    // recover scale spline
+    /**
+     * recover the linear scale spline using quantities from the one-shot sensor-inertial alignment
+     */
     this->InitScaleSpline();
 
-    // prepare for final batch optimizations
+    if (outputParams) {
+        SaveStageCalibParam(_parMagr, "stage_3_scale_fit");
+    }
+
+    /**
+     * this is the end of the initialization procedure, also the start of the batch optimizaion.
+     * some preparation operatiors would be performed here
+     */
     this->InitPrepBatchOpt();
 
+    /**
+     * once the initialization procedure is finished, we print the recovered spatiotemporal
+     * parameters to users.
+     */
     _parMagr->ShowParamStatus();
 
-    // ------------------
-    // batch optimization
-    // ------------------
+    /**
+     * perform multi-stage batch optimizations to refine all initialized states to global optimal
+     * ones, which is descided by the optimization options from the 'BatchOptOption'
+     */
     const int ptsCountInEachScan = Configor::Prior::LiDARDataAssociate::PointToSurfelCountInScan;
-
     auto options = BatchOptOption::GetOptions();
+
     for (int i = 0; i < static_cast<int>(options.size()); ++i) {
         spdlog::info("perform '{}-th' batch optimization...", i);
+        /**
+         * the preparation visualization tasks before the batch optimization.
+         */
         _viewer->ClearViewer(Viewer::VIEW_MAP);
-        // add radar cloud if radars and pose spline is maintained
         if (Configor::IsRadarIntegrated() && GetScaleType() == TimeDeriv::LIN_POS_SPLINE) {
+            // add radar cloud if radars and pose spline is maintained
             auto color = ns_viewer::Colour::Black().WithAlpha(0.2f);
             _viewer->AddCloud(BuildGlobalMapOfRadar(), Viewer::VIEW_MAP, color, 2.0f);
         }
-        if (i == 0) {
-            std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> lidarPtsCorr;
-            {
-                lidarPtsCorr = DataAssociationForLiDARs(
-                    _initAsset->globalMap, _initAsset->undistFramesInMap, ptsCountInEachScan);
-                // deconstruct data from initialization
-                _initAsset = nullptr;
-            }
-            // here we store the estimator just for output the hessian matrix
-            _backup = this->BatchOptimization(
-                // optimization option
-                options.at(i),
-                // point to surfel data association for LiDARs
-                lidarPtsCorr,
-                // visual reprojection data association for cameras
-                DataAssociationForCameras(),
-                // visual velocity creation for rgbd cameras
-                DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_RGBD_DEPTH, options.at(i))));
-        } else {
-            std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> lidarPtsCorr;
-            {
-                auto [curGlobalMap, curUndistFramesInMap] = BuildGlobalMapOfLiDAR();
-                lidarPtsCorr = DataAssociationForLiDARs(curGlobalMap,
-                                                        // frames in map
-                                                        curUndistFramesInMap, ptsCountInEachScan);
-                // 'curGlobalMap' and 'curUndistFramesInMap' would be deconstructed here
-            }
-            _backup = this->BatchOptimization(
-                // optimization option
-                options.at(i),
-                // point to surfel data association for LiDARs
-                lidarPtsCorr,
-                // visual reprojection data association for cameras
-                DataAssociationForCameras(),
-                // visual velocity creation for rgbd cameras
-                DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_RGBD_DEPTH, options.at(i))));
-        }
+        std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> lidarPtsCorr;
 
+        /**
+         * for the first batch optimization, the lidar global map and frames in the global frames
+         * are from the odometry performed in the initialization procedure, to save the computation
+         * consumption
+         */
+        if (i == 0) {
+            lidarPtsCorr = DataAssociationForLiDARs(
+                // the global lidar map
+                _initAsset->globalMap,
+                // undistorted frame expressed in the global map
+                _initAsset->undistFramesInMap, ptsCountInEachScan);
+            _initAsset = nullptr;  // deconstruct data from initialization
+        } else {
+            auto [curGlobalMap, curUndistFramesInMap] = BuildGlobalMapOfLiDAR();
+            lidarPtsCorr = DataAssociationForLiDARs(
+                // the global lidar map
+                curGlobalMap,
+                // undistorted frame expressed in the global map
+                curUndistFramesInMap, ptsCountInEachScan);
+            // 'curGlobalMap' and 'curUndistFramesInMap' would be deconstructed here
+        }
+        /**
+         * perform batch optimization, association correspondences of cameras, rgbds, and lidars are
+         * from addition constructed, while for imus and radars, raw measurements can be directly
+         * fused into the estimator.
+         * the results would be storaged in '_backup' for by-products output
+         */
+        _backup = this->BatchOptimization(
+            // optimization option
+            options.at(i),
+            // point to surfel data association for LiDARs
+            lidarPtsCorr,
+            // visual reprojection data association for cameras
+            DataAssociationForCameras(),
+            // visual velocity creation for rgbd cameras
+            DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_RGBD_DEPTH, options.at(i))));
+
+        /**
+         * update the viewer and output the spatiotemporal parameters after this batch optimization
+         * if output is needed, output the stage parameters to the disk
+         */
         _viewer->UpdateSplineViewer();
         _parMagr->ShowParamStatus();
-
-        if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
+        if (outputParams) {
             SaveStageCalibParam(_parMagr, "stage_4_bo_" + std::to_string(i));
         }
     }
-    // ----------------------
-    // cross-model refinement
-    // ----------------------
-#ifdef USE_CROSS_MODEL_REFINEMENT
+
+/**
+ * currently, the data association is performed based on single-sensor data streams, however,
+ * cross-model data association can be performed between different sensors, such as point-to-surfel
+ * association between (camera, rgbd, and radar) sparse point cloud and the lidar global map.
+ * However, this module has not been finished and tested
+ */
+#define USE_CROSS_MODEL_REFINEMENT 0
+#if USE_CROSS_MODEL_REFINEMENT
     for (int i = 0; i < 3; ++i) {
         spdlog::info("perform '{}-th' cross-model batch optimization...", i);
         _viewer->ClearViewer(Viewer::VIEW_MAP);
@@ -183,17 +222,20 @@ void CalibSolver::Process() {
         _parMagr->ShowParamStatus();
 
         if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
-            SaveStageCalibParam(_parMagr, "stage_4_bo_" + std::to_string(i));
+            SaveStageCalibParam(_parMagr, "stage_5_bo_" + std::to_string(i));
         }
     }
 #endif
+#undef USE_CROSS_MODEL_REFINEMENT
 
-    // backup data and update the viewer
+    /**
+     * some tasks after batch optimization
+     */
     _viewer->ClearViewer(Viewer::VIEW_MAP);
     if (Configor::IsLiDARIntegrated()) {
         spdlog::info("build final lidar map and point-to-surfel correspondences...");
         // aligned map
-        auto final = BuildGlobalMapOfLiDAR();
+        const auto final = BuildGlobalMapOfLiDAR();
         _backup->lidarMap = std::get<0>(final);
         // use large 'ptsCountInEachScan' to keep all point-to-surfel corrs
         // lidar map and corr map would be added to the viewer in this function
@@ -213,10 +255,9 @@ void CalibSolver::Process() {
     if (Configor::IsRGBDIntegrated() && GetScaleType() == TimeDeriv::LIN_POS_SPLINE) {
         // add veta from pixel dynamics
         for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
-            auto veta = CreateVetaFromRGBD(topic);
-            if (veta != nullptr) {
-                DownsampleVeta(veta, 10000,
-                               Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin);
+            if (auto veta = CreateVetaFromRGBD(topic); veta != nullptr) {
+                const auto lenThd = Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin;
+                DownsampleVeta(veta, 10000, lenThd);
                 // we do not show the pose
                 _viewer->AddVeta(veta, Viewer::VIEW_MAP, {}, ns_viewer::Entity::GetUniqueColour());
             }

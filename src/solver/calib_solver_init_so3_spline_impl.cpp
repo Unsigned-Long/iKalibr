@@ -44,23 +44,41 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_ikalibr {
 
 void CalibSolver::InitSO3Spline() {
-    // --------------------------------------------------------------------------------------------
-    // initialize (i) so3 spline of the reference IMU, (ii) extrinsic rotations, (iii) time offsets
-    // --------------------------------------------------------------------------------------------
+    /**
+     * this function would initialize the rotation spline, as well as the extrinsic rotations and
+     * time offsets between multiple imus, if they are integrated
+     */
     spdlog::info("fitting rotation b-spline...");
 
-    // here we  recover the so3 spline first using only the angular velocities from the reference
-    // IMU, then estimates other quantities by involving angular velocity measurements from other
-    // IMUs. For better readability, we could also optimize them together (not current version)
+    /**
+     * here we recover the so3 spline first using only the angular velocities from the reference
+     * IMU, then estimates other quantities by involving angular velocity measurements from other
+     * IMUs. For better readability, we could also optimize them together as follows.
+     * ----------------------------------------------------------------
+     * auto estimator = Estimator::Create(_splines, _parMagr);
+     * auto optOption = OptOption::OPT_SO3_BiToBr;
+     * if (Configor::Prior::OptTemporalParams) {
+     *     optOption |= OptOption::OPT_TO_BiToBr;
+     * }
+     * for (const auto &[topic, _] : Configor::DataStream::IMUTopics) {
+     *     this->AddGyroFactor(estimator, topic, optOption);
+     * }
+     * estimator->SetRefIMUParamsConstant();
+     * auto sum = estimator->Solve(_ceresOption, this->_priori);
+     * spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
+     * ----------------------------------------------------------------
+     */
+
     auto estimator = Estimator::Create(_splines, _parMagr);
-    auto optOption = OptOption::OPT_SO3_SPLINE;
-    this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU, optOption);
+    // we initialize the rotation spline first use only the measurements from the reference imu
+    this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU, OptOption::OPT_SO3_SPLINE);
     auto sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
     if (Configor::DataStream::IMUTopics.size() > 1) {
+        // if multiple imus involved, we continue to recover extrinsic rotations and time offsets
         estimator = Estimator::Create(_splines, _parMagr);
-        optOption = OptOption::OPT_SO3_BiToBr;
+        auto optOption = OptOption::OPT_SO3_BiToBr;
         if (Configor::Prior::OptTemporalParams) {
             optOption |= OptOption::OPT_TO_BiToBr;
         }
@@ -69,14 +87,9 @@ void CalibSolver::InitSO3Spline() {
         }
         // make this problem full rank
         estimator->SetRefIMUParamsConstant();
-        // estimator->FixFirSO3ControlPoint();
 
         sum = estimator->Solve(_ceresOption, this->_priori);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
-    }
-
-    if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
-        SaveStageCalibParam(_parMagr, "stage_1_rot_fit");
     }
 }
 

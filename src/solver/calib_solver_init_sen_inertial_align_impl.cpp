@@ -349,10 +349,6 @@ void CalibSolver::InitSensorInertialAlign() {
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
     }
 
-    if (IsOptionWith(OutputOption::ParamInEachIter, Configor::Preference::Outputs)) {
-        SaveStageCalibParam(_parMagr, "stage_2_align");
-    }
-
     for (const auto &[topic, lidarOdom] : _initAsset->lidarOdometers) {
         _viewer->AddCloud(lidarOdom->GetMap(), Viewer::VIEW_MAP,
                           ns_viewer::Entity::GetUniqueColour(), 2.0f);
