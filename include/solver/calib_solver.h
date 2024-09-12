@@ -292,7 +292,7 @@ protected:
      * these frames are also expressed in the map (global) frame, rather than local frames
      */
     std::tuple<IKalibrPointCloudPtr, std::map<std::string, std::vector<LiDARFramePtr>>>
-    BuildGlobalMapOfLiDAR();
+    BuildGlobalMapOfLiDAR() const;
 
     /**
      * build the global map for radars, this is only for visualization if translation spline
@@ -336,13 +336,13 @@ protected:
     std::map<std::string, std::vector<PointToSurfelCorrPtr>> DataAssociationForLiDARs(
         const IKalibrPointCloudPtr &map,
         const std::map<std::string, std::vector<LiDARFramePtr>> &undistFrames,
-        int ptsCountInEachScan);
+        int ptsCountInEachScan) const;
 
     /**
      * perform data association for cameras
      * @return the visual reprojection correspondences for each optical camera
      */
-    std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> DataAssociationForCameras();
+    std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> DataAssociationForCameras() const;
 
     /**
      * perform data association for RGBD cameras
@@ -365,7 +365,7 @@ protected:
         const IKalibrPointCloudPtr &map,
         const std::map<std::string, std::vector<IKalibrPointCloudPtr>> &scanInGFrame,
         const std::map<std::string, std::vector<IKalibrPointCloudPtr>> &scanInLFrame,
-        int ptsCountInEachScan);
+        int ptsCountInEachScan) const;
 
     /**
      * the final continuous-time-based batch optimization

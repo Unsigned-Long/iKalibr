@@ -570,12 +570,12 @@ void CalibSolver::PerformTransformForVeta(const ns_veta::Veta::Ptr &veta,
 
 bool CalibSolver::IsRSCamera(const std::string &topic) {
     CameraModelType type = CameraModelType::GS;
-    if (auto t = Configor::DataStream::CameraTopics.find(topic);
-        t != Configor::DataStream::CameraTopics.cend()) {
-        type = EnumCast::stringToEnum<CameraModelType>(t->second.Type);
-    } else if (auto t = Configor::DataStream::RGBDTopics.find(topic);
-               t != Configor::DataStream::RGBDTopics.cend()) {
-        type = EnumCast::stringToEnum<CameraModelType>(t->second.Type);
+    if (auto iterCam = Configor::DataStream::CameraTopics.find(topic);
+        iterCam != Configor::DataStream::CameraTopics.cend()) {
+        type = EnumCast::stringToEnum<CameraModelType>(iterCam->second.Type);
+    } else if (auto iterRGBD = Configor::DataStream::RGBDTopics.find(topic);
+               iterRGBD != Configor::DataStream::RGBDTopics.cend()) {
+        type = EnumCast::stringToEnum<CameraModelType>(iterRGBD->second.Type);
     }
     return IsOptionWith(CameraModelType::RS, type);
 }

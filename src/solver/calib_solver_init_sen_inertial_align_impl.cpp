@@ -49,29 +49,34 @@ namespace ns_ikalibr {
 void CalibSolver::InitSensorInertialAlign() {
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
-    // we throw the head and tail data as the rotations from the fitted SO3 Spline in that range are
-    // poor
-    const double st =
-        std::max(so3Spline.MinTime(), scaleSpline.MinTime()) + Configor::Prior::TimeOffsetPadding;
-    const double et =
-        std::min(so3Spline.MaxTime(), scaleSpline.MaxTime()) - Configor::Prior::TimeOffsetPadding;
+    /**
+     * we throw the head and tail data as the rotations from the fitted SO3 Spline in that range are
+     * poor
+     */
+    const double st = std::max(so3Spline.MinTime(), scaleSpline.MinTime()) +  // the max as start
+                      Configor::Prior::TimeOffsetPadding;
+    const double et = std::min(so3Spline.MaxTime(), scaleSpline.MaxTime()) -  // the min as end
+                      Configor::Prior::TimeOffsetPadding;
 
-    // -------------------------------------------------------------------
-    // initialize other spatial parameters using inertial-sensor alignment
-    // -------------------------------------------------------------------
     spdlog::info("performing inertial alignment to initialize other spatial parameters...");
 
-    // assign the gravity roughly, f = a - g, g = a - f
+    /**
+     * the gravity vector would be recovered in this stage, for better converage performance, we
+     * assign the gravity roughly, f = a - g, g = a - f
+     */
     Eigen::Vector3d firRefAcce =
         _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU).front()->GetAcce();
+    // g = gDir * gNorm, where gDir = normalize(a - f), by assume the acceleration is zero
     _parMagr->GRAVITY = -firRefAcce.normalized() * Configor::Prior::GravityNorm;
     spdlog::info("rough assigned gravity in world frame: ['{:.3f}', '{:.3f}', '{:.3f}']",
                  _parMagr->GRAVITY(0), _parMagr->GRAVITY(1), _parMagr->GRAVITY(2));
 
     auto estimator = Estimator::Create(_splines, _parMagr);
 
-    // we do not optimization the already initialized extrinsic rotations (IMUs', Cameras', and
-    // LiDARs') here
+    /**
+     * we do not optimization the already initialized extrinsic rotations (IMUs', Cameras', and
+     * LiDARs') here
+     */
     auto optOption =
         // lidar extrinsic translations
         OptOption::OPT_POS_LkInBr |
@@ -85,9 +90,10 @@ void CalibSolver::InitSensorInertialAlign() {
         OptOption::OPT_POS_BiInBr | OptOption::OPT_GRAVITY;
 
     // make sure 'ALIGN_STEP' * 'TIME INTERVAL OF TWO FRAMES' == 0.1
-    static constexpr double DESIRED_TIME_INTERVAL = 0.5 /* sed */;
-    static constexpr double MIN_ALIGN_TIME = 1E-3;
-    static constexpr double MAX_ALIGN_TIME = 1.0;
+    static constexpr double DESIRED_TIME_INTERVAL = 0.5 /* 0.5 sed */;
+    static constexpr double MIN_ALIGN_TIME = 1E-3 /* 0.001 sed */;
+    static constexpr double MAX_ALIGN_TIME = 1.0 /* 1.0 sed */;
+
     // lidar-inertial alignment
     std::map<std::string, std::vector<Eigen::Vector3d>> linVelSeqLk;
     for (const auto &[lidarTopic, odometer] : _initAsset->lidarOdometers) {
@@ -100,7 +106,7 @@ void CalibSolver::InitSensorInertialAlign() {
         auto &curLidarLinVelSeq = linVelSeqLk.at(lidarTopic);
         double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
 
-        const auto &imuFrames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+        const auto &refIMUFrames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
 
         const int ALIGN_STEP =
             std::max(1, int(DESIRED_TIME_INTERVAL * _dataMagr->GetLiDARAvgFrequency(lidarTopic)));
@@ -110,8 +116,6 @@ void CalibSolver::InitSensorInertialAlign() {
 
         for (int i = 0; i < static_cast<int>(poseSeq.size()) - ALIGN_STEP; ++i) {
             const auto &sPose = poseSeq.at(i), ePose = poseSeq.at(i + ALIGN_STEP);
-            // we throw the head and tail data as the rotations from the fitted SO3 Spline in
-            // that range are poor
             if (sPose.timeStamp + TO_LkToBr < st || ePose.timeStamp + TO_LkToBr > et) {
                 continue;
             }
@@ -122,9 +126,16 @@ void CalibSolver::InitSensorInertialAlign() {
             }
 
             estimator->AddLiDARInertialAlignment(
-                imuFrames, lidarTopic, Configor::DataStream::ReferIMU, sPose, ePose,
-                odometer->GetMapTime(), &curLidarLinVelSeq.at(i),
-                &curLidarLinVelSeq.at(i + ALIGN_STEP), optOption, weight);
+                refIMUFrames,                           // the imu frames
+                lidarTopic,                             // the ros topic of the lidar
+                Configor::DataStream::ReferIMU,         // the ros topic of the imu
+                sPose,                                  // the start pose
+                ePose,                                  // the end pose
+                odometer->GetMapTime(),                 // the map time
+                &curLidarLinVelSeq.at(i),               // the start velocity (to be estimated)
+                &curLidarLinVelSeq.at(i + ALIGN_STEP),  // the end velocity (to be estimated)
+                optOption,                              // the optimize option
+                weight);                                // the weigh
         }
     }
 
@@ -204,9 +215,17 @@ void CalibSolver::InitSensorInertialAlign() {
             }
 
             estimator->AddVisualInertialAlignment(
-                imuFrames, camTopic, Configor::DataStream::ReferIMU, sPose, ePose, firCTime,
-                &curCamLinVelSeq.at(i), &curCamLinVelSeq.at(i + ALIGN_STEP), &scale, optOption,
-                weight);
+                imuFrames,                            // the imu frames
+                camTopic,                             // the ros topic of the camera
+                Configor::DataStream::ReferIMU,       // the ros topic of the imu
+                sPose,                                // the start pose
+                ePose,                                // the end pose
+                firCTime,                             // the map time
+                &curCamLinVelSeq.at(i),               // the start velocity (to be estimated)
+                &curCamLinVelSeq.at(i + ALIGN_STEP),  // the end velocity (to be estimated)
+                &scale,                               // the visual scale (to be estimated)
+                optOption,                            // the optimize option
+                weight);                              // the weigh
         }
     }
 
@@ -223,7 +242,13 @@ void CalibSolver::InitSensorInertialAlign() {
                 Eigen::Vector3d *sVel = &linVelSeqBr.at(sIdx), *eVel = &linVelSeqBr.at(eIdx);
 
                 estimator->AddInertialAlignment(
-                    frames, topic, sTimeByBr, eTimeByBr, sVel, eVel, optOption,
+                    frames,     // imu frames
+                    topic,      // the ros topic of this imu
+                    sTimeByBr,  // the start time stamped by the reference imu
+                    eTimeByBr,  // the end time stamped by the reference imu
+                    sVel,       // the start velocity (to be estimated)
+                    eVel,       // the end velocity (to be estimated)
+                    optOption,  // the optimize option
                     Configor::DataStream::IMUTopics.at(topic).AcceWeight);
             }
         }
@@ -234,7 +259,7 @@ void CalibSolver::InitSensorInertialAlign() {
         double weight = Configor::DataStream::RadarTopics.at(radarTopic).Weight;
         double TO_RjToBr = _parMagr->TEMPORAL.TO_RjToBr.at(radarTopic);
 
-        const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+        const auto &refIMUFrames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
 
         const int ALIGN_STEP =
             std::max(1, int(DESIRED_TIME_INTERVAL * _dataMagr->GetRadarAvgFrequency(radarTopic)));
@@ -245,11 +270,10 @@ void CalibSolver::InitSensorInertialAlign() {
         for (int i = 0; i < static_cast<int>(radarMes.size()) - ALIGN_STEP; ++i) {
             const auto &sArray = radarMes.at(i), eArray = radarMes.at(i + ALIGN_STEP);
 
-            // spdlog::info("sAry count: {}, eAry count: {}",
-            //              sArray->GetTargets().size(), eArray->GetTargets().size());
-
-            // to estimate the radar velocity by linear least-squares solver
-            // the minim targets number required is 3
+            /**
+             * to estimate the radar velocity by linear least-squares solver the minim targets
+             * number required is 3
+             */
             if (sArray->GetTargets().size() < 10 || eArray->GetTargets().size() < 10) {
                 continue;
             }
@@ -264,9 +288,23 @@ void CalibSolver::InitSensorInertialAlign() {
                 continue;
             }
 
-            estimator->AddRadarInertialRotRoughAlignment(frames, Configor::DataStream::ReferIMU,
-                                                         radarTopic, sArray, eArray, optOption,
-                                                         weight);
+            /**
+             * here, we use 'AddRadarInertialRotRoughAlignment', rather than
+             * 'AddRadarInertialAlignment'. the difference is that:
+             * 'AddRadarInertialAlignment': align both the extrinsic rotation and translation
+             * 'AddRadarInertialRotRoughAlignment': only align the extrinsic rotation (roughly)
+             *
+             * for better converage performance, we use 'AddRadarInertialRotRoughAlignment' here,
+             * after the extrinsic rotation is recovered, we refine it and estimate the translation
+             */
+            estimator->AddRadarInertialRotRoughAlignment(
+                refIMUFrames,                    // imu frames
+                Configor::DataStream::ReferIMU,  // the ros topic of this imu
+                radarTopic,                      // the ros topic of this radar
+                sArray,                          // the start target array
+                eArray,                          // the end target array
+                optOption,                       // the optimization option
+                weight);                         // the weight
         }
     }
 
@@ -299,9 +337,14 @@ void CalibSolver::InitSensorInertialAlign() {
 
             // we don't consider the readout time here (i.e., the camera frame time is treated as
             // the velocity of the midpoint)
-            estimator->AddRGBDInertialAlignment(frames, Configor::DataStream::ReferIMU, rgbdTopic,
-                                                bodyFrameVels.at(i), bodyFrameVels.at(i + 1),
-                                                optOption, weight);
+            estimator->AddRGBDInertialAlignment(
+                frames,                          // imu frames
+                Configor::DataStream::ReferIMU,  // the ros topic of this imu
+                rgbdTopic,                       // the ros topic of this rgbd camera
+                bodyFrameVels.at(i),             // the start velocity
+                bodyFrameVels.at(i + 1),         // the end velocity
+                optOption,                       // the optimization option
+                weight);                         // the weight
         }
     }
 
@@ -326,11 +369,10 @@ void CalibSolver::InitSensorInertialAlign() {
             for (int i = 0; i < static_cast<int>(radarMes.size()) - 1; ++i) {
                 const auto &sArray = radarMes.at(i), eArray = radarMes.at(i + 1);
 
-                // spdlog::info("sAry count: {}, eAry count: {}",
-                //              sArray->GetTargets().size(), eArray->GetTargets().size());
-
-                // to estimate the radar velocity by linear least-squares solver
-                // the minim targets number required is 3
+                /**
+                 * to estimate the radar velocity by linear least-squares solver the minim targets
+                 * number required is 3
+                 */
                 if (sArray->GetTargets().size() < 10 || eArray->GetTargets().size() < 10) {
                     continue;
                 }
@@ -340,8 +382,14 @@ void CalibSolver::InitSensorInertialAlign() {
                     continue;
                 }
 
-                estimator->AddRadarInertialAlignment(frames, Configor::DataStream::ReferIMU,
-                                                     radarTopic, sArray, eArray, optOption, weight);
+                estimator->AddRadarInertialAlignment(
+                    frames,                          // imu frames
+                    Configor::DataStream::ReferIMU,  // the ros topic of this imu
+                    radarTopic,                      // the ros topic of this radar
+                    sArray,                          // the start target array
+                    eArray,                          // the end target array
+                    optOption,                       // the optimization option
+                    weight);                         // the weight
             }
         }
         estimator->SetRefIMUParamsConstant();
@@ -353,7 +401,9 @@ void CalibSolver::InitSensorInertialAlign() {
         _viewer->AddCloud(lidarOdom->GetMap(), Viewer::VIEW_MAP,
                           ns_viewer::Entity::GetUniqueColour(), 2.0f);
     }
-    // recover scale fro veta
+    /**
+     * based on the estimated visual scales from the sensor-inertial alignment, we update the vetas
+     */
     for (const auto &[camTopic, veta] : _dataMagr->GetSfMData()) {
         spdlog::info("visual global scale for camera '{}': {:.3f}", camTopic,
                      visualScaleSeq.at(camTopic));
@@ -368,7 +418,6 @@ void CalibSolver::InitSensorInertialAlign() {
         }
     }
 
-    // deconstruct data
-    linVelSeqLk.clear(), linVelSeqBr.clear(), linVelSeqCm.clear(), visualScaleSeq.clear();
+    // linVelSeqLk.clear(), linVelSeqBr.clear(), linVelSeqCm.clear(), visualScaleSeq.clear();
 }
 }  // namespace ns_ikalibr

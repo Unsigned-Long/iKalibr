@@ -45,9 +45,6 @@ namespace ns_ikalibr {
 void CalibSolver::InitScaleSpline() {
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
 
-    // --------------------------------------------------------------------
-    // recover scale spline (linear acceleration, velocity, or translation)
-    // --------------------------------------------------------------------
     spdlog::info("performing scale spline recovery...");
 
     auto estimator = Estimator::Create(_splines, _parMagr);
@@ -64,6 +61,7 @@ void CalibSolver::InitScaleSpline() {
             constexpr int VelDeriv =
                 TimeDeriv::Deriv<TimeDeriv::LIN_VEL_SPLINE, TimeDeriv::LIN_VEL>();
             optOption |= OptOption::OPT_SO3_SPLINE;
+
             // radar-derived velocities
             for (const auto &[topic, data] : _dataMagr->GetRadarMeasurements()) {
                 const double TO_RjToBr = _parMagr->TEMPORAL.TO_RjToBr.at(topic);
@@ -84,8 +82,11 @@ void CalibSolver::InitScaleSpline() {
                         SO3_BrToW * SO3_RjToBr * ary->RadarVelocityFromStaticTargetArray() -
                         Sophus::SO3d::hat(ANG_VEL_BrToWInW) * (SO3_BrToW * POS_RjInBr);
 
-                    estimator->AddLinearScaleConstraint<VelDeriv>(timeByBr, LIN_VEL_BrToWInW,
-                                                                  optOption, weight);
+                    estimator->AddLinearScaleConstraint<VelDeriv>(
+                        timeByBr,          // time stamped the reference imu
+                        LIN_VEL_BrToWInW,  // the linear velocity
+                        optOption,         // the optimization option
+                        weight);           // the weigh
                 }
             }
 
@@ -109,8 +110,11 @@ void CalibSolver::InitScaleSpline() {
                         SO3_BrToW * SO3_DnToBr * vel -
                         Sophus::SO3d::hat(ANG_VEL_BrToWInW) * (SO3_BrToW * POS_DnInBr);
 
-                    estimator->AddLinearScaleConstraint<VelDeriv>(timeByBr, LIN_VEL_BrToWInW,
-                                                                  optOption, weight);
+                    estimator->AddLinearScaleConstraint<VelDeriv>(
+                        timeByBr,          // time stamped the reference imu
+                        LIN_VEL_BrToWInW,  // the linear velocity
+                        optOption,         // the optimization option
+                        weight);           // the weigh
                 }
             }
 
@@ -118,14 +122,23 @@ void CalibSolver::InitScaleSpline() {
             this->AddAcceFactor<TimeDeriv::LIN_VEL_SPLINE>(
                 estimator, Configor::DataStream::ReferIMU, optOption);
             this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU, optOption);
-            // if optimize time offsets, we first recover the scale spline, then construct a ls
-            // problem to recover time offsets, only for radars
+
+            /**
+             * if optimize time offsets, we first recover the scale spline, then construct a ls
+             * problem to recover time offsets, only for radars
+             */
             if (Configor::IsRadarIntegrated() && Configor::Prior::OptTemporalParams) {
                 // we don't want to output the solving information
-                estimator->Solve(
-                    Estimator::DefaultSolverOptions(Configor::Preference::AvailableThreads(), false,
-                                                    Configor::Preference::UseCudaInSolving));
+                auto solveOpt = Estimator::DefaultSolverOptions(
+                    // the thread count
+                    Configor::Preference::AvailableThreads(),
+                    // do not output information
+                    false, Configor::Preference::UseCudaInSolving);
+                estimator->Solve(solveOpt);
 
+                /**
+                 * in the new constructed ls problem, we estimate the time offsets of radars
+                 */
                 estimator = Estimator::Create(_splines, _parMagr);
                 optOption = OptOption::OPT_TO_RjToBr;
                 for (const auto &[topic, _] : Configor::DataStream::RadarTopics) {
@@ -140,6 +153,11 @@ void CalibSolver::InitScaleSpline() {
                 TimeDeriv::Deriv<TimeDeriv::LIN_POS_SPLINE, TimeDeriv::LIN_POS>();
             optOption |= OptOption::OPT_SO3_SPLINE;
 
+            /**
+             * we do not directly operate the origin spline, we construct new splines with large
+             * knot distance and recover them use the lidar/camera-derived poses, then based on
+             * these rough spline, we recover the origin splines
+             */
             std::vector<double> headTimeVec, tailTimeVec;
             for (const auto &[lidarTopic, odometer] : _initAsset->lidarOdometers) {
                 const double TO_LkToBr = _parMagr->TEMPORAL.TO_LkToBr.at(lidarTopic);
@@ -168,6 +186,7 @@ void CalibSolver::InitScaleSpline() {
                 ++count;
             }
             const double dtRough = dtRoughSum / count;
+            // create the rough splines
             auto roughSplines = CreateSplineBundle(minTime, maxTime, dtRough, dtRough);
             const auto &rSo3Spline = roughSplines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
             const auto &rScaleSpline =
@@ -193,11 +212,17 @@ void CalibSolver::InitScaleSpline() {
 
                 for (const auto &SE3_LkToLk0 : odometer->GetOdomPoseVec()) {
                     auto SE3_BrToBr0 = *SE3_Lk0ToBr0 * SE3_LkToLk0.se3() * SE3_BrToLk;
-                    estimator->AddSO3Constraint(SE3_LkToLk0.timeStamp + TO_LkToBr,
-                                                SE3_BrToBr0.so3(), optOption, weight);
-                    estimator->AddLinearScaleConstraint<PosDeriv>(SE3_LkToLk0.timeStamp + TO_LkToBr,
-                                                                  SE3_BrToBr0.translation(),
-                                                                  optOption, weight);
+                    estimator->AddSO3Constraint(
+                        SE3_LkToLk0.timeStamp + TO_LkToBr,  // the time stamped the reference imu
+                        SE3_BrToBr0.so3(),                  // the rotation
+                        optOption,                          // the optimization option
+                        weight);                            // the weight
+
+                    estimator->AddLinearScaleConstraint<PosDeriv>(
+                        SE3_LkToLk0.timeStamp + TO_LkToBr,  // the time stamped the reference imu
+                        SE3_BrToBr0.translation(),          // the translation
+                        optOption,                          // the optimization option
+                        weight);                            // the weight
                 }
             }
 
@@ -207,9 +232,11 @@ void CalibSolver::InitScaleSpline() {
                 constexpr double weight = 10.0;
                 auto SE3_BrToCm = _parMagr->EXTRI.SE3_CmToBr(camTopic).inverse();
 
-                // the translation part is not exactly rigorous as the translation spline is not
-                // recovered yet this assumes that the origin of map frame of {Cm} is the same as
-                // that of the world frame {br0}
+                /**
+                 * the translation part is not exactly rigorous as the translation spline is not
+                 * recovered yet this assumes that the origin of map frame of {Cm} is the same as
+                 * that of the world frame {br0}
+                 */
                 auto SE3_Cm0ToBr0 = this->CurCmToW(poseSeq.front().timeStamp, camTopic);
 
                 if (SE3_Cm0ToBr0 == std::nullopt) {
@@ -219,11 +246,16 @@ void CalibSolver::InitScaleSpline() {
 
                 for (const auto &SE3_CmToCm0 : poseSeq) {
                     auto SE3_BrToBr0 = *SE3_Cm0ToBr0 * SE3_CmToCm0.se3() * SE3_BrToCm;
-                    estimator->AddSO3Constraint(SE3_CmToCm0.timeStamp + TO_CmToBr,
-                                                SE3_BrToBr0.so3(), optOption, weight);
-                    estimator->AddLinearScaleConstraint<PosDeriv>(SE3_CmToCm0.timeStamp + TO_CmToBr,
-                                                                  SE3_BrToBr0.translation(),
-                                                                  optOption, weight);
+                    estimator->AddSO3Constraint(
+                        SE3_CmToCm0.timeStamp + TO_CmToBr,  // the time stamped the reference imu
+                        SE3_BrToBr0.so3(),                  // the rotation
+                        optOption,                          // the optimization option
+                        weight);                            // the weight
+                    estimator->AddLinearScaleConstraint<PosDeriv>(
+                        SE3_CmToCm0.timeStamp + TO_CmToBr,  // the time stamped the reference imu
+                        SE3_BrToBr0.translation(),          // the translation
+                        optOption,                          // the optimization option
+                        weight);                            // the weight
                 }
             }
 
@@ -236,21 +268,30 @@ void CalibSolver::InitScaleSpline() {
                 estimator, Configor::DataStream::ReferIMU, optOption);
             this->AddGyroFactor(estimator, Configor::DataStream::ReferIMU, optOption);
 
-            // we don't want to output the solving information
             spdlog::info("fitting rough splines using sensor-derived pose sequence...");
             // estimator->PrintUninvolvedKnots();
-            estimator->Solve(
-                Estimator::DefaultSolverOptions(Configor::Preference::AvailableThreads(), false,
-                                                Configor::Preference::UseCudaInSolving),
-                _priori);
+
+            // we don't want to output the solving information
+            auto solveOpt = Estimator::DefaultSolverOptions(
+                // the thread count
+                Configor::Preference::AvailableThreads(),
+                // do not output information
+                false, Configor::Preference::UseCudaInSolving);
+            estimator->Solve(solveOpt, _priori);
+
             spdlog::info("fitting rough splines finished.");
 
             estimator = Estimator::Create(_splines, _parMagr);
-
             for (double t = minTime; t < maxTime;) {
-                estimator->AddSO3Constraint(t, rSo3Spline.Evaluate(t), optOption, 1.0);
-                estimator->AddLinearScaleConstraint<PosDeriv>(t, rScaleSpline.Evaluate(t),
-                                                              optOption, 1.0);
+                estimator->AddSO3Constraint(t,  // the time stamped the reference imu
+                                            rSo3Spline.Evaluate(t),  // the rotation
+                                            optOption,               // the optimization option
+                                            1.0);                    // the weight
+                estimator->AddLinearScaleConstraint<PosDeriv>(
+                    t,                         // the time stamped the reference imu
+                    rScaleSpline.Evaluate(t),  // the translation
+                    optOption,                 // the optimization option
+                    1.0);                      // the weight
                 t += 0.01;
             }
             // add tail factors (constraints) to maintain enough observability

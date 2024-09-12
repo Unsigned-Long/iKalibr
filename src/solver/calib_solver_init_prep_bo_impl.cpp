@@ -44,16 +44,16 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_ikalibr {
 
 void CalibSolver::InitPrepBatchOpt() {
-    //----------------------------------------------
-    // align initialized states to gravity direction
-    //----------------------------------------------
+    /**
+     * align initialized states to gravity direction
+     */
     spdlog::info("aligning all states to gravity direction...");
     AlignStatesToGravity();
     _viewer->UpdateSplineViewer();
 
-    // ---------------------------------------------------
-    // trans veta to world frame if Cameras are integrated
-    // ---------------------------------------------------
+    /**
+     * transform the veta to world frame if Cameras are integrated
+     */
     for (const auto &[camTopic, poseSeq] : _initAsset->sfmPoseSeq) {
         auto SE3_Cm0ToBr0 = this->CurCmToW(poseSeq.front().timeStamp, camTopic);
 
@@ -66,9 +66,9 @@ void CalibSolver::InitPrepBatchOpt() {
                                 1.0);
     }
 
-    // -----------------------------------------------------
-    // build map and undisto frames if LiDARs are integrated
-    // -----------------------------------------------------
+    /**
+     * build map and undisto frames if LiDARs are integrated
+     */
     spdlog::info("build global map and undisto lidar frames in world...");
     auto &globalMap = _initAsset->globalMap;
     globalMap = IKalibrPointCloud::Ptr(new IKalibrPointCloud);

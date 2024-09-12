@@ -69,71 +69,69 @@ void CalibSolver::InitPrepCameraInertialAlign() {
      */
     std::shared_ptr<tqdm> bar;
     std::map<std::string, RotOnlyVisualOdometer::Ptr> rotOnlyOdom;
-    {
-        // how many features to maintain in each image
-        constexpr int featNumPerImg = 300;
-        // the min distance between two features (to ensure features are distributed uniformly)
-        constexpr int minDist = 25;
-        for (const auto& [topic, frameVec] : _dataMagr->GetCameraMeasurements()) {
-            spdlog::info(
-                "perform rotation-only visual odometer to recover extrinsic rotations for '{}'...",
-                topic);
+    // how many features to maintain in each image
+    constexpr int featNumPerImg = 300;
+    // the min distance between two features (to ensure features are distributed uniformly)
+    constexpr int minDist = 25;
+    for (const auto& [topic, frameVec] : _dataMagr->GetCameraMeasurements()) {
+        spdlog::info(
+            "perform rotation-only visual odometer to recover extrinsic rotations for '{}'...",
+            topic);
 
-            // estimates rotations
-            auto odometer = RotOnlyVisualOdometer::Create(
-                // how many features to maintain in each image
-                featNumPerImg,
-                // the min distance between two features (to ensure features are distributed
-                // uniformly)
-                minDist,
-                // the visual intrinsic parameters
-                _parMagr->INTRI.Camera.at(topic));
+        // estimates rotations
+        auto odometer = RotOnlyVisualOdometer::Create(
+            // how many features to maintain in each image
+            featNumPerImg,
+            // the min distance between two features (to ensure features are distributed
+            // uniformly)
+            minDist,
+            // the visual intrinsic parameters
+            _parMagr->INTRI.Camera.at(topic));
 
-            // sensor-inertial rotation estimator (linear least-squares problem)
-            const auto rotEstimator = RotationEstimator::Create();
+        // sensor-inertial rotation estimator (linear least-squares problem)
+        const auto rotEstimator = RotationEstimator::Create();
 
-            bar = std::make_shared<tqdm>();
-            for (int i = 0; i < static_cast<int>(frameVec.size()); ++i) {
-                bar->progress(i, static_cast<int>(frameVec.size()));
+        bar = std::make_shared<tqdm>();
+        for (int i = 0; i < static_cast<int>(frameVec.size()); ++i) {
+            bar->progress(i, static_cast<int>(frameVec.size()));
 
-                // if tracking current frame failed, the rotation-only odometer would re-initialize
-                if (!odometer->GrabFrame(frameVec.at(i))) {
-                    spdlog::warn(
-                        "tracking failed when grab the '{}' image frame!!! try to reinitialize", i);
-                }
-
-                // we do not want to try to recover the extrinsic rotation too frequent
-                if ((odometer->GetRotations().size() < 50) ||
-                    (odometer->GetRotations().size() % 5 != 0)) {
-                    continue;
-                }
-
-                // estimate the extrinsic rotation
-                rotEstimator->Estimate(so3Spline, odometer->GetRotations());
-
-                // check solver status
-                if (rotEstimator->SolveStatus()) {
-                    // assign the estimated extrinsic rotation
-                    _parMagr->EXTRI.SO3_CmToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
-                    // once we solve the rotation successfully, break this for loop
-                    bar->finish();
-                    break;
-                }
+            // if tracking current frame failed, the rotation-only odometer would re-initialize
+            if (!odometer->GrabFrame(frameVec.at(i))) {
+                spdlog::warn(
+                    "tracking failed when grab the '{}' image frame!!! try to reinitialize", i);
             }
-            if (!rotEstimator->SolveStatus()) {
-                throw Status(Status::ERROR,
-                             "initialize rotation 'SO3_CmToBr' failed, this may be related to "
-                             "insufficiently excited motion or bad images.");
-            } else {
-                spdlog::info("extrinsic rotation of '{}' is recovered using '{:06}' frames", topic,
-                             odometer->GetRotations().size());
-            }
-            _viewer->UpdateSensorViewer();
 
-            rotOnlyOdom.insert({topic, odometer});
+            // we do not want to try to recover the extrinsic rotation too frequent
+            if ((odometer->GetRotations().size() < 50) ||
+                (odometer->GetRotations().size() % 5 != 0)) {
+                continue;
+            }
+
+            // estimate the extrinsic rotation
+            rotEstimator->Estimate(so3Spline, odometer->GetRotations());
+
+            // check solver status
+            if (rotEstimator->SolveStatus()) {
+                // assign the estimated extrinsic rotation
+                _parMagr->EXTRI.SO3_CmToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
+                // once we solve the rotation successfully, break this for loop
+                bar->finish();
+                break;
+            }
         }
-        cv::destroyAllWindows();
+        if (!rotEstimator->SolveStatus()) {
+            throw Status(Status::ERROR,
+                         "initialize rotation 'SO3_CmToBr' failed, this may be related to "
+                         "insufficiently excited motion or bad images.");
+        } else {
+            spdlog::info("extrinsic rotation of '{}' is recovered using '{:06}' frames", topic,
+                         odometer->GetRotations().size());
+        }
+        _viewer->UpdateSensorViewer();
+
+        rotOnlyOdom.insert({topic, odometer});
     }
+    cv::destroyAllWindows();
 
     /**
      * in last step, we use a discrete-time rotation-only hand-eye alignment, where only the
@@ -181,76 +179,74 @@ void CalibSolver::InitPrepCameraInertialAlign() {
      * rotation. The SfM is performed using extern ColMap or GloMap. if SfM results are detected, we
      * load them into this program, otherwise, we output image sequence for SfM.
      */
-    {
-        spdlog::info("perform SfM for each camera...");
-        int needSfMCount = 0;
-        for (const auto& [topic, data] : _dataMagr->GetCameraMeasurements()) {
-            // load data if SfM has been performed
-            auto veta = TryLoadSfMData(
-                // ros topic
-                topic,
-                // for rs camera, as the rs effect is not considered in SfM,
-                // we relax the landmark selection condition
-                IsRSCamera(topic) ? 2.0 : 1.0,
+    spdlog::info("perform SfM for each camera...");
+    int needSfMCount = 0;
+    for (const auto& [topic, data] : _dataMagr->GetCameraMeasurements()) {
+        // load data if SfM has been performed
+        auto veta = TryLoadSfMData(
+            // ros topic
+            topic,
+            // for rs camera, as the rs effect is not considered in SfM,
+            // we relax the landmark selection condition
+            IsRSCamera(topic) ? 2.0 : 1.0,
+            // the track length threshold
+            Configor::DataStream::CameraTopics.at(topic).TrackLengthMin);
+        if (veta != nullptr) {
+            /**
+             * the SfM result data is valid fro this camera, we store it in the data manager
+             */
+            spdlog::info("SfM data for camera '{}' is valid!", topic);
+            spdlog::info("down sample SfM data for camera '{}'", topic);
+
+            // keep too many landmarks and features in estimator is not always good
+            DownsampleVeta(
+                // the visual meta data
+                veta,
+                // how many landmarks are maintained
+                10000,
                 // the track length threshold
                 Configor::DataStream::CameraTopics.at(topic).TrackLengthMin);
-            if (veta != nullptr) {
-                /**
-                 * the SfM result data is valid fro this camera, we store it in the data manager
-                 */
-                spdlog::info("SfM data for camera '{}' is valid!", topic);
-                spdlog::info("down sample SfM data for camera '{}'", topic);
 
-                // keep too many landmarks and features in estimator is not always good
-                DownsampleVeta(
-                    // the visual meta data
-                    veta,
-                    // how many landmarks are maintained
-                    10000,
-                    // the track length threshold
-                    Configor::DataStream::CameraTopics.at(topic).TrackLengthMin);
+            // we store SfM datas in '_dataMagr' as it is the 'calibration data manager'
+            _dataMagr->SetSfMData(topic, veta);
 
-                // we store SfM datas in '_dataMagr' as it is the 'calibration data manager'
-                _dataMagr->SetSfMData(topic, veta);
+            // just for visualization
+            _viewer->AddVeta(veta, Viewer::VIEW_MAP);
 
-                // just for visualization
-                _viewer->AddVeta(veta, Viewer::VIEW_MAP);
-
-                spdlog::info(
-                    "SfM info for topic '{}' after filtering: view count: {}, landmark count: {}",
-                    topic, veta->views.size(), veta->structure.size());
-                continue;
-            }
-
-            /**
-             * the SfM result data is invalid fro this camera, we output images for SfM
-             */
-            spdlog::warn("SfM data for camera '{}' is not valid! Perform SfM using colmap first!",
-                         topic);
-
-            /**
-             * output images for SfM using thirdparty note that the rotation priors of each frame
-             * from the extrinsic rotation and so3 spline are utilized in this process to accelerate
-             * the feature matching
-             */
-            auto sfm = VisionOnlySfM::Create(topic, data, _parMagr, so3Spline, _viewer);
-            /**
-             * we use the thirdparty library, i.e., colmap, to solve the SfM problem.
-             * output image frames and their corresponding information, which would be re-load after
-             * SfM are performed.
-             */
-            spdlog::info("store images of '{}' for SfM...", topic);
-            StoreImagesForSfM(topic, sfm->FindCovisibility(0.1));
-
-            ++needSfMCount;
+            spdlog::info(
+                "SfM info for topic '{}' after filtering: view count: {}, landmark count: {}",
+                topic, veta->views.size(), veta->structure.size());
+            continue;
         }
-        if (needSfMCount != 0) {
-            throw ns_ikalibr::Status(Status::FINE,
-                                     "images have been output to '{}/images'. "
-                                     "Perform SfM for each camera using command lines in file "
-                                     "'/sfm_ws/sfm-command-line.txt'!",
-                                     ns_ikalibr::Configor::DataStream::OutputPath);
-        }
+
+        /**
+         * the SfM result data is invalid fro this camera, we output images for SfM
+         */
+        spdlog::warn("SfM data for camera '{}' is not valid! Perform SfM using colmap first!",
+                     topic);
+
+        /**
+         * output images for SfM using thirdparty note that the rotation priors of each frame
+         * from the extrinsic rotation and so3 spline are utilized in this process to accelerate
+         * the feature matching
+         */
+        auto sfm = VisionOnlySfM::Create(topic, data, _parMagr, so3Spline, _viewer);
+        /**
+         * we use the thirdparty library, i.e., colmap, to solve the SfM problem.
+         * output image frames and their corresponding information, which would be re-load after
+         * SfM are performed.
+         */
+        spdlog::info("store images of '{}' for SfM...", topic);
+        StoreImagesForSfM(topic, sfm->FindCovisibility(0.1));
+
+        ++needSfMCount;
+    }
+    if (needSfMCount != 0) {
+        throw ns_ikalibr::Status(Status::FINE,
+                                 "images have been output to '{}/images'. "
+                                 "Perform SfM for each camera using command lines in file "
+                                 "'/sfm_ws/sfm-command-line.txt'!",
+                                 ns_ikalibr::Configor::DataStream::OutputPath);
     }
 
     /**
@@ -258,69 +254,67 @@ void CalibSolver::InitPrepCameraInertialAlign() {
      * time offsets again here, using the continuous-time sensor-inertial extrinsic rotation
      * recovery
      */
-    {
-        /**
-         * perhaps this is not too necessary. The difference from the last continuous-time
-         * rotation-only hand-eye alignment is that we use the rotations recovered by colmap-derived
-         * ones, rather than rotation-only odometer-derived ones.
-         */
-        spdlog::info(
-            "perform rotation alignment to refine time offset for each camera using SfM "
-            "results...");
-        auto estimator = Estimator::Create(_splines, _parMagr);
-        auto optOption = OptOption::OPT_SO3_CmToBr;
-        if (Configor::Prior::OptTemporalParams) {
-            optOption |= OptOption::OPT_TO_CmToBr;
-        }
-
-        for (const auto& [camTopic, veta] : _dataMagr->GetSfMData()) {
-            double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(camTopic);
-            double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
-
-            const auto& frames = _dataMagr->GetCameraMeasurements(camTopic);
-            std::vector<ns_ctraj::Posed> constructedFrames;
-            constructedFrames.reserve(frames.size());
-
-            // find constructed frames by SfM
-            for (const auto& frame : frames) {
-                auto viewIter = veta->views.find(frame->GetId());
-                if (viewIter == veta->views.cend()) {
-                    // this frame is not constructed (grabbed)
-                    continue;
-                }
-                auto poseIter = veta->poses.find(viewIter->second->poseId);
-                if (poseIter == veta->poses.cend()) {
-                    // this frame is not constructed (grabbed)
-                    continue;
-                }
-                const auto& pose = poseIter->second;
-                constructedFrames.emplace_back(pose.Rotation(), pose.Translation(),
-                                               frame->GetTimestamp());
-            }
-
-            for (int i = 0; i < static_cast<int>(constructedFrames.size()) - 1; ++i) {
-                const auto& sPose = constructedFrames.at(i);
-                const auto& ePose = constructedFrames.at(i + 1);
-                // we throw the head and tail data as the rotations from the fitted SO3 Spline in
-                // that range are poor
-                if (sPose.timeStamp + TO_CmToBr < st || ePose.timeStamp + TO_CmToBr > et) {
-                    continue;
-                }
-
-                estimator->AddHandEyeRotationAlignmentForCamera(
-                    camTopic,         // the ros topic
-                    sPose.timeStamp,  // the time of start pose stamped by the camera
-                    ePose.timeStamp,  // the time of end pose stamped by the camera
-                    sPose.so3,        // the start rotation
-                    ePose.so3,        // the end rotation
-                    optOption,        // the optimization option
-                    weight            // the weight
-                );
-            }
-        }
-
-        auto sum = estimator->Solve(_ceresOption, this->_priori);
-        spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
+    /**
+     * perhaps this is not too necessary. The difference from the last continuous-time
+     * rotation-only hand-eye alignment is that we use the rotations recovered by colmap-derived
+     * ones, rather than rotation-only odometer-derived ones.
+     */
+    spdlog::info(
+        "perform rotation alignment to refine time offset for each camera using SfM "
+        "results...");
+    auto estimator = Estimator::Create(_splines, _parMagr);
+    auto optOption = OptOption::OPT_SO3_CmToBr;
+    if (Configor::Prior::OptTemporalParams) {
+        optOption |= OptOption::OPT_TO_CmToBr;
     }
+
+    for (const auto& [camTopic, veta] : _dataMagr->GetSfMData()) {
+        double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(camTopic);
+        double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
+
+        const auto& frames = _dataMagr->GetCameraMeasurements(camTopic);
+        std::vector<ns_ctraj::Posed> constructedFrames;
+        constructedFrames.reserve(frames.size());
+
+        // find constructed frames by SfM
+        for (const auto& frame : frames) {
+            auto viewIter = veta->views.find(frame->GetId());
+            if (viewIter == veta->views.cend()) {
+                // this frame is not constructed (grabbed)
+                continue;
+            }
+            auto poseIter = veta->poses.find(viewIter->second->poseId);
+            if (poseIter == veta->poses.cend()) {
+                // this frame is not constructed (grabbed)
+                continue;
+            }
+            const auto& pose = poseIter->second;
+            constructedFrames.emplace_back(pose.Rotation(), pose.Translation(),
+                                           frame->GetTimestamp());
+        }
+
+        for (int i = 0; i < static_cast<int>(constructedFrames.size()) - 1; ++i) {
+            const auto& sPose = constructedFrames.at(i);
+            const auto& ePose = constructedFrames.at(i + 1);
+            // we throw the head and tail data as the rotations from the fitted SO3 Spline in
+            // that range are poor
+            if (sPose.timeStamp + TO_CmToBr < st || ePose.timeStamp + TO_CmToBr > et) {
+                continue;
+            }
+
+            estimator->AddHandEyeRotationAlignmentForCamera(
+                camTopic,         // the ros topic
+                sPose.timeStamp,  // the time of start pose stamped by the camera
+                ePose.timeStamp,  // the time of end pose stamped by the camera
+                sPose.so3,        // the start rotation
+                ePose.so3,        // the end rotation
+                optOption,        // the optimization option
+                weight            // the weight
+            );
+        }
+    }
+
+    auto sum = estimator->Solve(_ceresOption, this->_priori);
+    spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 }
 }  // namespace ns_ikalibr

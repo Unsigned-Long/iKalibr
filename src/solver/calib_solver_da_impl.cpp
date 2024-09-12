@@ -57,7 +57,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_ikalibr {
 
 std::tuple<IKalibrPointCloud::Ptr, std::map<std::string, std::vector<LiDARFrame::Ptr>>>
-CalibSolver::BuildGlobalMapOfLiDAR() {
+CalibSolver::BuildGlobalMapOfLiDAR() const {
     if (!Configor::IsLiDARIntegrated()) {
         return {};
     }
@@ -257,7 +257,7 @@ CalibSolver::BuildGlobalMapOfRGBD() {
 std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> CalibSolver::DataAssociationForLiDARs(
     const IKalibrPointCloud::Ptr &map,
     const std::map<std::string, std::vector<LiDARFrame::Ptr>> &undistFrames,
-    int ptsCountInEachScan) {
+    int ptsCountInEachScan) const {
     if (!Configor::IsLiDARIntegrated()) {
         return {};
     }
@@ -349,7 +349,7 @@ std::map<std::string, std::vector<PointToSurfelCorrPtr>> CalibSolver::DataAssoci
     const IKalibrPointCloud::Ptr &map,
     const std::map<std::string, std::vector<IKalibrPointCloud::Ptr>> &scanInGFrame,
     const std::map<std::string, std::vector<IKalibrPointCloud::Ptr>> &scanInLFrame,
-    int ptsCountInEachScan) {
+    int ptsCountInEachScan) const {
     if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return {};
     }
@@ -442,7 +442,7 @@ std::map<std::string, std::vector<PointToSurfelCorrPtr>> CalibSolver::DataAssoci
 }
 
 std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>>
-CalibSolver::DataAssociationForCameras() {
+CalibSolver::DataAssociationForCameras() const {
     if (!Configor::IsCameraIntegrated()) {
         return {};
     }
