@@ -35,8 +35,6 @@
 #ifndef FEATURE_TRACKING_H
 #define FEATURE_TRACKING_H
 
-#include <utility>
-
 #include "utility"
 #include "util/utils.h"
 #include "veta/camera/pinhole.h"
@@ -59,17 +57,19 @@ struct Feature {
 using FeatureMap = std::map<int, Feature>;
 using FeatureVec = std::vector<Feature>;
 using FeatureIdVec = std::vector<int>;
-using FeatureMatch = std::vector<std::pair<int, int>>;
+using FeatureMatch = std::map<int, int>;
 
 class FeatureTracking {
 public:
     using Ptr = std::shared_ptr<FeatureTracking>;
 
     struct TrackedFeaturePack {
+        using Ptr = std::shared_ptr<TrackedFeaturePack>;
+
         CameraFramePtr imgLast;
         CameraFramePtr imgCur;
-        FeatureMap featInLast;
-        FeatureMap featInCur;
+        FeatureMap featLast;
+        FeatureMap featCur;
         FeatureMatch featMatchLast2Cur;
     };
 
@@ -83,6 +83,8 @@ protected:
     CameraFramePtr _imgLast;
     // feature id, raw feature, undistorted feature in the last image
     FeatureMap _featLast;
+    // feature id, tracked count
+    std::map<int, int> _featTrackCountLast;
 
 public:
     explicit FeatureTracking(int featNumPerImg,
@@ -91,7 +93,7 @@ public:
 
     virtual ~FeatureTracking() = default;
 
-    TrackedFeaturePack GrabImageFrame(
+    TrackedFeaturePack::Ptr GrabImageFrame(
         const CameraFramePtr& imgCur,
         const std::optional<Sophus::SO3d>& SO3_Last2Cur = std::nullopt);
 
@@ -100,8 +102,10 @@ protected:
      * @param imgCur the current image
      * @return the
      */
-    virtual void GrabFistImageFrame(const CameraFramePtr& imgCur,
-                                    std::vector<cv::Point2f>& featCur) = 0;
+    virtual void ExtractFeatures(const CameraFramePtr& imgCur,
+                                 std::vector<cv::Point2f>& featCur,
+                                 int featCountDesired,
+                                 const cv::Mat& mask) = 0;
 
     /**
      * @param imgLast the last image
@@ -127,6 +131,11 @@ protected:
                             std::vector<cv::Point2f>& ptsCur) const;
 
     static bool InImageBorder(const cv::Point2f& pt, const cv::Mat& img, int borderSize);
+
+    [[nodiscard]] std::pair<cv::Mat, FeatureMap> MakeTrackedFeatUniform(
+        const FeatureMap& feats,
+        const CameraFramePtr& frame,
+        const std::vector<int>& featPriority) const;
 };
 
 class LKFeatureTracking : public FeatureTracking {
@@ -138,9 +147,15 @@ public:
                                int minDist,
                                const ns_veta::PinholeIntrinsic::Ptr& intri = nullptr);
 
+    static Ptr Create(int featNumPerImg,
+                      int minDist,
+                      const ns_veta::PinholeIntrinsic::Ptr& intri = nullptr);
+
 protected:
-    void GrabFistImageFrame(const CameraFramePtr& imgCur,
-                            std::vector<cv::Point2f>& featCur) override;
+    void ExtractFeatures(const CameraFramePtr& imgCur,
+                         std::vector<cv::Point2f>& featCur,
+                         int featCountDesired,
+                         const cv::Mat& mask) override;
 
     void GrabNextImageFrame(const CameraFramePtr& imgLast,
                             const std::vector<cv::Point2f>& ptsLastVec,

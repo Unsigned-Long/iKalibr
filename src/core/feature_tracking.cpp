@@ -52,18 +52,30 @@ FeatureTracking::FeatureTracking(int featNumPerImg,
       _imgLast(nullptr),
       _featLast() {}
 
-FeatureTracking::TrackedFeaturePack FeatureTracking::GrabImageFrame(
+FeatureTracking::TrackedFeaturePack::Ptr FeatureTracking::GrabImageFrame(
     const CameraFrame::Ptr& imgCur, const std::optional<Sophus::SO3d>& SO3_Last2Cur) {
     if (_imgLast == nullptr) {
         // for the first image, we just extract features and store them to '_featLast'
         std::vector<cv::Point2f> ptsLastVec;
-        GrabFistImageFrame(imgCur, ptsLastVec);
+        ExtractFeatures(imgCur, ptsLastVec, FEAT_NUM_PER_IMG, cv::Mat());
         int idCount = 0;
+        FeatureMap featCur;
         for (const auto& raw : ptsLastVec) {
-            _featLast.insert({idCount++, Feature(raw, UndistortPoint(raw))});
+            featCur.insert({idCount++, Feature(raw, UndistortPoint(raw))});
         }
+        TrackedFeaturePack::Ptr pack = std::make_shared<TrackedFeaturePack>();
+        pack->imgLast = nullptr;
+        pack->featLast = {};
+        pack->featMatchLast2Cur = {};
+        pack->imgCur = imgCur;
+        pack->featCur = featCur;
+
         _imgLast = imgCur;
-        return {};
+        _featLast = featCur;
+        for (const auto& [id, feat] : _featLast) {
+            _featTrackCountLast.insert({id, 1});
+        }
+        return pack;
     }
     // last tracking info
     std::vector<cv::Point2f> ptsLastVec;
@@ -81,26 +93,96 @@ FeatureTracking::TrackedFeaturePack FeatureTracking::GrabImageFrame(
 
     FeatureMap featCur;
     FeatureMatch featMatchLast2Cur;
-    featMatchLast2Cur.reserve(status.size());
     int idCount = 0;
     for (int i = 0; i < static_cast<int>(status.size()); ++i) {
         const cv::Point2f& pCur = ptsCurVec.at(i);
         if (status.at(i) && InImageBorder(pCur, imgCur->GetImage(), 5)) {
             auto idCur = idCount++;
             featCur.insert({idCur, Feature(pCur, UndistortPoint(pCur))});
-            featMatchLast2Cur.emplace_back(ptsLastIdVec.at(i), idCur);
+            featMatchLast2Cur.insert({ptsLastIdVec.at(i), idCur});
         }
     }
 
-    TrackedFeaturePack pack;
-    pack.imgLast = _imgLast;
-    pack.featInLast = _featLast;
-    pack.imgCur = imgCur;
-    pack.featInCur = featCur;
-    pack.featMatchLast2Cur = featMatchLast2Cur;
+    // compute the tracking count of the current image, id, count
+    std::map<int, int> featTrackCountCur;
+    for (const auto& [idLast, idCur] : featMatchLast2Cur) {
+        featTrackCountCur.insert({idCur, _featTrackCountLast.at(idLast) + 1});
+    }
+
+    // filter tracked features, id, track count
+    std::vector<std::pair<int, int>> trackCount;
+    trackCount.reserve(featTrackCountCur.size());
+    for (const auto& [id, count] : featTrackCountCur) {
+        trackCount.emplace_back(id, count);
+    }
+    // sort features based on the tracking count
+    std::sort(trackCount.begin(), trackCount.end(),
+              [](const auto& p1, const auto& p2) { return p1.second > p2.second; });
+
+    std::vector<int> featPriority;
+    featPriority.reserve(trackCount.size());
+    for (const auto& [id, feat] : trackCount) {
+        featPriority.push_back(id);
+    }
+    auto [mask, filteredFeatCur] = MakeTrackedFeatUniform(featCur, imgCur, featPriority);
+    // update 'featCur'
+    featCur = filteredFeatCur;
+    // update 'featTrackCountCur'
+    for (auto iter = featTrackCountCur.begin(); iter != featTrackCountCur.end();) {
+        auto [idCur, count] = *iter;
+        if (featCur.find(idCur) == featCur.end()) {
+            // this feature has been filtered
+            iter = featTrackCountCur.erase(iter);
+        } else {
+            ++iter;
+        }
+    }
+    // update 'featMatchLast2Cur'
+    for (auto iter = featMatchLast2Cur.begin(); iter != featMatchLast2Cur.end();) {
+        auto [idLast, idCur] = *iter;
+        if (featCur.find(idCur) == featCur.end()) {
+            iter = featMatchLast2Cur.erase(iter);
+        } else {
+            ++iter;
+        }
+    }
+    // update '_featLast'
+    for (auto iter = _featLast.begin(); iter != _featLast.end();) {
+        auto [idLast, feat] = *iter;
+        if (featMatchLast2Cur.find(idLast) == featMatchLast2Cur.end()) {
+            iter = _featLast.erase(iter);
+        } else {
+            ++iter;
+        }
+    }
+
+    TrackedFeaturePack::Ptr pack = std::make_shared<TrackedFeaturePack>();
+    pack->imgLast = _imgLast;
+    pack->featLast = _featLast;
+    pack->imgCur = imgCur;
+    pack->featCur = featCur;
+    pack->featMatchLast2Cur = featMatchLast2Cur;
+
+    // extract new features
+    int featNumToExtract = FEAT_NUM_PER_IMG - static_cast<int>(featCur.size());
+    if (featNumToExtract > 0) {
+        std::vector<cv::Point2f> newPtsCurVec;
+        ExtractFeatures(imgCur, newPtsCurVec, featNumToExtract, mask);
+        /**
+         * append new features to map, attention, we continue to use the 'idCount' above, rather
+         * than redefine 'int idCount = 0;'
+         */
+        for (const auto& raw : newPtsCurVec) {
+            auto id = idCount++;
+            featCur.insert({id, Feature(raw, UndistortPoint(raw))});
+            featTrackCountCur.insert({id, 1});
+        }
+    }
 
     _imgLast = imgCur;
     _featLast = featCur;
+    _featTrackCountLast = featTrackCountCur;
+
     return pack;
 }
 
@@ -129,6 +211,26 @@ bool FeatureTracking::InImageBorder(const cv::Point2f& pt, const cv::Mat& img, i
            imgY < row - borderSize;
 }
 
+std::pair<cv::Mat, FeatureMap> FeatureTracking::MakeTrackedFeatUniform(
+    const FeatureMap& feats,
+    const CameraFramePtr& frame,
+    const std::vector<int>& featPriority) const {
+    int col = frame->GetImage().cols, row = frame->GetImage().rows;
+    cv::Mat mask = cv::Mat(row, col, CV_8UC1, cv::Scalar(255));
+    std::set<int> filteredFeatId;
+    FeatureMap filteredFeatLast;
+    for (const auto& featId : featPriority) {
+        auto feat = feats.at(featId);
+        // if this not has been occupied
+        if (mask.at<uchar>(feat.raw) == 255) {
+            // draw mask
+            cv::circle(mask, feat.raw, MIN_DIST, 0, -1);
+            filteredFeatLast.insert({featId, feat});
+        }
+    }
+    return {mask, filteredFeatLast};
+}
+
 /**
  * feature tracking based on LK optical flow
  */
@@ -137,10 +239,18 @@ LKFeatureTracking::LKFeatureTracking(int featNumPerImg,
                                      const ns_veta::PinholeIntrinsic::Ptr& intri)
     : FeatureTracking(featNumPerImg, minDist, intri) {}
 
-void LKFeatureTracking::GrabFistImageFrame(const CameraFrame::Ptr& imgCur,
-                                           std::vector<cv::Point2f>& featCur) {
+LKFeatureTracking::Ptr LKFeatureTracking::Create(int featNumPerImg,
+                                                 int minDist,
+                                                 const ns_veta::PinholeIntrinsic::Ptr& intri) {
+    return std::make_shared<LKFeatureTracking>(featNumPerImg, minDist, intri);
+}
+
+void LKFeatureTracking::ExtractFeatures(const CameraFrame::Ptr& imgCur,
+                                        std::vector<cv::Point2f>& featCur,
+                                        int featCountDesired,
+                                        const cv::Mat& mask) {
     // the mask is empty for the first frame, do not use mask
-    cv::goodFeaturesToTrack(imgCur->GetImage(), featCur, FEAT_NUM_PER_IMG, 0.01, MIN_DIST);
+    cv::goodFeaturesToTrack(imgCur->GetImage(), featCur, featCountDesired, 0.01, MIN_DIST, mask);
 }
 
 void LKFeatureTracking::GrabNextImageFrame(const CameraFramePtr& imgLast,
