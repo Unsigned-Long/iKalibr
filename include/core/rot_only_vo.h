@@ -35,10 +35,12 @@
 #ifndef IKALIBR_ROT_ONLY_VO_H
 #define IKALIBR_ROT_ONLY_VO_H
 
+#include "utility"
 #include "util/utils.h"
 #include "opencv2/core.hpp"
 #include "opengv/types.hpp"
 #include "veta/camera/pinhole.h"
+#include "core/feature_tracking.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -48,53 +50,32 @@ namespace ns_ikalibr {
 class CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
 
-struct ORBFeatExtMatConfig {
-public:
-    int featNumPerImg{};
-
-    ORBFeatExtMatConfig();
-};
-
 class RotOnlyVisualOdometer {
 public:
     using Ptr = std::shared_ptr<RotOnlyVisualOdometer>;
 
-    struct Feat {
-        cv::Point2f raw;
-        cv::Point2f undistorted;
-
-        Feat(cv::Point2f raw, cv::Point2f undistorted);
-    };
     // landmark id, track lists [camera frame, feature point]
     using FeatTrackingInfo =
-        std::map<ns_veta::IndexT,
-                 std::list<std::pair<CameraFramePtr, RotOnlyVisualOdometer::Feat>>>;
+        std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feature>>>;
 
 private:
-    const int FEAT_NUM_PER_IMG;
-    const int MIN_DIST;
+    FeatureTracking::Ptr _featTracking;
     ns_veta::PinholeIntrinsic::Ptr _intri;
-
-    CameraFramePtr _lastFrame;
-    // feature id, raw feature, undistorted feature
-    std::map<int, Feat> _ptsInLast;
+    FeatureTracking::TrackedFeaturePack::Ptr _trackFeatLast;
 
     // landmark id, track lists [camera frame, feature point]
-    std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feat>>> _lmTrackInfo;
+    std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feature>>> _lmTrackInfo;
+    // feature id, landmark id, only for the last image
     std::map<int, ns_veta::IndexT> _featId2lmIdInLast;
 
     std::vector<std::pair<double, Sophus::SO3d>> _rotations;
 
 public:
-    explicit RotOnlyVisualOdometer(int featNumPerImg,
-                                   int minDist,
-                                   ns_veta::PinholeIntrinsic::Ptr intri)
-        : FEAT_NUM_PER_IMG(featNumPerImg),
-          MIN_DIST(minDist),
-          _intri(std::move(intri)),
-          _lastFrame(nullptr) {}
+    explicit RotOnlyVisualOdometer(FeatureTracking::Ptr featTracking,
+                                   ns_veta::PinholeIntrinsic::Ptr intri);
 
-    static Ptr Create(int featNumPerImg, int minDist, const ns_veta::PinholeIntrinsic::Ptr &intri);
+    static Ptr Create(const FeatureTracking::Ptr &featTracking,
+                      const ns_veta::PinholeIntrinsic::Ptr &intri);
 
     bool GrabFrame(const CameraFramePtr &curFrame,
                    const std::optional<Sophus::SO3d> &SO3_LastToCur = std::nullopt);
@@ -103,7 +84,7 @@ public:
 
     virtual ~RotOnlyVisualOdometer();
 
-    [[nodiscard]] const std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feat>>> &
+    [[nodiscard]] const std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feature>>> &
     GetLmTrackInfo() const;
 
     void ShowLmTrackInfo() const;
@@ -112,16 +93,12 @@ public:
 
 protected:
     static std::pair<std::vector<int>, std::vector<cv::Point2f>> ExtractFeatMapAsRawFeatVec(
-        const std::map<int, Feat> &featMap, const std::vector<int> &desiredIds = {});
+        const FeatureMap &featMap, const std::vector<int> &desiredIds = {});
 
     static std::pair<std::vector<int>, std::vector<cv::Point2f>> ExtractFeatMapAsUndistoFeatVec(
-        const std::map<int, Feat> &featMap, const std::vector<int> &desiredIds = {});
+        const FeatureMap &featMap, const std::vector<int> &desiredIds = {});
 
     static ns_veta::IndexT GenNewLmId();
-
-    static bool InImageBorder(const cv::Point2f &pt,
-                              const CameraFramePtr &frame,
-                              int borderSize = 1);
 
     template <class Type>
     static void ReduceVector(std::vector<Type> &v, std::vector<uchar> status) {
@@ -136,7 +113,7 @@ protected:
 
     [[nodiscard]] std::pair<cv::Mat, std::set<int>> ComputeMaskAndFilterPts(
         const CameraFramePtr &frame,
-        const std::map<int, Feat> &featMap,
+        const FeatureMap &featMap,
         std::vector<std::pair<int, int>> trackCount) const;
 
     template <class Type>
@@ -150,8 +127,8 @@ protected:
 
     void ShowCurrentFrame() const;
 
-    static void ShowFeatureTracking(const std::map<int, Feat> &ptsInLast,
-                                    const std::map<int, Feat> &ptsInCur,
+    static void ShowFeatureTracking(const FeatureMap &ptsInLast,
+                                    const FeatureMap &ptsInCur,
                                     const std::map<int, int> &matches,
                                     cv::Mat matImg,
                                     const cv::Point2f &bias,
@@ -162,9 +139,10 @@ protected:
                                               const std::vector<cv::Point2f> &undistPtsInCur);
 
     std::pair<opengv::rotation_t, std::vector<int>> RelRotationRecovery(
-        const std::vector<cv::Point2f> &ptsUndisto1, const std::vector<cv::Point2f> &ptsUndisto2);
+        const std::vector<cv::Point2f> &ptsUndisto1,
+        const std::vector<cv::Point2f> &ptsUndisto2) const;
 
-    opengv::bearingVectors_t ComputeBeringVec(const std::vector<cv::Point2f> &ptsUndist);
+    opengv::bearingVectors_t ComputeBeringVec(const std::vector<cv::Point2f> &ptsUndist) const;
 };
 }  // namespace ns_ikalibr
 

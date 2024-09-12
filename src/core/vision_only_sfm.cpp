@@ -184,7 +184,7 @@ bool VisionOnlySfM::PreProcess() {
                 continue;
             }
 
-            FeaturePairVec featPairVec(inlierIdx.size());
+            SfMFeaturePairVec featPairVec(inlierIdx.size());
             for (int i = 0; i < static_cast<int>(inlierIdx.size()); ++i) {
                 const int idx = inlierIdx.at(i);
                 auto &featPair = featPairVec.at(i);
@@ -455,7 +455,7 @@ VisionOnlySfM::FeaturePack VisionOnlySfM::FindInBorderOnes(const FeaturePack &in
     return output;
 }
 
-std::pair<FeatureVec, FeatureVec> VisionOnlySfM::MatchFeatures(
+std::pair<SfMFeatureVec, SfMFeatureVec> VisionOnlySfM::MatchFeatures(
     const VisionOnlySfM::FeaturePack &feat1, const VisionOnlySfM::FeaturePack &feat2) {
     const auto &idx1 = std::get<0>(feat1), idx2 = std::get<0>(feat2);
     const auto &kps1 = std::get<1>(feat1), kps2 = std::get<1>(feat2);
@@ -466,7 +466,7 @@ std::pair<FeatureVec, FeatureVec> VisionOnlySfM::MatchFeatures(
     std::vector<std::vector<cv::DMatch>> nnMatches;
     matcher.knnMatch(desc1, desc2, nnMatches, 2);
 
-    FeatureVec matched1, matched2;
+    SfMFeatureVec matched1, matched2;
     constexpr double nn_match_ratio = 0.8f;
     std::set<int> hasMatched;
     for (auto &match : nnMatches) {
@@ -488,8 +488,8 @@ std::pair<FeatureVec, FeatureVec> VisionOnlySfM::MatchFeatures(
     return {matched1, matched2};
 }
 
-std::vector<int> VisionOnlySfM::RejectOutliers(const FeatureVec &feat1,
-                                               const FeatureVec &feat2,
+std::vector<int> VisionOnlySfM::RejectOutliers(const SfMFeatureVec &feat1,
+                                               const SfMFeatureVec &feat2,
                                                const ns_veta::PinholeIntrinsic::Ptr &intri) {
     // matched pair size are not enough
     if (feat1.size() < 15) {
@@ -578,7 +578,7 @@ std::vector<int> VisionOnlySfM::RejectOutliers(const FeatureVec &feat1,
 // VisionOnlySfM: structure from motion
 // ------------------------------------
 
-std::map<IndexPair, Eigen::Vector3d> VisionOnlySfM::Triangulate(const FeaturePairInfo &featPair,
+std::map<IndexPair, Eigen::Vector3d> VisionOnlySfM::Triangulate(const SfMFeaturePairInfo &featPair,
                                                                 const Eigen::Matrix3d &R12,
                                                                 const Eigen::Vector3d &t12,
                                                                 double reProjThd,
@@ -891,7 +891,7 @@ void VisionOnlySfM::IncrementalSfM(const IndexPair &sViewIdxPair) {
     DrawMatchesInViewer(ns_viewer::Colour::Green(), viewPairsHaveDone, ns_viewer::Colour::Black());
 }
 
-void VisionOnlySfM::InsertTriangulateLM(const FeaturePairInfo &featPair,
+void VisionOnlySfM::InsertTriangulateLM(const SfMFeaturePairInfo &featPair,
                                         const std::map<IndexPair, Eigen::Vector3d> &lms,
                                         const ns_veta::Posed &curLMToW) {
     const auto &[viewId1, viewId2] = featPair.viewId;
@@ -1100,7 +1100,9 @@ void VisionOnlySfM::BatchOptimization() {
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 }
 
-const std::map<IndexPair, FeaturePairInfo> &VisionOnlySfM::GetMatchRes() const { return _matchRes; }
+const std::map<IndexPair, SfMFeaturePairInfo> &VisionOnlySfM::GetMatchRes() const {
+    return _matchRes;
+}
 
 std::set<IndexPair> VisionOnlySfM::FindCovisibility(double covThd) {
     _veta = ns_veta::Veta::Create();
@@ -1155,10 +1157,10 @@ std::set<IndexPair> VisionOnlySfM::FindCovisibility(double covThd) {
 }
 
 // ---------------
-// FeaturePairInfo
+// SfMFeaturePairInfo
 // ---------------
 
-std::optional<Sophus::SE3d> FeaturePairInfo::RecoverRelativePose(
+std::optional<Sophus::SE3d> SfMFeaturePairInfo::RecoverRelativePose(
     const ns_veta::PinholeIntrinsic::Ptr &intri) const {
     if (featPairVec.size() < 10) {
         return {};

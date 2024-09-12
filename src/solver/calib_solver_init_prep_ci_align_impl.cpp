@@ -79,14 +79,9 @@ void CalibSolver::InitPrepCameraInertialAlign() {
             topic);
 
         // estimates rotations
-        auto odometer = RotOnlyVisualOdometer::Create(
-            // how many features to maintain in each image
-            featNumPerImg,
-            // the min distance between two features (to ensure features are distributed
-            // uniformly)
-            minDist,
-            // the visual intrinsic parameters
-            _parMagr->INTRI.Camera.at(topic));
+        auto intri = _parMagr->INTRI.Camera.at(topic);
+        auto tracker = LKFeatureTracking::Create(featNumPerImg, minDist, intri);
+        auto odometer = RotOnlyVisualOdometer::Create(tracker, intri);
 
         // sensor-inertial rotation estimator (linear least-squares problem)
         const auto rotEstimator = RotationEstimator::Create();

@@ -86,20 +86,14 @@ void CalibSolver::InitPrepRGBDInertialAlign() {
                 topic);
 
             // estimates rotations
-            auto odometer = RotOnlyVisualOdometer::Create(
-                // how many features to maintain in each image
-                featNumPerImg,
-                // the min distance between two features (to ensure features are distributed
-                // uniformly)
-                minDist,
-                // the visual intrinsic parameters
-                _parMagr->INTRI.RGBD.at(topic)->intri);
+            auto intri = _parMagr->INTRI.RGBD.at(topic);
+            auto tracker = LKFeatureTracking::Create(featNumPerImg, minDist, intri->intri);
+            auto odometer = RotOnlyVisualOdometer::Create(tracker, intri->intri);
 
             // sensor-inertial rotation estimator (linear least-squares problem)
             auto rotEstimator = RotationEstimator::Create();
 
             auto bar = std::make_shared<tqdm>();
-            auto intri = _parMagr->INTRI.RGBD.at(topic);
             for (int i = 0; i < static_cast<int>(frameVec.size()); ++i) {
                 bar->progress(i, static_cast<int>(frameVec.size()));
 

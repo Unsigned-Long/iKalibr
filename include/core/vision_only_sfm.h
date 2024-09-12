@@ -69,7 +69,7 @@ namespace bg = boost::geometry;
 typedef boost::geometry::model::d2::point_xy<double, boost::geometry::cs::cartesian> point_2d;
 typedef boost::geometry::model::polygon<point_2d> polygon_2d;
 
-struct Feature {
+struct SfMFeature {
 public:
     ns_veta::IndexT id{};
     // just for visualization
@@ -77,33 +77,33 @@ public:
     ns_veta::Vec2d kpUndist;
 
 public:
-    Feature(ns_veta::IndexT id, cv::Point2f kp, ns_veta::Vec2d kpUndist)
+    SfMFeature(ns_veta::IndexT id, cv::Point2f kp, ns_veta::Vec2d kpUndist)
         : id(id),
           kp(std::move(kp)),
           kpUndist(std::move(kpUndist)) {}
 
-    Feature() = default;
+    SfMFeature() = default;
 };
 
-using FeatureVec = std::vector<Feature>;
-using FeaturePair = std::pair<Feature, Feature>;
-using FeaturePairVec = std::vector<FeaturePair>;
+using SfMFeatureVec = std::vector<SfMFeature>;
+using SfMFeaturePair = std::pair<SfMFeature, SfMFeature>;
+using SfMFeaturePairVec = std::vector<SfMFeaturePair>;
 
 using IndexPair = std::pair<ns_veta::IndexT, ns_veta::IndexT>;
 using PolyPair = std::pair<polygon_2d, polygon_2d>;
 
-struct FeaturePairInfo {
+struct SfMFeaturePairInfo {
 public:
     IndexPair viewId;
-    FeaturePairVec featPairVec;
+    SfMFeaturePairVec featPairVec;
     PolyPair poly;
 
 public:
-    FeaturePairInfo(ns_veta::IndexT view1Id,
-                    ns_veta::IndexT view2Id,
-                    FeaturePairVec featPairVec,
-                    const polygon_2d &poly1,
-                    const polygon_2d &poly2)
+    SfMFeaturePairInfo(ns_veta::IndexT view1Id,
+                       ns_veta::IndexT view2Id,
+                       SfMFeaturePairVec featPairVec,
+                       const polygon_2d &poly1,
+                       const polygon_2d &poly2)
         : viewId(view1Id, view2Id),
           featPairVec(std::move(featPairVec)),
           poly(poly1, poly2) {}
@@ -112,7 +112,7 @@ public:
         const ns_veta::PinholeIntrinsic::Ptr &intri) const;
 };
 
-inline opengv::bearingVectors_t ComputeBeringVec(const FeatureVec &feat,
+inline opengv::bearingVectors_t ComputeBeringVec(const SfMFeatureVec &feat,
                                                  const ns_veta::PinholeIntrinsic::Ptr &intri) {
     opengv::bearingVectors_t bearingVec(feat.size());
     for (int i = 0; i < static_cast<int>(feat.size()); ++i) {
@@ -123,7 +123,7 @@ inline opengv::bearingVectors_t ComputeBeringVec(const FeatureVec &feat,
 }
 
 template <int PairIndex>
-opengv::bearingVectors_t ComputeBeringVec(const FeaturePairVec &featPairVec,
+opengv::bearingVectors_t ComputeBeringVec(const SfMFeaturePairVec &featPairVec,
                                           const ns_veta::PinholeIntrinsic::Ptr &intri) {
     opengv::bearingVectors_t bearingVec(featPairVec.size());
     for (int i = 0; i < static_cast<int>(featPairVec.size()); ++i) {
@@ -135,7 +135,7 @@ opengv::bearingVectors_t ComputeBeringVec(const FeaturePairVec &featPairVec,
 }
 
 template <int PairIndex>
-opengv::bearingVectors_t ComputeBeringVec(const FeaturePairVec &featPairVec,
+opengv::bearingVectors_t ComputeBeringVec(const SfMFeaturePairVec &featPairVec,
                                           const ns_veta::PinholeIntrinsic::Ptr &intri,
                                           const std::vector<int> &consideredIdx) {
     opengv::bearingVectors_t bearingVec(consideredIdx.size());
@@ -173,7 +173,7 @@ private:
     ns_veta::Veta::Ptr _veta;
     ns_veta::PinholeIntrinsic::Ptr _intri;
     std::map<ns_veta::IndexT, CameraFramePtr> _frameBackup;
-    std::map<IndexPair, FeaturePairInfo> _matchRes;
+    std::map<IndexPair, SfMFeaturePairInfo> _matchRes;
     std::map<ns_veta::IndexT, std::map<ns_veta::IndexT, ns_veta::IndexT>> _viewFeatLM;
 
     // for visualization
@@ -203,7 +203,7 @@ public:
 
     bool StructureFromMotion();
 
-    [[nodiscard]] const std::map<IndexPair, FeaturePairInfo> &GetMatchRes() const;
+    [[nodiscard]] const std::map<IndexPair, SfMFeaturePairInfo> &GetMatchRes() const;
 
     std::set<IndexPair> FindCovisibility(double covThd = 0.2);
 
@@ -250,18 +250,18 @@ protected:
         const std::set<IndexPair> &special = {},
         const ns_viewer::Colour &specialColor = ns_viewer::Colour::Green()) const;
 
-    std::map<IndexPair, Eigen::Vector3d> Triangulate(const FeaturePairInfo &featPair,
+    std::map<IndexPair, Eigen::Vector3d> Triangulate(const SfMFeaturePairInfo &featPair,
                                                      const Eigen::Matrix3d &R12,
                                                      const Eigen::Vector3d &t12,
                                                      double reProjThd = REPROJ_THD_TRI,
                                                      double parallaxDegThd = PARALLAX_THD_TRI);
 
-    void InsertTriangulateLM(const FeaturePairInfo &featPair,
+    void InsertTriangulateLM(const SfMFeaturePairInfo &featPair,
                              const std::map<IndexPair, Eigen::Vector3d> &lms,
                              const ns_veta::Posed &curLMToW);
 
     template <int RefViewIndex, int TarViewIndex>
-    bool SolveAbsolutePose(FeaturePairInfo &viewPair, double reProjThd = REPROJ_THD_PNP) {
+    bool SolveAbsolutePose(SfMFeaturePairInfo &viewPair, double reProjThd = REPROJ_THD_PNP) {
         //            constexpr int RefViewIndex = 0, TarViewIndex = 1;
 
         assert(RefViewIndex != TarViewIndex);
@@ -455,11 +455,11 @@ protected:
                                          const FeaturePack &allFeats,
                                          const FeaturePack &ibFeats);
 
-    static std::pair<FeatureVec, FeatureVec> MatchFeatures(const FeaturePack &feat1,
-                                                           const FeaturePack &feat2);
+    static std::pair<SfMFeatureVec, SfMFeatureVec> MatchFeatures(const FeaturePack &feat1,
+                                                                 const FeaturePack &feat2);
 
-    static std::vector<int> RejectOutliers(const FeatureVec &feat1,
-                                           const FeatureVec &feat2,
+    static std::vector<int> RejectOutliers(const SfMFeatureVec &feat1,
+                                           const SfMFeatureVec &feat2,
                                            const ns_veta::PinholeIntrinsic::Ptr &intri);
 
     static bool IsGraphConnect(const std::vector<IndexPair> &graph);

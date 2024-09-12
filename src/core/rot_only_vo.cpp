@@ -52,244 +52,136 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-ORBFeatExtMatConfig::ORBFeatExtMatConfig() = default;
+RotOnlyVisualOdometer::RotOnlyVisualOdometer(FeatureTracking::Ptr featTracking,
+                                             ns_veta::PinholeIntrinsic::Ptr intri)
+    : _featTracking(std::move(featTracking)),
+      _intri(std::move(intri)),
+      _trackFeatLast(nullptr) {}
 
 RotOnlyVisualOdometer::Ptr RotOnlyVisualOdometer::Create(
-    int featNumPerImg, int minDist, const ns_veta::PinholeIntrinsic::Ptr &intri) {
-    return std::make_shared<RotOnlyVisualOdometer>(featNumPerImg, minDist, intri);
+    const FeatureTracking::Ptr &featTracking, const ns_veta::PinholeIntrinsic::Ptr &intri) {
+    return std::make_shared<RotOnlyVisualOdometer>(featTracking, intri);
 }
 
 bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
                                       const std::optional<Sophus::SO3d> &SO3_LastToCur) {
 #define VISUALIZATION 0
+    auto trackedFeats = _featTracking->GrabImageFrame(curFrame, SO3_LastToCur);
 
-    // first curFrame
-    if (_lastFrame == nullptr) {
-        _lastFrame = curFrame;
-        std::vector<cv::Point2f> goodFeats;
-        // the mask is empty for the first frame, do not use mask
-        cv::goodFeaturesToTrack(_lastFrame->GetImage(), goodFeats, FEAT_NUM_PER_IMG, 0.01,
-                                MIN_DIST);
-
-        // store found good feasters to map
-        int idxCounter = 0;
-        for (const auto &p : goodFeats) {
-            auto newFeatId = idxCounter++;
+    if (_trackFeatLast == nullptr) {
+        // the first tracked frame
+        for (const auto &[idCur, feat] : trackedFeats->featCur) {
             auto newLmId = GenNewLmId();
-
-            ns_veta::Vec2d up = _intri->GetUndistoPixel(ns_veta::Vec2d(p.x, p.y));
-            auto feat = Feat(p, cv::Point2f(static_cast<float>(up(0)), static_cast<float>(up(1))));
-
-            _ptsInLast.insert({newFeatId, feat});
-
-            _lmTrackInfo.insert({newLmId, {{_lastFrame, feat}}});
-
-            _featId2lmIdInLast.insert({newFeatId, newLmId});
+            _lmTrackInfo.insert({newLmId, {{curFrame, feat}}});
+            _featId2lmIdInLast.insert({idCur, newLmId});
         }
-
-        // rotation
         _rotations.emplace_back(curFrame->GetTimestamp(), Sophus::SO3d());
-    } else {
-#if VISUALIZATION
-        cv::Mat imgLast = _lastFrame->GetColorImage(), imgCur = curFrame->GetColorImage();
-        cv::Mat matImg;
-        cv::hconcat(imgLast, imgCur, matImg);
-        auto bias = cv::Point2f((float)imgLast.cols, 0.0f);
-#endif
-
-        // -----------------------------
-        // perform optical flow tracking
-        // -----------------------------
-        auto [idsLast, rawFeatLast] = ExtractFeatMapAsRawFeatVec(_ptsInLast);
-        std::vector<cv::Point2f> rawFeatCur = rawFeatLast;
-        if (SO3_LastToCur != std::nullopt) {
-            // use prior rotation to update feats in the last image
-            // we do not consider the image distortion here
-            for (auto &feat : rawFeatCur) {
-                Eigen::Vector2d pCam = _intri->ImgToCam({feat.x, feat.y});
-                Eigen::Vector3d pCamNew = *SO3_LastToCur * Eigen::Vector3d(pCam(0), pCam(1), 1.0);
-                Eigen::Vector2d featNew = _intri->CamToImg({pCamNew(0), pCamNew(1)});
-                feat.x = (float)featNew(0);
-                feat.y = (float)featNew(1);
-            }
-        }
-#if VISUALIZATION
-        if (SO3_LastToCur != std::nullopt) {
-            std::map<int, Feat> rawPtsInLast;
-            std::map<int, Feat> rawPtsInCur;
-            std::map<int, int> rawMatches;
-            for (int i = 0; i < static_cast<int>(rawFeatCur.size()); ++i) {
-                rawPtsInLast.insert({i, Feat(rawFeatLast.at(i), rawFeatLast.at(i))});
-                rawPtsInCur.insert({i, Feat(rawFeatCur.at(i), rawFeatCur.at(i))});
-                rawMatches.insert({i, i});
-            }
-            ShowFeatureTracking(rawPtsInLast, rawPtsInCur, rawMatches, matImg, bias,
-                                "Prior Optical Flow Tracking", {255, 255, 255});
-        }
-#endif
-        std::vector<uchar> status;
-        std::vector<float> errors;
-        cv::TermCriteria termCrit =
-            cv::TermCriteria(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 30, 0.01);
-        cv::calcOpticalFlowPyrLK(_lastFrame->GetImage(), curFrame->GetImage(), rawFeatLast,
-                                 rawFeatCur, status, errors, cv::Size(21, 21), 5, termCrit,
-                                 cv::OPTFLOW_USE_INITIAL_FLOW);
-        for (int i = 0; i < int(rawFeatCur.size()); i++) {
-            // if the feature is tracked but not in border, we set its status as 'fail = 0'
-            if (status[i] && !InImageBorder(rawFeatCur[i], curFrame, 1)) {
-                status[i] = 0;
-            }
-        }
-
-        // cur feat id, last feat id
-        std::map<int, int> trackIdsCur2Last;
-        int idxCounter = 0;
-        // id, feature
-        std::map<int, Feat> ptsInCur;
-        for (int i = 0; i < static_cast<int>(status.size()); ++i) {
-            // if tracking succeed, store its info
-            if (status[i]) {
-                int newFeatId = idxCounter++;
-                trackIdsCur2Last.insert({newFeatId, idsLast.at(i)});
-
-                const cv::Point2f &p = rawFeatCur.at(i);
-                ns_veta::Vec2d up = _intri->GetUndistoPixel(ns_veta::Vec2d(p.x, p.y));
-                auto feat =
-                    Feat(p, cv::Point2f(static_cast<float>(up(0)), static_cast<float>(up(1))));
-                ptsInCur.insert({newFeatId, feat});
-            }
-        }
-
-        // -----------------------------
-        // find mask and filter features
-        // -----------------------------
-        // current id, track count
-        std::vector<std::pair<int, int>> trackCount;
-        trackCount.reserve(trackIdsCur2Last.size());
-        for (const auto &[idCur, idLast] : trackIdsCur2Last) {
-            auto lmId = _featId2lmIdInLast.at(idLast);
-            trackCount.emplace_back(idCur, _lmTrackInfo.at(lmId).size());
-        }
-        auto [mask, filteredFeatIdCur] = ComputeMaskAndFilterPts(curFrame, ptsInCur, trackCount);
-
-        for (const auto &[id, count] : trackCount) {
-            // this feature has been filtered in 'ComputeMaskAndFilterPts'
-            if (filteredFeatIdCur.count(id) == 0) {
-                ptsInCur.erase(id);
-                trackIdsCur2Last.erase(id);
-            }
-        }
+        _trackFeatLast = trackedFeats;
+        return true;
+    }
 
 #if VISUALIZATION
-        ShowFeatureTracking(_ptsInLast, ptsInCur, trackIdsCur2Last, matImg, bias,
-                            "Optical Flow Tracking", {255, 255, 255});
+    cv::Mat imgLast = _lastFrame->GetColorImage(), imgCur = curFrame->GetColorImage();
+    cv::Mat matImg;
+    cv::hconcat(imgLast, imgCur, matImg);
+    auto bias = cv::Point2f((float)imgLast.cols, 0.0f);
 #endif
+    // -------------------------------------------
+    // outliers rejection using fundamental matrix
+    // -------------------------------------------
+    // spdlog::info("perform outliers rejection using fundamental matrix...");
+    auto undistFeatLast = ExtractFeatMapAsUndistoFeatVec(
+        trackedFeats->featLast, ExtractKeysAsVec(trackedFeats->featMatchLast2Cur));
+    auto undistFeatCur = ExtractFeatMapAsUndistoFeatVec(
+        trackedFeats->featCur, ExtractValsAsVec(trackedFeats->featMatchLast2Cur));
 
-        // -------------------------------------------
-        // outliers rejection using fundamental matrix
-        // -------------------------------------------
-        auto undistFeatLast =
-            ExtractFeatMapAsUndistoFeatVec(_ptsInLast, ExtractValsAsVec(trackIdsCur2Last));
-        auto undistFeatCur =
-            ExtractFeatMapAsUndistoFeatVec(ptsInCur, ExtractKeysAsVec(trackIdsCur2Last));
-        status = RejectUsingFMat(undistFeatLast.second, undistFeatCur.second);
+    auto status = RejectUsingFMat(undistFeatLast.second, undistFeatCur.second);
 
-        for (int i = 0; i < static_cast<int>(status.size()); ++i) {
-            // is an outlier, erase this match
-            if (!status.at(i)) {
-                auto id = undistFeatCur.first.at(i);
-                ptsInCur.erase(id);
-                trackIdsCur2Last.erase(id);
-            }
+    for (int i = 0; i < static_cast<int>(status.size()); ++i) {
+        // is an outlier, erase this match
+        if (!status.at(i)) {
+            auto idLast = undistFeatLast.first.at(i);
+            auto idCur = undistFeatCur.first.at(i);
+            trackedFeats->featLast.erase(idLast);
+            trackedFeats->featCur.erase(idCur);
+            trackedFeats->featMatchLast2Cur.erase(idLast);
         }
+    }
 #if VISUALIZATION
-        ShowFeatureTracking(_ptsInLast, ptsInCur, trackIdsCur2Last, matImg, bias,
-                            "Feature Matching (FMat Rejection)", {0, 0, 255});
+    ShowFeatureTracking(_ptsInLast, ptsInCur, trackIdsCur2Last, matImg, bias,
+                        "Feature Matching (FMat Rejection)", {0, 0, 255});
 #endif
+    // ----------------------------------------------------------
+    // perform rotation-only estimation (with outliers rejection)
+    // ----------------------------------------------------------
+    // spdlog::info("perform rotation-only estimation (with outliers rejection)...");
+    if (trackedFeats->featMatchLast2Cur.size() < 10) {
+        this->ResetWorkspace();
+        return false;
+    }
 
-        // ----------------------------------------------------------
-        // perform rotation-only estimation (with outliers rejection)
-        // ----------------------------------------------------------
-        if (trackIdsCur2Last.size() < 10) {
-            return false;
+    undistFeatLast = ExtractFeatMapAsUndistoFeatVec(
+        trackedFeats->featLast, ExtractKeysAsVec(trackedFeats->featMatchLast2Cur));
+    undistFeatCur = ExtractFeatMapAsUndistoFeatVec(
+        trackedFeats->featCur, ExtractValsAsVec(trackedFeats->featMatchLast2Cur));
+
+    auto res = RelRotationRecovery(undistFeatLast.second, undistFeatCur.second);
+
+    // solving failed
+    if (res.second.empty()) {
+        this->ResetWorkspace();
+        return false;
+    }
+
+    // organize results
+    Eigen::Matrix3d ROT_CurToLast = res.first;
+    Sophus::SO3d SO3_CurToLast(Sophus::makeRotationMatrix(ROT_CurToLast));
+    Sophus::SO3d SO3_CurToW = _rotations.back().second * SO3_CurToLast;
+    _rotations.emplace_back(curFrame->GetTimestamp(), SO3_CurToW);
+
+    // remove outlier
+    std::set<int> inlierSet;
+    for (const auto &vecIdx : res.second) {
+        inlierSet.insert(vecIdx);
+    }
+
+    for (int i = 0; i < static_cast<int>(undistFeatCur.first.size()); ++i) {
+        if (inlierSet.count(i) == 0) {
+            // this is an outlier
+            auto idLast = undistFeatLast.first.at(i);
+            auto idCur = undistFeatCur.first.at(i);
+            trackedFeats->featLast.erase(idLast);
+            trackedFeats->featCur.erase(idCur);
+            trackedFeats->featMatchLast2Cur.erase(idLast);
         }
-
-        undistFeatLast =
-            ExtractFeatMapAsUndistoFeatVec(_ptsInLast, ExtractValsAsVec(trackIdsCur2Last));
-        undistFeatCur =
-            ExtractFeatMapAsUndistoFeatVec(ptsInCur, ExtractKeysAsVec(trackIdsCur2Last));
-
-        auto res = RelRotationRecovery(undistFeatLast.second, undistFeatCur.second);
-
-        // solving failed
-        if (res.second.empty()) {
-            return false;
-        }
-
-        // organize results
-        Eigen::Matrix3d ROT_CurToLast = res.first;
-        Sophus::SO3d SO3_CurToLast(Sophus::makeRotationMatrix(ROT_CurToLast));
-        Sophus::SO3d SO3_CurToW = _rotations.back().second * SO3_CurToLast;
-        _rotations.emplace_back(curFrame->GetTimestamp(), SO3_CurToW);
-
-        // remove outlier
-        std::set<int> inlierSet;
-        for (const auto &vecIdx : res.second) {
-            inlierSet.insert(vecIdx);
-        }
-
-        for (int vecIdx = 0; vecIdx < static_cast<int>(undistFeatCur.first.size()); ++vecIdx) {
-            if (inlierSet.count(vecIdx) == 0) {
-                // this is an outlier
-                auto id = undistFeatCur.first.at(vecIdx);
-                ptsInCur.erase(id);
-                trackIdsCur2Last.erase(id);
-            }
-        }
+    }
 
 #if VISUALIZATION
-        ShowFeatureTracking(_ptsInLast, ptsInCur, trackIdsCur2Last, matImg, bias,
-                            "Feature Matching (Rot-only RANSAC Rejection)", {0, 255, 0});
+    ShowFeatureTracking(_ptsInLast, ptsInCur, trackIdsCur2Last, matImg, bias,
+                        "Feature Matching (Rot-only RANSAC Rejection)", {0, 255, 0});
 #endif
 
-        // store tracking info
-        std::map<int, ns_veta::IndexT> featId2lmIdInLastTmp;
-
-        for (const auto &[idCur, idLast] : trackIdsCur2Last) {
-            auto lmId = _featId2lmIdInLast.at(idLast);
-            _lmTrackInfo.at(lmId).emplace_back(curFrame, ptsInCur.at(idCur));
+    // store tracking info
+    // spdlog::info("store tracking information...");
+    std::map<int, ns_veta::IndexT> featId2lmIdInLastTmp;
+    for (const auto &[idLast, idCur] : trackedFeats->featMatchLast2Cur) {
+        if (auto lmIdIter = _featId2lmIdInLast.find(idLast);
+            lmIdIter == _featId2lmIdInLast.cend()) {
+            // new landmark
+            auto newLmId = GenNewLmId();
+            _lmTrackInfo.insert({newLmId, {{curFrame, trackedFeats->featCur.at(idCur)}}});
+            featId2lmIdInLastTmp.insert({idCur, newLmId});
+        } else {
+            // old landmark
+            auto lmId = lmIdIter->second;
+            _lmTrackInfo.at(lmId).emplace_back(curFrame, trackedFeats->featCur.at(idCur));
             featId2lmIdInLastTmp.insert({idCur, lmId});
         }
-        _featId2lmIdInLast = featId2lmIdInLastTmp;
-
-        // --------------------------------------
-        // perform incremental feature extraction
-        // --------------------------------------
-        int featNumToExtract = FEAT_NUM_PER_IMG - static_cast<int>(ptsInCur.size());
-        if (featNumToExtract > 0) {
-            std::vector<cv::Point2f> newGoodFeats;
-            cv::goodFeaturesToTrack(curFrame->GetImage(), newGoodFeats, featNumToExtract, 0.01,
-                                    MIN_DIST, mask);
-            for (const auto &p : newGoodFeats) {
-                auto newFeatId = idxCounter++;
-                auto newLmId = GenNewLmId();
-
-                ns_veta::Vec2d up = _intri->GetUndistoPixel(ns_veta::Vec2d(p.x, p.y));
-                auto feat =
-                    Feat(p, cv::Point2f(static_cast<float>(up(0)), static_cast<float>(up(1))));
-
-                ptsInCur.insert({newFeatId, feat});
-
-                _lmTrackInfo.insert({newLmId, {{curFrame, feat}}});
-
-                _featId2lmIdInLast.insert({newFeatId, newLmId});
-            }
-        }
-
-        _lastFrame = curFrame;
-        _ptsInLast = ptsInCur;
     }
-    // #if VISUALIZATION
+    _featId2lmIdInLast = featId2lmIdInLastTmp;
+    _trackFeatLast = trackedFeats;
+
+    // spdlog::info("show tracked features on the image...");
     ShowCurrentFrame();
     cv::waitKey(1);
 // #endif
@@ -298,53 +190,16 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
 }
 
 void RotOnlyVisualOdometer::ResetWorkspace() {
-    _ptsInLast.clear();
     _lmTrackInfo.clear();
     _featId2lmIdInLast.clear();
-    _lastFrame = nullptr;
     _rotations.clear();
 }
 
-std::pair<cv::Mat, std::set<int>> RotOnlyVisualOdometer::ComputeMaskAndFilterPts(
-    const CameraFrame::Ptr &frame,
-    const std::map<int, Feat> &featMap,
-    // current id, track count
-    std::vector<std::pair<int, int>> trackCount) const {
-    // sort features based on the tracking count
-    std::sort(trackCount.begin(), trackCount.end(),
-              [](const auto &p1, const auto &p2) { return std::get<1>(p1) > std::get<1>(p2); });
-
-    int col = frame->GetImage().cols, row = frame->GetImage().rows;
-    cv::Mat mask = cv::Mat(row, col, CV_8UC1, cv::Scalar(255));
-
-    std::set<int> filteredFeatId;
-    for (const auto &[id, count] : trackCount) {
-        auto pt = featMap.at(id).raw;
-        // if this not has been occupied
-        if (mask.at<uchar>(pt) == 255) {
-            // draw mask
-            cv::circle(mask, pt, MIN_DIST, 0, -1);
-            filteredFeatId.insert(id);
-        }
-    }
-
-    return {mask, filteredFeatId};
-}
-
-bool RotOnlyVisualOdometer::InImageBorder(const cv::Point2f &pt,
-                                          const CameraFrame::Ptr &frame,
-                                          int borderSize) {
-    int col = frame->GetImage().cols, row = frame->GetImage().rows;
-    int imgX = cvRound(pt.x), imgY = cvRound(pt.y);
-    return borderSize <= imgX && imgX < col - borderSize && borderSize <= imgY &&
-           imgY < row - borderSize;
-}
-
 void RotOnlyVisualOdometer::ShowCurrentFrame() const {
-    cv::Mat img = _lastFrame->GetImage().clone();
+    cv::Mat img = _trackFeatLast->imgCur->GetImage().clone();
     cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
 
-    for (const auto &[id, feat] : _ptsInLast) {
+    for (const auto &[id, feat] : _trackFeatLast->featCur) {
         int count = static_cast<int>(_lmTrackInfo.at(_featId2lmIdInLast.at(id)).size());
         if (count < 2) {
             continue;
@@ -374,8 +229,8 @@ void RotOnlyVisualOdometer::ShowCurrentFrame() const {
     // cv::WindowFlags::WINDOW_NORMAL); cv::imshow(unWinName, undistImg);
 }
 
-void RotOnlyVisualOdometer::ShowFeatureTracking(const std::map<int, Feat> &ptsInLast,
-                                                const std::map<int, Feat> &ptsInCur,
+void RotOnlyVisualOdometer::ShowFeatureTracking(const std::map<int, Feature> &ptsInLast,
+                                                const std::map<int, Feature> &ptsInCur,
                                                 const std::map<int, int> &matches,
                                                 cv::Mat matImg,
                                                 const cv::Point2f &bias,
@@ -407,7 +262,8 @@ std::vector<uchar> RotOnlyVisualOdometer::RejectUsingFMat(
 }
 
 std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotationRecovery(
-    const std::vector<cv::Point2f> &ptsUndisto1, const std::vector<cv::Point2f> &ptsUndisto2) {
+    const std::vector<cv::Point2f> &ptsUndisto1,
+    const std::vector<cv::Point2f> &ptsUndisto2) const {
     assert(ptsUndisto1.size() == ptsUndisto2.size());
     opengv::bearingVectors_t bearingVectors1 = ComputeBeringVec(ptsUndisto1);
     opengv::bearingVectors_t bearingVectors2 = ComputeBeringVec(ptsUndisto2);
@@ -440,7 +296,7 @@ std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotati
 }
 
 opengv::bearingVectors_t RotOnlyVisualOdometer::ComputeBeringVec(
-    const std::vector<cv::Point2f> &ptsUndist) {
+    const std::vector<cv::Point2f> &ptsUndist) const {
     opengv::bearingVectors_t bearingVec(ptsUndist.size());
     for (int i = 0; i < static_cast<int>(ptsUndist.size()); ++i) {
         const auto &p = ptsUndist.at(i);
@@ -462,7 +318,7 @@ ns_veta::IndexT RotOnlyVisualOdometer::GenNewLmId() {
 }
 
 std::pair<std::vector<int>, std::vector<cv::Point2f>>
-RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const std::map<int, Feat> &featMap,
+RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const std::map<int, Feature> &featMap,
                                                   const std::vector<int> &desiredIds) {
     std::vector<int> ids;
     std::vector<cv::Point2f> feats;
@@ -489,7 +345,7 @@ RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const std::map<int, Feat> &fea
 }
 
 std::pair<std::vector<int>, std::vector<cv::Point2f>>
-RotOnlyVisualOdometer::ExtractFeatMapAsUndistoFeatVec(const std::map<int, Feat> &featMap,
+RotOnlyVisualOdometer::ExtractFeatMapAsUndistoFeatVec(const std::map<int, Feature> &featMap,
                                                       const std::vector<int> &desiredIds) {
     std::vector<int> ids;
     std::vector<cv::Point2f> feats;
@@ -514,7 +370,8 @@ RotOnlyVisualOdometer::ExtractFeatMapAsUndistoFeatVec(const std::map<int, Feat> 
     }
     return {ids, feats};
 }
-const std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, RotOnlyVisualOdometer::Feat>>> &
+
+const std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feature>>> &
 RotOnlyVisualOdometer::GetLmTrackInfo() const {
     return _lmTrackInfo;
 }
@@ -546,8 +403,4 @@ void RotOnlyVisualOdometer::ShowLmTrackInfo() const {
         cv::waitKey(0);
     }
 }
-
-RotOnlyVisualOdometer::Feat::Feat(cv::Point2f raw, cv::Point2f undistorted)
-    : raw(std::move(raw)),
-      undistorted(std::move(undistorted)) {}
 }  // namespace ns_ikalibr
