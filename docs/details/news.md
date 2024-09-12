@@ -29,7 +29,8 @@
 
 For more details about the newly released RGBD-Inertial calibration method, please refer to our article :point_down::
 
-+ **S. Chen**, X. Li*, S. Li, and Y. Zhou. iKalibr-RGBD: Partially-Specialized Target-Free Visual-Inertial Spatiotemporal Calibration For RGBDs via Continuous-Time Velocity Estimation[J]. arXiv:2409 [cs.RO]. [paper-arXiv (uploading)]
++ **S. Chen**, X. Li*, S. Li, and Y. Zhou. iKalibr-RGBD: Partially-Specialized Target-Free Visual-Inertial Spatiotemporal Calibration For RGBDs via Continuous-Time Velocity Estimation[J]. arXiv:2409.07116 [cs.RO]. [[paper-arXiv](http://arxiv.org/abs/2409.07116)]
+
 
 Other small changes in this version are:
 
