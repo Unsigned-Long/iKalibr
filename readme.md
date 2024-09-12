@@ -83,6 +83,7 @@ For more details, please refer to our article :point_down::
 + [LI-Calib (OA-Calib)](https://github.com/APRIL-ZJU/lidar_IMU_calib.git) dataset: a velodyne VLP-16 lidars, three IMUs.
 + [River](https://github.com/Unsigned-Long/River.git) dataset: two mmWave 3D radars, a MTI IMU.
 + [TUM GS-RS](https://cvg.cit.tum.de/data/datasets/rolling-shutter-dataset) dataset: a GS camera, a RS camera, a Bosch IMU.
++ [VECtor](https://star-datasets.github.io/vector) dataset: two optical cameras (with reprojected depth images), two event cameras, an Ouster OS0-128 LiDAR, a XSens MTi-30 AHRS IMU.
 
 
 ---
