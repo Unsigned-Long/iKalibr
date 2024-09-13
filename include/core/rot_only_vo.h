@@ -127,22 +127,15 @@ protected:
 
     void ShowCurrentFrame() const;
 
-    static void ShowFeatureTracking(const FeatureMap &ptsInLast,
-                                    const FeatureMap &ptsInCur,
-                                    const std::map<int, int> &matches,
-                                    cv::Mat matImg,
-                                    const cv::Point2f &bias,
-                                    const std::string &winName,
-                                    const cv::Scalar &color = cv::Scalar(0, 255, 0));
-
     static std::vector<uchar> RejectUsingFMat(const std::vector<cv::Point2f> &undistPtsInLast,
                                               const std::vector<cv::Point2f> &undistPtsInCur);
 
-    std::pair<opengv::rotation_t, std::vector<int>> RelRotationRecovery(
+    [[nodiscard]] std::pair<opengv::rotation_t, std::vector<int>> RelRotationRecovery(
         const std::vector<cv::Point2f> &ptsUndisto1,
         const std::vector<cv::Point2f> &ptsUndisto2) const;
 
-    opengv::bearingVectors_t ComputeBeringVec(const std::vector<cv::Point2f> &ptsUndist) const;
+    [[nodiscard]] opengv::bearingVectors_t ComputeBeringVec(
+        const std::vector<cv::Point2f> &ptsUndist) const;
 };
 }  // namespace ns_ikalibr
 

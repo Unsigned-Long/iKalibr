@@ -66,25 +66,26 @@ RotOnlyVisualOdometer::Ptr RotOnlyVisualOdometer::Create(
 bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
                                       const std::optional<Sophus::SO3d> &SO3_LastToCur) {
 #define VISUALIZATION 0
-    auto trackedFeats = _featTracking->GrabImageFrame(curFrame, SO3_LastToCur);
+    // grab the current image
+    const auto trackedFeats = _featTracking->GrabImageFrame(curFrame, SO3_LastToCur);
 
     if (_trackFeatLast == nullptr) {
         // the first tracked frame
         for (const auto &[idCur, feat] : trackedFeats->featCur) {
             auto newLmId = GenNewLmId();
+            // create landmarks
             _lmTrackInfo.insert({newLmId, {{curFrame, feat}}});
+            // store tracking information, feat id in last image --> landmark id
             _featId2lmIdInLast.insert({idCur, newLmId});
         }
         _rotations.emplace_back(curFrame->GetTimestamp(), Sophus::SO3d());
         _trackFeatLast = trackedFeats;
         return true;
     }
-
 #if VISUALIZATION
-    cv::Mat imgLast = _lastFrame->GetColorImage(), imgCur = curFrame->GetColorImage();
-    cv::Mat matImg;
-    cv::hconcat(imgLast, imgCur, matImg);
-    auto bias = cv::Point2f((float)imgLast.cols, 0.0f);
+    // cv::imshow("Raw Feature Tracking", trackedFeats->DrawMatches());
+    // cv::waitKey(0);
+    auto matchBackup = std::make_shared<FeatureTracking::TrackedFeaturePack>(*trackedFeats);
 #endif
     // -------------------------------------------
     // outliers rejection using fundamental matrix
@@ -107,9 +108,11 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
             trackedFeats->featMatchLast2Cur.erase(idLast);
         }
     }
+
 #if VISUALIZATION
-    ShowFeatureTracking(_ptsInLast, ptsInCur, trackIdsCur2Last, matImg, bias,
-                        "Feature Matching (FMat Rejection)", {0, 0, 255});
+    // cv::imshow("FMat Rejection", trackedFeats->DrawMatches(matchBackup));
+    // cv::waitKey(0);
+    matchBackup = std::make_shared<FeatureTracking::TrackedFeaturePack>(*trackedFeats);
 #endif
     // ----------------------------------------------------------
     // perform rotation-only estimation (with outliers rejection)
@@ -157,8 +160,9 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
     }
 
 #if VISUALIZATION
-    ShowFeatureTracking(_ptsInLast, ptsInCur, trackIdsCur2Last, matImg, bias,
-                        "Feature Matching (Rot-only RANSAC Rejection)", {0, 255, 0});
+    cv::imshow("Rot-only RANSAC Rejection", trackedFeats->DrawMatches(matchBackup));
+    cv::waitKey(0);
+    matchBackup = nullptr;
 #endif
 
     // store tracking info
@@ -184,7 +188,6 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
     // spdlog::info("show tracked features on the image...");
     ShowCurrentFrame();
     cv::waitKey(1);
-// #endif
 #undef VISUALIZATION
     return true;
 }
@@ -227,30 +230,6 @@ void RotOnlyVisualOdometer::ShowCurrentFrame() const {
     // cv::imwrite(Configor::DataStream::DebugPath + "/tracking" + std::to_string(count++) + ".png",
     // img); const static std::string unWinName = "Undisto Image"; cv::namedWindow(unWinName,
     // cv::WindowFlags::WINDOW_NORMAL); cv::imshow(unWinName, undistImg);
-}
-
-void RotOnlyVisualOdometer::ShowFeatureTracking(const std::map<int, Feature> &ptsInLast,
-                                                const std::map<int, Feature> &ptsInCur,
-                                                const std::map<int, int> &matches,
-                                                cv::Mat matImg,
-                                                const cv::Point2f &bias,
-                                                const std::string &winName,
-                                                const cv::Scalar &color) {
-    for (const auto &[idCur, idLast] : matches) {
-        cv::Point2f pt1 = ptsInLast.at(idLast).raw;
-        cv::Point2f pt2 = ptsInCur.at(idCur).raw + bias;
-        cv::drawMarker(matImg, pt1, color, cv::MarkerTypes::MARKER_SQUARE, 10, 1);
-        cv::drawMarker(matImg, pt1, color, cv::MarkerTypes::MARKER_SQUARE, 2, 2);
-        cv::drawMarker(matImg, pt2, color, cv::MarkerTypes::MARKER_SQUARE, 10, 1);
-        cv::drawMarker(matImg, pt2, color, cv::MarkerTypes::MARKER_SQUARE, 2, 2);
-        cv::line(matImg, pt1, pt2, color, 1);
-    }
-
-    cv::imshow(winName, matImg);
-    cv::waitKey();
-    // static int count = 0;
-    // cv::imwrite(Configor::DataStream::DebugPath + "/matching" + std::to_string(count++) + ".png",
-    // matImg);
 }
 
 std::vector<uchar> RotOnlyVisualOdometer::RejectUsingFMat(

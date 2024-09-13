@@ -43,6 +43,52 @@ Feature::Feature(cv::Point2f raw, cv::Point2f undistorted)
     : raw(std::move(raw)),
       undistorted(std::move(undistorted)) {}
 
+cv::Mat FeatureTracking::TrackedFeaturePack::DrawMatches() const {
+    const cv::Mat matLast = imgLast->GetColorImage();
+    const cv::Mat matCur = imgCur->GetColorImage();
+    cv::Mat matchImg;
+    cv::hconcat(matLast, matCur, matchImg);
+    const auto bias = cv::Point2f(static_cast<float>(matLast.cols), 0.0f);
+    DrawFeatureTracking(featLast, featCur, featMatchLast2Cur, matchImg, bias,
+                        cv::Scalar(0, 255, 0));
+    return matchImg;
+}
+
+cv::Mat FeatureTracking::TrackedFeaturePack::DrawMatches(const Ptr& compPack) const {
+    if (this->imgLast->GetId() != compPack->imgLast->GetId() ||
+        this->imgCur->GetId() != compPack->imgCur->GetId()) {
+        return {};
+    }
+    const cv::Mat matLast = imgLast->GetColorImage();
+    const cv::Mat matCur = imgCur->GetColorImage();
+    cv::Mat matchImg;
+    cv::hconcat(matLast, matCur, matchImg);
+    const auto bias = cv::Point2f(static_cast<float>(matLast.cols), 0.0f);
+    DrawFeatureTracking(compPack->featLast, compPack->featCur, compPack->featMatchLast2Cur,
+                        matchImg, bias, cv::Scalar(0, 0, 255));
+    DrawFeatureTracking(featLast, featCur, featMatchLast2Cur, matchImg, bias,
+                        cv::Scalar(0, 255, 0));
+    return matchImg;
+}
+
+void FeatureTracking::TrackedFeaturePack::DrawFeatureTracking(
+    const std::map<int, Feature>& ptsInLast,
+    const std::map<int, Feature>& ptsInCur,
+    const std::map<int, int>& matches,
+    cv::Mat& matImg,
+    const cv::Point2f& bias,
+    const cv::Scalar& color) {
+    for (const auto& [idLast, idCur] : matches) {
+        cv::Point2f pt1 = ptsInLast.at(idLast).raw;
+        cv::Point2f pt2 = ptsInCur.at(idCur).raw + bias;
+        cv::drawMarker(matImg, pt1, color, cv::MarkerTypes::MARKER_SQUARE, 10, 1);
+        cv::drawMarker(matImg, pt1, color, cv::MarkerTypes::MARKER_SQUARE, 2, 2);
+        cv::drawMarker(matImg, pt2, color, cv::MarkerTypes::MARKER_SQUARE, 10, 1);
+        cv::drawMarker(matImg, pt2, color, cv::MarkerTypes::MARKER_SQUARE, 2, 2);
+        cv::line(matImg, pt1, pt2, color, 1);
+    }
+}
+
 FeatureTracking::FeatureTracking(int featNumPerImg,
                                  int minDist,
                                  ns_veta::PinholeIntrinsic::Ptr intri)

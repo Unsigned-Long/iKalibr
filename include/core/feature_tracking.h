@@ -71,6 +71,18 @@ public:
         FeatureMap featLast;
         FeatureMap featCur;
         FeatureMatch featMatchLast2Cur;
+
+        [[nodiscard]] cv::Mat DrawMatches() const;
+
+        [[nodiscard]] cv::Mat DrawMatches(const Ptr& compPack) const;
+
+    protected:
+        static void DrawFeatureTracking(const std::map<int, Feature>& ptsInLast,
+                                        const std::map<int, Feature>& ptsInCur,
+                                        const std::map<int, int>& matches,
+                                        cv::Mat& matImg,
+                                        const cv::Point2f& bias,
+                                        const cv::Scalar& color);
     };
 
 protected:
