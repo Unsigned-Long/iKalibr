@@ -351,4 +351,138 @@ void LKFeatureTracking::GrabNextImageFrame(const CameraFrame::Ptr& imgLast,
     ComputeIndexVecOfPoints(ptsCurVec, ptsCurIdVec, ptsIdCounter);
 }
 
+/**
+ * descriptor based feature tracking
+ */
+
+DescriptorBasedFeatureTracking::DescriptorBasedFeatureTracking(
+    int featNumPerImg,
+    int minDist,
+    const ns_veta::PinholeIntrinsic::Ptr& intri,
+    const cv::Ptr<cv::DescriptorMatcher>& matcher)
+    : FeatureTracking(featNumPerImg, minDist, intri),
+      _matcher(matcher) {}
+
+void DescriptorBasedFeatureTracking::ExtractFeatures(const CameraFrame::Ptr& imgCur,
+                                                     const cv::Mat& mask,
+                                                     int featCountDesired,
+                                                     std::vector<cv::Point2f>& ptsCurVec,
+                                                     FeatureIdVec& ptsCurIdVec,
+                                                     int& ptsIdCounter) {
+    std::vector<cv::KeyPoint> kpsCur;
+    cv::Mat descCur;
+    DetectAndComputeKeyPoints(imgCur->GetImage(), cv::Mat(), FEAT_NUM_PER_IMG, kpsCur, descCur);
+
+    ptsCurVec.clear();
+    ptsCurVec.reserve(kpsCur.size());
+    for (const auto& kp : kpsCur) {
+        ptsCurVec.push_back(kp.pt);
+    }
+    ComputeIndexVecOfPoints(ptsCurVec, ptsCurIdVec, ptsIdCounter);
+    /**
+     * such a logic works for when grabbing the first image or other images
+     */
+    for (int i = 0; i < static_cast<int>(ptsCurIdVec.size()); ++i) {
+        _kptLastMap.insert({ptsCurIdVec.at(i), kpsCur.at(i)});
+        _descLastMap.insert({ptsCurIdVec.at(i), descCur.row(i)});
+    }
+}
+
+void DescriptorBasedFeatureTracking::GrabNextImageFrame(
+    const CameraFrame::Ptr& imgLast,
+    const std::vector<cv::Point2f>& ptsLastVec,
+    const FeatureIdVec& ptsLastIdVec,
+    const std::optional<Sophus::SO3d>& SO3_Last2Cur,
+    const CameraFrame::Ptr& imgCur,
+    std::vector<cv::Point2f>& ptsCurVec,
+    FeatureIdVec& ptsCurIdVec,
+    std::vector<uchar>& status,
+    int& ptsIdCounter) {
+    // obtain the key points of the last image
+    std::vector<cv::KeyPoint> kptLast;
+    kptLast.resize(ptsLastIdVec.size());
+    cv::Mat descLast;
+    for (int i = 0; i < static_cast<int>(ptsLastIdVec.size()); ++i) {
+        kptLast.at(i) = _kptLastMap.at(ptsLastIdVec.at(i));
+        descLast.push_back(_descLastMap.at(ptsLastIdVec.at(i)));
+    }
+
+    // obtain the key points of the last image
+    std::vector<cv::KeyPoint> kptCur;
+    cv::Mat descCur;
+    DetectAndComputeKeyPoints(imgCur->GetImage(), cv::Mat(), FEAT_NUM_PER_IMG, kptCur, descCur);
+
+    // matching
+    std::vector<std::vector<cv::DMatch>> nnMatches;
+    _matcher->knnMatch(descLast, descCur, nnMatches, 2);
+
+    // find good matches
+    std::set<int> hasMatched;
+    // feature 'id' last, key points 'index' current
+    FeatureMatch matchLast2Cur;
+    for (auto& match : nnMatches) {
+        cv::DMatch best = match[0];
+        if (hasMatched.find(best.trainIdx) != hasMatched.cend()) {
+            // this key point has been matched
+            continue;
+        }
+        const float dist1 = match[0].distance;
+        const float dist2 = match[1].distance;
+        if (dist1 < NN_MATCH_RATION * dist2) {
+            auto idLast = ptsCurIdVec.at(best.queryIdx);
+            matchLast2Cur.insert(std::make_pair(idLast, best.trainIdx));
+            hasMatched.insert(best.trainIdx);
+        }
+    }
+
+    // store good matches
+    ptsCurVec.resize(ptsLastIdVec.size());
+    status.resize(ptsLastIdVec.size());
+    std::vector<cv::KeyPoint> goodKptCur(ptsLastIdVec.size());
+    for (int i = 0; i < static_cast<int>(ptsLastIdVec.size()); ++i) {
+        auto idLast = ptsLastIdVec.at(i);
+        if (auto iter = matchLast2Cur.find(idLast); iter != matchLast2Cur.end()) {
+            auto [idLast, indexCur] = *iter;
+            // has been matched
+            ptsCurVec.at(i) = kptCur.at(indexCur).pt;
+            goodKptCur.at(i) = kptCur.at(indexCur);
+            status.at(i) = 1;
+        } else {
+            status.at(i) = 0;
+        }
+    }
+    ComputeIndexVecOfPoints(ptsCurVec, ptsCurIdVec, ptsIdCounter);
+
+    // back up
+    _kptLastMap.clear();
+    for (int i = 0; i < static_cast<int>(ptsCurIdVec.size()); ++i) {
+        if (status.at(i)) {
+            _kptLastMap.insert({ptsCurIdVec.at(i), goodKptCur.at(i)});
+        }
+    }
+}
+
+/**
+ * orb feature based feature tracking
+ */
+ORBFeatureTracking::ORBFeatureTracking(int featNumPerImg,
+                                       int minDist,
+                                       const ns_veta::PinholeIntrinsic::Ptr& intri,
+                                       const cv::Ptr<cv::DescriptorMatcher>& matcher)
+    : DescriptorBasedFeatureTracking(featNumPerImg, minDist, intri, matcher) {}
+
+ORBFeatureTracking::Ptr ORBFeatureTracking::Create(int featNumPerImg,
+                                                   int minDist,
+                                                   const ns_veta::PinholeIntrinsic::Ptr& intri,
+                                                   const cv::Ptr<cv::DescriptorMatcher>& matcher) {
+    return std::make_shared<ORBFeatureTracking>(featNumPerImg, minDist, intri, matcher);
+}
+void ORBFeatureTracking::DetectAndComputeKeyPoints(const cv::Mat& img,
+                                                   const cv::Mat& mask,
+                                                   int featCountDesired,
+                                                   std::vector<cv::KeyPoint>& kps,
+                                                   cv::Mat& descriptor) {
+    cv::ORB::create(featCountDesired)->detectAndCompute(img, mask, kps, descriptor);
+}
+
 }  // namespace ns_ikalibr

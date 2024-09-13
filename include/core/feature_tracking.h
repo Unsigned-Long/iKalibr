@@ -38,6 +38,7 @@
 #include "utility"
 #include "util/utils.h"
 #include "veta/camera/pinhole.h"
+#include "opencv2/features2d.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -190,6 +191,73 @@ protected:
                             int& ptsIdCounter) override;
 };
 
+class DescriptorBasedFeatureTracking : public FeatureTracking {
+public:
+    using Ptr = std::shared_ptr<DescriptorBasedFeatureTracking>;
+
+protected:
+    cv::Ptr<cv::DescriptorMatcher> _matcher;
+    std::map<int, cv::KeyPoint> _kptLastMap;
+    std::map<int, cv::Mat> _descLastMap;
+
+    static constexpr double NN_MATCH_RATION = 0.8f;
+
+public:
+    DescriptorBasedFeatureTracking(
+        int featNumPerImg,
+        int minDist,
+        const ns_veta::PinholeIntrinsic::Ptr& intri = nullptr,
+        const cv::Ptr<cv::DescriptorMatcher>& matcher = cv::BFMatcher::create(cv::NORM_HAMMING));
+
+protected:
+    void ExtractFeatures(const CameraFramePtr& imgCur,
+                         const cv::Mat& mask,
+                         int featCountDesired,
+                         std::vector<cv::Point2f>& ptsCurVec,
+                         FeatureIdVec& ptsCurIdVec,
+                         int& ptsIdCounter) override;
+
+    void GrabNextImageFrame(const CameraFramePtr& imgLast,
+                            const std::vector<cv::Point2f>& ptsLastVec,
+                            const FeatureIdVec& ptsLastIdVec,
+                            const std::optional<Sophus::SO3d>& SO3_Last2Cur,
+                            const CameraFramePtr& imgCur,
+                            std::vector<cv::Point2f>& ptsCurVec,
+                            FeatureIdVec& ptsCurIdVec,
+                            std::vector<uchar>& status,
+                            int& ptsIdCounter) override;
+
+    virtual void DetectAndComputeKeyPoints(const cv::Mat& img,
+                                           const cv::Mat& mask,
+                                           int featCountDesired,
+                                           std::vector<cv::KeyPoint>& kps,
+                                           cv::Mat& descriptor) = 0;
+};
+
+class ORBFeatureTracking : public DescriptorBasedFeatureTracking {
+public:
+    using Ptr = std::shared_ptr<ORBFeatureTracking>;
+
+public:
+    ORBFeatureTracking(
+        int featNumPerImg,
+        int minDist,
+        const ns_veta::PinholeIntrinsic::Ptr& intri = nullptr,
+        const cv::Ptr<cv::DescriptorMatcher>& matcher = cv::BFMatcher::create(cv::NORM_HAMMING));
+
+    static Ptr Create(
+        int featNumPerImg,
+        int minDist,
+        const ns_veta::PinholeIntrinsic::Ptr& intri,
+        const cv::Ptr<cv::DescriptorMatcher>& matcher = cv::BFMatcher::create(cv::NORM_HAMMING));
+
+protected:
+    void DetectAndComputeKeyPoints(const cv::Mat& img,
+                                   const cv::Mat& mask,
+                                   int featCountDesired,
+                                   std::vector<cv::KeyPoint>& kps,
+                                   cv::Mat& descriptor) override;
+};
 }  // namespace ns_ikalibr
 
 #endif  // FEATURE_TRACKING_H
