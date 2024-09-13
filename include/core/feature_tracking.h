@@ -258,6 +258,31 @@ protected:
                                    std::vector<cv::KeyPoint>& kps,
                                    cv::Mat& descriptor) override;
 };
+
+class AKAZEFeatureTracking : public DescriptorBasedFeatureTracking {
+public:
+    using Ptr = std::shared_ptr<AKAZEFeatureTracking>;
+
+public:
+    AKAZEFeatureTracking(
+        int featNumPerImg,
+        int minDist,
+        const ns_veta::PinholeIntrinsic::Ptr& intri = nullptr,
+        const cv::Ptr<cv::DescriptorMatcher>& matcher = cv::BFMatcher::create(cv::NORM_HAMMING));
+
+    static Ptr Create(
+        int featNumPerImg,
+        int minDist,
+        const ns_veta::PinholeIntrinsic::Ptr& intri,
+        const cv::Ptr<cv::DescriptorMatcher>& matcher = cv::BFMatcher::create(cv::NORM_HAMMING));
+
+protected:
+    void DetectAndComputeKeyPoints(const cv::Mat& img,
+                                   const cv::Mat& mask,
+                                   int featCountDesired,
+                                   std::vector<cv::KeyPoint>& kps,
+                                   cv::Mat& descriptor) override;
+};
 }  // namespace ns_ikalibr
 
 #endif  // FEATURE_TRACKING_H

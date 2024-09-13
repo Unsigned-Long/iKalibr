@@ -91,6 +91,11 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
     // outliers rejection using fundamental matrix
     // -------------------------------------------
     // spdlog::info("perform outliers rejection using fundamental matrix...");
+    if (trackedFeats->featMatchLast2Cur.size() < 15) {
+        this->ResetWorkspace();
+        return false;
+    }
+
     auto undistFeatLast = ExtractFeatMapAsUndistoFeatVec(
         trackedFeats->featLast, ExtractKeysAsVec(trackedFeats->featMatchLast2Cur));
     auto undistFeatCur = ExtractFeatMapAsUndistoFeatVec(

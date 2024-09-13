@@ -412,6 +412,11 @@ void DescriptorBasedFeatureTracking::GrabNextImageFrame(
     cv::Mat descCur;
     DetectAndComputeKeyPoints(imgCur->GetImage(), cv::Mat(), FEAT_NUM_PER_IMG, kptCur, descCur);
 
+    /**
+     * todo: when prior relative rotation is valid, we use it to accelerate the feature matching
+     * if (SO3_Last2Cur != std::nullopt) {}
+     */
+
     // matching
     std::vector<std::vector<cv::DMatch>> nnMatches;
     _matcher->knnMatch(descLast, descCur, nnMatches, 2);
@@ -429,7 +434,7 @@ void DescriptorBasedFeatureTracking::GrabNextImageFrame(
         const float dist1 = match[0].distance;
         const float dist2 = match[1].distance;
         if (dist1 < NN_MATCH_RATION * dist2) {
-            auto idLast = ptsCurIdVec.at(best.queryIdx);
+            auto idLast = ptsLastIdVec.at(best.queryIdx);
             matchLast2Cur.insert(std::make_pair(idLast, best.trainIdx));
             hasMatched.insert(best.trainIdx);
         }
@@ -438,14 +443,14 @@ void DescriptorBasedFeatureTracking::GrabNextImageFrame(
     // store good matches
     ptsCurVec.resize(ptsLastIdVec.size());
     status.resize(ptsLastIdVec.size());
-    std::vector<cv::KeyPoint> goodKptCur(ptsLastIdVec.size());
+    std::vector<std::pair<cv::KeyPoint, cv::Mat>> goodKptCur(ptsLastIdVec.size());
     for (int i = 0; i < static_cast<int>(ptsLastIdVec.size()); ++i) {
         auto idLast = ptsLastIdVec.at(i);
         if (auto iter = matchLast2Cur.find(idLast); iter != matchLast2Cur.end()) {
             auto [idLast, indexCur] = *iter;
             // has been matched
             ptsCurVec.at(i) = kptCur.at(indexCur).pt;
-            goodKptCur.at(i) = kptCur.at(indexCur);
+            goodKptCur.at(i) = {kptCur.at(indexCur), descCur.row(indexCur)};
             status.at(i) = 1;
         } else {
             status.at(i) = 0;
@@ -455,9 +460,11 @@ void DescriptorBasedFeatureTracking::GrabNextImageFrame(
 
     // back up
     _kptLastMap.clear();
+    _descLastMap.clear();
     for (int i = 0; i < static_cast<int>(ptsCurIdVec.size()); ++i) {
         if (status.at(i)) {
-            _kptLastMap.insert({ptsCurIdVec.at(i), goodKptCur.at(i)});
+            _kptLastMap.insert({ptsCurIdVec.at(i), goodKptCur.at(i).first});
+            _descLastMap.insert({ptsCurIdVec.at(i), goodKptCur.at(i).second});
         }
     }
 }
@@ -483,6 +490,31 @@ void ORBFeatureTracking::DetectAndComputeKeyPoints(const cv::Mat& img,
                                                    std::vector<cv::KeyPoint>& kps,
                                                    cv::Mat& descriptor) {
     cv::ORB::create(featCountDesired)->detectAndCompute(img, mask, kps, descriptor);
+}
+
+/**
+ * AKAZE feature based feature tracking
+ */
+AKAZEFeatureTracking::AKAZEFeatureTracking(int featNumPerImg,
+                                           int minDist,
+                                           const ns_veta::PinholeIntrinsic::Ptr& intri,
+                                           const cv::Ptr<cv::DescriptorMatcher>& matcher)
+    : DescriptorBasedFeatureTracking(featNumPerImg, minDist, intri, matcher) {}
+
+AKAZEFeatureTracking::Ptr AKAZEFeatureTracking::Create(
+    int featNumPerImg,
+    int minDist,
+    const ns_veta::PinholeIntrinsic::Ptr& intri,
+    const cv::Ptr<cv::DescriptorMatcher>& matcher) {
+    return std::make_shared<AKAZEFeatureTracking>(featNumPerImg, minDist, intri, matcher);
+}
+
+void AKAZEFeatureTracking::DetectAndComputeKeyPoints(const cv::Mat& img,
+                                                     const cv::Mat& mask,
+                                                     int featCountDesired,
+                                                     std::vector<cv::KeyPoint>& kps,
+                                                     cv::Mat& descriptor) {
+    cv::AKAZE::create()->detectAndCompute(img, mask, kps, descriptor);
 }
 
 }  // namespace ns_ikalibr
