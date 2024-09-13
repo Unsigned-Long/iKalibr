@@ -102,13 +102,23 @@ FeatureTracking::TrackedFeaturePack::Ptr FeatureTracking::GrabImageFrame(
     const CameraFrame::Ptr& imgCur, const std::optional<Sophus::SO3d>& SO3_Last2Cur) {
     if (_imgLast == nullptr) {
         // for the first image, we just extract features and store them to '_featLast'
-        std::vector<cv::Point2f> ptsLastVec;
-        ExtractFeatures(imgCur, ptsLastVec, FEAT_NUM_PER_IMG, cv::Mat());
-        int idCount = 0;
+        std::vector<cv::Point2f> ptsCurVec;
+        FeatureIdVec ptsCurIdVec;
+        int ptsIdCounter = 0;
+        ExtractFeatures(imgCur,            // the current image
+                        cv::Mat(),         // mask
+                        FEAT_NUM_PER_IMG,  // desired point number
+                        ptsCurVec,         // the points
+                        ptsCurIdVec,       // the id vector of points
+                        ptsIdCounter);     // id counter
+
+        // store
         FeatureMap featCur;
-        for (const auto& raw : ptsLastVec) {
-            featCur.insert({idCount++, Feature(raw, UndistortPoint(raw))});
+        for (int i = 0; i < static_cast<int>(ptsCurVec.size()); ++i) {
+            const auto& raw = ptsCurVec.at(i);
+            featCur.insert({ptsCurIdVec.at(i), Feature(raw, UndistortPoint(raw))});
         }
+        // organize as pack
         TrackedFeaturePack::Ptr pack = std::make_shared<TrackedFeaturePack>();
         pack->imgLast = nullptr;
         pack->featLast = {};
@@ -134,16 +144,18 @@ FeatureTracking::TrackedFeaturePack::Ptr FeatureTracking::GrabImageFrame(
     }
     // current tracking
     std::vector<cv::Point2f> ptsCurVec;
+    FeatureIdVec ptsCurIdVec;
     std::vector<uchar> status;
-    GrabNextImageFrame(_imgLast, ptsLastVec, ptsLastIdVec, imgCur, ptsCurVec, status, SO3_Last2Cur);
+    int ptsIdCounter = 0;
+    GrabNextImageFrame(_imgLast, ptsLastVec, ptsLastIdVec, SO3_Last2Cur, imgCur, ptsCurVec,
+                       ptsCurIdVec, status, ptsIdCounter);
 
     FeatureMap featCur;
     FeatureMatch featMatchLast2Cur;
-    int idCount = 0;
     for (int i = 0; i < static_cast<int>(status.size()); ++i) {
         const cv::Point2f& pCur = ptsCurVec.at(i);
         if (status.at(i) && InImageBorder(pCur, imgCur->GetImage(), 5)) {
-            auto idCur = idCount++;
+            auto idCur = ptsCurIdVec.at(i);
             featCur.insert({idCur, Feature(pCur, UndistortPoint(pCur))});
             featMatchLast2Cur.insert({ptsLastIdVec.at(i), idCur});
         }
@@ -213,13 +225,15 @@ FeatureTracking::TrackedFeaturePack::Ptr FeatureTracking::GrabImageFrame(
     int featNumToExtract = FEAT_NUM_PER_IMG - static_cast<int>(featCur.size());
     if (featNumToExtract > 0) {
         std::vector<cv::Point2f> newPtsCurVec;
-        ExtractFeatures(imgCur, newPtsCurVec, featNumToExtract, mask);
+        FeatureIdVec newPtsCurIdVec;
+        ExtractFeatures(imgCur, mask, featNumToExtract, newPtsCurVec, newPtsCurIdVec, ptsIdCounter);
         /**
          * append new features to map, attention, we continue to use the 'idCount' above, rather
          * than redefine 'int idCount = 0;'
          */
-        for (const auto& raw : newPtsCurVec) {
-            auto id = idCount++;
+        for (int i = 0; i < static_cast<int>(newPtsCurVec.size()); ++i) {
+            const auto& raw = newPtsCurVec.at(i);
+            auto id = newPtsCurIdVec.at(i);
             featCur.insert({id, Feature(raw, UndistortPoint(raw))});
             featTrackCountCur.insert({id, 1});
         }
@@ -232,6 +246,15 @@ FeatureTracking::TrackedFeaturePack::Ptr FeatureTracking::GrabImageFrame(
     return pack;
 }
 
+void FeatureTracking::ComputeIndexVecOfPoints(const std::vector<cv::Point2f>& ptsVec,
+                                              FeatureIdVec& ptsIdVec,
+                                              int& ptsIdCounter) {
+    ptsIdVec.resize(ptsVec.size());
+    for (int i = 0; i < static_cast<int>(ptsVec.size()); ++i) {
+        ptsIdVec.at(i) = ptsIdCounter++;
+    }
+}
+
 cv::Point2f FeatureTracking::UndistortPoint(const cv::Point2f& p) const {
     ns_veta::Vec2d up = _intri->GetUndistoPixel(ns_veta::Vec2d(p.x, p.y));
     return {static_cast<float>(up(0)), static_cast<float>(up(1))};
@@ -240,6 +263,10 @@ cv::Point2f FeatureTracking::UndistortPoint(const cv::Point2f& p) const {
 void FeatureTracking::ComputePriorPoints(const std::vector<cv::Point2f>& ptsLast,
                                          const Sophus::SO3d& SO3_Last2Cur,
                                          std::vector<cv::Point2f>& ptsCur) const {
+    if (_intri == nullptr) {
+        ptsCur = ptsLast;
+        return;
+    }
     ptsCur.clear();
     ptsCur.reserve(ptsLast.size());
     for (const auto& raw : ptsLast) {
@@ -292,20 +319,25 @@ LKFeatureTracking::Ptr LKFeatureTracking::Create(int featNumPerImg,
 }
 
 void LKFeatureTracking::ExtractFeatures(const CameraFrame::Ptr& imgCur,
-                                        std::vector<cv::Point2f>& featCur,
+                                        const cv::Mat& mask,
                                         int featCountDesired,
-                                        const cv::Mat& mask) {
+                                        std::vector<cv::Point2f>& ptsCurVec,
+                                        FeatureIdVec& ptsCurIdVec,
+                                        int& ptsIdCounter) {
     // the mask is empty for the first frame, do not use mask
-    cv::goodFeaturesToTrack(imgCur->GetImage(), featCur, featCountDesired, 0.01, MIN_DIST, mask);
+    cv::goodFeaturesToTrack(imgCur->GetImage(), ptsCurVec, featCountDesired, 0.01, MIN_DIST, mask);
+    ComputeIndexVecOfPoints(ptsCurVec, ptsCurIdVec, ptsIdCounter);
 }
 
-void LKFeatureTracking::GrabNextImageFrame(const CameraFramePtr& imgLast,
+void LKFeatureTracking::GrabNextImageFrame(const CameraFrame::Ptr& imgLast,
                                            const std::vector<cv::Point2f>& ptsLastVec,
                                            const FeatureIdVec& ptsLastIdVec,
-                                           const CameraFramePtr& imgCur,
+                                           const std::optional<Sophus::SO3d>& SO3_Last2Cur,
+                                           const CameraFrame::Ptr& imgCur,
                                            std::vector<cv::Point2f>& ptsCurVec,
+                                           FeatureIdVec& ptsCurIdVec,
                                            std::vector<uchar>& status,
-                                           const std::optional<Sophus::SO3d>& SO3_Last2Cur) {
+                                           int& ptsIdCounter) {
     if (SO3_Last2Cur != std::nullopt) {
         ComputePriorPoints(ptsLastVec, *SO3_Last2Cur, ptsCurVec);
     } else {
@@ -316,6 +348,7 @@ void LKFeatureTracking::GrabNextImageFrame(const CameraFramePtr& imgLast,
         cv::TermCriteria(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 30, 0.01);
     cv::calcOpticalFlowPyrLK(imgLast->GetImage(), imgCur->GetImage(), ptsLastVec, ptsCurVec, status,
                              errors, cv::Size(21, 21), 5, termCrit, cv::OPTFLOW_USE_INITIAL_FLOW);
+    ComputeIndexVecOfPoints(ptsCurVec, ptsCurIdVec, ptsIdCounter);
 }
 
 }  // namespace ns_ikalibr

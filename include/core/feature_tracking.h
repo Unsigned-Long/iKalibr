@@ -115,9 +115,11 @@ protected:
      * @return the
      */
     virtual void ExtractFeatures(const CameraFramePtr& imgCur,
-                                 std::vector<cv::Point2f>& featCur,
+                                 const cv::Mat& mask,
                                  int featCountDesired,
-                                 const cv::Mat& mask) = 0;
+                                 std::vector<cv::Point2f>& ptsCurVec,
+                                 FeatureIdVec& ptsCurIdVec,
+                                 int& ptsIdCounter) = 0;
 
     /**
      * @param imgLast the last image
@@ -131,10 +133,16 @@ protected:
     virtual void GrabNextImageFrame(const CameraFramePtr& imgLast,
                                     const std::vector<cv::Point2f>& ptsLastVec,
                                     const FeatureIdVec& ptsLastIdVec,
+                                    const std::optional<Sophus::SO3d>& SO3_Last2Cur,
                                     const CameraFramePtr& imgCur,
                                     std::vector<cv::Point2f>& ptsCurVec,
+                                    FeatureIdVec& ptsCurIdVec,
                                     std::vector<uchar>& status,
-                                    const std::optional<Sophus::SO3d>& SO3_Last2Cur) = 0;
+                                    int& ptsIdCounter) = 0;
+
+    static void ComputeIndexVecOfPoints(const std::vector<cv::Point2f>& ptsVec,
+                                        FeatureIdVec& ptsIdVec,
+                                        int& ptsIdCounter);
 
     [[nodiscard]] cv::Point2f UndistortPoint(const cv::Point2f& p) const;
 
@@ -165,17 +173,21 @@ public:
 
 protected:
     void ExtractFeatures(const CameraFramePtr& imgCur,
-                         std::vector<cv::Point2f>& featCur,
+                         const cv::Mat& mask,
                          int featCountDesired,
-                         const cv::Mat& mask) override;
+                         std::vector<cv::Point2f>& ptsCurVec,
+                         FeatureIdVec& ptsCurIdVec,
+                         int& ptsIdCounter) override;
 
     void GrabNextImageFrame(const CameraFramePtr& imgLast,
                             const std::vector<cv::Point2f>& ptsLastVec,
                             const FeatureIdVec& ptsLastIdVec,
+                            const std::optional<Sophus::SO3d>& SO3_Last2Cur,
                             const CameraFramePtr& imgCur,
                             std::vector<cv::Point2f>& ptsCurVec,
+                            FeatureIdVec& ptsCurIdVec,
                             std::vector<uchar>& status,
-                            const std::optional<Sophus::SO3d>& SO3_Last2Cur) override;
+                            int& ptsIdCounter) override;
 };
 
 }  // namespace ns_ikalibr
