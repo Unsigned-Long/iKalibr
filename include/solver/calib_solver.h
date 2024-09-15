@@ -248,7 +248,13 @@ protected:
      * detailed sensor-inertial alignment for camera and IMU, this is the preparation for final
      * one-shot sensor-inertial alignment
      */
-    void InitPrepCameraInertialAlign();
+    void InitPrepPosCameraInertialAlign();
+
+    /**
+     * detailed sensor-inertial alignment for camera and IMU, this is the preparation for final
+     * one-shot sensor-inertial alignment
+     */
+    void InitPrepVelCameraInertialAlign();
 
     /**
      * detailed sensor-inertial alignment for LiDAR and IMU, this is the preparation for final
@@ -342,7 +348,7 @@ protected:
      * perform data association for cameras
      * @return the visual reprojection correspondences for each optical camera
      */
-    std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> DataAssociationForCameras() const;
+    std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> DataAssociationForPosCameras() const;
 
     /**
      * perform data association for RGBD cameras

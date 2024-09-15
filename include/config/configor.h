@@ -88,7 +88,7 @@ public:
                 : Type(),
                   Intrinsics(),
                   AcceWeight(),
-                  GyroWeight() {};
+                  GyroWeight(){};
 
         public:
             template <class Archive>
@@ -105,7 +105,7 @@ public:
 
             RadarConfig()
                 : Type(),
-                  Weight() {};
+                  Weight(){};
 
         public:
             template <class Archive>
@@ -121,7 +121,7 @@ public:
 
             LiDARConfig()
                 : Type(),
-                  Weight() {};
+                  Weight(){};
 
         public:
             template <class Archive>
@@ -136,18 +136,20 @@ public:
             std::string Intrinsics;
             double Weight;
             int TrackLengthMin;
+            std::string ScaleSplineType;
 
             CameraConfig()
                 : Type(),
                   Intrinsics(),
                   Weight(),
-                  TrackLengthMin() {};
+                  TrackLengthMin(),
+                  ScaleSplineType(){};
 
         public:
             template <class Archive>
             void serialize(Archive &ar) {
                 ar(CEREAL_NVP(Type), CEREAL_NVP(Intrinsics), CEREAL_NVP(Weight),
-                   CEREAL_NVP(TrackLengthMin));
+                   CEREAL_NVP(TrackLengthMin), CEREAL_NVP(ScaleSplineType));
             }
         };
 
@@ -166,7 +168,7 @@ public:
                   DepthTopic(),
                   DepthFactor(),
                   Weight(),
-                  TrackLengthMin() {};
+                  TrackLengthMin(){};
 
         public:
             template <class Archive>
@@ -181,6 +183,10 @@ public:
         static std::optional<std::string> CreateSfMWorkspace(const std::string &camTopic);
 
         static std::string GetImageStoreInfoFile(const std::string &camTopic);
+
+        static std::map<std::string, CameraConfig> PosCameraTopics();
+
+        static std::map<std::string, CameraConfig> VelCameraTopics();
 
         static std::map<std::string, IMUConfig> IMUTopics;
         static std::map<std::string, RadarConfig> RadarTopics;
@@ -328,7 +334,9 @@ public:
 
     [[nodiscard]] static bool IsLiDARIntegrated();
 
-    [[nodiscard]] static bool IsCameraIntegrated();
+    [[nodiscard]] static bool IsPosCameraIntegrated();
+
+    [[nodiscard]] static bool IsVelCameraIntegrated();
 
     [[nodiscard]] static bool IsRadarIntegrated();
 

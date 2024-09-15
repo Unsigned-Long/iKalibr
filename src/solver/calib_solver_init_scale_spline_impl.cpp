@@ -181,7 +181,7 @@ void CalibSolver::InitScaleSpline() {
                 dtRoughSum += 2.0 / _dataMagr->GetLiDARAvgFrequency();
                 ++count;
             }
-            if (Configor::IsCameraIntegrated()) {
+            if (Configor::IsPosCameraIntegrated()) {
                 dtRoughSum += 2.0 / _dataMagr->GetCameraAvgFrequency();
                 ++count;
             }

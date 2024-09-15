@@ -231,9 +231,10 @@ std::optional<Sophus::SE3d> CalibSolver::CurRjToW(double timeByRj, const std::st
 }
 
 TimeDeriv::ScaleSplineType CalibSolver::GetScaleType() {
-    if (Configor::IsLiDARIntegrated() || Configor::IsCameraIntegrated()) {
+    if (Configor::IsLiDARIntegrated() || Configor::IsPosCameraIntegrated()) {
         return TimeDeriv::ScaleSplineType::LIN_POS_SPLINE;
-    } else if (Configor::IsRadarIntegrated() || Configor::IsRGBDIntegrated()) {
+    } else if (Configor::IsRadarIntegrated() || Configor::IsRGBDIntegrated() ||
+               Configor::IsVelCameraIntegrated()) {
         return TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE;
     } else {
         return TimeDeriv::ScaleSplineType::LIN_ACCE_SPLINE;

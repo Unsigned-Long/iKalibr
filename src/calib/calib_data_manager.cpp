@@ -393,7 +393,7 @@ void CalibDataManager::AdjustCalibDataSequence() {
         _rawEndTimestamp = std::min({_rawEndTimestamp, lidarMaxTime});
     }
 
-    if (Configor::IsCameraIntegrated()) {
+    if (Configor::IsPosCameraIntegrated() || Configor::IsVelCameraIntegrated()) {
         auto camMinTime = std::max_element(_camMes.begin(), _camMes.end(),
                                            [](const auto &p1, const auto &p2) {
                                                return p1.second.front()->GetTimestamp() <
@@ -714,10 +714,10 @@ const std::vector<LiDARFrame::Ptr> &CalibDataManager::GetLiDARMeasurements(
     return _lidarMes.at(lidarTopic);
 }
 
-const std::map<std::string, std::vector<CameraFrame::Ptr>> &
-CalibDataManager::GetCameraMeasurements() const {
-    return _camMes;
-}
+// const std::map<std::string, std::vector<CameraFrame::Ptr>> &
+// CalibDataManager::GetCameraMeasurements() const {
+//     return _camMes;
+// }
 
 const std::vector<CameraFrame::Ptr> &CalibDataManager::GetCameraMeasurements(
     const std::string &camTopic) const {

@@ -71,7 +71,7 @@ protected:
         Opt::NONE,
     };
 
-    constexpr static std::array<Opt, 2> MultiCameraIMU = {
+    constexpr static std::array<Opt, 2> MultiPosCameraIMU = {
         // first batch optimization
         Opt::OPT_SO3_SPLINE | Opt::OPT_SCALE_SPLINE | Opt::OPT_GRAVITY | Opt::OPT_SO3_CmToBr |
             Opt::OPT_POS_CmInBr | Opt::OPT_TO_CmToBr | Opt::OPT_VISUAL_INV_DEPTH,
@@ -93,15 +93,20 @@ public:
     static std::vector<Opt> GetOptions() {
         std::vector<Opt> options;
         if (!Configor::IsLiDARIntegrated() && !Configor::IsRadarIntegrated() &&
-            !Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
+            !Configor::IsPosCameraIntegrated() && !Configor::IsVelCameraIntegrated() &&
+            !Configor::IsRGBDIntegrated()) {
             // imu-only multi-imu calibration
             options = AryToVecWithAppend(MultiIMU);
         } else {
             if (Configor::IsLiDARIntegrated()) {
                 options = MergeOptions(options, AryToVecWithAppend(MultiLiDARIMU));
             }
-            if (Configor::IsCameraIntegrated()) {
-                options = MergeOptions(options, AryToVecWithAppend(MultiCameraIMU));
+            if (Configor::IsPosCameraIntegrated()) {
+                options = MergeOptions(options, AryToVecWithAppend(MultiPosCameraIMU));
+            }
+            if (Configor::IsVelCameraIntegrated()) {
+                // todo: vel camera
+                // options = MergeOptions(options, AryToVecWithAppend(MultiCameraIMU));
             }
             if (Configor::IsRadarIntegrated()) {
                 options = MergeOptions(options, AryToVecWithAppend(MultiRadarIMU));

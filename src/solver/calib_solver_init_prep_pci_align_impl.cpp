@@ -47,8 +47,8 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-void CalibSolver::InitPrepCameraInertialAlign() {
-    if (!Configor::IsCameraIntegrated()) {
+void CalibSolver::InitPrepPosCameraInertialAlign() {
+    if (!Configor::IsPosCameraIntegrated()) {
         return;
     }
     const auto& so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
@@ -73,7 +73,8 @@ void CalibSolver::InitPrepCameraInertialAlign() {
     constexpr int featNumPerImg = 300;
     // the min distance between two features (to ensure features are distributed uniformly)
     constexpr int minDist = 25;
-    for (const auto& [topic, frameVec] : _dataMagr->GetCameraMeasurements()) {
+    for (const auto& [topic, _] : Configor::DataStream::PosCameraTopics()) {
+        const auto& frameVec = _dataMagr->GetCameraMeasurements(topic);
         spdlog::info(
             "perform rotation-only visual odometer to recover extrinsic rotations for '{}'...",
             topic);
@@ -139,7 +140,7 @@ void CalibSolver::InitPrepCameraInertialAlign() {
         auto optOption = OptOption::OPT_SO3_CmToBr | OptOption::OPT_TO_CmToBr;
 
         // perform time offset estimation and extrinsic rotation refinement
-        for (const auto& [topic, _] : Configor::DataStream::CameraTopics) {
+        for (const auto& [topic, _] : Configor::DataStream::PosCameraTopics()) {
             const auto& rotations = rotOnlyOdom.at(topic)->GetRotations();
             // this field should be zero here
             double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(topic);
@@ -176,7 +177,8 @@ void CalibSolver::InitPrepCameraInertialAlign() {
      */
     spdlog::info("perform SfM for each camera...");
     int needSfMCount = 0;
-    for (const auto& [topic, data] : _dataMagr->GetCameraMeasurements()) {
+    for (const auto& [topic, _] : Configor::DataStream::PosCameraTopics()) {
+        const auto& data = _dataMagr->GetCameraMeasurements(topic);
         // load data if SfM has been performed
         auto veta = TryLoadSfMData(
             // ros topic

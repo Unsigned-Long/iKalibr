@@ -41,6 +41,8 @@
 #include "cereal/types/vector.hpp"
 #include "cereal/types/set.hpp"
 
+#include <calib/time_deriv.hpp>
+
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
@@ -163,6 +165,46 @@ std::string Configor::DataStream::GetImageStoreInfoFile(const std::string &camTo
            Configor::GetFormatExtension();
 }
 
+std::map<std::string, Configor::DataStream::CameraConfig> Configor::DataStream::PosCameraTopics() {
+    static auto posSplineStr = EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_POS_SPLINE);
+    static auto velSplineStr = EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE);
+
+    std::map<std::string, Configor::DataStream::CameraConfig> posCams;
+    for (const auto &[topic, config] : CameraTopics) {
+        if (config.ScaleSplineType == posSplineStr) {
+            posCams.insert({topic, config});
+        } else if (config.ScaleSplineType == velSplineStr) {
+            continue;
+        } else {
+            throw Status(Status::CRITICAL,
+                         "invalid linear scale spline type for camera '{}', it should be one of "
+                         "'{}' and '{}', but now it wrongly set to '{}'!!!",
+                         topic, posSplineStr, velSplineStr, config.ScaleSplineType);
+        }
+    }
+    return posCams;
+}
+
+std::map<std::string, Configor::DataStream::CameraConfig> Configor::DataStream::VelCameraTopics() {
+    static auto posSplineStr = EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_POS_SPLINE);
+    static auto velSplineStr = EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE);
+
+    std::map<std::string, Configor::DataStream::CameraConfig> velCams;
+    for (const auto &[topic, config] : CameraTopics) {
+        if (config.ScaleSplineType == velSplineStr) {
+            velCams.insert({topic, config});
+        } else if (config.ScaleSplineType == posSplineStr) {
+            continue;
+        } else {
+            throw Status(Status::CRITICAL,
+                         "invalid linear scale spline type for camera '{}', it should be one of "
+                         "'{}' and '{}', but now it wrongly set to '{}'!!!",
+                         topic, posSplineStr, velSplineStr, config.ScaleSplineType);
+        }
+    }
+    return velCams;
+}
+
 int Configor::Preference::AvailableThreads() {
     int hardwareConcurrency = static_cast<int>(std::thread::hardware_concurrency());
     if (ThreadsToUse <= 0 || ThreadsToUse > hardwareConcurrency) {
@@ -242,8 +284,8 @@ void Configor::CheckConfigure() {
             "the imu topic num (i.e., DataStream::IMUTopic) should be larger equal than 1!");
     }
     if (!Configor::IsLiDARIntegrated() && !Configor::IsRadarIntegrated() &&
-        !Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated() &&
-        DataStream::IMUTopics.size() < 2) {
+        !Configor::IsPosCameraIntegrated() && !Configor::IsVelCameraIntegrated() &&
+        !Configor::IsRGBDIntegrated() && DataStream::IMUTopics.size() < 2) {
         throw Status(
             Status::ERROR,
             "performing multi-imu calibration requires imus that are more than or equal to 2!");
@@ -300,6 +342,16 @@ void Configor::CheckConfigure() {
         if (!std::filesystem::exists(config.Intrinsics)) {
             throw Status(Status::ERROR, "camera intrinsic file for '{}' dose not exist: '{}'",
                          topic, config.Intrinsics);
+        }
+        static auto posSplineStr =
+            EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_POS_SPLINE);
+        static auto velSplineStr =
+            EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE);
+        if (config.ScaleSplineType != posSplineStr && config.ScaleSplineType != velSplineStr) {
+            throw Status(Status::ERROR,
+                         "the linear scale spline type, i.e., 'ScaleSplineType' of camera '{}' is "
+                         "invalid, it should be 'LIN_POS_SPLINE' or 'LIN_VEL_SPLINE'",
+                         topic);
         }
         topics.insert(topic);
     }
@@ -460,7 +512,9 @@ bool Configor::IsLiDARIntegrated() { return !DataStream::LiDARTopics.empty(); }
 
 bool Configor::IsRadarIntegrated() { return !DataStream::RadarTopics.empty(); }
 
-bool Configor::IsCameraIntegrated() { return !DataStream::CameraTopics.empty(); }
+bool Configor::IsPosCameraIntegrated() { return !DataStream::PosCameraTopics().empty(); }
+
+bool Configor::IsVelCameraIntegrated() { return !DataStream::VelCameraTopics().empty(); }
 
 bool Configor::IsRGBDIntegrated() { return !DataStream::RGBDTopics.empty(); }
 }  // namespace ns_ikalibr

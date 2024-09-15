@@ -442,8 +442,8 @@ std::map<std::string, std::vector<PointToSurfelCorrPtr>> CalibSolver::DataAssoci
 }
 
 std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>>
-CalibSolver::DataAssociationForCameras() const {
-    if (!Configor::IsCameraIntegrated()) {
+CalibSolver::DataAssociationForPosCameras() const {
+    if (!Configor::IsPosCameraIntegrated()) {
         return {};
     }
 

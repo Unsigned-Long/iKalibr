@@ -294,7 +294,7 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
     if (!Configor::IsLiDARIntegrated()) {
         return;
     }
-    if (!Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
+    if (!IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -308,7 +308,8 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
     auto covisibility = VisualLiDARCovisibility::Create(_solver->_backup->lidarMap);
     // for cameras
     std::shared_ptr<tqdm> bar;
-    for (const auto &[topic, data] : _solver->_dataMagr->GetCameraMeasurements()) {
+    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+        const auto &data = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("verify consistency between LiDAR and camera '{}'...", topic);
 
         auto subSaveDir = saveDir + '/' + topic;
@@ -433,7 +434,7 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
 }
 
 void CalibSolverIO::SaveVisualKinematics() const {
-    if (!Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
+    if (!IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -446,7 +447,8 @@ void CalibSolverIO::SaveVisualKinematics() const {
 
     std::shared_ptr<tqdm> bar;
     // gravity
-    for (const auto &[topic, data] : _solver->_dataMagr->GetCameraMeasurements()) {
+    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+        const auto &data = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create visual images with gravity for camera '{}'...", topic);
 
         auto subSaveDir = saveDir + "/gravity/" + topic;
@@ -499,7 +501,8 @@ void CalibSolverIO::SaveVisualKinematics() const {
     cv::destroyAllWindows();
 
     // linear velocities
-    for (const auto &[topic, data] : _solver->_dataMagr->GetCameraMeasurements()) {
+    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+        const auto &data = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create visual linear velocity images for camera '{}'...", topic);
 
         auto subSaveDir = saveDir + "/lin_vel/" + topic;
@@ -555,7 +558,8 @@ void CalibSolverIO::SaveVisualKinematics() const {
     cv::destroyAllWindows();
 
     // angular velocities
-    for (const auto &[topic, data] : _solver->_dataMagr->GetCameraMeasurements()) {
+    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+        const auto &data = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create visual angular velocity images for camera '{}'...", topic);
 
         auto subSaveDir = saveDir + "/ang_vel/" + topic;
@@ -615,7 +619,7 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
     if (!Configor::IsLiDARIntegrated()) {
         return;
     }
-    if (!Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
+    if (!IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -627,7 +631,8 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
     }
 
     // cameras
-    for (const auto &[topic, frames] : _solver->_dataMagr->GetCameraMeasurements()) {
+    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+        const auto &frames = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create colorized map using camera '{}'...", topic);
 
         auto subSaveDir = saveDir + "/camera/" + topic;
@@ -812,7 +817,7 @@ void CalibSolverIO::SaveAlignedInertialMes() const {
 }
 
 void CalibSolverIO::SaveVisualReprojectionError() const {
-    if (!Configor::IsCameraIntegrated()) {
+    if (!Configor::IsPosCameraIntegrated()) {
         return;
     }
 
@@ -912,6 +917,8 @@ bool CalibSolverIO::TryCreatePath(const std::string &path) {
     }
 }
 
+bool CalibSolverIO::IsCameraIntegrated() { return !Configor::DataStream::CameraTopics.empty(); }
+
 void CalibSolverIO::SaveLiDARMaps() const {
     if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
         !Configor::IsLiDARIntegrated()) {
@@ -985,7 +992,7 @@ void CalibSolverIO::SaveVisualMaps() const {
     if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
         return;
     }
-    if (!Configor::IsCameraIntegrated() || !Configor::IsRGBDIntegrated()) {
+    if (!IsCameraIntegrated() || !Configor::IsRGBDIntegrated()) {
         return;
     }
 

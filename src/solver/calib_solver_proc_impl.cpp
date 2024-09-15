@@ -68,12 +68,13 @@ void CalibSolver::Process() {
      * for each type of sensor, the preparation is first performed to obtain necessary quantities
      * for one-shot sensor-inertial alignment
      */
-    this->InitPrepCameraInertialAlign();    // visual-inertial
-    this->InitPrepRGBDInertialAlign();      // rgbd-inertial
-    this->InitPrepLiDARInertialAlign();     // lidar-inertial
-    this->InitPrepRadarInertialAlign();     // radar-inertial
-    this->InitPrepInertialInertialAlign();  // inertial-inertial
-    this->InitSensorInertialAlign();        // one-shot sensor-inertial alignment
+    this->InitPrepPosCameraInertialAlign();  // visual-inertial (pos scale spline based)
+    this->InitPrepVelCameraInertialAlign();  // visual-inertial (vel scale spline based)
+    this->InitPrepRGBDInertialAlign();       // rgbd-inertial
+    this->InitPrepLiDARInertialAlign();      // lidar-inertial
+    this->InitPrepRadarInertialAlign();      // radar-inertial
+    this->InitPrepInertialInertialAlign();   // inertial-inertial
+    this->InitSensorInertialAlign();         // one-shot sensor-inertial alignment
 
     if (outputParams) {
         SaveStageCalibParam(_parMagr, "stage_2_align");
@@ -153,7 +154,7 @@ void CalibSolver::Process() {
             // point to surfel data association for LiDARs
             lidarPtsCorr,
             // visual reprojection data association for cameras
-            DataAssociationForCameras(),
+            DataAssociationForPosCameras(),
             // visual velocity creation for rgbd cameras
             DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_RGBD_DEPTH, options.at(i))));
 
@@ -247,7 +248,7 @@ void CalibSolver::Process() {
         // radar map would be added to the viewer in this function
         _backup->radarMap = BuildGlobalMapOfRadar();
     }
-    if (Configor::IsCameraIntegrated()) {
+    if (Configor::IsPosCameraIntegrated()) {
         for (const auto &[topic, sfmData] : _dataMagr->GetSfMData()) {
             _viewer->AddVeta(sfmData, Viewer::VIEW_MAP);
         }

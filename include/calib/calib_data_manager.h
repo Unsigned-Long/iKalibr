@@ -103,8 +103,8 @@ public:
         const std::string &lidarTopic) const;
 
     // get raw camera measurements
-    [[nodiscard]] const std::map<std::string, std::vector<CameraFrame::Ptr>> &
-    GetCameraMeasurements() const;
+    // [[nodiscard]] const std::map<std::string, std::vector<CameraFrame::Ptr>> &
+    // GetCameraMeasurements() const;
 
     [[nodiscard]] const std::vector<CameraFrame::Ptr> &GetCameraMeasurements(
         const std::string &camTopic) const;

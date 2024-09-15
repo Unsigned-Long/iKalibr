@@ -32,71 +32,17 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IKALIBR_CALIB_SOLVER_IO_H
-#define IKALIBR_CALIB_SOLVER_IO_H
-
-#include "util/cereal_archive_helper.hpp"
-#include "ctraj/core/pose.hpp"
+#include "solver/calib_solver.h"
+#include "util/tqdm.h"
+#include "spdlog/spdlog.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-class CalibSolver;
-
-using CalibSolverPtr = std::shared_ptr<CalibSolver>;
-
-class CalibSolverIO {
-public:
-    using Ptr = std::shared_ptr<CalibSolverIO>;
-
-private:
-    CalibSolverPtr _solver;
-
-public:
-    explicit CalibSolverIO(CalibSolverPtr solver);
-
-    static CalibSolverIO::Ptr Create(const CalibSolverPtr &solver);
-
-    void SaveByProductsToDisk() const;
-
-protected:
-    void SaveBSplines(int hz = 400) const;
-
-    void SaveLiDARMaps() const;
-
-    void SaveVisualMaps() const;
-
-    void SaveRadarMaps() const;
-
-    void SaveHessianMatrix() const;
-
-    void VerifyVisualLiDARConsistency() const;
-
-    void SaveVisualKinematics() const;
-
-    void SaveVisualColorizedMap() const;
-
-    void SaveAlignedInertialMes() const;
-
-    void SaveVisualReprojectionError() const;
-
-    void SaveRadarDopplerError() const;
-
-    void SaveRGBDVelocityError() const;
-
-    void SaveLiDARPointToSurfelError() const;
-
-protected:
-    static bool SavePoseSequence(const Eigen::aligned_vector<ns_ctraj::Posed> &poseSeq,
-                                 const std::string &filename,
-                                 CerealArchiveType::Enum archiveType);
-
-    static bool TryCreatePath(const std::string &path);
-
-    static bool IsCameraIntegrated();
-};
+void CalibSolver::InitPrepVelCameraInertialAlign() {
+    spdlog::warn("this module is being developed!!!");
+    std::cin.get();
+}
 }  // namespace ns_ikalibr
-
-#endif  // IKALIBR_CALIB_SOLVER_IO_H
