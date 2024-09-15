@@ -74,155 +74,153 @@ void CalibSolver::InitPrepRGBDInertialAlign() {
      */
     // 'FeatTrackingInfo' is a list for each rgbd camera, as fail tracking leads to multiple pieces
     std::map<std::string, std::list<RotOnlyVisualOdometer::FeatTrackingInfo>> RGBDTrackingInfo;
-    {
-        // how many features to maintain in each image
-        constexpr int featNumPerImg = 300;
-        // the min distance between two features (to ensure features are distributed uniformly)
-        constexpr int minDist = 25;
-        for (const auto &[topic, frameVec] : _dataMagr->GetRGBDMeasurements()) {
-            spdlog::info(
-                "perform rotation-only visual odometer to recover extrinsic rotations for RGBD "
-                "camera '{}'...",
-                topic);
+    // how many features to maintain in each image
+    constexpr int featNumPerImg = 300;
+    // the min distance between two features (to ensure features are distributed uniformly)
+    constexpr int minDist = 25;
+    for (const auto &[topic, frameVec] : _dataMagr->GetRGBDMeasurements()) {
+        spdlog::info(
+            "perform rotation-only visual odometer to recover extrinsic rotations for RGBD "
+            "camera '{}'...",
+            topic);
 
-            // estimates rotations
-            auto intri = _parMagr->INTRI.RGBD.at(topic);
-            auto tracker = LKFeatureTracking::Create(featNumPerImg, minDist, intri->intri);
-            auto odometer = RotOnlyVisualOdometer::Create(tracker, intri->intri);
+        // estimates rotations
+        auto intri = _parMagr->INTRI.RGBD.at(topic);
+        auto tracker = LKFeatureTracking::Create(featNumPerImg, minDist, intri->intri);
+        auto odometer = RotOnlyVisualOdometer::Create(tracker, intri->intri);
 
-            // sensor-inertial rotation estimator (linear least-squares problem)
-            auto rotEstimator = RotationEstimator::Create();
+        // sensor-inertial rotation estimator (linear least-squares problem)
+        auto rotEstimator = RotationEstimator::Create();
 
-            auto bar = std::make_shared<tqdm>();
-            for (int i = 0; i < static_cast<int>(frameVec.size()); ++i) {
-                bar->progress(i, static_cast<int>(frameVec.size()));
+        auto bar = std::make_shared<tqdm>();
+        for (int i = 0; i < static_cast<int>(frameVec.size()); ++i) {
+            bar->progress(i, static_cast<int>(frameVec.size()));
 
-                if (i % 30 == 0) {
-                    /**
-                     * we do not update the viewer too frequent, which would lead to heavy tasks
-                     */
-                    _viewer->ClearViewer(Viewer::VIEW_MAP);
-                    // rgbd camera
-                    static auto rgbd = ns_viewer::CubeCamera::Create(
-                        ns_viewer::Posef(), 0.04, ns_viewer::Colour(1.0f, 0.5f, 0.0f, 1.0f));
-                    _viewer->AddEntityLocal({rgbd}, Viewer::VIEW_MAP);
-                    // depth point could
-                    _viewer->AddRGBDFrame(frameVec.at(i), intri, Viewer::VIEW_MAP, true, 2.0f);
-                    // auto img = frameVec.at(i)->CreateColorDepthMap(intri, true);
-                    // cv::imshow("img", img);
-                    // cv::waitKey();
-                }
-
-                /*
-                 * we try to compute the prior rotation to accelerate the feature tracking.
-                 * only the extrinsic rotation is recovered, we can compute such priori.
+            if (i % 30 == 0) {
+                /**
+                 * we do not update the viewer too frequent, which would lead to heavy tasks
                  */
-                std::optional<Sophus::SO3d> SO3_LastToCur = std::nullopt;
-                if (rotEstimator->SolveStatus()) {
-                    // such codes should be put out of the for loop, but fore better readability...
-                    const auto SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
-                    const auto TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
-                    double lastTimeByBr = frameVec.at(i - 1)->GetTimestamp() + TO_DnToBr;
-                    double curTimeByBr = frameVec.at(i)->GetTimestamp() + TO_DnToBr;
-                    if (so3Spline.TimeStampInRange(lastTimeByBr) &&
-                        so3Spline.TimeStampInRange(curTimeByBr)) {
-                        // compute rotations at two timestamps
-                        auto SO3_LastBrToW = so3Spline.Evaluate(lastTimeByBr);
-                        auto SO3_CurBrToW = so3Spline.Evaluate(lastTimeByBr);
-                        // compute the relative rotation of the reference imu
-                        auto SO3_LastBrToCurBr = SO3_CurBrToW.inverse() * SO3_LastBrToW;
-                        // assignment
-                        SO3_LastToCur = SO3_DnToBr.inverse() * SO3_LastBrToCurBr * SO3_DnToBr;
-                    }
+                _viewer->ClearViewer(Viewer::VIEW_MAP);
+                // rgbd camera
+                static auto rgbd = ns_viewer::CubeCamera::Create(
+                    ns_viewer::Posef(), 0.04, ns_viewer::Colour(1.0f, 0.5f, 0.0f, 1.0f));
+                _viewer->AddEntityLocal({rgbd}, Viewer::VIEW_MAP);
+                // depth point could
+                _viewer->AddRGBDFrame(frameVec.at(i), intri, Viewer::VIEW_MAP, true, 2.0f);
+                // auto img = frameVec.at(i)->CreateColorDepthMap(intri, true);
+                // cv::imshow("img", img);
+                // cv::waitKey();
+            }
+
+            /*
+             * we try to compute the prior rotation to accelerate the feature tracking.
+             * only the extrinsic rotation is recovered, we can compute such priori.
+             */
+            std::optional<Sophus::SO3d> SO3_LastToCur = std::nullopt;
+            if (rotEstimator->SolveStatus()) {
+                // such codes should be put out of the for loop, but fore better readability...
+                const auto SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
+                const auto TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
+                double lastTimeByBr = frameVec.at(i - 1)->GetTimestamp() + TO_DnToBr;
+                double curTimeByBr = frameVec.at(i)->GetTimestamp() + TO_DnToBr;
+                if (so3Spline.TimeStampInRange(lastTimeByBr) &&
+                    so3Spline.TimeStampInRange(curTimeByBr)) {
+                    // compute rotations at two timestamps
+                    auto SO3_LastBrToW = so3Spline.Evaluate(lastTimeByBr);
+                    auto SO3_CurBrToW = so3Spline.Evaluate(lastTimeByBr);
+                    // compute the relative rotation of the reference imu
+                    auto SO3_LastBrToCurBr = SO3_CurBrToW.inverse() * SO3_LastBrToW;
+                    // assignment
+                    SO3_LastToCur = SO3_DnToBr.inverse() * SO3_LastBrToCurBr * SO3_DnToBr;
                 }
+            }
 
-                // if tracking current frame failed, the rotation-only odometer would re-initialize
-                if (!odometer->GrabFrame(frameVec.at(i), SO3_LastToCur)) {
-                    spdlog::warn(
-                        "tracking failed when grab the '{}' image frame!!! try to reinitialize", i);
-                    // save the tracking information
-                    RGBDTrackingInfo[topic].push_back(odometer->GetLmTrackInfo());
-                    // clear workspace
-                    odometer->ResetWorkspace();
-                }
+            // if tracking current frame failed, the rotation-only odometer would re-initialize
+            if (!odometer->GrabFrame(frameVec.at(i), SO3_LastToCur)) {
+                spdlog::warn(
+                    "tracking failed when grab the '{}' image frame!!! try to reinitialize", i);
+                // save the tracking information
+                RGBDTrackingInfo[topic].push_back(odometer->GetLmTrackInfo());
+                // clear workspace
+                odometer->ResetWorkspace();
+            }
 
-                // we do not want to try to recover the extrinsic rotation too frequent (or has been
-                // recovered)
-                if (rotEstimator->SolveStatus() || (odometer->GetRotations().size() < 50) ||
-                    (odometer->GetRotations().size() % 5 != 0)) {
-                    continue;
-                }
+            // we do not want to try to recover the extrinsic rotation too frequent (or has been
+            // recovered)
+            if (rotEstimator->SolveStatus() || (odometer->GetRotations().size() < 50) ||
+                (odometer->GetRotations().size() % 5 != 0)) {
+                continue;
+            }
 
-                // estimate the extrinsic rotation
-                rotEstimator->Estimate(so3Spline, odometer->GetRotations());
+            // estimate the extrinsic rotation
+            rotEstimator->Estimate(so3Spline, odometer->GetRotations());
 
-                // check solver status
-                if (rotEstimator->SolveStatus()) {
-                    // assign the estimated extrinsic rotation
-                    _parMagr->EXTRI.SO3_DnToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
+            // check solver status
+            if (rotEstimator->SolveStatus()) {
+                // assign the estimated extrinsic rotation
+                _parMagr->EXTRI.SO3_DnToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
 
-                    /**
-                     * once the extrinsic rotation is recovered, if time offset is also required, we
-                     * continue to recover it and refine extrineic rotation using
-                     * continuous-time-based alignment
-                     */
-                    if (Configor::Prior::OptTemporalParams) {
-                        auto estimator = Estimator::Create(_splines, _parMagr);
+                /**
+                 * once the extrinsic rotation is recovered, if time offset is also required, we
+                 * continue to recover it and refine extrineic rotation using
+                 * continuous-time-based alignment
+                 */
+                if (Configor::Prior::OptTemporalParams) {
+                    auto estimator = Estimator::Create(_splines, _parMagr);
 
-                        auto optOption = OptOption::OPT_SO3_DnToBr | OptOption::OPT_TO_DnToBr;
-                        double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
-                        double weight = Configor::DataStream::RGBDTopics.at(topic).Weight;
+                    auto optOption = OptOption::OPT_SO3_DnToBr | OptOption::OPT_TO_DnToBr;
+                    double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
+                    double weight = Configor::DataStream::RGBDTopics.at(topic).Weight;
 
-                        const auto &rotations = odometer->GetRotations();
-                        for (int j = 0; j < static_cast<int>(rotations.size()) - 1; ++j) {
-                            const auto &sRot = rotations.at(j), eRot = rotations.at(j + 1);
-                            // we throw the head and tail data as the rotations from the fitted SO3
-                            // Spline in that range are poor
-                            if (sRot.first + TO_DnToBr < st || eRot.first + TO_DnToBr > et) {
-                                continue;
-                            }
-
-                            estimator->AddHandEyeRotationAlignmentForRGBD(
-                                topic,        // the ros topic
-                                sRot.first,   // the time of start rotation stamped by the camera
-                                eRot.first,   // the time of end rotation stamped by the camera
-                                sRot.second,  // the start rotation
-                                eRot.second,  // the end rotation
-                                optOption,    // the optimization option
-                                weight        // the weight
-                            );
+                    const auto &rotations = odometer->GetRotations();
+                    for (int j = 0; j < static_cast<int>(rotations.size()) - 1; ++j) {
+                        const auto &sRot = rotations.at(j), eRot = rotations.at(j + 1);
+                        // we throw the head and tail data as the rotations from the fitted SO3
+                        // Spline in that range are poor
+                        if (sRot.first + TO_DnToBr < st || eRot.first + TO_DnToBr > et) {
+                            continue;
                         }
 
-                        // we don't want to output the solving information
-                        auto optWithoutOutput = Estimator::DefaultSolverOptions(
-                            Configor::Preference::AvailableThreads(),
-                            false,  // do not output the solving information
-                            Configor::Preference::UseCudaInSolving);
-
-                        estimator->Solve(optWithoutOutput, _priori);
+                        estimator->AddHandEyeRotationAlignmentForRGBD(
+                            topic,        // the ros topic
+                            sRot.first,   // the time of start rotation stamped by the camera
+                            eRot.first,   // the time of end rotation stamped by the camera
+                            sRot.second,  // the start rotation
+                            eRot.second,  // the end rotation
+                            optOption,    // the optimization option
+                            weight        // the weight
+                        );
                     }
 
-                    _viewer->UpdateSensorViewer();
+                    // we don't want to output the solving information
+                    auto optWithoutOutput = Estimator::DefaultSolverOptions(
+                        Configor::Preference::AvailableThreads(),
+                        false,  // do not output the solving information
+                        Configor::Preference::UseCudaInSolving);
+
+                    estimator->Solve(optWithoutOutput, _priori);
                 }
-            }
-            bar->finish();
 
-            // add tracking info
-            RGBDTrackingInfo[topic].push_back(odometer->GetLmTrackInfo());
-
-            /**
-             * after all images are grabbed, if the extrinsic rotation is not recovered (use min
-             * eigen value to check solve results), stop this program
-             */
-            if (!rotEstimator->SolveStatus()) {
-                throw Status(Status::ERROR,
-                             "initialize rotation 'SO3_DnToBr' failed, this may be related to "
-                             "insufficiently excited motion or bad images.");
+                _viewer->UpdateSensorViewer();
             }
         }
-        _viewer->ClearViewer(Viewer::VIEW_MAP);
-        cv::destroyAllWindows();
+        bar->finish();
+
+        // add tracking info
+        RGBDTrackingInfo[topic].push_back(odometer->GetLmTrackInfo());
+
+        /**
+         * after all images are grabbed, if the extrinsic rotation is not recovered (use min
+         * eigen value to check solve results), stop this program
+         */
+        if (!rotEstimator->SolveStatus()) {
+            throw Status(Status::ERROR,
+                         "initialize rotation 'SO3_DnToBr' failed, this may be related to "
+                         "insufficiently excited motion or bad images.");
+        }
     }
+    _viewer->ClearViewer(Viewer::VIEW_MAP);
+    cv::destroyAllWindows();
 
     /**
      * based on the tracking information, we construct the optical flow trace to estimate pixel
