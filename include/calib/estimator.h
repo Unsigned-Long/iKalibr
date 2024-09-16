@@ -222,6 +222,16 @@ public:
                                   Estimator::Opt option,
                                   double weight);
 
+    void AddVelVisualInertialAlignment(const std::vector<IMUFrame::Ptr> &data,
+                                       const std::string &imuTopic,
+                                       const std::string &topic,
+                                       const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &sVelAry,
+                                       double *sVelScale,
+                                       const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &eVelAry,
+                                       double *eVelScale,
+                                       Estimator::Opt option,
+                                       double weight);
+
     void AddRadarInertialRotRoughAlignment(const std::vector<IMUFrame::Ptr> &data,
                                            const std::string &imuTopic,
                                            const std::string &radarTopic,

@@ -51,6 +51,7 @@
 #include "factor/visual_proj_factor.hpp"
 #include "factor/visual_velocity_depth_factor.hpp"
 #include "util/utils_tpl.hpp"
+#include "factor/vel_visual_inertial_align_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -742,6 +743,90 @@ void Estimator::AddRGBDInertialAlignment(
 
 /**
  * param blocks:
+ * [ POS_BiInBr | SO3_CmToBr | POS_CmInBr | GRAVITY | VEL_SCALE_S | VEL_SCALE_E ]
+ */
+void Estimator::AddVelVisualInertialAlignment(
+    const std::vector<IMUFrame::Ptr> &data,
+    const std::string &imuTopic,
+    const std::string &topic,
+    const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &sVelAry,
+    double *sVelScale,
+    const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &eVelAry,
+    double *eVelScale,
+    Estimator::Opt option,
+    double weight) {
+    const auto &so3Spline = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    double st = sVelAry.first->GetTimestamp(), et = eVelAry.first->GetTimestamp();
+    double TO_CmToBr = parMagr->TEMPORAL.TO_CmToBr.at(topic);
+
+    if (!so3Spline.TimeStampInRange(st + TO_CmToBr) ||
+        !so3Spline.TimeStampInRange(et + TO_CmToBr)) {
+        return;
+    }
+
+    double TO_CmToBi = TO_CmToBr - parMagr->TEMPORAL.TO_BiToBr.at(imuTopic);
+    auto velVecMat = InertialVelIntegration(data, imuTopic, st + TO_CmToBi, et + TO_CmToBi);
+    if (velVecMat == std::nullopt) {
+        return;
+    }
+    // create a cost function
+    auto helper = VelVisualInertialAlignHelper<Configor::Prior::SplineOrder>(
+        so3Spline, sVelAry, eVelAry, TO_CmToBr, *velVecMat);
+    auto costFunc =
+        VelVisualInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
+
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(4);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+
+    costFunc->SetNumResiduals(3);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // POS_BiInBc
+    auto POS_BiInBr = parMagr->EXTRI.POS_BiInBr.at(imuTopic).data();
+    paramBlockVec.push_back(POS_BiInBr);
+    // SO3_DnToBr
+    auto SO3_CmToBr = parMagr->EXTRI.SO3_CmToBr.at(topic).data();
+    paramBlockVec.push_back(SO3_CmToBr);
+    // POS_DnInBr
+    auto POS_CmInBr = parMagr->EXTRI.POS_CmInBr.at(topic).data();
+    paramBlockVec.push_back(POS_CmInBr);
+    // GRAVITY
+    auto gravity = parMagr->GRAVITY.data();
+    paramBlockVec.push_back(gravity);
+    // start velocity scale
+    paramBlockVec.push_back(sVelScale);
+    // end velocity scale
+    paramBlockVec.push_back(eVelScale);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+    this->SetManifold(gravity, GRAVITY_MANIFOLD.get());
+    this->SetManifold(SO3_CmToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_GRAVITY, option)) {
+        this->SetParameterBlockConstant(gravity);
+    }
+    if (!IsOptionWith(Opt::OPT_POS_BiInBr, option)) {
+        this->SetParameterBlockConstant(POS_BiInBr);
+    }
+    if (!IsOptionWith(Opt::OPT_SO3_CmToBr, option)) {
+        this->SetParameterBlockConstant(SO3_CmToBr);
+    }
+    if (!IsOptionWith(Opt::OPT_POS_CmInBr, option)) {
+        this->SetParameterBlockConstant(POS_CmInBr);
+    }
+    this->SetParameterLowerBound(sVelScale, 0, 1E-3);
+    this->SetParameterLowerBound(eVelScale, 0, 1E-3);
+}
+
+/**
+ * param blocks:
  * [ SO3 | ... | SO3 | SO3_LkToBr | TO_LkToBr ]
  */
 void Estimator::AddHandEyeRotationAlignmentForLiDAR(const std::string &lidarTopic,
@@ -1038,7 +1123,7 @@ void Estimator::AddSO3Constraint(double timeByBr,
                                  double weight) {
     const auto &so3Spline = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     // check point time stamp
-    if (!so3Spline.TimeStampInRange(timeByBr) || !so3Spline.TimeStampInRange(timeByBr)) {
+    if (!so3Spline.TimeStampInRange(timeByBr)) {
         return;
     }
 

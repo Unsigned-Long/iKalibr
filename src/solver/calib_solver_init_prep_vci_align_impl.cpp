@@ -323,7 +323,5 @@ void CalibSolver::InitPrepVelCameraInertialAlign() const {
             return p1.first->GetTimestamp() < p2.first->GetTimestamp();
         });
     }
-    spdlog::warn("this module is being developed!!!");
-    std::cin.get();
 }
 }  // namespace ns_ikalibr

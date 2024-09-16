@@ -338,13 +338,59 @@ void CalibSolver::InitSensorInertialAlign() const {
             // we don't consider the readout time here (i.e., the camera frame time is treated as
             // the velocity of the midpoint)
             estimator->AddRGBDInertialAlignment(
-                frames,                          // imu frames
-                Configor::DataStream::ReferIMU,  // the ros topic of this imu
-                rgbdTopic,                       // the ros topic of this rgbd camera
-                bodyFrameVels.at(i),             // the start velocity
-                bodyFrameVels.at(i + 1),         // the end velocity
-                optOption,                       // the optimization option
-                weight);                         // the weight
+                frames,                            // imu frames
+                Configor::DataStream::ReferIMU,    // the ros topic of this imu
+                rgbdTopic,                         // the ros topic of this rgbd camera
+                bodyFrameVels.at(i),               // the start velocity
+                bodyFrameVels.at(i + ALIGN_STEP),  // the end velocity
+                optOption,                         // the optimization option
+                weight);                           // the weight
+        }
+    }
+
+    // (vel) camera-inertial alignment
+    std::map<std::string, std::vector<double>> velCamLinVelScales;
+    for (const auto &[topic, velDirs] : _initAsset->velCamBodyFrameVelDirs) {
+        double weight = Configor::DataStream::CameraTopics.at(topic).Weight;
+        double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(topic);
+        const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+
+        const int ALIGN_STEP =
+            std::max(1, int(DESIRED_TIME_INTERVAL * _dataMagr->GetCameraAvgFrequency(topic)));
+
+        spdlog::info(
+            "add vel-visual-inertial velocity alignment factors for '{}' and '{}', align step: {}",
+            topic, Configor::DataStream::ReferIMU, ALIGN_STEP);
+
+        auto &curVelScales = velCamLinVelScales[topic];
+        curVelScales = std::vector<double>(velDirs.size(), -1.0);
+        for (int i = 0; i < static_cast<int>(velDirs.size()) - ALIGN_STEP; ++i) {
+            const auto &[sFrame, sVel] = velDirs.at(i);
+            const auto &[eFrame, eVel] = velDirs.at(i + ALIGN_STEP);
+
+            if (sFrame->GetTimestamp() + TO_CmToBr < st ||
+                eFrame->GetTimestamp() + TO_CmToBr > et) {
+                continue;
+            }
+
+            if (eFrame->GetTimestamp() - sFrame->GetTimestamp() < MIN_ALIGN_TIME ||
+                eFrame->GetTimestamp() - sFrame->GetTimestamp() > MAX_ALIGN_TIME) {
+                continue;
+            }
+
+            // create scales for valid range
+            curVelScales.at(i) = 1.0;
+            curVelScales.at(i + ALIGN_STEP) = 1.0;
+            estimator->AddVelVisualInertialAlignment(
+                frames,                            // imu frames
+                Configor::DataStream::ReferIMU,    // ros topic of the imu
+                topic,                             // ros topic of the camera
+                velDirs.at(i),                     // the direction of the start velocity
+                &curVelScales.at(i),               // the scale of start velocity to be estimated
+                velDirs.at(i + ALIGN_STEP),        // the direction of the end velocity
+                &curVelScales.at(i + ALIGN_STEP),  // the scale of end velocity to be estimated
+                optOption,                         // the optimization option
+                weight);                           // the weight
         }
     }
 
@@ -395,6 +441,19 @@ void CalibSolver::InitSensorInertialAlign() const {
         estimator->SetRefIMUParamsConstant();
         sum = estimator->Solve(_ceresOption, this->_priori);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
+    }
+
+    if (Configor::IsVelCameraIntegrated()) {
+        for (const auto &[topic, velDirs] : _initAsset->velCamBodyFrameVelDirs) {
+            const auto &curVelCamLinVelScales = velCamLinVelScales.at(topic);
+            auto &curVels = _initAsset->velCamBodyFrameVels[topic];
+            for (int i = 0; i < static_cast<int>(curVelCamLinVelScales.size()); ++i) {
+                if (const double velScale = curVelCamLinVelScales.at(i); velScale > 1E-3) {
+                    const auto &[camFrame, velDir] = velDirs.at(i);
+                    curVels.emplace_back(camFrame, velScale * velDir);
+                }
+            }
+        }
     }
 
     for (const auto &[topic, lidarOdom] : _initAsset->lidarOdometers) {
