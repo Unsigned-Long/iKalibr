@@ -495,16 +495,6 @@ std::vector<OpticalFlowTripleTrace::Ptr> CalibSolver::CreateOpticalFlowTrace(
 
 std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssociationForRGBDs(
     bool estDepth) {
-    // add veta from pixel dynamics
-    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
-        auto veta = CreateVetaFromRGBD(topic);
-        if (veta != nullptr) {
-            DownsampleVeta(veta, 10000, Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin);
-            // we do not show the pose
-            _viewer->AddVeta(veta, Viewer::VIEW_MAP, {}, ns_viewer::Entity::GetUniqueColour());
-        }
-    }
-
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
 
@@ -630,6 +620,31 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
                          curCorrs.size());
         }
     }
+
+    // add veta for visualization
+    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+        const auto &intri = _parMagr->INTRI.RGBD.at(topic);
+
+        std::vector<OpticalFlowCorr::Ptr> corrsWithActualDepth;
+        corrsWithActualDepth.reserve(corrs.at(topic).size());
+        for (const auto &corr : corrs.at(topic)) {
+            auto c = std::make_shared<OpticalFlowCorr>(*corr);
+            // the actual depth information is required in 'CreateVetaFromOpticalFlow'
+            c->depth = intri->ActualDepth(c->depth);
+            corrsWithActualDepth.push_back(c);
+        }
+
+        auto veta = CreateVetaFromOpticalFlow(
+            topic, corrsWithActualDepth, intri->intri, [this](auto &&PH1, auto &&PH2) {
+                return CurDnToW(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
+            });
+        if (veta != nullptr) {
+            DownsampleVeta(veta, 10000, Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin);
+            // we do not show the pose
+            _viewer->AddVeta(veta, Viewer::VIEW_MAP, {}, ns_viewer::Entity::GetUniqueColour());
+        }
+    }
+
     return corrs;
 }
 
@@ -747,6 +762,22 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
             curCorrs = SamplingWoutReplace2(engine, curCorrs, desiredCount);
             spdlog::info("total correspondences count for camera '{}' after down sampled: {}",
                          topic, curCorrs.size());
+        }
+    }
+
+    // add veta from pixel dynamics
+    for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
+        const auto &intri = _parMagr->INTRI.Camera.at(topic);
+
+        auto veta = CreateVetaFromOpticalFlow(
+            topic, corrs.at(topic), intri, [this](auto &&PH1, auto &&PH2) {
+                return CurCmToW(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
+            });
+        if (veta != nullptr) {
+            DownsampleVeta(veta, 10000,
+                           Configor::DataStream::CameraTopics.at(topic).TrackLengthMin);
+            // we do not show the pose
+            _viewer->AddVeta(veta, Viewer::VIEW_MAP, {}, ns_viewer::Entity::GetUniqueColour());
         }
     }
     return corrs;

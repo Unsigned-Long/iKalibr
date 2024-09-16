@@ -627,29 +627,26 @@ void CalibSolver::SaveStageCalibParam(const CalibParamManager::Ptr &par, const s
     }
 }
 
-ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) const {
-    if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
+ns_veta::Veta::Ptr CalibSolver::CreateVetaFromOpticalFlow(
+    const std::string &topic,
+    const std::vector<OpticalFlowCorr::Ptr> &traceVec,
+    const ns_veta::PinholeIntrinsic::Ptr &intri,
+    const std::function<std::optional<Sophus::SE3d>(double, const std::string &)> &SE3_CurSenToW) {
+    if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return nullptr;
     }
-    const auto &intri = _parMagr->INTRI.RGBD.at(topic);
-
-    const auto &rsExposureFactor = CameraModel::RSCameraExposureFactor(
-        EnumCast::stringToEnum<CameraModelType>(Configor::DataStream::RGBDTopics.at(topic).Type));
-
     auto veta = std::make_shared<ns_veta::Veta>();
 
     // intrinsics
     const ns_veta::IndexT INTRI_ID = 0;
-    veta->intrinsics.insert({INTRI_ID, intri->intri});
+    veta->intrinsics.insert({INTRI_ID, intri});
 
     ns_veta::IndexT LM_ID_COUNTER = 0;
-    for (const auto &dynamic : _dataMagr->GetVisualOpticalFlowTrace(topic)) {
-        // we use actual depth here
-        auto corr = dynamic->CreateOpticalFlowCorr(rsExposureFactor, intri);
+    for (const auto &corr : traceVec) {
         if (corr->depth < 1E-3 /* 1 mm */) {
             continue;
         }
-        auto SE3_CurDnToW = CurDnToW(corr->frame->GetTimestamp(), topic);
+        auto SE3_CurDnToW = SE3_CurSenToW(corr->frame->GetTimestamp(), topic);
         if (SE3_CurDnToW == std::nullopt) {
             continue;
         }
@@ -667,11 +664,11 @@ ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) con
             // index
             viewId, intriIdx, poseId,
             // width, height
-            intri->intri->imgWidth, intri->intri->imgHeight);
+            intri->imgWidth, intri->imgHeight);
 
         // landmark
         const double depth = corr->depth;
-        Eigen::Vector2d lmInDnPlane = intri->intri->ImgToCam(corr->MidPoint());
+        Eigen::Vector2d lmInDnPlane = intri->ImgToCam(corr->MidPoint());
         Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);
         Eigen::Vector3d lmInW = *SE3_CurDnToW * lmInDn;
         // this landmark has only one observation

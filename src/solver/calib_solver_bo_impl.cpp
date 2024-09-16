@@ -217,13 +217,29 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
         }
     }
 
+    // update depth information for vel cameras
+    for (const auto &[topic, corrs] : visualVelCorrs) {
+        for (const auto &corr : corrs) {
+            if constexpr (OPTICAL_FLOW_EST_INV_DEPTH) {
+                // the inverse depth is estimated, we update the depth
+                corr->depth = corr->invDepth > 1E-3 ? 1.0 / corr->invDepth : -1.0;
+            } else {
+                // the depth is estimated, we update the inverse depth
+                corr->invDepth = corr->depth > 1E-3 ? 1.0 / corr->depth : -1.0;
+            }
+        }
+    }
+
     // these quantities need to be backup for Hessian matrix finding in ceres
     auto backUp = std::make_shared<BackUp>();
     backUp->estimator = estimator;
     backUp->visualGlobalScale = visualGlobalScale;
     backUp->lidarCorrs = lidarPtsCorrs;
     backUp->visualCorrs = visualReprojCorrs;
-    backUp->rgbdCorrs = rgbdCorrs;
+    backUp->ofCorrs = rgbdCorrs;
+    for (const auto &[topic, corrs] : visualVelCorrs) {
+        backUp->ofCorrs.insert({topic, corrs});
+    }
     // the maps not back up
     backUp->lidarMap = nullptr;
     backUp->radarMap = nullptr;

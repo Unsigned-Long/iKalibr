@@ -141,8 +141,8 @@ public:
         std::map<std::string, std::vector<PointToSurfelCorrPtr>> lidarCorrs;
         // radar global map
         IKalibrPointCloudPtr radarMap;
-        // rgbd velocity correspondences
-        std::map<std::string, std::vector<OpticalFlowCorrPtr>> rgbdCorrs;
+        // visual optical flow correspondences
+        std::map<std::string, std::vector<OpticalFlowCorrPtr>> ofCorrs;
     };
 
     struct InitAsset {
@@ -331,12 +331,12 @@ protected:
                std::map<std::string, std::vector<IKalibrPointCloudPtr>>>
     BuildGlobalMapOfRGBD() const;
 
-    /**
-     * create a visual meta data for a RGBD camera
-     * @param topic ros topic of this RGBD camera
-     * @return the veta
-     */
-    ns_veta::VetaPtr CreateVetaFromRGBD(const std::string &topic) const;
+    static ns_veta::VetaPtr CreateVetaFromOpticalFlow(
+        const std::string &topic,
+        const std::vector<OpticalFlowCorrPtr> &ofVec,
+        const ns_veta::PinholeIntrinsic::Ptr &intri,
+        const std::function<std::optional<Sophus::SE3d>(double, const std::string &)>
+            &SE3_CurSenToW);
 
     /**
      * perform data association for LiDARs
@@ -552,9 +552,9 @@ protected:
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
     static void AddRGBDOpticalFlowFactor(EstimatorPtr &estimator,
-                                      const std::string &rgbdTopic,
-                                      const std::vector<OpticalFlowCorrPtr> &corrs,
-                                      OptOption option);
+                                         const std::string &rgbdTopic,
+                                         const std::vector<OpticalFlowCorrPtr> &corrs,
+                                         OptOption option);
 
     /**
      * add optical flow factors for the optical camera to the estimator
@@ -567,9 +567,9 @@ protected:
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
     static void AddVisualOpticalFlowFactor(EstimatorPtr &estimator,
-                                        const std::string &camTopic,
-                                        const std::vector<OpticalFlowCorrPtr> &corrs,
-                                        OptOption option);
+                                           const std::string &camTopic,
+                                           const std::vector<OpticalFlowCorrPtr> &corrs,
+                                           OptOption option);
 
     /**
      * store images to the disk for structure from motion (SfM)

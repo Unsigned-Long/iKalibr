@@ -472,7 +472,7 @@ void CalibSolverIO::SaveVisualKinematics() const {
     cv::destroyAllWindows();
 
     // gravity for rgbds
-    for (const auto &[topic, data] : _solver->_backup->rgbdCorrs) {
+    for (const auto &[topic, data] : _solver->_backup->ofCorrs) {
         spdlog::info("create visual images with gravity for rgbd '{}'...", topic);
 
         auto subSaveDir = saveDir + "/gravity/" + topic;
@@ -527,7 +527,7 @@ void CalibSolverIO::SaveVisualKinematics() const {
     cv::destroyAllWindows();
 
     // linear velocities for rgbds
-    for (const auto &[topic, data] : _solver->_backup->rgbdCorrs) {
+    for (const auto &[topic, data] : _solver->_backup->ofCorrs) {
         spdlog::info("create visual linear velocity images for rgbd '{}'...", topic);
 
         auto subSaveDir = saveDir + "/lin_vel/" + topic;
@@ -583,7 +583,7 @@ void CalibSolverIO::SaveVisualKinematics() const {
     }
 
     // angular velocities for rgbds
-    for (const auto &[topic, data] : _solver->_backup->rgbdCorrs) {
+    for (const auto &[topic, data] : _solver->_backup->ofCorrs) {
         spdlog::info("create visual angular velocity images for rgbd '{}'...", topic);
 
         auto subSaveDir = saveDir + "/ang_vel/" + topic;
@@ -658,7 +658,14 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
             spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
             continue;
         }
-        const auto &veta = _solver->CreateVetaFromRGBD(topic);
+
+        const auto &veta = CalibSolver::CreateVetaFromOpticalFlow(
+            topic, _solver->_backup->ofCorrs.at(topic),
+            _solver->_parMagr->INTRI.RGBD.at(topic)->intri, [this](auto &&PH1, auto &&PH2) {
+                return _solver->CurDnToW(std::forward<decltype(PH1)>(PH1),
+                                         std::forward<decltype(PH2)>(PH2));
+            });
+
         if (veta == nullptr) {
             continue;
         }
@@ -1024,7 +1031,14 @@ void CalibSolverIO::SaveVisualMaps() const {
             } else {
                 // veta
                 auto filename = subSaveDir + "/veta.bin";
-                if (auto veta = _solver->CreateVetaFromRGBD(topic); veta != nullptr) {
+                const auto &veta = CalibSolver::CreateVetaFromOpticalFlow(
+                    topic, _solver->_backup->ofCorrs.at(topic),
+                    _solver->_parMagr->INTRI.RGBD.at(topic)->intri, [this](auto &&PH1, auto &&PH2) {
+                        return _solver->CurDnToW(std::forward<decltype(PH1)>(PH1),
+                                                 std::forward<decltype(PH2)>(PH2));
+                    });
+
+                if (veta != nullptr) {
                     if (!ns_veta::Save(*veta, filename, ns_veta::Veta::ALL)) {
                         spdlog::warn("create sub directory to save veta for '{}' failed: '{}'",
                                      topic, saveDir);
@@ -1165,7 +1179,7 @@ void CalibSolverIO::SaveRGBDVelocityError() const {
     auto scaleType = ns_ikalibr::CalibSolver::GetScaleType();
     const auto &parMagr = _solver->_parMagr;
 
-    for (const auto &[topic, corrVec] : _solver->_backup->rgbdCorrs) {
+    for (const auto &[topic, corrVec] : _solver->_backup->ofCorrs) {
         auto subSaveDir = saveDir + "/" + topic;
         if (!TryCreatePath(subSaveDir)) {
             spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
