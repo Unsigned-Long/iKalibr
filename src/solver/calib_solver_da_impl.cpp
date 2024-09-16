@@ -90,7 +90,7 @@ CalibSolver::BuildGlobalMapOfLiDAR() const {
     return {newMapCloud, undistFrames};
 }
 
-IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() {
+IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() const {
     if (!Configor::IsRadarIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return {};
     }
@@ -134,7 +134,7 @@ IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() {
     return radarCloud;
 }
 
-ColorPointCloud::Ptr CalibSolver::BuildGlobalColorMapOfRGBD(const std::string &topic) {
+ColorPointCloud::Ptr CalibSolver::BuildGlobalColorMapOfRGBD(const std::string &topic) const {
     if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return {};
     }
@@ -188,7 +188,7 @@ std::tuple<IKalibrPointCloud::Ptr,
            std::map<std::string, std::vector<IKalibrPointCloud::Ptr>>,
            // scans in local frame
            std::map<std::string, std::vector<IKalibrPointCloud::Ptr>>>
-CalibSolver::BuildGlobalMapOfRGBD() {
+CalibSolver::BuildGlobalMapOfRGBD() const {
     if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return {};
     }
@@ -460,11 +460,9 @@ CalibSolver::DataAssociationForPosCameras() const {
     return corrs;
 }
 
-std::vector<OpticalFlowTripleTrace::Ptr> CalibSolver::CreateOpticalFlowTraceForRGBD(
-    const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList,
-    const std::string &topic) {
+std::vector<OpticalFlowTripleTrace::Ptr> CalibSolver::CreateOpticalFlowTrace(
+    const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList, int trackThd) {
     std::vector<OpticalFlowTripleTrace::Ptr> dynamics;
-    const int trackThd = Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin;
     for (const auto &trackInfo : trackInfoList) {
         for (const auto &[id, info] : trackInfo) {
             // for each tracked feature
@@ -520,7 +518,8 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
 
     std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> corrs;
 
-    for (const auto &[topic, traceVec] : _dataMagr->GetRGBDOpticalFlowTrace()) {
+    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+        const auto &traceVec = _dataMagr->GetVisualOpticalFlowTrace(topic);
         spdlog::info("perform data association for RGBD camera '{}'...", topic);
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
         const double fx = intri->intri->FocalX(), fy = intri->intri->FocalY();

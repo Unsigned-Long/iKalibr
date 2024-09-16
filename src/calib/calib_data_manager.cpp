@@ -745,18 +745,18 @@ const ns_veta::Veta::Ptr &CalibDataManager::GetSfMData(const std::string &camTop
 void CalibDataManager::SetSfMData(const std::string &camTopic, const ns_veta::Veta::Ptr &veta) {
     _sfmData[camTopic] = veta;
 }
-void CalibDataManager::SetRGBDOpticalFlowTrace(
-    const std::string &rgbdTopic, const std::vector<OpticalFlowTripleTrace::Ptr> &dynamics) {
-    _rgbdOpticalFlowTrace[rgbdTopic] = dynamics;
+void CalibDataManager::SetVisualOpticalFlowTrace(
+    const std::string &visualTopic, const std::vector<OpticalFlowTripleTrace::Ptr> &dynamics) {
+    _visualOpticalFlowTrace[visualTopic] = dynamics;
 }
 
-const std::map<std::string, std::vector<OpticalFlowTripleTrace::Ptr>> &
-CalibDataManager::GetRGBDOpticalFlowTrace() const {
-    return _rgbdOpticalFlowTrace;
-}
+// const std::map<std::string, std::vector<OpticalFlowTripleTrace::Ptr>> &
+// CalibDataManager::GetVisualOpticalFlowTrace() const {
+//     return _visualOpticalFlowTrace;
+// }
 
-const std::vector<OpticalFlowTripleTrace::Ptr> &CalibDataManager::GetRGBDOpticalFlowTrace(
-    const std::string &rgbdTopic) const {
-    return _rgbdOpticalFlowTrace.at(rgbdTopic);
+const std::vector<OpticalFlowTripleTrace::Ptr> &CalibDataManager::GetVisualOpticalFlowTrace(
+    const std::string &visualTopic) const {
+    return _visualOpticalFlowTrace.at(visualTopic);
 }
 }  // namespace ns_ikalibr

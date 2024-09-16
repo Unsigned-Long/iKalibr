@@ -47,7 +47,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-void CalibSolver::InitPrepPosCameraInertialAlign() {
+void CalibSolver::InitPrepPosCameraInertialAlign() const {
     if (!Configor::IsPosCameraIntegrated()) {
         return;
     }

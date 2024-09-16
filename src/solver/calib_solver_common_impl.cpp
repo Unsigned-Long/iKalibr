@@ -148,7 +148,7 @@ CalibSolver::~CalibSolver() {
     }
 }
 
-std::optional<Sophus::SE3d> CalibSolver::CurBrToW(double timeByBr) {
+std::optional<Sophus::SE3d> CalibSolver::CurBrToW(double timeByBr) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,
                      "'CurBrToW' error, scale spline is not translation spline!!!");
@@ -162,7 +162,7 @@ std::optional<Sophus::SE3d> CalibSolver::CurBrToW(double timeByBr) {
     }
 }
 
-std::optional<Sophus::SE3d> CalibSolver::CurLkToW(double timeByLk, const std::string &topic) {
+std::optional<Sophus::SE3d> CalibSolver::CurLkToW(double timeByLk, const std::string &topic) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,
                      "'CurLkToW' error, scale spline is not translation spline!!!");
@@ -179,7 +179,7 @@ std::optional<Sophus::SE3d> CalibSolver::CurLkToW(double timeByLk, const std::st
     }
 }
 
-std::optional<Sophus::SE3d> CalibSolver::CurCmToW(double timeByCm, const std::string &topic) {
+std::optional<Sophus::SE3d> CalibSolver::CurCmToW(double timeByCm, const std::string &topic) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,
                      "'CurCmToW' error, scale spline is not translation spline!!!");
@@ -196,7 +196,7 @@ std::optional<Sophus::SE3d> CalibSolver::CurCmToW(double timeByCm, const std::st
     }
 }
 
-std::optional<Sophus::SE3d> CalibSolver::CurDnToW(double timeByDn, const std::string &topic) {
+std::optional<Sophus::SE3d> CalibSolver::CurDnToW(double timeByDn, const std::string &topic) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,
                      "'CurDnToW' error, scale spline is not translation spline!!!");
@@ -213,7 +213,7 @@ std::optional<Sophus::SE3d> CalibSolver::CurDnToW(double timeByDn, const std::st
     }
 }
 
-std::optional<Sophus::SE3d> CalibSolver::CurRjToW(double timeByRj, const std::string &topic) {
+std::optional<Sophus::SE3d> CalibSolver::CurRjToW(double timeByRj, const std::string &topic) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,
                      "'CurRjToW' error, scale spline is not translation spline!!!");
@@ -257,7 +257,7 @@ CalibSolver::SplineBundleType::Ptr CalibSolver::CreateSplineBundle(double st,
     return SplineBundleType::Create({so3SplineInfo, scaleSplineInfo});
 }
 
-void CalibSolver::AlignStatesToGravity() {
+void CalibSolver::AlignStatesToGravity() const {
     auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
     // current gravity, velocities, and rotations are expressed in the reference frame
@@ -274,7 +274,8 @@ void CalibSolver::AlignStatesToGravity() {
     }
 }
 
-void CalibSolver::StoreImagesForSfM(const std::string &topic, const std::set<IndexPair> &matchRes) {
+void CalibSolver::StoreImagesForSfM(const std::string &topic,
+                                    const std::set<IndexPair> &matchRes) const {
     // -------------
     // output images
     // -------------
@@ -409,7 +410,7 @@ void CalibSolver::StoreImagesForSfM(const std::string &topic, const std::set<Ind
 
 ns_veta::Veta::Ptr CalibSolver::TryLoadSfMData(const std::string &topic,
                                                double errorThd,
-                                               std::size_t trackLenThd) {
+                                               std::size_t trackLenThd) const {
     // info file
     const auto infoFilename = ns_ikalibr::Configor::DataStream::GetImageStoreInfoFile(topic);
     if (!std::filesystem::exists(infoFilename)) {
@@ -626,7 +627,7 @@ void CalibSolver::SaveStageCalibParam(const CalibParamManager::Ptr &par, const s
     }
 }
 
-ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) {
+ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) const {
     if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return nullptr;
     }
@@ -642,7 +643,7 @@ ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) {
     veta->intrinsics.insert({INTRI_ID, intri->intri});
 
     ns_veta::IndexT LM_ID_COUNTER = 0;
-    for (const auto &dynamic : _dataMagr->GetRGBDOpticalFlowTrace(topic)) {
+    for (const auto &dynamic : _dataMagr->GetVisualOpticalFlowTrace(topic)) {
         // we use actual depth here
         auto corr = dynamic->CreateOpticalFlowCorr(rsExposureFactor, intri);
         if (corr->depth < 1E-3 /* 1 mm */) {
@@ -691,7 +692,7 @@ ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) {
 
 void CalibSolver::AddGyroFactor(Estimator::Ptr &estimator,
                                 const std::string &imuTopic,
-                                Estimator::Opt option) {
+                                Estimator::Opt option) const {
     double weight = Configor::DataStream::IMUTopics.at(imuTopic).GyroWeight;
 
     for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {

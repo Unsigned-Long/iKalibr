@@ -52,7 +52,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-void CalibSolver::InitPrepRGBDInertialAlign() {
+void CalibSolver::InitPrepRGBDInertialAlign() const {
     if (!Configor::IsRGBDIntegrated()) {
         return;
     }
@@ -227,16 +227,18 @@ void CalibSolver::InitPrepRGBDInertialAlign() {
      * velocity of tracked featuers
      */
     for (const auto &[topic, trackInfoList] : RGBDTrackingInfo) {
+        const int trackThd = Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin;
         // store
-        _dataMagr->SetRGBDOpticalFlowTrace(
+        _dataMagr->SetVisualOpticalFlowTrace(
             // ros topic of this rgbd camera
             topic,
             // create the optical flow trace
-            CreateOpticalFlowTraceForRGBD(trackInfoList, topic));
+            CreateOpticalFlowTrace(trackInfoList, trackThd));
     }
     // topic, camera frame, body-frame velocity
     auto &rgbdBodyFrameVels = _initAsset->rgbdBodyFrameVels;
-    for (const auto &[topic, traceVec] : _dataMagr->GetRGBDOpticalFlowTrace()) {
+    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+        const auto &traceVec = _dataMagr->GetVisualOpticalFlowTrace(topic);
         spdlog::info("estimate RGBD-derived linear velocities for '{}'...", topic);
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
         // the rs exposure factor to compute the real visual timestamps

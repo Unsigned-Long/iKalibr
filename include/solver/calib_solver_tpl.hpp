@@ -47,7 +47,7 @@ namespace ns_ikalibr {
 template <TimeDeriv::ScaleSplineType type>
 void CalibSolver::AddRadarFactor(Estimator::Ptr &estimator,
                                  const std::string &radarTopic,
-                                 Estimator::Opt option) {
+                                 Estimator::Opt option) const {
     double weight = Configor::DataStream::RadarTopics.at(radarTopic).Weight;
 
     for (const auto &targetAry : _dataMagr->GetRadarMeasurements(radarTopic)) {
@@ -60,7 +60,7 @@ void CalibSolver::AddRadarFactor(Estimator::Ptr &estimator,
 template <TimeDeriv::ScaleSplineType type>
 void CalibSolver::AddAcceFactor(Estimator::Ptr &estimator,
                                 const std::string &imuTopic,
-                                Estimator::Opt option) {
+                                Estimator::Opt option) const {
     double weight = Configor::DataStream::IMUTopics.at(imuTopic).AcceWeight;
 
     for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {

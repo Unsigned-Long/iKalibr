@@ -230,43 +230,43 @@ protected:
      * the splines (both rotation and translation splines), as well as the gravity vector would be
      * transformed
      */
-    void AlignStatesToGravity();
+    void AlignStatesToGravity() const;
 
     /**
      * initialize (recover) the rotation spline using raw angular velocity measurements from
      * the gyroscope. If multiple gyroscopes (IMUs) are involved, the extrinsic rotations and
      * time offsets would be also recovered
      */
-    void InitSO3Spline();
+    void InitSO3Spline() const;
 
     /**
      * perform sensor-inertial alignment to recover the gravity vector and extrinsic translations
      */
-    void InitSensorInertialAlign();
+    void InitSensorInertialAlign() const;
 
     /**
      * detailed sensor-inertial alignment for camera and IMU, this is the preparation for final
      * one-shot sensor-inertial alignment
      */
-    void InitPrepPosCameraInertialAlign();
+    void InitPrepPosCameraInertialAlign() const;
 
     /**
      * detailed sensor-inertial alignment for camera and IMU, this is the preparation for final
      * one-shot sensor-inertial alignment
      */
-    void InitPrepVelCameraInertialAlign();
+    void InitPrepVelCameraInertialAlign() const;
 
     /**
      * detailed sensor-inertial alignment for LiDAR and IMU, this is the preparation for final
      * one-shot sensor-inertial alignment
      */
-    void InitPrepLiDARInertialAlign();
+    void InitPrepLiDARInertialAlign() const;
 
     /**
      * detailed sensor-inertial alignment for RGBD camera and IMU, this is the preparation for final
      * one-shot sensor-inertial alignment
      */
-    void InitPrepRGBDInertialAlign();
+    void InitPrepRGBDInertialAlign() const;
 
     /**
      * detailed sensor-inertial alignment for radars and IMU, this is the preparation for final
@@ -290,7 +290,7 @@ protected:
     /**
      * preparation for the final batch optimization
      */
-    void InitPrepBatchOpt();
+    void InitPrepBatchOpt() const;
 
     /**
      * build the global map for LiDARs
@@ -305,14 +305,14 @@ protected:
      * is employed
      * @return the global map for radars expressed in the global coordinate frame
      */
-    IKalibrPointCloudPtr BuildGlobalMapOfRadar();
+    IKalibrPointCloudPtr BuildGlobalMapOfRadar() const;
 
     /**
      * build the global colorized map for RGBD cameras
      * @param topic ros topic for the RGBD
      * @return the global colorized map
      */
-    pcl::ColorPointCloudPtr BuildGlobalColorMapOfRGBD(const std::string &topic);
+    pcl::ColorPointCloudPtr BuildGlobalColorMapOfRGBD(const std::string &topic) const;
 
     /**
      * build the global map for RGBDs
@@ -323,14 +323,14 @@ protected:
                std::map<std::string, std::vector<IKalibrPointCloudPtr>>,
                // scans in local frame
                std::map<std::string, std::vector<IKalibrPointCloudPtr>>>
-    BuildGlobalMapOfRGBD();
+    BuildGlobalMapOfRGBD() const;
 
     /**
      * create a visual meta data for a RGBD camera
      * @param topic ros topic of this RGBD camera
      * @return the veta
      */
-    ns_veta::VetaPtr CreateVetaFromRGBD(const std::string &topic);
+    ns_veta::VetaPtr CreateVetaFromRGBD(const std::string &topic) const;
 
     /**
      * perform data association for LiDARs
@@ -396,7 +396,7 @@ protected:
      * @param timeByBr the time stamped by the reference IMU
      * @return the reference IMU pose, if the timestamp is out of range, return 'std::nullopt'
      */
-    std::optional<Sophus::SE3d> CurBrToW(double timeByBr);
+    std::optional<Sophus::SE3d> CurBrToW(double timeByBr) const;
 
     /**
      * compute the pose of LiDAR in the global (world) coordinate frame
@@ -404,7 +404,7 @@ protected:
      * @param topic the ros topic of this LiDAR
      * @return the LiDAR pose, if the timestamp is out of range, return 'std::nullopt'
      */
-    std::optional<Sophus::SE3d> CurLkToW(double timeByLk, const std::string &topic);
+    std::optional<Sophus::SE3d> CurLkToW(double timeByLk, const std::string &topic) const;
 
     /**
      * compute the pose of camera in the global (world) coordinate frame
@@ -412,7 +412,7 @@ protected:
      * @param topic the ros topic of this camera
      * @return the camera pose, if the timestamp is out of range, return 'std::nullopt'
      */
-    std::optional<Sophus::SE3d> CurCmToW(double timeByCm, const std::string &topic);
+    std::optional<Sophus::SE3d> CurCmToW(double timeByCm, const std::string &topic) const;
 
     /**
      * compute the pose of RGBD camera in the global (world) coordinate frame
@@ -420,7 +420,7 @@ protected:
      * @param topic the ros topic of this RGBD camera
      * @return the RGBD camera pose, if the timestamp is out of range, return 'std::nullopt'
      */
-    std::optional<Sophus::SE3d> CurDnToW(double timeByDn, const std::string &topic);
+    std::optional<Sophus::SE3d> CurDnToW(double timeByDn, const std::string &topic) const;
 
     /**
      * compute the pose of radar in the global (world) coordinate frame
@@ -428,7 +428,7 @@ protected:
      * @param topic the ros topic of this radar
      * @return the radar pose, if the timestamp is out of range, return 'std::nullopt'
      */
-    std::optional<Sophus::SE3d> CurRjToW(double timeByRj, const std::string &topic);
+    std::optional<Sophus::SE3d> CurRjToW(double timeByRj, const std::string &topic) const;
 
     /**
      * create a spline bundle, including the rotation and linear scale splines
@@ -458,7 +458,9 @@ protected:
      * @param option the option for the optimization
      */
     template <TimeDeriv::ScaleSplineType type>
-    void AddRadarFactor(EstimatorPtr &estimator, const std::string &radarTopic, OptOption option);
+    void AddRadarFactor(EstimatorPtr &estimator,
+                        const std::string &radarTopic,
+                        OptOption option) const;
 
     /**
      * add accelerometer factors for the IMU to the estimator
@@ -468,7 +470,9 @@ protected:
      * @param option the option for the optimization
      */
     template <TimeDeriv::ScaleSplineType type>
-    void AddAcceFactor(EstimatorPtr &estimator, const std::string &imuTopic, OptOption option);
+    void AddAcceFactor(EstimatorPtr &estimator,
+                       const std::string &imuTopic,
+                       OptOption option) const;
 
     /**
      * add gyroscope factors for the IMU to the estimator
@@ -476,7 +480,9 @@ protected:
      * @param imuTopic the ros topic of this IMU
      * @param option the option for the optimization
      */
-    void AddGyroFactor(EstimatorPtr &estimator, const std::string &imuTopic, OptOption option);
+    void AddGyroFactor(EstimatorPtr &estimator,
+                       const std::string &imuTopic,
+                       OptOption option) const;
 
     /**
      * add point-to-surfel factors for the LiDAR to the estimator
@@ -487,10 +493,10 @@ protected:
      * @param option the option for the optimization
      */
     template <TimeDeriv::ScaleSplineType type>
-    void AddLiDARPointToSurfelFactor(EstimatorPtr &estimator,
-                                     const std::string &lidarTopic,
-                                     const std::vector<PointToSurfelCorrPtr> &corrs,
-                                     OptOption option);
+    static void AddLiDARPointToSurfelFactor(EstimatorPtr &estimator,
+                                            const std::string &lidarTopic,
+                                            const std::vector<PointToSurfelCorrPtr> &corrs,
+                                            OptOption option);
 
     /**
      * add point-to-surfel factors for the RGBD to the estimator
@@ -501,10 +507,10 @@ protected:
      * @param option the option for the optimization
      */
     template <TimeDeriv::ScaleSplineType type>
-    void AddRGBDPointToSurfelFactor(EstimatorPtr &estimator,
-                                    const std::string &rgbdTopic,
-                                    const std::vector<PointToSurfelCorrPtr> &corrs,
-                                    OptOption option);
+    static void AddRGBDPointToSurfelFactor(EstimatorPtr &estimator,
+                                           const std::string &rgbdTopic,
+                                           const std::vector<PointToSurfelCorrPtr> &corrs,
+                                           OptOption option);
 
     /**
      * add visual reprojection factors for the camera to the estimator
@@ -516,11 +522,11 @@ protected:
      * @param option the option for the optimization
      */
     template <TimeDeriv::ScaleSplineType type>
-    void AddVisualReprojectionFactor(EstimatorPtr &estimator,
-                                     const std::string &camTopic,
-                                     const std::vector<VisualReProjCorrSeqPtr> &corrs,
-                                     double *globalScale,
-                                     OptOption option);
+    static void AddVisualReprojectionFactor(EstimatorPtr &estimator,
+                                            const std::string &camTopic,
+                                            const std::vector<VisualReProjCorrSeqPtr> &corrs,
+                                            double *globalScale,
+                                            OptOption option);
 
     /**
      * add optical flow factors for the RGBD camera to the estimator
@@ -532,18 +538,19 @@ protected:
      * @param option the option for the optimization
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-    void AddRGBDVelocityFactor(EstimatorPtr &estimator,
-                               const std::string &rgbdTopic,
-                               const std::vector<OpticalFlowCorrPtr> &corrs,
-                               OptOption option);
+    static void AddRGBDVelocityFactor(EstimatorPtr &estimator,
+                                      const std::string &rgbdTopic,
+                                      const std::vector<OpticalFlowCorrPtr> &corrs,
+                                      OptOption option);
 
     /**
      * store images to the disk for structure from motion (SfM)
      * @param camTopic the ros topic of this camera
      * @param matchRes the match results of images of this camera
      */
-    void StoreImagesForSfM(const std::string &camTopic,
-                           const std::set<std::pair<ns_veta::IndexT, ns_veta::IndexT>> &matchRes);
+    void StoreImagesForSfM(
+        const std::string &camTopic,
+        const std::set<std::pair<ns_veta::IndexT, ns_veta::IndexT>> &matchRes) const;
 
     /**
      * once the SfM is performed, we load the results from the disk to the program
@@ -554,7 +561,7 @@ protected:
      */
     ns_veta::VetaPtr TryLoadSfMData(const std::string &camTopic,
                                     double errorThd,
-                                    std::size_t trackLenThd);
+                                    std::size_t trackLenThd) const;
 
     /**
      * downsample the landmarks for a veta
@@ -583,12 +590,11 @@ protected:
     /**
      * create optical flow triple trace for RGBD cameras
      * @param trackInfoList the optical tracking information
-     * @param topic the ros topic of this RGBD camera
+     * @param trackThd the threshold of track length
      * @return the optical flow trace of this RGBD camera
      */
-    static std::vector<OpticalFlowTripleTracePtr> CreateOpticalFlowTraceForRGBD(
-        const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList,
-        const std::string &topic);
+    static std::vector<OpticalFlowTripleTracePtr> CreateOpticalFlowTrace(
+        const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList, int trackThd);
 };
 
 }  // namespace ns_ikalibr

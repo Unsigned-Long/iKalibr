@@ -46,7 +46,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-void CalibSolver::InitSensorInertialAlign() {
+void CalibSolver::InitSensorInertialAlign() const {
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
     /**

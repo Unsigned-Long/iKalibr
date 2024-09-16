@@ -43,7 +43,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-void CalibSolver::InitSO3Spline() {
+void CalibSolver::InitSO3Spline() const {
     /**
      * this function would initialize the rotation spline, as well as the extrinsic rotations and
      * time offsets between multiple imus, if they are integrated
