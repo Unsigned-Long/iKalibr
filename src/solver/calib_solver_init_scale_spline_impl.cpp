@@ -42,7 +42,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-void CalibSolver::InitScaleSpline() {
+void CalibSolver::InitScaleSpline() const {
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
 
     spdlog::info("performing scale spline recovery...");
@@ -109,6 +109,33 @@ void CalibSolver::InitScaleSpline() {
                     Eigen::Vector3d LIN_VEL_BrToWInW =
                         SO3_BrToW * SO3_DnToBr * vel -
                         Sophus::SO3d::hat(ANG_VEL_BrToWInW) * (SO3_BrToW * POS_DnInBr);
+
+                    estimator->AddLinearScaleConstraint<VelDeriv>(
+                        timeByBr,          // time stamped the reference imu
+                        LIN_VEL_BrToWInW,  // the linear velocity
+                        optOption,         // the optimization option
+                        weight);           // the weigh
+                }
+            }
+
+            // camera-derived velocities
+            for (const auto &[camTopic, bodyFrameVels] : _initAsset->velCamBodyFrameVels) {
+                constexpr double weight = 10.0;
+                double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(camTopic);
+                const auto &SO3_CmToBr = _parMagr->EXTRI.SO3_CmToBr.at(camTopic);
+                const Eigen::Vector3d &POS_CmInBr = _parMagr->EXTRI.POS_CmInBr.at(camTopic);
+
+                for (const auto &[frame, vel] : bodyFrameVels) {
+                    double timeByBr = frame->GetTimestamp() + TO_CmToBr;
+                    if (!so3Spline.TimeStampInRange(timeByBr)) {
+                        continue;
+                    }
+
+                    auto SO3_BrToW = so3Spline.Evaluate(timeByBr);
+                    auto ANG_VEL_BrToWInW = SO3_BrToW * so3Spline.VelocityBody(timeByBr);
+                    Eigen::Vector3d LIN_VEL_BrToWInW =
+                        SO3_BrToW * SO3_CmToBr * vel -
+                        Sophus::SO3d::hat(ANG_VEL_BrToWInW) * (SO3_BrToW * POS_CmInBr);
 
                     estimator->AddLinearScaleConstraint<VelDeriv>(
                         timeByBr,          // time stamped the reference imu

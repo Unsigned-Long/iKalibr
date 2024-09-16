@@ -291,7 +291,7 @@ protected:
      * one of three kinds of linear scale spline, i.e., linear acceleration, linear velocity, and
      * translation splines, would be recovered
      */
-    void InitScaleSpline();
+    void InitScaleSpline() const;
 
     /**
      * preparation for the final batch optimization
