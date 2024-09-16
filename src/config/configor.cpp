@@ -111,13 +111,13 @@ const std::uint8_t Configor::Prior::LiDARDataAssociate::MapDepthLevels = 16;
 const int Configor::Prior::LiDARDataAssociate::PointToSurfelCountInScan = 200;
 
 // the loss function used for radar factor (m/s) (on the direction of target)
-const double Configor::Prior::LossForRadarFactor = 0.1;
+const double Configor::Prior::LossForRadarDopplerFactor = 0.1;
 // the loss function used for lidar factor (m)
-const double Configor::Prior::LossForLiDARFactor = 0.02;
+const double Configor::Prior::LossForPointToSurfelFactor = 0.02;
 // the loss function used for visual reprojection factor (pixel)
-const double Configor::Prior::LossForCameraFactor = 2.0;
-// the loss function used for rgbd velocity factor (pixel) (on the image pixel plane)
-const double Configor::Prior::LossForRGBDFactor = 50.0;
+const double Configor::Prior::LossForReprojFactor = 2.0;
+// the loss function used for visual optical flow factor (pixel) (on the image pixel plane)
+const double Configor::Prior::LossForOpticalFlowFactor = 50.0;
 
 bool Configor::Prior::OptTemporalParams = {};
 
@@ -266,11 +266,12 @@ void Configor::PrintMainFields() {
         DESC_FIELD(Prior::NDTLiDAROdometer::Resolution),
         DESC_FIELD(Prior::NDTLiDAROdometer::KeyFrameDownSample),
         DESC_FIELD(Prior::LiDARDataAssociate::PointToSurfelMax),
-        DESC_FIELD(Prior::LiDARDataAssociate::PlanarityMin), DESC_FIELD(Prior::LossForRadarFactor),
-        DESC_FIELD(Prior::LossForLiDARFactor), DESC_FIELD(Prior::LossForCameraFactor),
-        DESC_FIELD(Prior::LossForRGBDFactor), DESC_FIELD(Preference::UseCudaInSolving),
-        "Preference::OutputDataFormat", Preference::OutputDataFormatStr, "Preference::Outputs",
-        GetOptString(Preference::Outputs), DESC_FIELD(Preference::ThreadsToUse));
+        DESC_FIELD(Prior::LiDARDataAssociate::PlanarityMin),
+        DESC_FIELD(Prior::LossForRadarDopplerFactor), DESC_FIELD(Prior::LossForPointToSurfelFactor),
+        DESC_FIELD(Prior::LossForReprojFactor), DESC_FIELD(Prior::LossForOpticalFlowFactor),
+        DESC_FIELD(Preference::UseCudaInSolving), "Preference::OutputDataFormat",
+        Preference::OutputDataFormatStr, "Preference::Outputs", GetOptString(Preference::Outputs),
+        DESC_FIELD(Preference::ThreadsToUse));
 
 #undef DESC_FIELD
 #undef DESC_FORMAT

@@ -44,6 +44,7 @@
 #include "calib/estimator.h"
 #include "sensor/sensor_model.h"
 #include "factor/data_correspondence.h"
+#include "core/optical_flow_trace.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -218,6 +219,46 @@ void CalibSolver::InitPrepVelCameraInertialAlign() const {
             topic,
             // create the optical flow trace
             CreateOpticalFlowTrace(trackInfoList, trackThd));
+    }
+
+    /**
+     * resort the optical flow correspondences based on the camera frame index
+     */
+    std::map<std::string, std::map<CameraFrame::Ptr, std::vector<OpticalFlowCorr::Ptr>>>
+        opticalFlowInFrame;
+    for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
+        const auto &traceVec = _dataMagr->GetVisualOpticalFlowTrace(topic);
+        // the rs exposure factor to compute the real visual timestamps
+        const auto &rsExpFactor =
+            CameraModel::RSCameraExposureFactor(EnumCast::stringToEnum<CameraModelType>(
+                Configor::DataStream::CameraTopics.at(topic).Type));
+        auto &curOpticalFlowInFrame = opticalFlowInFrame[topic];
+
+        for (const auto &trace : traceVec) {
+            auto midCamFrame = trace->GetMidCameraFrame();
+            // the depth information stored in 'OpticalFlowCorr' is invalid currently
+            const auto &corr = trace->CreateOpticalFlowCorr(rsExpFactor);
+            curOpticalFlowInFrame[midCamFrame].emplace_back(corr);
+
+#define VISUALIZE_OPTICAL_FLOW_TRACE 0
+#if VISUALIZE_OPTICAL_FLOW_TRACE
+            const double readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
+            if (Eigen::Vector2d vel = corr->MidPointVel(readout);  // the pixel velocity
+                vel.norm() > 2.0 * Configor::Prior::LossForOpticalFlowFactor) {
+                // show the visual pixel trace image (features, mid-point pixel velocity)
+                auto img = trace->CreateOpticalFlowMat(_parMagr->INTRI.Camera.at(topic),
+                                                       corr->MidPointVel(readout));
+                Eigen::Vector2d mp = corr->MidPoint();
+                const auto filename = fmt::format(
+                    "{}/{}-{}-{}.png", Configor::DataStream::DebugPath, corr->frame->GetId(),
+                    static_cast<int>(mp(0)), static_cast<int>(mp(1)));
+                // save this image to disk
+                // cv::imwrite(filename, img);
+                cv::imshow("img", img);
+                cv::waitKey(0);
+            }
+#endif
+        }
     }
 
     spdlog::warn("this module is being developed!!!");

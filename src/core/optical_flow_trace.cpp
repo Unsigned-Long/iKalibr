@@ -81,6 +81,7 @@ OpticalFlowCorr::Ptr OpticalFlowTripleTrace::CreateOpticalFlowCorr(
             } else {
                 corr->depth = intri->ActualDepth(rawDepth);
             }
+            corr->invDepth = corr->depth > 1E-3 ? 1.0 / corr->depth : -1.0;
         }
     }
     return corr;

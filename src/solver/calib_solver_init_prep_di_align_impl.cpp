@@ -235,20 +235,21 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
             // create the optical flow trace
             CreateOpticalFlowTrace(trackInfoList, trackThd));
     }
-    // topic, camera frame, body-frame velocity
-    auto &rgbdBodyFrameVels = _initAsset->rgbdBodyFrameVels;
+
+    /**
+     * resort the optical flow correspondences based on the camera frame index
+     */
+    std::map<std::string, std::map<CameraFrame::Ptr, std::vector<OpticalFlowCorr::Ptr>>>
+        opticalFlowInFrame;
     for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
         const auto &traceVec = _dataMagr->GetVisualOpticalFlowTrace(topic);
-        spdlog::info("estimate RGBD-derived linear velocities for '{}'...", topic);
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
         // the rs exposure factor to compute the real visual timestamps
         const auto &rsExpFactor =
             CameraModel::RSCameraExposureFactor(EnumCast::stringToEnum<CameraModelType>(
                 Configor::DataStream::RGBDTopics.at(topic).Type));
+        auto &curOpticalFlowInFrame = opticalFlowInFrame[topic];
 
-        // reorganize rgbd-traceVec, store them by frame index
-        const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
-        std::map<CameraFrame::Ptr, std::vector<OpticalFlowCorr::Ptr>> opticalFlowInFrame;
         for (const auto &trace : traceVec) {
             auto midCamFrame = trace->GetMidCameraFrame();
             // we use actual depth here (intrinsics is not nullptr)
@@ -257,12 +258,12 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
                 continue;
             }
             // a valid depth
-            opticalFlowInFrame[midCamFrame].emplace_back(corr);
+            curOpticalFlowInFrame[midCamFrame].emplace_back(corr);
 
 #define VISUALIZE_OPTICAL_FLOW_TRACE 0
 #if VISUALIZE_OPTICAL_FLOW_TRACE
             if (Eigen::Vector2d vel = corr->MidPointVel(readout);  // the pixel velocity
-                vel.norm() > Configor::Prior::LossForRGBDFactor) {
+                vel.norm() > 2.0 * Configor::Prior::LossForOpticalFlowFactor) {
                 // show the visual pixel trace image (features, mid-point pixel velocity)
                 auto img = trace->CreateOpticalFlowMat(_parMagr->INTRI.RGBD.at(topic)->intri,
                                                        corr->MidPointVel(readout));
@@ -277,12 +278,24 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
             }
 #endif
         }
+    }
+
+    /**
+     * for each camera frame of each topic, we estimate the linear velocity, and store them in
+     * 'rgbdBodyFrameVels' [topic, camera frame, body-frame velocity]
+     */
+    auto &rgbdBodyFrameVels = _initAsset->rgbdBodyFrameVels;
+    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+        spdlog::info("estimate RGBD-derived linear velocities for '{}'...", topic);
+
+        // reorganize rgbd-traceVec, store them by frame index
+        const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
 
         // estimate rgbd-derived linear velocities for each frame
         const auto &rgbdIntri = _parMagr->INTRI.RGBD.at(topic);
         const double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
         const Sophus::SO3d &SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
-        for (const auto &[frame, ofVec] : opticalFlowInFrame) {
+        for (const auto &[frame, ofVec] : opticalFlowInFrame.at(topic)) {
             const double timeByBr = frame->GetTimestamp() + TO_DnToBr;
             // at least two measurements are required, here we up the ante
             if (timeByBr < st || timeByBr > et || ofVec.size() < 5) {

@@ -615,7 +615,7 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
             // const double depth = intri->ActualDepth(corr->depth);
             // corr->weight = 1.0 / (depth > 1E-3 ? depth : 1.0);
             const double pVelNorm = corr->MidPointVel(readout).norm();
-            corr->weight = pVelNorm / (pVelNorm + Configor::Prior::LossForRGBDFactor);
+            corr->weight = pVelNorm / (pVelNorm + Configor::Prior::LossForOpticalFlowFactor);
 
             curCorrs.push_back(corr);
         }

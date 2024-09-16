@@ -556,7 +556,7 @@ void Estimator::AddRadarInertialAlignment(const std::vector<IMUFrame::Ptr> &data
     // create a cost function
     auto helper = RadarInertialAlignHelper<Configor::Prior::SplineOrder>(
         so3Spline, sRadarAry, eRadarAry, TO_RjToBr, *velVecMat,
-        Configor::Prior::LossForRadarFactor);
+        Configor::Prior::LossForRadarDopplerFactor);
     auto costFunc = RadarInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
 
     costFunc->AddParameterBlock(3);
@@ -1510,8 +1510,8 @@ void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
 
     // pass to problem, the loss function factor is the same as
     // 'Configor::Prior::LossForRGBDFactor', as this model is the same as rgbd velocity model
-    this->AddResidualBlock(costFunc, new ceres::HuberLoss(Configor::Prior::LossForRGBDFactor),
-                           paramBlockVec);
+    this->AddResidualBlock(
+        costFunc, new ceres::HuberLoss(Configor::Prior::LossForOpticalFlowFactor), paramBlockVec);
 
     // the 'GRAVITY_MANIFOLD' manifold is used to make the vel vector keep const norm, as we only
     // estimate its directory
