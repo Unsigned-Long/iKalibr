@@ -74,11 +74,21 @@ protected:
     constexpr static std::array<Opt, 2> MultiPosCameraIMU = {
         // first batch optimization
         Opt::OPT_SO3_SPLINE | Opt::OPT_SCALE_SPLINE | Opt::OPT_GRAVITY | Opt::OPT_SO3_CmToBr |
-            Opt::OPT_POS_CmInBr | Opt::OPT_TO_CmToBr | Opt::OPT_VISUAL_INV_DEPTH,
+            Opt::OPT_POS_CmInBr | Opt::OPT_TO_CmToBr | Opt::OPT_VISUAL_DEPTH,
         // second batch optimization (append to last)
         Opt::OPT_SO3_BiToBr | Opt::OPT_POS_BiInBr | Opt::OPT_TO_BiToBr |
             Opt::OPT_RS_CAM_READOUT_TIME | Opt::OPT_CAM_FOCAL_LEN | Opt::OPT_CAM_PRINCIPAL_POINT |
             Opt::OPT_ACCE_BIAS | Opt::OPT_GYRO_BIAS};
+
+    constexpr static std::array<Opt, 2> MultiVelCameraIMU = {
+        // first batch optimization
+        Opt::OPT_SO3_SPLINE | Opt::OPT_SCALE_SPLINE | Opt::OPT_GRAVITY | Opt::OPT_SO3_CmToBr |
+            Opt::OPT_POS_CmInBr | Opt::OPT_TO_CmToBr |
+            Opt::OPT_VISUAL_DEPTH,  // we always estimate the depth for vel-derived optical cameras
+        // second batch optimization (append to last)
+        Opt::OPT_SO3_BiToBr | Opt::OPT_POS_BiInBr | Opt::OPT_TO_BiToBr |
+            Opt::OPT_RS_CAM_READOUT_TIME | Opt::OPT_CAM_FOCAL_LEN | Opt::OPT_CAM_PRINCIPAL_POINT |
+            Opt::OPT_ACCE_BIAS | Opt::OPT_GYRO_BIAS | Opt::OPT_VISUAL_DEPTH};
 
     constexpr static std::array<Opt, 2> MultiRGBDIMU = {
         // first batch optimization
@@ -87,7 +97,7 @@ protected:
         // second batch optimization (append to last)
         Opt::OPT_SO3_BiToBr | Opt::OPT_POS_BiInBr | Opt::OPT_TO_BiToBr |
             Opt::OPT_RS_CAM_READOUT_TIME | Opt::OPT_CAM_FOCAL_LEN | Opt::OPT_CAM_PRINCIPAL_POINT |
-            Opt::OPT_GYRO_BIAS | Opt::OPT_ACCE_BIAS | Opt::OPT_RGBD_DEPTH};
+            Opt::OPT_GYRO_BIAS | Opt::OPT_ACCE_BIAS | Opt::OPT_VISUAL_DEPTH};
 
 public:
     static std::vector<Opt> GetOptions() {
@@ -105,8 +115,7 @@ public:
                 options = MergeOptions(options, AryToVecWithAppend(MultiPosCameraIMU));
             }
             if (Configor::IsVelCameraIntegrated()) {
-                // todo: vel camera
-                // options = MergeOptions(options, AryToVecWithAppend(MultiCameraIMU));
+                options = MergeOptions(options, AryToVecWithAppend(MultiVelCameraIMU));
             }
             if (Configor::IsRadarIntegrated()) {
                 options = MergeOptions(options, AryToVecWithAppend(MultiRadarIMU));

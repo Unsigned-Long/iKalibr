@@ -744,7 +744,7 @@ void Estimator::AddVisualReprojection(const VisualReProjCorr::Ptr &visualCorr,
         this->SetParameterLowerBound(globalScale, 0, 1E-3);
     }
 
-    if (!IsOptionWith(Opt::OPT_VISUAL_INV_DEPTH, option)) {
+    if (!IsOptionWith(Opt::OPT_VISUAL_DEPTH, option)) {
         this->SetParameterBlockConstant(invDepth);
     } else {
         // set bound
@@ -929,9 +929,9 @@ void Estimator::AddRGBDVelocityConstraint(const OpticalFlowCorr::Ptr &velCorr,
     }
 
     // two cases we do not estimate the depth:
-    // 1. without 'Opt::OPT_RGBD_DEPTH' option
+    // 1. without 'Opt::OPT_VISUAL_DEPTH' option
     // 2. the rgbd camera moves too slow, and without depth observability
-    if (!IsOptionWith(Opt::OPT_RGBD_DEPTH, option) || !velCorr->withDepthObservability) {
+    if (!IsOptionWith(Opt::OPT_VISUAL_DEPTH, option) || !velCorr->withDepthObservability) {
         if constexpr (IsInvDepth) {
             this->SetParameterBlockConstant(&velCorr->invDepth);
         } else {

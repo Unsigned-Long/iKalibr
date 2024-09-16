@@ -156,7 +156,7 @@ void CalibSolver::Process() {
             // visual reprojection data association for cameras
             DataAssociationForPosCameras(),
             // visual velocity creation for rgbd cameras
-            DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_RGBD_DEPTH, options.at(i))));
+            DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_VISUAL_DEPTH, options.at(i))));
 
         /**
          * update the viewer and output the spatiotemporal parameters after this batch optimization
@@ -212,7 +212,7 @@ void CalibSolver::Process() {
             // visual reprojection data association for cameras
             DataAssociationForCameras(),
             // visual velocity creation for rgbd cameras
-            {},  // DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_RGBD_DEPTH,
+            {},  // DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_VISUAL_DEPTH,
                  // options.back())),
             // point to surfel data association for RGBDs
             // attention!!! if depth images are not well-matched with rgb images
