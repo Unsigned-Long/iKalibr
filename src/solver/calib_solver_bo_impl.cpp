@@ -45,8 +45,9 @@ namespace ns_ikalibr {
 CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     OptOption optOption,
     const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &lidarPtsCorrs,
-    const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualCorrs,
+    const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualReprojCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &rgbdCorrs,
+    const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &visualVelCorrs,
     const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>> &rgbdPtsCorrs) {
     // a lambda function to obtain the string of current optimization option
     auto GetOptString = [](OptOption opt) -> std::string {
@@ -86,7 +87,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
 
     auto estimator = Estimator::Create(_splines, _parMagr);
     auto visualGlobalScale = std::make_shared<double>(1.0);
-    constexpr bool RGBD_EST_INV_DEPTH = false;
+    constexpr bool OPTICAL_FLOW_EST_INV_DEPTH = false;
 
     switch (GetScaleType()) {
         case TimeDeriv::LIN_ACCE_SPLINE: {
@@ -112,7 +113,13 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddGyroFactor(estimator, topic, optOption);
             }
             for (const auto &[topic, corrs] : rgbdCorrs) {
-                this->AddRGBDVelocityFactor<TimeDeriv::LIN_VEL_SPLINE, RGBD_EST_INV_DEPTH>(
+                this->AddRGBDOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
+                                               OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+            }
+            for (const auto &[topic, corrs] : visualVelCorrs) {
+                this->AddVisualOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
+                                                 OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
         } break;
@@ -125,7 +132,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddLiDARPointToSurfelFactor<TimeDeriv::LIN_POS_SPLINE>(estimator, topic,
                                                                              corrs, optOption);
             }
-            for (const auto &[topic, corrs] : visualCorrs) {
+            for (const auto &[topic, corrs] : visualReprojCorrs) {
                 this->AddVisualReprojectionFactor<TimeDeriv::LIN_POS_SPLINE>(
                     estimator, topic, corrs, visualGlobalScale.get(),
                     RefineReadoutTimeOptForCameras(topic, optOption));
@@ -138,7 +145,13 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddGyroFactor(estimator, topic, optOption);
             }
             for (const auto &[topic, corrs] : rgbdCorrs) {
-                this->AddRGBDVelocityFactor<TimeDeriv::LIN_POS_SPLINE, RGBD_EST_INV_DEPTH>(
+                this->AddRGBDOpticalFlowFactor<TimeDeriv::LIN_POS_SPLINE,
+                                               OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+            }
+            for (const auto &[topic, corrs] : visualVelCorrs) {
+                this->AddVisualOpticalFlowFactor<TimeDeriv::LIN_POS_SPLINE,
+                                                 OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
             if (rgbdPtsCorrs != std::nullopt) {
@@ -164,7 +177,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     AlignStatesToGravity();
 
     // for better map consistency in visualization, we update the veta every time
-    for (const auto &[topic, reprojCorrVec] : visualCorrs) {
+    for (const auto &[topic, reprojCorrVec] : visualReprojCorrs) {
         auto &veta = _dataMagr->GetSfMData(topic);
         auto &intri = _parMagr->INTRI.Camera.at(topic);
         // compute the pose sequence based on the estimated bsplines and extrinsics
@@ -194,7 +207,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     // update depth information for rgbds
     for (const auto &[topic, corrs] : rgbdCorrs) {
         for (const auto &corr : corrs) {
-            if constexpr (RGBD_EST_INV_DEPTH) {
+            if constexpr (OPTICAL_FLOW_EST_INV_DEPTH) {
                 // the inverse depth is estimated, we update the depth
                 corr->depth = corr->invDepth > 1E-3 ? 1.0 / corr->invDepth : -1.0;
             } else {
@@ -209,7 +222,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     backUp->estimator = estimator;
     backUp->visualGlobalScale = visualGlobalScale;
     backUp->lidarCorrs = lidarPtsCorrs;
-    backUp->visualCorrs = visualCorrs;
+    backUp->visualCorrs = visualReprojCorrs;
     backUp->rgbdCorrs = rgbdCorrs;
     // the maps not back up
     backUp->lidarMap = nullptr;

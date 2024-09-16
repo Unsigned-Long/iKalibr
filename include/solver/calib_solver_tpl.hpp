@@ -111,14 +111,26 @@ void CalibSolver::AddVisualReprojectionFactor(Estimator::Ptr &estimator,
 }
 
 template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-void CalibSolver::AddRGBDVelocityFactor(Estimator::Ptr &estimator,
-                                        const std::string &rgbdTopic,
-                                        const std::vector<OpticalFlowCorr::Ptr> &corrs,
-                                        Estimator::Opt option) {
+void CalibSolver::AddRGBDOpticalFlowFactor(Estimator::Ptr &estimator,
+                                           const std::string &rgbdTopic,
+                                           const std::vector<OpticalFlowCorr::Ptr> &corrs,
+                                           Estimator::Opt option) {
     double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
     for (const auto &corr : corrs) {
-        estimator->AddRGBDVelocityConstraint<type, IsInvDepth>(corr, rgbdTopic, option,
-                                                               weight * corr->weight);
+        estimator->AddRGBDOpticalFlowConstraint<type, IsInvDepth>(corr, rgbdTopic, option,
+                                                                  weight * corr->weight);
+    }
+}
+
+template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+void CalibSolver::AddVisualOpticalFlowFactor(Estimator::Ptr &estimator,
+                                             const std::string &camTopic,
+                                             const std::vector<OpticalFlowCorr::Ptr> &corrs,
+                                             Estimator::Opt option) {
+    double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
+    for (const auto &corr : corrs) {
+        estimator->AddVisualOpticalFlowConstraint<type, IsInvDepth>(corr, camTopic, option,
+                                                                    weight * corr->weight);
     }
 }
 }  // namespace ns_ikalibr

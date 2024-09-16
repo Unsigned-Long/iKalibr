@@ -41,6 +41,7 @@
 #include "factor/point_to_surfel_factor.hpp"
 #include "factor/radar_factor.hpp"
 #include "factor/rgbd_velocity_factor.hpp"
+#include "factor/visual_optical_flow_factor.hpp"
 #include "factor/visual_reproj_factor.hpp"
 #include "util/utils_tpl.hpp"
 
@@ -758,10 +759,10 @@ void Estimator::AddVisualReprojection(const VisualReProjCorr::Ptr &visualCorr,
  *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH_INFO ]
  */
 template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-void Estimator::AddRGBDVelocityConstraint(const OpticalFlowCorr::Ptr &velCorr,
-                                          const std::string &topic,
-                                          Opt option,
-                                          double weight) {
+void Estimator::AddRGBDOpticalFlowConstraint(const OpticalFlowCorr::Ptr &velCorr,
+                                             const std::string &topic,
+                                             Opt option,
+                                             double weight) {
     auto &intri = parMagr->INTRI.RGBD.at(topic);
     // invalid depth
     if (intri->ActualDepth(velCorr->depth) < 1E-3) {
@@ -817,7 +818,7 @@ void Estimator::AddRGBDVelocityConstraint(const OpticalFlowCorr::Ptr &velCorr,
 
     static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_VEL>();
     // create a cost function
-    auto costFunc = RGBDVelocityFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth>::Create(
+    auto costFunc = RGBDOpticalFlowFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth>::Create(
         so3Meta, scaleMeta, velCorr, weight);
 
     // so3 knots param block [each has four sub params]
@@ -932,6 +933,178 @@ void Estimator::AddRGBDVelocityConstraint(const OpticalFlowCorr::Ptr &velCorr,
     // 1. without 'Opt::OPT_VISUAL_DEPTH' option
     // 2. the rgbd camera moves too slow, and without depth observability
     if (!IsOptionWith(Opt::OPT_VISUAL_DEPTH, option) || !velCorr->withDepthObservability) {
+        if constexpr (IsInvDepth) {
+            this->SetParameterBlockConstant(&velCorr->invDepth);
+        } else {
+            this->SetParameterBlockConstant(&velCorr->depth);
+        }
+    }
+}
+
+/**
+ * param blocks:
+ * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+ *   READOUT_TIME | FX | FY | CX | CY | DEPTH ]
+ */
+template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+void Estimator::AddVisualOpticalFlowConstraint(const OpticalFlowCorr::Ptr &velCorr,
+                                               const std::string &topic,
+                                               Opt option,
+                                               double weight) {
+    // invalid depth
+    if (velCorr->depth < 1E-3) {
+        return;
+    }
+
+    auto &intri = parMagr->INTRI.Camera.at(topic);
+    const double TO_PADDING = Configor::Prior::TimeOffsetPadding;
+    const double RT_PADDING = Configor::Prior::ReadoutTimePadding;
+    double *RS_READOUT = &parMagr->TEMPORAL.RS_READOUT.at(topic);
+    double *TO_CmToBr = &parMagr->TEMPORAL.TO_CmToBr.at(topic);
+
+    if (velCorr->MidPointVel(*RS_READOUT).norm() < Configor::Prior::LossForOpticalFlowFactor) {
+        // small pixel velocity
+        return;
+    }
+
+    // prepare metas for splines
+    SplineMetaType so3Meta, scaleMeta;
+
+    // readout time equals to 0.0 means the raw middle time
+    double minTime = velCorr->MidPointTime(0.0);
+    double maxTime = velCorr->MidPointTime(0.0);
+
+    // different relative control points finding [single vs. range]
+    if (IsOptionWith(Opt::OPT_TO_CmToBr, option)) {
+        minTime -= TO_PADDING;
+        maxTime += TO_PADDING;
+    } else {
+        minTime += *TO_CmToBr;
+        maxTime += *TO_CmToBr;
+    }
+
+    const double midRDFactor = velCorr->MidReadoutFactor();
+    if (IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option)) {
+        minTime += std::min(midRDFactor * 0.0, midRDFactor * RT_PADDING);
+        maxTime += std::max(midRDFactor * 0.0, midRDFactor * RT_PADDING);
+    } else {
+        minTime += midRDFactor * *RS_READOUT;
+        maxTime += midRDFactor * *RS_READOUT;
+    }
+
+    // invalid time stamp
+    if (!splines->TimeInRangeForSo3(minTime, Configor::Preference::SO3_SPLINE) ||
+        !splines->TimeInRangeForSo3(maxTime, Configor::Preference::SO3_SPLINE) ||
+        !splines->TimeInRangeForRd(minTime, Configor::Preference::SCALE_SPLINE) ||
+        !splines->TimeInRangeForRd(maxTime, Configor::Preference::SCALE_SPLINE)) {
+        return;
+    }
+
+    std::pair<double, double> timePair = {minTime, maxTime};
+    splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE, {timePair}, so3Meta);
+    splines->CalculateRdSplineMeta(Configor::Preference::SCALE_SPLINE, {timePair}, scaleMeta);
+
+    static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_VEL>();
+    // create a cost function
+    auto costFunc =
+        VisualOpticalFlowFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth>::Create(
+            so3Meta, scaleMeta, velCorr, weight);
+
+    // so3 knots param block [each has four sub params]
+    for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
+        costFunc->AddParameterBlock(4);
+    }
+    // pos knots param block [each has three sub params]
+    for (int i = 0; i < static_cast<int>(scaleMeta.NumParameters()); ++i) {
+        costFunc->AddParameterBlock(3);
+    }
+
+    costFunc->AddParameterBlock(4);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+
+    // fx, fy, cx, cy
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+
+    // alpha, beta, depth
+    costFunc->AddParameterBlock(1);
+
+    costFunc->SetNumResiduals(2);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // so3 knots param block
+    AddSo3KnotsData(paramBlockVec, splines->GetSo3Spline(Configor::Preference::SO3_SPLINE), so3Meta,
+                    !IsOptionWith(Opt::OPT_SO3_SPLINE, option));
+
+    // lin acce knots
+    AddRdKnotsData(paramBlockVec, splines->GetRdSpline(Configor::Preference::SCALE_SPLINE),
+                   scaleMeta, !IsOptionWith(Opt::OPT_SCALE_SPLINE, option));
+
+    auto SO3_CmToBr = parMagr->EXTRI.SO3_CmToBr.at(topic).data();
+    paramBlockVec.push_back(SO3_CmToBr);
+
+    auto POS_CmInBr = parMagr->EXTRI.POS_CmInBr.at(topic).data();
+    paramBlockVec.push_back(POS_CmInBr);
+
+    paramBlockVec.push_back(TO_CmToBr);
+    paramBlockVec.push_back(RS_READOUT);
+
+    paramBlockVec.push_back(intri->FXAddress());
+    paramBlockVec.push_back(intri->FYAddress());
+    paramBlockVec.push_back(intri->CXAddress());
+    paramBlockVec.push_back(intri->CYAddress());
+
+    paramBlockVec.push_back(&velCorr->depth);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc,
+                           new ceres::HuberLoss(Configor::Prior::LossForOpticalFlowFactor * weight),
+                           paramBlockVec);
+    this->SetManifold(SO3_CmToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_SO3_CmToBr, option)) {
+        this->SetParameterBlockConstant(SO3_CmToBr);
+    }
+
+    if (!IsOptionWith(Opt::OPT_POS_CmInBr, option)) {
+        this->SetParameterBlockConstant(POS_CmInBr);
+    }
+
+    if (!IsOptionWith(Opt::OPT_TO_CmToBr, option)) {
+        this->SetParameterBlockConstant(TO_CmToBr);
+    } else {
+        // set bound
+        this->SetParameterLowerBound(TO_CmToBr, 0, -TO_PADDING);
+        this->SetParameterUpperBound(TO_CmToBr, 0, TO_PADDING);
+    }
+
+    if (!IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option)) {
+        this->SetParameterBlockConstant(RS_READOUT);
+    } else {
+        // set bound
+        this->SetParameterLowerBound(RS_READOUT, 0, 0.0);
+        this->SetParameterUpperBound(RS_READOUT, 0, RT_PADDING);
+    }
+
+    if (!IsOptionWith(Opt::OPT_CAM_FOCAL_LEN, option)) {
+        this->SetParameterBlockConstant(intri->FXAddress());
+        this->SetParameterBlockConstant(intri->FYAddress());
+    }
+
+    if (!IsOptionWith(Opt::OPT_CAM_PRINCIPAL_POINT, option)) {
+        this->SetParameterBlockConstant(intri->CXAddress());
+        this->SetParameterBlockConstant(intri->CYAddress());
+    }
+
+    // we always estimate the depth of tracked features
+    // this->SetParameterBlockConstant(&velCorr->depth);
+    if (!IsOptionWith(Opt::OPT_VISUAL_DEPTH, option)) {
         if constexpr (IsInvDepth) {
             this->SetParameterBlockConstant(&velCorr->invDepth);
         } else {

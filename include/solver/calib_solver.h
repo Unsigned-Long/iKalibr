@@ -351,10 +351,16 @@ protected:
         int ptsCountInEachScan) const;
 
     /**
-     * perform data association for cameras
+     * perform data association for pos-derived cameras
      * @return the visual reprojection correspondences for each optical camera
      */
     std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> DataAssociationForPosCameras() const;
+
+    /**
+     * perform data association for vel-derived cameras
+     * @return the optical flow correspondences for each optical camera
+     */
+    std::map<std::string, std::vector<OpticalFlowCorrPtr>> DataAssociationForVelCameras() const;
 
     /**
      * perform data association for RGBD cameras
@@ -384,16 +390,17 @@ protected:
      * @param optOption the option for optimization, deciding which variable (state) would be
      * estimated
      * @param lidarPtsCorrs the point-to-surfel correspondences for LiDARs
-     * @param visualCorrs the visual reprojection correspondence for cameras
+     * @param visualReprojCorrs the visual reprojection correspondence for cameras
      * @param rgbdCorrs the optical flow correspondence for RGBDs
      * @param rgbdPtsCorrs the point-to-surfel correspondences for RGBDs, its optional
-     * @return the back up data from batch optimization
+     * @return the backup data from batch optimization
      */
     BackUp::Ptr BatchOptimization(
         OptOption optOption,
         const std::map<std::string, std::vector<PointToSurfelCorrPtr>> &lidarPtsCorrs,
-        const std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> &visualCorrs,
+        const std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> &visualReprojCorrs,
         const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &rgbdCorrs,
+        const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &visualVelCorrs,
         const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>>
             &rgbdPtsCorrs = std::nullopt);
 
@@ -544,10 +551,25 @@ protected:
      * @param option the option for the optimization
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-    static void AddRGBDVelocityFactor(EstimatorPtr &estimator,
+    static void AddRGBDOpticalFlowFactor(EstimatorPtr &estimator,
                                       const std::string &rgbdTopic,
                                       const std::vector<OpticalFlowCorrPtr> &corrs,
                                       OptOption option);
+
+    /**
+     * add optical flow factors for the optical camera to the estimator
+     * @tparam type the linear scale spline type
+     * @tparam IsInvDepth estimate the depth or the inverse depth
+     * @param estimator the estimator
+     * @param camTopic the ros topic of this camera
+     * @param corrs the optical flow correspondences
+     * @param option the option for the optimization
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    static void AddVisualOpticalFlowFactor(EstimatorPtr &estimator,
+                                        const std::string &camTopic,
+                                        const std::vector<OpticalFlowCorrPtr> &corrs,
+                                        OptOption option);
 
     /**
      * store images to the disk for structure from motion (SfM)

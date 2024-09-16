@@ -327,10 +327,21 @@ public:
      *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH_INFO ]
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-    void AddRGBDVelocityConstraint(const OpticalFlowCorrPtr &velCorr,
-                                   const std::string &topic,
-                                   Opt option,
-                                   double weight);
+    void AddRGBDOpticalFlowConstraint(const OpticalFlowCorrPtr &velCorr,
+                                      const std::string &topic,
+                                      Opt option,
+                                      double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+     *   READOUT_TIME | FX | FY | CX | CY | DEPTH ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddVisualOpticalFlowConstraint(const OpticalFlowCorrPtr &velCorr,
+                                        const std::string &topic,
+                                        Opt option,
+                                        double weight);
 
     void SetRefIMUParamsConstant();
 

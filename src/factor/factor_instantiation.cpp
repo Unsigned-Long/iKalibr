@@ -85,12 +85,12 @@ template struct RadarInertialRotRoughAlignFactor<Configor::Prior::SplineOrder>;
 template struct RGBDInertialAlignHelper<Configor::Prior::SplineOrder>;
 template struct RGBDInertialAlignFactor<Configor::Prior::SplineOrder>;
 
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 2, true>;
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 2, false>;
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 1, true>;
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 1, false>;
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 0, true>;
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 0, false>;
+template struct RGBDOpticalFlowFactor<Configor::Prior::SplineOrder, 2, true>;
+template struct RGBDOpticalFlowFactor<Configor::Prior::SplineOrder, 2, false>;
+template struct RGBDOpticalFlowFactor<Configor::Prior::SplineOrder, 1, true>;
+template struct RGBDOpticalFlowFactor<Configor::Prior::SplineOrder, 1, false>;
+template struct RGBDOpticalFlowFactor<Configor::Prior::SplineOrder, 0, true>;
+template struct RGBDOpticalFlowFactor<Configor::Prior::SplineOrder, 0, false>;
 
 template struct SO3Factor<Configor::Prior::SplineOrder>;
 
