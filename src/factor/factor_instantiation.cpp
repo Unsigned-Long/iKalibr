@@ -48,6 +48,10 @@
 #include "factor/visual_inertial_align_factor.hpp"
 #include "factor/visual_reproj_factor.hpp"
 
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
+
 namespace ns_ikalibr {
 template struct HandEyeRotationAlignFactor<Configor::Prior::SplineOrder>;
 

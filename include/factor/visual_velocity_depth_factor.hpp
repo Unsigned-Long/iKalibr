@@ -35,7 +35,9 @@
 #ifndef IKALIBR_VISUAL_VELOCITY_DEPTH_FACTOR_HPP
 #define IKALIBR_VISUAL_VELOCITY_DEPTH_FACTOR_HPP
 
-#include "factor/rgbd_velocity_factor.hpp"
+#include "util/utils.h"
+#include "factor/data_correspondence.h"
+#include "ceres/dynamic_autodiff_cost_function.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -92,7 +94,7 @@ public:
         T DEPTH = sKnots[1][0];
 
         Eigen::Matrix<double, 2, 3> subAMat, subBMat;
-        RGBDVelocityFactor<0, 0>::SubMats<double>(&fx, &fy, &cx, &cy, point, &subAMat, &subBMat);
+        OpticalFlowCorr::SubMats<double>(&fx, &fy, &cx, &cy, point, &subAMat, &subBMat);
 
         Eigen::Vector2<T> pred =
             (1.0 / DEPTH) * subAMat * LIN_VEL_CmToWInCm + subBMat * ANG_VEL_CmToWInCm;

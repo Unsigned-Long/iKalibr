@@ -37,9 +37,7 @@
 #include "calib/estimator.h"
 #include "cereal/types/list.hpp"
 #include "cereal/types/utility.hpp"
-#include "factor/point_to_surfel_factor.hpp"
-#include "factor/rgbd_velocity_factor.hpp"
-#include "factor/visual_reproj_factor.hpp"
+#include "factor/data_correspondence.h"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include "solver/calib_solver.h"
@@ -829,10 +827,6 @@ void CalibSolverIO::SaveVisualReprojectionError() const {
         return;
     }
 
-    using VisualProjFactor =
-        VisualReProjFactor<Configor::Prior::SplineOrder,
-                           TimeDeriv::Deriv<TimeDeriv::LIN_POS_SPLINE, TimeDeriv::LIN_POS>()>;
-
     for (const auto &[topic, corrsVec] : _solver->_backup->visualCorrs) {
         const double TO_CmToBr = _solver->_parMagr->TEMPORAL.TO_CmToBr.at(topic);
         const double READOUT_TIME = _solver->_parMagr->TEMPORAL.RS_READOUT.at(topic);
@@ -876,14 +870,14 @@ void CalibSolverIO::SaveVisualReprojectionError() const {
                 Sophus::SE3d SE3_CmIToCmJ = SE3_CmToBr.inverse() * SE3_BrIToBrJ * SE3_CmToBr;
 
                 Eigen::Vector3d PI;
-                VisualProjFactor::TransformImgToCam<double>(&FX_INV, &FY_INV, &CX, &CY, corr->fi,
+                VisualReProjCorr::TransformImgToCam<double>(&FX_INV, &FY_INV, &CX, &CY, corr->fi,
                                                             &PI);
                 PI *= DEPTH * GLOBAL_SCALE;
 
                 Eigen::Vector3d PJ = SE3_CmIToCmJ * PI;
                 PJ /= PJ(2);
                 Eigen::Vector2d fjPred;
-                VisualProjFactor::TransformCamToImg<double>(&FX, &FY, &CX, &CY, PJ, &fjPred);
+                VisualReProjCorr::TransformCamToImg<double>(&FX, &FY, &CX, &CY, PJ, &fjPred);
 
                 Eigen::Vector2d residuals = fjPred - corr->fj;
                 reprojErrors.push_back(residuals);
@@ -1225,8 +1219,8 @@ void CalibSolverIO::SaveRGBDVelocityError() const {
             const double depth = intri->ActualDepth(corr->depth);
 
             Eigen::Matrix<double, 2, 3> subAMat, subBMat;
-            RGBDVelocityFactor<0, 0>::SubMats<double>(&FX, &FY, &CX, &CY, corr->MidPoint(),
-                                                      &subAMat, &subBMat);
+            OpticalFlowCorr::SubMats<double>(&FX, &FY, &CX, &CY, corr->MidPoint(), &subAMat,
+                                             &subBMat);
             Eigen::Vector2d pred =
                 1.0 / depth * subAMat * LIN_VEL_DnToBr0InDn + subBMat * ANG_VEL_DnToBr0InDn;
 

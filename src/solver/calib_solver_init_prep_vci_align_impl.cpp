@@ -42,6 +42,8 @@
 #include "core/rotation_estimator.h"
 #include "tiny-viewer/object/camera.h"
 #include "calib/estimator.h"
+#include "sensor/sensor_model.h"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

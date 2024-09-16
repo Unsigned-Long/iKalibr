@@ -36,7 +36,7 @@
 #include "calib/calib_param_manager.h"
 #include "opencv2/imgproc.hpp"
 #include "sensor/rgbd.h"
-#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -230,8 +230,8 @@ cv::Mat RGBDVisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame,
         // draw estimated pixel velocity
         {
             Eigen::Matrix<double, 2, 3> subAMat, subBMat;
-            RGBDVelocityFactor<0, 0>::SubMats<double>(&FX, &FY, &CX, &CY, velCorr->MidPoint(),
-                                                      &subAMat, &subBMat);
+            OpticalFlowCorr::SubMats<double>(&FX, &FY, &CX, &CY, velCorr->MidPoint(), &subAMat,
+                                             &subBMat);
             Eigen::Vector2d pred =
                 1.0 / depth * subAMat * LIN_VEL_DnToBr0InDn + subBMat * ANG_VEL_DnToBr0InDn;
 

@@ -37,7 +37,7 @@
 #include "core/pts_association.h"
 #include "calib/calib_param_manager.h"
 #include "sensor/rgbd.h"
-#include "factor/point_to_surfel_factor.hpp"
+#include "factor/data_correspondence.h"
 #include "tiny-viewer/object/landmark.h"
 #include "tiny-viewer/object/camera.h"
 #include "tiny-viewer/core/pose.hpp"

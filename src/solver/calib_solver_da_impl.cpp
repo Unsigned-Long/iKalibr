@@ -38,9 +38,7 @@
 #include "core/pts_association.h"
 #include "core/scan_undistortion.h"
 #include "core/visual_reproj_association.h"
-#include "factor/point_to_surfel_factor.hpp"
-#include "factor/rgbd_velocity_factor.hpp"
-#include "factor/visual_reproj_factor.hpp"
+#include "factor/data_correspondence.h"
 #include "pcl/common/transforms.h"
 #include "pcl/filters/random_sample.h"
 #include "pcl/filters/voxel_grid.h"
@@ -592,8 +590,8 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
                     SO3_BrToDn * SO3_BrToBr0.inverse() * LIN_VEL_DnToBr0InBr0;
 
                 Eigen::Matrix<double, 2, 3> subAMat, subBMat;
-                RGBDVelocityFactor<0, 0>::SubMats<double>(&fx, &fy, &cx, &cy, corr->MidPoint(),
-                                                          &subAMat, &subBMat);
+                OpticalFlowCorr::SubMats<double>(&fx, &fy, &cx, &cy, corr->MidPoint(), &subAMat,
+                                                 &subBMat);
 
                 Eigen::Vector2d lVec = subAMat * LIN_VEL_DnToBr0InDn;
                 Eigen::Vector2d bMat = corr->MidPointVel(readout) - subBMat * ANG_VEL_DnToBr0InDn;

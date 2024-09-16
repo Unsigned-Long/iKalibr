@@ -38,7 +38,7 @@
 #include "core/optical_flow_trace.h"
 #include "core/rotation_estimator.h"
 #include "core/visual_velocity_sac.h"
-#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/data_correspondence.h"
 #include "opencv2/highgui.hpp"
 #include "solver/calib_solver.h"
 #include "spdlog/spdlog.h"

@@ -36,7 +36,7 @@
 #include "opencv2/imgproc.hpp"
 #include "sensor/camera.h"
 #include "calib/calib_param_manager.h"
-#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -76,7 +76,7 @@ std::optional<Eigen::Vector3d> VisualVelocityEstimator::Estimate(
 
         Eigen::Matrix<double, 2, 3> subAMat, subBMat;
         // the template parameters, i.e., 'Order' and 'TimeDeriv', do not matter here
-        RGBDVelocityFactor<0, 0>::SubMats<double>(&fx, &fy, &cx, &cy, pixel, &subAMat, &subBMat);
+        OpticalFlowCorr::SubMats<double>(&fx, &fy, &cx, &cy, pixel, &subAMat, &subBMat);
 
         AMat.block<2, 3>(i * 2, 0) = 1 / depth * subAMat;
 

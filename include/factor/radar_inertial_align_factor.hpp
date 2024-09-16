@@ -36,11 +36,7 @@
 #define IKALIBR_RADAR_INERTIAL_ALIGN_FACTOR_HPP
 
 #include "util/utils.h"
-#include "ctraj/utils/eigen_utils.hpp"
 #include "ctraj/utils/sophus_utils.hpp"
-#include "ctraj/spline/spline_segment.h"
-#include "ctraj/spline/ceres_spline_helper.h"
-#include "ctraj/spline/ceres_spline_helper_jet.h"
 #include "ctraj/core/spline_bundle.h"
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "sensor/radar.h"

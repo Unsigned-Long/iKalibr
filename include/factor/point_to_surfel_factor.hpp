@@ -38,51 +38,17 @@
 #include "ctraj/utils/eigen_utils.hpp"
 #include "ctraj/utils/sophus_utils.hpp"
 #include "ctraj/spline/spline_segment.h"
-#include "ctraj/spline/ceres_spline_helper.h"
 #include "ctraj/spline/ceres_spline_helper_jet.h"
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "util/utils.h"
-#include "ufo/map/octree/node.h"
 #include "config/configor.h"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-
-struct PointToSurfelCorr {
-    using Ptr = std::shared_ptr<PointToSurfelCorr>;
-
-public:
-    double timestamp;
-
-    Eigen::Vector3d pInScan;
-    double weight;
-    // [norm dir, dist]
-    Eigen::Vector4d surfelInW;
-
-    // just for visualization
-    Eigen::Vector3d pInMap;
-    // for ufomap associator
-    ufo::map::Node node;
-
-    PointToSurfelCorr(double timestamp,
-                      Eigen::Vector3d pInScan,
-                      double weight,
-                      Eigen::Vector4d surfelInW)
-        : timestamp(timestamp),
-          pInScan(std::move(pInScan)),
-          weight(weight),
-          surfelInW(std::move(surfelInW)) {}
-
-    static Ptr Create(double timestamp,
-                      const Eigen::Vector3d &pInScan,
-                      double weight,
-                      const Eigen::Vector4d &surfelInW) {
-        return std::make_shared<PointToSurfelCorr>(timestamp, pInScan, weight, surfelInW);
-    }
-};
 
 template <int Order, int TimeDeriv>
 struct PointToSurfelFactor {

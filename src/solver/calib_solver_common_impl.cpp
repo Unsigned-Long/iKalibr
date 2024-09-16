@@ -40,7 +40,7 @@
 #include "core/colmap_data_io.h"
 #include "core/optical_flow_trace.h"
 #include "core/vision_only_sfm.h"
-#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/data_correspondence.h"
 #include "opencv2/highgui.hpp"
 #include "pangolin/display/display.h"
 #include "ros/package.h"

@@ -35,81 +35,19 @@
 #ifndef IKALIBR_VISUAL_REPROJ_FACTOR_HPP
 #define IKALIBR_VISUAL_REPROJ_FACTOR_HPP
 
-#include "ctraj/utils/eigen_utils.hpp"
 #include "ctraj/utils/sophus_utils.hpp"
 #include "ctraj/spline/spline_segment.h"
-#include "ctraj/spline/ceres_spline_helper.h"
 #include "ctraj/spline/ceres_spline_helper_jet.h"
 #include "ceres/dynamic_autodiff_cost_function.h"
-#include "veta/veta.h"
 #include "util/utils.h"
 #include "config/configor.h"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-struct VisualReProjCorr {
-public:
-    using Ptr = std::shared_ptr<VisualReProjCorr>;
-
-public:
-    double ti, tj;
-
-    Eigen::Vector2d fi, fj;
-
-    // row / image height
-    double li, lj;
-
-    double weight;
-
-public:
-    VisualReProjCorr(double ti,
-                     double tj,
-                     Eigen::Vector2d fi,
-                     Eigen::Vector2d fj,
-                     double li,
-                     double lj,
-                     double weight)
-        : ti(ti),
-          tj(tj),
-          fi(std::move(fi)),
-          fj(std::move(fj)),
-          li(li),
-          lj(lj),
-          weight(weight) {}
-
-    static Ptr Create(double ti,
-                      double tj,
-                      const Eigen::Vector2d &fi,
-                      const Eigen::Vector2d &fj,
-                      double li,
-                      double lj,
-                      double weight) {
-        return std::make_shared<VisualReProjCorr>(ti, tj, fi, fj, li, lj, weight);
-    }
-
-    VisualReProjCorr() = default;
-};
-
-struct VisualReProjCorrSeq {
-public:
-    using Ptr = std::shared_ptr<VisualReProjCorrSeq>;
-
-public:
-    std::vector<VisualReProjCorr::Ptr> corrs;
-
-    std::unique_ptr<double> invDepthFir;
-
-    ns_veta::IndexT lmId{};
-
-    ns_veta::IndexT firObvViewId{};
-    ns_veta::Observation firObv;
-
-public:
-    VisualReProjCorrSeq() = default;
-};
 
 template <int Order, int TimeDeriv>
 struct VisualReProjFactor {
@@ -159,29 +97,6 @@ public:
 
         ns_ctraj::CeresSplineHelperJet<T, Order>::template Evaluate<3, TimeDeriv>(
             sKnots + LIN_SCALE_OFFSET, iuScale.second, _scaleDtInv, POS_BrInBr0);
-    }
-
-    template <class T>
-    static void TransformImgToCam(const T *FX_INV,
-                                  const T *FY_INV,
-                                  const T *CX,
-                                  const T *CY,
-                                  const Eigen::Vector2<T> &feat,
-                                  Eigen::Vector3<T> *P) {
-        P->operator()(0) = (feat(0) - *CX) * *FX_INV;
-        P->operator()(1) = (feat(1) - *CY) * *FY_INV;
-        P->operator()(2) = (T)1.0;
-    }
-
-    template <class T>
-    static void TransformCamToImg(const T *FX,
-                                  const T *FY,
-                                  const T *CX,
-                                  const T *CY,
-                                  const Eigen::Vector3<T> &P,
-                                  Eigen::Vector2<T> *feat) {
-        feat->operator()(0) = *FX * P(0) + *CX;
-        feat->operator()(1) = *FY * P(1) + *CY;
     }
 
 public:
@@ -238,13 +153,14 @@ public:
         Sophus::SE3<T> SE3_CmIToCmJ = SE3_CmToBr.inverse() * SE3_BrIToBrJ * SE3_CmToBr;
 
         Eigen::Vector3<T> PI;
-        TransformImgToCam<T>(&FX_INV, &FY_INV, &CX, &CY, _corr->fi.cast<T>(), &PI);
+        VisualReProjCorr::TransformImgToCam<T>(&FX_INV, &FY_INV, &CX, &CY, _corr->fi.cast<T>(),
+                                               &PI);
         PI *= DEPTH * GLOBAL_SCALE;
 
         Eigen::Vector3<T> PJ = SE3_CmIToCmJ * PI;
         PJ /= PJ(2);
         Eigen::Vector2<T> fjPred;
-        TransformCamToImg<T>(&FX, &FY, &CX, &CY, PJ, &fjPred);
+        VisualReProjCorr::TransformCamToImg<T>(&FX, &FY, &CX, &CY, PJ, &fjPred);
 
         Eigen::Map<Eigen::Vector2<T>> residuals(sResiduals);
         residuals = fjPred - _corr->fj.cast<T>();

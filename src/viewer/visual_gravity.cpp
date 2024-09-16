@@ -36,7 +36,7 @@
 #include "calib/calib_param_manager.h"
 #include "opencv2/imgproc.hpp"
 #include "sensor/camera.h"
-#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

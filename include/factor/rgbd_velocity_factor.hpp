@@ -35,106 +35,19 @@
 #ifndef IKALIBR_RGBD_VELOCITY_FACTOR_HPP
 #define IKALIBR_RGBD_VELOCITY_FACTOR_HPP
 
-#include "ctraj/utils/eigen_utils.hpp"
 #include "ctraj/utils/sophus_utils.hpp"
 #include "ctraj/spline/spline_segment.h"
-#include "ctraj/spline/ceres_spline_helper.h"
 #include "ctraj/spline/ceres_spline_helper_jet.h"
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "util/utils.h"
-#include "util/utils_tpl.hpp"
-#include "sensor/camera.h"
 #include "config/configor.h"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-
-struct OpticalFlowCorr {
-public:
-    using Ptr = std::shared_ptr<OpticalFlowCorr>;
-    static constexpr int MID = 1;
-
-public:
-    std::array<double, 3> timeAry;
-    std::array<double, 3> xTraceAry;
-    std::array<double, 3> yTraceAry;
-    // row / image height - rsExpFactor
-    std::array<double, 3> rdFactorAry;
-    double depth;
-    double invDepth;
-    CameraFrame::Ptr frame;
-    // if this dynamic is with depth observability
-    bool withDepthObservability;
-    double weight = 1.0;
-
-public:
-    OpticalFlowCorr(const std::array<double, 3> &timeAry,
-                    const std::array<double, 3> &xTraceAry,
-                    const std::array<double, 3> &yTraceAry,
-                    double depth,
-                    const CameraFrame::Ptr &frame,
-                    double rsExpFactor)
-        : timeAry(timeAry),
-          xTraceAry(xTraceAry),
-          yTraceAry(yTraceAry),
-          rdFactorAry(),
-          depth(depth),
-          invDepth(depth > 1E-3 ? 1.0 / depth : -1.0),
-          frame(frame),
-          withDepthObservability(false) {
-        int imgHeight = frame->GetImage().rows;
-        for (int i = 0; i < 3; ++i) {
-            rdFactorAry[i] = yTraceAry[i] / (double)imgHeight - rsExpFactor;
-        }
-    }
-
-    static Ptr Create(const std::array<double, 3> &timeAry,
-                      const std::array<double, 3> &xDynamicAry,
-                      const std::array<double, 3> &yDynamicAry,
-                      double depth,
-                      const CameraFrame::Ptr &frame,
-                      double rsExpFactor) {
-        return std::make_shared<OpticalFlowCorr>(timeAry, xDynamicAry, yDynamicAry, depth, frame,
-                                                 rsExpFactor);
-    }
-
-    [[nodiscard]] Eigen::Vector2d MidPoint() const {
-        return {xTraceAry.at(MID), yTraceAry.at(MID)};
-    }
-
-    template <class Type>
-    [[nodiscard]] Type MidPointTime(Type readout) const {
-        return timeAry[MID] + rdFactorAry[MID] * readout;
-    }
-
-    [[nodiscard]] double MidReadoutFactor() const { return rdFactorAry[MID]; }
-
-    template <class Type>
-    [[nodiscard]] Eigen::Vector2<Type> MidPointVel(Type readout) const {
-        if constexpr (std::is_same<Type, double>::value) {
-            std::array<Type, 3> newTimeAry{};
-            for (int i = 0; i < 3; ++i) {
-                newTimeAry[i] = timeAry[i] + rdFactorAry[i] * readout;
-            }
-            return {ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, xTraceAry),
-                    ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, yTraceAry)};
-        } else {
-            std::array<Type, 3> newTimeAry{};
-            std::array<Type, 3> newXAry{};
-            std::array<Type, 3> newYAry{};
-            for (int i = 0; i < 3; ++i) {
-                newTimeAry[i] = timeAry[i] + rdFactorAry[i] * readout;
-                newXAry[i] = (Type)xTraceAry[i];
-                newYAry[i] = (Type)yTraceAry[i];
-            }
-            return {ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, newXAry),
-                    ns_ikalibr::LagrangePolynomialTripleMidFOD<Type>(newTimeAry, newYAry)};
-        }
-    }
-};
 
 template <int Order, int TimeDeriv, bool IsInvDepth = true>
 struct RGBDVelocityFactor {
@@ -169,41 +82,6 @@ public:
     static std::size_t TypeHashCode() { return typeid(RGBDVelocityFactor).hash_code(); }
 
 public:
-    template <class T>
-    static void SubAMat(
-        const T *fx, const T *fy, const T &up, const T &vp, Eigen::Matrix<T, 2, 3> *aMat) {
-        *aMat = Eigen::Matrix<T, 2, 3>::Zero();
-        (*aMat)(0, 0) = -*fx;
-        (*aMat)(1, 1) = -*fy;
-        (*aMat)(0, 2) = up;
-        (*aMat)(1, 2) = vp;
-    }
-
-    template <class T>
-    static void SubBMat(
-        const T *fx, const T *fy, const T &up, const T &vp, Eigen::Matrix<T, 2, 3> *bMat) {
-        *bMat = Eigen::Matrix<T, 2, 3>::Zero();
-        (*bMat)(0, 0) = up * vp / *fy;
-        (*bMat)(0, 1) = -*fx - up * up / *fx;
-        (*bMat)(0, 2) = *fx * vp / *fy;
-        (*bMat)(1, 0) = *fy + vp * vp / *fy;
-        (*bMat)(1, 1) = -up * vp / *fx;
-        (*bMat)(1, 2) = -*fy * up / *fx;
-    }
-
-    template <class T>
-    static void SubMats(const T *fx,
-                        const T *fy,
-                        const T *cx,
-                        const T *cy,
-                        const Eigen::Vector2<T> feat,
-                        Eigen::Matrix<T, 2, 3> *aMat,
-                        Eigen::Matrix<T, 2, 3> *bMat) {
-        const T up = feat(0) - *cx, vp = feat(1) - *cy;
-        SubAMat(fx, fy, up, vp, aMat);
-        SubBMat(fx, fy, up, vp, bMat);
-    }
-
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr |
@@ -272,7 +150,8 @@ public:
             SO3_BrToDn * SO3_BrToBr0.inverse() * LIN_VEL_DnToBr0InBr0;
 
         Eigen::Matrix<T, 2, 3> subAMat, subBMat;
-        SubMats<T>(&FX, &FY, &CX, &CY, _corr->MidPoint().cast<T>(), &subAMat, &subBMat);
+        OpticalFlowCorr::SubMats<T>(&FX, &FY, &CX, &CY, _corr->MidPoint().cast<T>(), &subAMat,
+                                    &subBMat);
 
         Eigen::Vector2<T> pred;
         if constexpr (IsInvDepth) {

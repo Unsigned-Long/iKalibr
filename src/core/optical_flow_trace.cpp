@@ -37,7 +37,7 @@
 #include "sensor/rgbd.h"
 #include "opencv2/imgproc.hpp"
 #include "calib/calib_param_manager.h"
-#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/data_correspondence.h"
 #include "sensor/rgbd_intrinsic.hpp"
 
 namespace {
