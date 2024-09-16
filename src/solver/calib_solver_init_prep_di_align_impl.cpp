@@ -287,11 +287,7 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
     auto &rgbdBodyFrameVels = _initAsset->rgbdBodyFrameVels;
     for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
         spdlog::info("estimate RGBD-derived linear velocities for '{}'...", topic);
-
-        // reorganize rgbd-traceVec, store them by frame index
         const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
-
-        // estimate rgbd-derived linear velocities for each frame
         const auto &rgbdIntri = _parMagr->INTRI.RGBD.at(topic);
         const double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
         const Sophus::SO3d &SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);

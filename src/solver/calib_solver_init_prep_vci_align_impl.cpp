@@ -261,6 +261,68 @@ void CalibSolver::InitPrepVelCameraInertialAlign() const {
         }
     }
 
+    /**
+     * for each camera frame of each topic, we estimate the linear velocity, and store them in
+     * 'velCamBodyFrameVelDirs' [topic, camera frame, body-frame velocity]
+     */
+    auto &velCamBodyFrameVelDirs = _initAsset->velCamBodyFrameVelDirs;
+    for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
+        spdlog::info("estimate camera-derived linear velocities for '{}'...", topic);
+        const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
+        const double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(topic);
+
+        auto bar = std::make_shared<tqdm>();
+        const auto &curOpticalFlowInFrame = opticalFlowInFrame.at(topic);
+        auto totalSize = static_cast<int>(curOpticalFlowInFrame.size());
+        int curIdx = 0;
+        for (const auto &[frame, ofVec] : curOpticalFlowInFrame) {
+            bar->progress(curIdx++, totalSize);
+            const double timeByBr = frame->GetTimestamp() + TO_CmToBr;
+            // at least two measurements are required, here we up the ante
+            if (timeByBr < st || timeByBr > et || ofVec.size() < 5) {
+                continue;
+            }
+            // if the camera is moving too slow, we do not estimate its velocity direction
+            double avgPixelVel = 0.0;
+            for (const auto &corr : ofVec) {
+                avgPixelVel += corr->MidPointVel(readout).norm();
+            }
+            avgPixelVel /= static_cast<double>(ofVec.size());
+            if (avgPixelVel < Configor::Prior::LossForOpticalFlowFactor) {
+                continue;
+            }
+            auto estimator = Estimator::Create(_splines, _parMagr);
+            Eigen::Vector3d velDir(0.0, 0.0, 1.0f);
+            for (auto &corr : ofVec) {
+                // we initialize the depth as 1.0, this value would be optimized in estimator
+                corr->depth = 1.0;
+                estimator->AddVisualVelocityDepthFactorForVelCam(
+                    &velDir,  // the direction of linear velocity to be estimated
+                    corr,     // the optical flow correspondence
+                    topic,    // rostopic
+                    1.0,      // weight
+                    true,     // estimate the depth information
+                    true);    // only estimate the direction of the linear velocity
+            }
+            // we don't want to output the solving information
+            auto optWithoutOutput =
+                Estimator::DefaultSolverOptions(Configor::Preference::AvailableThreads(),
+                                                false,   // do not output the solving information
+                                                false);  // we do not use cuda solving here
+            auto sum = estimator->Solve(optWithoutOutput, this->_priori);
+
+            velCamBodyFrameVelDirs[topic].emplace_back(frame, velDir);
+        }
+        bar->finish();
+        /**
+         * the obtained camera-frame velocities may not time-ordered, thus we sort these quantities
+         * based on their timestamps
+         */
+        auto &curVelDirs = velCamBodyFrameVelDirs.at(topic);
+        std::sort(curVelDirs.begin(), curVelDirs.end(), [](const auto &p1, const auto &p2) {
+            return p1.first->GetTimestamp() < p2.first->GetTimestamp();
+        });
+    }
     spdlog::warn("this module is being developed!!!");
     std::cin.get();
 }

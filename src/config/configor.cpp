@@ -117,7 +117,7 @@ const double Configor::Prior::LossForPointToSurfelFactor = 0.02;
 // the loss function used for visual reprojection factor (pixel)
 const double Configor::Prior::LossForReprojFactor = 2.0;
 // the loss function used for visual optical flow factor (pixel) (on the image pixel plane)
-const double Configor::Prior::LossForOpticalFlowFactor = 50.0;
+const double Configor::Prior::LossForOpticalFlowFactor = 30.0;
 
 bool Configor::Prior::OptTemporalParams = {};
 

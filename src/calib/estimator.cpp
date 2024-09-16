@@ -1520,6 +1520,8 @@ void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
     }
     if (!estDepth) {
         this->SetParameterBlockConstant(&corr->depth);
+    } else {
+        this->SetParameterLowerBound(&corr->depth, 0, 1E-3);
     }
 }
 
@@ -1533,5 +1535,17 @@ void Estimator::AddVisualVelocityDepthFactorForRGBD(Eigen::Vector3d *LIN_VEL_CmT
         LIN_VEL_CmToWInCm, corr, parMagr->TEMPORAL.TO_DnToBr.at(rgbdTopic),
         parMagr->TEMPORAL.RS_READOUT.at(rgbdTopic), parMagr->EXTRI.SO3_DnToBr.at(rgbdTopic),
         parMagr->INTRI.RGBD.at(rgbdTopic)->intri, weight, estDepth, estVelDirOnly);
+}
+
+void Estimator::AddVisualVelocityDepthFactorForVelCam(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                                      const OpticalFlowCorr::Ptr &corr,
+                                                      const std::string &topic,
+                                                      double weight,
+                                                      bool estDepth,
+                                                      bool estVelDirOnly) {
+    this->AddVisualVelocityDepthFactor(
+        LIN_VEL_CmToWInCm, corr, parMagr->TEMPORAL.TO_CmToBr.at(topic),
+        parMagr->TEMPORAL.RS_READOUT.at(topic), parMagr->EXTRI.SO3_CmToBr.at(topic),
+        parMagr->INTRI.Camera.at(topic), weight, estDepth, estVelDirOnly);
 }
 }  // namespace ns_ikalibr
