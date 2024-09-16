@@ -98,6 +98,8 @@ public:
         return true;
     }
 };
+
+extern template struct VelVisualInertialAlignFactor<Configor::Prior::SplineOrder>;
 }  // namespace ns_ikalibr
 
 #endif  // VEL_VISUAL_INERTIAL_ALIGN_FACTOR_HPP

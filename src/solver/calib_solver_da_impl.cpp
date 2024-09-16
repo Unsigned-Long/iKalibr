@@ -524,8 +524,7 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
         int estDepthCount = 0;
 
         for (const auto &trace : traceVec) {
-            // we use raw depth here (intrinsics is nullptr)
-            auto corr = trace->CreateOpticalFlowCorr(rsExposureFactor, nullptr);
+            auto corr = trace->CreateOpticalFlowCorr(rsExposureFactor, intri);
 
             double timeByBr = corr->MidPointTime(readout) + TO_DnToBr;
             if (!so3Spline.TimeStampInRange(timeByBr) || !scaleSpline.TimeStampInRange(timeByBr)) {
@@ -581,7 +580,6 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
                 Eigen::Vector2d bMat = corr->MidPointVel(readout) - subBMat * ANG_VEL_DnToBr0InDn;
                 Eigen::Vector1d HMat = bMat.transpose() * bMat;
                 double estimatedDepth = (HMat.inverse() * bMat.transpose() * lVec)(0, 0);
-                double newRawDepth = intri->RawDepth(estimatedDepth);
 
                 // spdlog::info(
                 //     "raw depth: {:.3f}, actual depth: {:.3f}, est depth: {:.3f}, new raw depth: "
@@ -592,7 +590,7 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
                     // depth is negative, do not  introduce it to estimator.
                     continue;
                 }
-                corr->depth = newRawDepth;
+                corr->depth = estimatedDepth;
                 corr->invDepth = 1.0 / corr->depth;
                 ++estDepthCount;
             }
@@ -625,17 +623,8 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
     for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
 
-        std::vector<OpticalFlowCorr::Ptr> corrsWithActualDepth;
-        corrsWithActualDepth.reserve(corrs.at(topic).size());
-        for (const auto &corr : corrs.at(topic)) {
-            auto c = std::make_shared<OpticalFlowCorr>(*corr);
-            // the actual depth information is required in 'CreateVetaFromOpticalFlow'
-            c->depth = intri->ActualDepth(c->depth);
-            corrsWithActualDepth.push_back(c);
-        }
-
         auto veta = CreateVetaFromOpticalFlow(
-            topic, corrsWithActualDepth, intri->intri, [this](auto &&PH1, auto &&PH2) {
+            topic, corrs.at(topic), intri->intri, [this](auto &&PH1, auto &&PH2) {
                 return CurDnToW(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
             });
         if (veta != nullptr) {

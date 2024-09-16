@@ -40,7 +40,6 @@
 #include "factor/lin_scale_factor.hpp"
 #include "factor/point_to_surfel_factor.hpp"
 #include "factor/radar_factor.hpp"
-#include "factor/rgbd_velocity_factor.hpp"
 #include "factor/visual_optical_flow_factor.hpp"
 #include "factor/visual_reproj_factor.hpp"
 #include "util/utils_tpl.hpp"
@@ -818,8 +817,9 @@ void Estimator::AddRGBDOpticalFlowConstraint(const OpticalFlowCorr::Ptr &velCorr
 
     static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_VEL>();
     // create a cost function
-    auto costFunc = RGBDOpticalFlowFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth>::Create(
-        so3Meta, scaleMeta, velCorr, weight);
+    auto costFunc =
+        VisualOpticalFlowFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth>::Create(
+            so3Meta, scaleMeta, velCorr, weight);
 
     // so3 knots param block [each has four sub params]
     for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
@@ -841,9 +841,7 @@ void Estimator::AddRGBDOpticalFlowConstraint(const OpticalFlowCorr::Ptr &velCorr
     costFunc->AddParameterBlock(1);
     costFunc->AddParameterBlock(1);
 
-    // alpha, beta, depth
-    costFunc->AddParameterBlock(1);
-    costFunc->AddParameterBlock(1);
+    // depth
     costFunc->AddParameterBlock(1);
 
     costFunc->SetNumResiduals(2);
@@ -873,8 +871,6 @@ void Estimator::AddRGBDOpticalFlowConstraint(const OpticalFlowCorr::Ptr &velCorr
     paramBlockVec.push_back(intri->intri->CXAddress());
     paramBlockVec.push_back(intri->intri->CYAddress());
 
-    paramBlockVec.push_back(&intri->alpha);
-    paramBlockVec.push_back(&intri->beta);
     if constexpr (IsInvDepth) {
         paramBlockVec.push_back(&velCorr->invDepth);
     } else {
@@ -919,14 +915,6 @@ void Estimator::AddRGBDOpticalFlowConstraint(const OpticalFlowCorr::Ptr &velCorr
     if (!IsOptionWith(Opt::OPT_CAM_PRINCIPAL_POINT, option)) {
         this->SetParameterBlockConstant(intri->intri->CXAddress());
         this->SetParameterBlockConstant(intri->intri->CYAddress());
-    }
-
-    if (!IsOptionWith(Opt::OPT_RGBD_ALPHA, option)) {
-        this->SetParameterBlockConstant(&intri->alpha);
-    }
-
-    if (!IsOptionWith(Opt::OPT_RGBD_BETA, option)) {
-        this->SetParameterBlockConstant(&intri->beta);
     }
 
     // two cases we do not estimate the depth:

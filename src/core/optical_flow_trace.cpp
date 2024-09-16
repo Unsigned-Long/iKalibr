@@ -76,9 +76,7 @@ OpticalFlowCorr::Ptr OpticalFlowTripleTrace::CreateOpticalFlowCorr(
         if (auto depthMat = rgbdFrame->GetDepthImage(); !depthMat.empty()) {
             const Eigen::Vector2d& midPoint = _trace.at(MID).second;
             const auto rawDepth = depthMat.at<float>((int)midPoint(1), (int)midPoint(0));
-            if (intri == nullptr) {
-                corr->depth = rawDepth;
-            } else {
+            if (intri != nullptr) {
                 corr->depth = intri->ActualDepth(rawDepth);
             }
             corr->invDepth = corr->depth > 1E-3 ? 1.0 / corr->depth : -1.0;

@@ -35,7 +35,13 @@
 #ifndef VISUAL_OPTICAL_FLOW_FACTOR_HPP
 #define VISUAL_OPTICAL_FLOW_FACTOR_HPP
 
-#include "factor/rgbd_velocity_factor.hpp"
+#include "ctraj/utils/sophus_utils.hpp"
+#include "ctraj/spline/spline_segment.h"
+#include "ctraj/spline/ceres_spline_helper_jet.h"
+#include "ceres/dynamic_autodiff_cost_function.h"
+#include "util/utils.h"
+#include "config/configor.h"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -79,7 +85,7 @@ public:
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
-     *   READOUT_TIME | FX | FY | CX | CY | DEPTH ]
+     *   READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
      */
     template <class T>
     bool operator()(T const *const *sKnots, T *sResiduals) const {
@@ -92,7 +98,7 @@ public:
         std::size_t FY_OFFSET = FX_OFFSET + 1;
         std::size_t CX_OFFSET = FY_OFFSET + 1;
         std::size_t CY_OFFSET = CX_OFFSET + 1;
-        std::size_t DEPTH_OFFSET = CY_OFFSET + 1;
+        std::size_t DEPTH_INFO_OFFSET = CY_OFFSET + 1;
 
         // get value
         Eigen::Map<const Sophus::SO3<T>> SO3_CmToBr(sKnots[SO3_CmToBr_OFFSET]);
@@ -107,7 +113,7 @@ public:
         T CX = sKnots[CX_OFFSET][0];
         T CY = sKnots[CY_OFFSET][0];
 
-        T DEPTH = sKnots[DEPTH_OFFSET][0];
+        T DEPTH_INFO = sKnots[DEPTH_INFO_OFFSET][0];
 
         auto timeByBr = _corr->MidPointTime(READOUT_TIME) + TO_CmToBr;
 
@@ -146,10 +152,11 @@ public:
         Eigen::Vector2<T> pred;
         if constexpr (IsInvDepth) {
             // inverse depth
-            pred = DEPTH * subAMat * LIN_VEL_CmToBr0InCm + subBMat * ANG_VEL_CmToBr0InCm;
+            pred = DEPTH_INFO * subAMat * LIN_VEL_CmToBr0InCm + subBMat * ANG_VEL_CmToBr0InCm;
         } else {
             // depth
-            pred = (1.0 / DEPTH) * subAMat * LIN_VEL_CmToBr0InCm + subBMat * ANG_VEL_CmToBr0InCm;
+            pred =
+                (1.0 / DEPTH_INFO) * subAMat * LIN_VEL_CmToBr0InCm + subBMat * ANG_VEL_CmToBr0InCm;
         }
 
         Eigen::Map<Eigen::Vector2<T>> residuals(sResiduals);
@@ -158,6 +165,13 @@ public:
         return true;
     }
 };
+
+extern template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 2, true>;
+extern template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 2, false>;
+extern template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 1, true>;
+extern template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 1, false>;
+extern template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 0, true>;
+extern template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 0, false>;
 }  // namespace ns_ikalibr
 
 #endif  // VISUAL_OPTICAL_FLOW_FACTOR_HPP
