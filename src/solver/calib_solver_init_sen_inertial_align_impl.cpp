@@ -338,13 +338,13 @@ void CalibSolver::InitSensorInertialAlign() {
             // we don't consider the readout time here (i.e., the camera frame time is treated as
             // the velocity of the midpoint)
             estimator->AddRGBDInertialAlignment(
-                frames,                          // imu frames
-                Configor::DataStream::ReferIMU,  // the ros topic of this imu
-                rgbdTopic,                       // the ros topic of this rgbd camera
-                bodyFrameVels.at(i),             // the start velocity
-                bodyFrameVels.at(i + 1),         // the end velocity
-                optOption,                       // the optimization option
-                weight);                         // the weight
+                frames,                            // imu frames
+                Configor::DataStream::ReferIMU,    // the ros topic of this imu
+                rgbdTopic,                         // the ros topic of this rgbd camera
+                bodyFrameVels.at(i),               // the start velocity
+                bodyFrameVels.at(i + ALIGN_STEP),  // the end velocity
+                optOption,                         // the optimization option
+                weight);                           // the weight
         }
     }
 
