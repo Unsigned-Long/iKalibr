@@ -631,7 +631,8 @@ ns_veta::Veta::Ptr CalibSolver::CreateVetaFromOpticalFlow(
     const std::string &topic,
     const std::vector<OpticalFlowCorr::Ptr> &traceVec,
     const ns_veta::PinholeIntrinsic::Ptr &intri,
-    const std::function<std::optional<Sophus::SE3d>(double, const std::string &)> &SE3_CurSenToW) {
+    const std::function<std::optional<Sophus::SE3d>(
+        const CalibSolver *, double, const std::string &)> &SE3_CurSenToW) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return nullptr;
     }
@@ -646,7 +647,7 @@ ns_veta::Veta::Ptr CalibSolver::CreateVetaFromOpticalFlow(
         if (corr->depth < 1E-3 /* 1 mm */) {
             continue;
         }
-        auto SE3_CurDnToW = SE3_CurSenToW(corr->frame->GetTimestamp(), topic);
+        auto SE3_CurDnToW = SE3_CurSenToW(this, corr->frame->GetTimestamp(), topic);
         if (SE3_CurDnToW == std::nullopt) {
             continue;
         }

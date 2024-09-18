@@ -331,12 +331,20 @@ protected:
                std::map<std::string, std::vector<IKalibrPointCloudPtr>>>
     BuildGlobalMapOfRGBD() const;
 
-    static ns_veta::VetaPtr CreateVetaFromOpticalFlow(
+    /**
+     * @param topic the ros topic of this vision sensor
+     * @param ofVec the optical flow correspondence
+     * @param intri the visual intrinsics
+     * @param SE3_CurSenToW the function to obtain pose of the vision sensor given a timestamp and
+     * the ros topic
+     * @return the vision meta data structure
+     */
+    ns_veta::VetaPtr CreateVetaFromOpticalFlow(
         const std::string &topic,
         const std::vector<OpticalFlowCorrPtr> &ofVec,
         const ns_veta::PinholeIntrinsic::Ptr &intri,
-        const std::function<std::optional<Sophus::SE3d>(double, const std::string &)>
-            &SE3_CurSenToW);
+        const std::function<std::optional<Sophus::SE3d>(
+            const CalibSolver *, double, const std::string &)> &SE3_CurSenToW) const;
 
     /**
      * perform data association for LiDARs
@@ -371,7 +379,7 @@ protected:
 
     /**
      * perform data associate for RGBD cameras, I mean the point-to-surfel data association.
-     * If the depth camera is well matched with the RGB camera, then use these correspondence
+     * If the depth camera is well-matched with the RGB camera, then use these correspondence
      * would help spatiotemporal calibration. Otherwise, this would introduce additional errors.
      * @param map the global point cloud map
      * @param scanInGFrame the scans in the global coordinate frame

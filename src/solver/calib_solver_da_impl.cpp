@@ -623,10 +623,8 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
     for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
 
-        auto veta = CreateVetaFromOpticalFlow(
-            topic, corrs.at(topic), intri->intri, [this](auto &&PH1, auto &&PH2) {
-                return CurDnToW(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
-            });
+        auto veta =
+            CreateVetaFromOpticalFlow(topic, corrs.at(topic), intri->intri, &CalibSolver::CurDnToW);
         if (veta != nullptr) {
             DownsampleVeta(veta, 10000, Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin);
             // we do not show the pose
@@ -758,10 +756,8 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
     for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
 
-        auto veta = CreateVetaFromOpticalFlow(
-            topic, corrs.at(topic), intri, [this](auto &&PH1, auto &&PH2) {
-                return CurCmToW(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
-            });
+        auto veta =
+            CreateVetaFromOpticalFlow(topic, corrs.at(topic), intri, &CalibSolver::CurCmToW);
         if (veta != nullptr) {
             DownsampleVeta(veta, 10000,
                            Configor::DataStream::CameraTopics.at(topic).TrackLengthMin);

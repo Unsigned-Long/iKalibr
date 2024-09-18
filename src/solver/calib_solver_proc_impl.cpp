@@ -258,12 +258,9 @@ void CalibSolver::Process() {
     if (Configor::IsRGBDIntegrated() && GetScaleType() == TimeDeriv::LIN_POS_SPLINE) {
         // add veta from pixel dynamics
         for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
-            const auto &veta = CreateVetaFromOpticalFlow(
-                topic, _backup->ofCorrs.at(topic), _parMagr->INTRI.RGBD.at(topic)->intri,
-                [this](auto &&PH1, auto &&PH2) {
-                    return CurDnToW(std::forward<decltype(PH1)>(PH1),
-                                    std::forward<decltype(PH2)>(PH2));
-                });
+            const auto &veta = CreateVetaFromOpticalFlow(topic, _backup->ofCorrs.at(topic),
+                                                         _parMagr->INTRI.RGBD.at(topic)->intri,
+                                                         &CalibSolver::CurDnToW);
 
             if (veta != nullptr) {
                 const auto lenThd = Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin;
@@ -278,11 +275,8 @@ void CalibSolver::Process() {
         for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
             const auto &intri = _parMagr->INTRI.Camera.at(topic);
 
-            auto veta = CreateVetaFromOpticalFlow(
-                topic, _backup->ofCorrs.at(topic), intri, [this](auto &&PH1, auto &&PH2) {
-                    return CurCmToW(std::forward<decltype(PH1)>(PH1),
-                                    std::forward<decltype(PH2)>(PH2));
-                });
+            auto veta = CreateVetaFromOpticalFlow(topic, _backup->ofCorrs.at(topic), intri,
+                                                  &CalibSolver::CurCmToW);
             if (veta != nullptr) {
                 DownsampleVeta(veta, 10000,
                                Configor::DataStream::CameraTopics.at(topic).TrackLengthMin);

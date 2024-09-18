@@ -659,12 +659,9 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
             continue;
         }
 
-        const auto &veta = CalibSolver::CreateVetaFromOpticalFlow(
+        const auto &veta = _solver->CreateVetaFromOpticalFlow(
             topic, _solver->_backup->ofCorrs.at(topic),
-            _solver->_parMagr->INTRI.RGBD.at(topic)->intri, [this](auto &&PH1, auto &&PH2) {
-                return _solver->CurDnToW(std::forward<decltype(PH1)>(PH1),
-                                         std::forward<decltype(PH2)>(PH2));
-            });
+            _solver->_parMagr->INTRI.RGBD.at(topic)->intri, &CalibSolver::CurDnToW);
 
         if (veta == nullptr) {
             continue;
@@ -1031,12 +1028,9 @@ void CalibSolverIO::SaveVisualMaps() const {
             } else {
                 // veta
                 auto filename = subSaveDir + "/veta.bin";
-                const auto &veta = CalibSolver::CreateVetaFromOpticalFlow(
+                const auto &veta = _solver->CreateVetaFromOpticalFlow(
                     topic, _solver->_backup->ofCorrs.at(topic),
-                    _solver->_parMagr->INTRI.RGBD.at(topic)->intri, [this](auto &&PH1, auto &&PH2) {
-                        return _solver->CurDnToW(std::forward<decltype(PH1)>(PH1),
-                                                 std::forward<decltype(PH2)>(PH2));
-                    });
+                    _solver->_parMagr->INTRI.RGBD.at(topic)->intri, &CalibSolver::CurDnToW);
 
                 if (veta != nullptr) {
                     if (!ns_veta::Save(*veta, filename, ns_veta::Veta::ALL)) {
