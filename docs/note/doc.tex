@@ -983,6 +983,30 @@
 	-{^{b_0}\boldsymbol{g}}\cdot (t_{k+1}-t_k)
 	\end{equation}
 	
+
+	\section{Camera-Inertial Spatiotemporal Calibration (Version 2)}
+	受RGBD/IMU标定的启发，没有深度信息光学相机也可以类似地进行扩展，以去除SfM的依赖，使用速度信息进行时空标定。与RGBD/IMU标定的区别在于一下几个地方。
+	\subsection{Camera-Derived Body-Frame Velocity Direction}
+	由于跟踪的特征点深度未知，我们估计的是速度的方向以及特征点速度信息。
+	\begin{equation}
+	\begin{bmatrix}
+				\dot{u}\\\dot{v}
+			\end{bmatrix}=\frac{1}{z_l^c}\cdot\bsm{A}\cdot\bsm{v}_c(\tau)+\bsm{B}\cdot\bsm{\omega}_c(\tau)
+	\end{equation}
+	\subsection{Camera-inertial Alignment}
+	首先通过最小二乘，计算得到${^{b}_{d}\boldsymbol{R}^\top}\cdot{^{b_0}_{b}\boldsymbol{R}^\top}\cdot{^{b_0}\dot{\boldsymbol{p}}_d(\tau)}$，记为$\bsm{d}(\tau)$向量。类似于radar，我们有(把$\{r\}$替换为$\{c\}$即可)：
+	\begin{equation}
+	{^{b_0}\dot{\boldsymbol{p}}_b(\tau)}={^{b_0}_{b}\boldsymbol{R}}(\tau)\cdot{^{b}_{r}\boldsymbol{R}}\cdot s\cdot\bsm{d}(\tau)
+	+\liehat{{^{b_0}_{b}\boldsymbol{R}(\tau)}\cdot{^{b}{\boldsymbol{p}}_r}}\cdot{^{b_0}_{b}\dot{\boldsymbol{R}}(\tau)}
+	\end{equation}
+	注意，与radar不同的地方在于多了一个尺度因子$s$(作用于速度方向以恢复出真实的速度大小)。所以在$\tau\in[t_k,t_{k+1}]$时间段内，有：：
+	\begin{equation}
+	\int_{\tau\in[t_k,t_{k+1}]}{^{b_0}_{b}\boldsymbol{R}(\tau)}\cdot{^{b}\boldsymbol{a}(\tau)}\cdot d\tau=
+	{^{b_0}\dot{\boldsymbol{p}}_b(t_{k+1})}-{^{b_0}\dot{\boldsymbol{p}}_b(t_k)}
+	-{^{b_0}\boldsymbol{g}}\cdot (t_{k+1}-t_k)
+	\end{equation}
+	
+	
 	
 	\newpage
 	\bibliographystyle{IEEEtran}

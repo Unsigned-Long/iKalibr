@@ -87,7 +87,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
 
     auto estimator = Estimator::Create(_splines, _parMagr);
     auto visualGlobalScale = std::make_shared<double>(1.0);
-    constexpr bool OPTICAL_FLOW_EST_INV_DEPTH = false;
+    constexpr bool OPTICAL_FLOW_EST_INV_DEPTH = true;
 
     switch (GetScaleType()) {
         case TimeDeriv::LIN_ACCE_SPLINE: {

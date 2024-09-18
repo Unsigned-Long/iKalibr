@@ -663,8 +663,6 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
         auto &curCorrs = corrs[topic];
         curCorrs.reserve(traceVec.size());
 
-        int estDepthCount = 0;
-
         for (const auto &dynamic : traceVec) {
             auto corr = dynamic->CreateOpticalFlowCorr(rsExposureFactor);
 
@@ -718,11 +716,6 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
             Eigen::Vector1d HMat = bMat.transpose() * bMat;
             double estDepth = (HMat.inverse() * bMat.transpose() * lVec)(0, 0);
 
-            // spdlog::info(
-            //     "raw depth: {:.3f}, actual depth: {:.3f}, est depth: {:.3f}, new raw depth: "
-            //     "{:.3f}",
-            //     corr->depth, actualDepth, estDepth, newRawDepth);
-
             if (estDepth < 1E-3) {
                 // depth is negative, do not  introduce it to estimator.
                 continue;
@@ -731,15 +724,11 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
             corr->invDepth = 1.0 / corr->depth;
             const double pVelNorm = corr->MidPointVel(readout).norm();
             corr->weight = pVelNorm / (pVelNorm + Configor::Prior::LossForOpticalFlowFactor);
-            ++estDepthCount;
 
             curCorrs.push_back(corr);
         }
 
-        spdlog::info(
-            "total correspondences count for camera '{}': {}, with roughly estimated initial depth "
-            "count: {}",
-            topic, curCorrs.size(), estDepthCount);
+        spdlog::info("total correspondences count for camera '{}': {}", topic, curCorrs.size());
 
         std::default_random_engine engine(
             std::chrono::system_clock::now().time_since_epoch().count());
