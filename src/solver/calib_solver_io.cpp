@@ -50,6 +50,8 @@
 #include "viewer/visual_lidar_covisibility.h"
 #include "viewer/visual_lin_vel_drawer.h"
 
+#include <math.h>
+
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
@@ -100,8 +102,8 @@ void CalibSolverIO::SaveByProductsToDisk() const {
         this->SaveRadarDopplerError();
     }
 
-    if (IsOptionWith(OutputOption::RGBDVelocityErrors, Configor::Preference::Outputs)) {
-        this->SaveRGBDVelocityError();
+    if (IsOptionWith(OutputOption::VisualOpticalFlowErrors, Configor::Preference::Outputs)) {
+        this->SaveVisualOpticalFlowError();
     }
 
     if (IsOptionWith(OutputOption::LiDARPointToSurfelErrors, Configor::Preference::Outputs)) {
@@ -1236,13 +1238,13 @@ void CalibSolverIO::SaveRadarDopplerError() const {
     spdlog::info("saving radar doppler errors finished!");
 }
 
-void CalibSolverIO::SaveRGBDVelocityError() const {
-    if (!Configor::IsRGBDIntegrated()) {
+void CalibSolverIO::SaveVisualOpticalFlowError() const {
+    if (!Configor::IsRGBDIntegrated() && !Configor::IsVelCameraIntegrated()) {
         return;
     }
 
     // folder
-    std::string saveDir = Configor::DataStream::OutputPath + "/residuals/rgbd_vel_error";
+    std::string saveDir = Configor::DataStream::OutputPath + "/residuals/optical_flow_error";
     if (TryCreatePath(saveDir)) {
         spdlog::info("saving radar rgbd velocity errors to dir: '{}'...", saveDir);
     } else {
@@ -1251,7 +1253,7 @@ void CalibSolverIO::SaveRGBDVelocityError() const {
 
     const auto &so3Spline = _solver->_splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _solver->_splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
-    auto scaleType = ns_ikalibr::CalibSolver::GetScaleType();
+    auto scaleType = CalibSolver::GetScaleType();
     const auto &parMagr = _solver->_parMagr;
 
     for (const auto &[topic, corrVec] : _solver->_backup->ofCorrs) {
@@ -1262,24 +1264,36 @@ void CalibSolverIO::SaveRGBDVelocityError() const {
         }
 
         const double readout = parMagr->TEMPORAL.RS_READOUT.at(topic);
-        const double TO_DnToBr = parMagr->TEMPORAL.TO_DnToBr.at(topic);
-        auto SE3_DnToBr = parMagr->EXTRI.SE3_DnToBr(topic);
-        const auto &intri = parMagr->INTRI.RGBD.at(topic);
+        double TO_CamToBr;
+        Sophus::SE3d SE3_CamToBr;
+        ns_veta::PinholeIntrinsic::Ptr intri;
+
+        if (Configor::DataStream::IsRGBD(topic)) {
+            TO_CamToBr = parMagr->TEMPORAL.TO_DnToBr.at(topic);
+            SE3_CamToBr = parMagr->EXTRI.SE3_DnToBr(topic);
+            intri = parMagr->INTRI.RGBD.at(topic)->intri;
+        } else if (Configor::DataStream::IsVelCamera(topic)) {
+            TO_CamToBr = parMagr->TEMPORAL.TO_CmToBr.at(topic);
+            SE3_CamToBr = parMagr->EXTRI.SE3_CmToBr(topic);
+            intri = parMagr->INTRI.Camera.at(topic);
+        } else {
+            throw Status(Status::ERROR, "can not create optical flow error for sensor '{}'", topic);
+        }
 
         std::list<Eigen::Vector2d> velErrors;
 
         for (const auto &corr : corrVec) {
-            double timeByBr = corr->MidPointTime(readout) + TO_DnToBr;
+            double timeByBr = corr->MidPointTime(readout) + TO_CamToBr;
             if (!so3Spline.TimeStampInRange(timeByBr) || !scaleSpline.TimeStampInRange(timeByBr)) {
                 continue;
             }
 
             auto SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
-            Sophus::SO3d SO3_BrToDn = SE3_DnToBr.so3().inverse();
+            Sophus::SO3d SO3_BrToCam = SE3_CamToBr.so3().inverse();
 
             Eigen::Vector3d ANG_VEL_BrToBr0InBr = so3Spline.VelocityBody(timeByBr);
             Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * ANG_VEL_BrToBr0InBr;
-            Eigen::Vector3d ANG_VEL_DnToBr0InDn = SO3_BrToDn * ANG_VEL_BrToBr0InBr;
+            Eigen::Vector3d ANG_VEL_CamToBr0InCam = SO3_BrToCam * ANG_VEL_BrToBr0InBr;
 
             Eigen::Vector3d LIN_VEL_BrToBr0InBr0;
             switch (scaleType) {
@@ -1294,24 +1308,23 @@ void CalibSolverIO::SaveRGBDVelocityError() const {
                     break;
             }
 
-            Eigen::Vector3d LIN_VEL_DnToBr0InBr0 =
+            Eigen::Vector3d LIN_VEL_CamToBr0InBr0 =
                 LIN_VEL_BrToBr0InBr0 -
-                Sophus::SO3d::hat(SO3_BrToBr0 * SE3_DnToBr.translation()) * ANG_VEL_BrToBr0InBr0;
-            Eigen::Vector3d LIN_VEL_DnToBr0InDn =
-                SO3_BrToDn * SO3_BrToBr0.inverse() * LIN_VEL_DnToBr0InBr0;
+                Sophus::SO3d::hat(SO3_BrToBr0 * SE3_CamToBr.translation()) * ANG_VEL_BrToBr0InBr0;
+            Eigen::Vector3d LIN_VEL_CamToBr0InCam =
+                SO3_BrToCam * SO3_BrToBr0.inverse() * LIN_VEL_CamToBr0InBr0;
 
-            const double FX = intri->intri->FocalX(), FY = intri->intri->FocalY();
-            const double CX = intri->intri->PrincipalPoint()(0),
-                         CY = intri->intri->PrincipalPoint()(1);
+            const double FX = intri->FocalX(), FY = intri->FocalY();
+            const double CX = intri->PrincipalPoint()(0), CY = intri->PrincipalPoint()(1);
 
             // map depth using alpha and beta
-            const double depth = intri->ActualDepth(corr->depth);
+            const double depth = corr->depth;
 
             Eigen::Matrix<double, 2, 3> subAMat, subBMat;
             OpticalFlowCorr::SubMats<double>(&FX, &FY, &CX, &CY, corr->MidPoint(), &subAMat,
                                              &subBMat);
             Eigen::Vector2d pred =
-                1.0 / depth * subAMat * LIN_VEL_DnToBr0InDn + subBMat * ANG_VEL_DnToBr0InDn;
+                1.0 / depth * subAMat * LIN_VEL_CamToBr0InCam + subBMat * ANG_VEL_CamToBr0InCam;
 
             Eigen::Vector2d mes = corr->MidPointVel(readout);
 
@@ -1323,7 +1336,7 @@ void CalibSolverIO::SaveRGBDVelocityError() const {
                            std::ios::out);
         auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
         SerializeByOutputArchiveVariant(ar, Configor::Preference::OutputDataFormat,
-                                        cereal::make_nvp("rgbd_vel_errors", velErrors));
+                                        cereal::make_nvp("of_errors", velErrors));
     }
 
     spdlog::info("saving rgbd velocity errors finished!");

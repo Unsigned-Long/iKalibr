@@ -127,10 +127,10 @@ Configor:
     # currently available output content:
     # ParamInEachIter, BSplines, LiDARMaps, VisualMaps, RadarMaps, HessianMat,
     # VisualLiDARCovisibility, VisualKinematics, ColorizedLiDARMap
-    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors, RGBDVelocityErrors
+    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors, VisualOpticalFlowErrors
     # NONE, ALL
     Outputs:
-      - VisualMaps
+      - VisualOpticalFlowErrors
     # supported data output format:
     # 1. JSON
     # 2. XML
