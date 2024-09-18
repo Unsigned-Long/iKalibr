@@ -44,7 +44,7 @@ Configor:
           Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/cam-left-intri-pinhole-brown.yaml"
           # 0.1 for 'LIN_VEL_SPLINE', and 50.0 for 'LIN_POS_SPLINE'
           Weight: 0.1
-          TrackLengthMin: 10
+          TrackLengthMin: 3
           # 'LIN_POS_SPLINE' or 'LIN_VEL_SPLINE'
           ScaleSplineType: LIN_VEL_SPLINE
       - key: "/camera/right/image_mono_undistort"

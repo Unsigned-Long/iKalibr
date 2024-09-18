@@ -292,7 +292,8 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
     if (!Configor::IsLiDARIntegrated()) {
         return;
     }
-    if (!IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
+    if (!Configor::IsPosCameraIntegrated() && !Configor::IsVelCameraIntegrated() &&
+        !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -432,7 +433,8 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
 }
 
 void CalibSolverIO::SaveVisualKinematics() const {
-    if (!IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
+    if (!Configor::IsPosCameraIntegrated() && !Configor::IsVelCameraIntegrated() &&
+        !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -471,7 +473,7 @@ void CalibSolverIO::SaveVisualKinematics() const {
     }
     cv::destroyAllWindows();
 
-    // gravity for rgbds
+    // gravity for rgbds and vel cameras
     for (const auto &[topic, data] : _solver->_backup->ofCorrs) {
         spdlog::info("create visual images with gravity for camera '{}'...", topic);
 
@@ -543,7 +545,7 @@ void CalibSolverIO::SaveVisualKinematics() const {
     }
     cv::destroyAllWindows();
 
-    // linear velocities for rgbds
+    // linear velocities for rgbds and vel cameras
     for (const auto &[topic, data] : _solver->_backup->ofCorrs) {
         spdlog::info("create visual linear velocity images for rgbd '{}'...", topic);
 
@@ -616,7 +618,7 @@ void CalibSolverIO::SaveVisualKinematics() const {
         bar->finish();
     }
 
-    // angular velocities for rgbds
+    // angular velocities for rgbds and vel cameras
     for (const auto &[topic, data] : _solver->_backup->ofCorrs) {
         spdlog::info("create visual angular velocity images for rgbd '{}'...", topic);
 
@@ -668,7 +670,8 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
     if (!Configor::IsLiDARIntegrated()) {
         return;
     }
-    if (!IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
+    if (!Configor::IsPosCameraIntegrated() && !Configor::IsVelCameraIntegrated() &&
+        !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -680,7 +683,7 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
     }
 
     // cameras
-    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+    for (const auto &[topic, _] : Configor::DataStream::PosCameraTopics()) {
         const auto &frames = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create colorized map using camera '{}'...", topic);
 
@@ -690,9 +693,9 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
             continue;
         }
 
-        const auto shader =
-            ColorizedCloudMap::Create(topic, frames, _solver->_dataMagr->GetSfMData(topic),
-                                      _solver->_splines, _solver->_parMagr);
+        const auto shader = ColorizedCloudMap::CreateForCameras(
+            topic, frames, _solver->_dataMagr->GetSfMData(topic), _solver->_splines,
+            _solver->_parMagr);
         auto colorizedMap = shader->Colorize(_solver->_backup->lidarMap);
         auto filename = subSaveDir + "/colorized_map.pcd";
         if (pcl::io::savePCDFile(filename, *colorizedMap, true) == -1) {
@@ -700,26 +703,50 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
         }
     }
 
-    // rgbds
-    for (const auto &[topic, frames] : _solver->_dataMagr->GetRGBDMeasurements()) {
-        spdlog::info("create colorized map using rgbd '{}'...", topic);
+    // rgbds and vel cameras
+    for (const auto &[topic, ofCorrVec] : _solver->_backup->ofCorrs) {
+        spdlog::info("create colorized map using camera '{}'...", topic);
 
-        auto subSaveDir = saveDir + "/rgbd/" + topic;
+        auto subSaveDir = saveDir + "/camera/" + topic;
         if (!TryCreatePath(subSaveDir)) {
             spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
             continue;
         }
-
-        const auto &veta = _solver->CreateVetaFromOpticalFlow(
-            topic, _solver->_backup->ofCorrs.at(topic),
-            _solver->_parMagr->INTRI.RGBD.at(topic)->intri, &CalibSolver::CurDnToW);
-
-        if (veta == nullptr) {
-            continue;
+        ColorizedCloudMap::Ptr shader;
+        if (Configor::DataStream::IsRGBD(topic)) {
+            // rgbd camera
+            const auto &veta = _solver->CreateVetaFromOpticalFlow(
+                topic, ofCorrVec, _solver->_parMagr->INTRI.RGBD.at(topic)->intri,
+                &CalibSolver::CurDnToW);
+            if (veta == nullptr) {
+                continue;
+            }
+            const auto &rgbdFrames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+            std::vector<CameraFrame::Ptr> frames;
+            frames.reserve(rgbdFrames.size());
+            std::transform(rgbdFrames.begin(), rgbdFrames.end(), std::back_inserter(frames),
+                           [](const RGBDFrame::Ptr &rgbd) { return rgbd; });
+            // todo: this has not been tested!!!
+            shader = ColorizedCloudMap::CreateForRGBDs(topic, frames, veta, _solver->_splines,
+                                                       _solver->_parMagr);
+        } else if (Configor::DataStream::IsVelCamera(topic)) {
+            const auto &veta = _solver->CreateVetaFromOpticalFlow(
+                topic, ofCorrVec, _solver->_parMagr->INTRI.Camera.at(topic),
+                &CalibSolver::CurCmToW);
+            if (veta == nullptr) {
+                continue;
+            }
+            const auto &frames = _solver->_dataMagr->GetCameraMeasurements(topic);
+            // todo: this has not been tested!!!
+            shader = ColorizedCloudMap::CreateForCameras(topic, frames, veta, _solver->_splines,
+                                                         _solver->_parMagr);
+        } else {
+            throw Status(
+                Status::CRITICAL,
+                "can not create a optical-flow-based angular velocity drawer for sensor '{}'",
+                topic);
         }
-        // todo: this has not been tested!!!
-        const auto shader = RGBDColorizedCloudMap::Create(topic, frames, veta, _solver->_splines,
-                                                          _solver->_parMagr);
+
         auto colorizedMap = shader->Colorize(_solver->_backup->lidarMap);
         auto filename = subSaveDir + "/colorized_map.pcd";
         if (pcl::io::savePCDFile(filename, *colorizedMap, true) == -1) {
@@ -966,11 +993,11 @@ bool CalibSolverIO::TryCreatePath(const std::string &path) {
     }
 }
 
-bool CalibSolverIO::IsCameraIntegrated() { return !Configor::DataStream::CameraTopics.empty(); }
-
 void CalibSolverIO::SaveLiDARMaps() const {
-    if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
-        !Configor::IsLiDARIntegrated()) {
+    if (CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
+        return;
+    }
+    if (!Configor::IsLiDARIntegrated()) {
         return;
     }
 
@@ -1038,10 +1065,11 @@ void CalibSolverIO::SaveLiDARMaps() const {
 }
 
 void CalibSolverIO::SaveVisualMaps() const {
-    if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
+    if (CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
         return;
     }
-    if (!IsCameraIntegrated() || !Configor::IsRGBDIntegrated()) {
+    if (!Configor::IsPosCameraIntegrated() && !Configor::IsVelCameraIntegrated() &&
+        !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -1106,8 +1134,10 @@ void CalibSolverIO::SaveVisualMaps() const {
 }
 
 void CalibSolverIO::SaveRadarMaps() const {
-    if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
-        !Configor::IsRadarIntegrated()) {
+    if (CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
+        return;
+    }
+    if (!Configor::IsRadarIntegrated()) {
         return;
     }
 

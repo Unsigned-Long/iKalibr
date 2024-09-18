@@ -94,8 +94,6 @@ protected:
                                  CerealArchiveType::Enum archiveType);
 
     static bool TryCreatePath(const std::string &path);
-
-    static bool IsCameraIntegrated();
 };
 }  // namespace ns_ikalibr
 
