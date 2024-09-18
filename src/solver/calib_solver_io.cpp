@@ -445,7 +445,7 @@ void CalibSolverIO::SaveVisualKinematics() const {
 
     std::shared_ptr<tqdm> bar;
     // gravity
-    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+    for (const auto &[topic, _] : Configor::DataStream::PosCameraTopics()) {
         const auto &data = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create visual images with gravity for camera '{}'...", topic);
 
@@ -473,7 +473,7 @@ void CalibSolverIO::SaveVisualKinematics() const {
 
     // gravity for rgbds
     for (const auto &[topic, data] : _solver->_backup->ofCorrs) {
-        spdlog::info("create visual images with gravity for rgbd '{}'...", topic);
+        spdlog::info("create visual images with gravity for camera '{}'...", topic);
 
         auto subSaveDir = saveDir + "/gravity/" + topic;
         if (!TryCreatePath(subSaveDir)) {
@@ -481,9 +481,26 @@ void CalibSolverIO::SaveVisualKinematics() const {
             continue;
         }
 
-        auto gravityDrawer =
-            RGBDVisualGravityDrawer::Create(topic, data, _solver->_splines, _solver->_parMagr);
-        const auto &frames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+        VisualOpticalFlowGravityDrawer::Ptr gravityDrawer;
+        std::vector<CameraFrame::Ptr> frames;
+        if (Configor::DataStream::IsRGBD(topic)) {
+            // rgbd camera
+            gravityDrawer = VisualOpticalFlowGravityDrawer::CreateDrawerForRGBDs(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            const auto &rgbdFrames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+            frames.reserve(rgbdFrames.size());
+            std::transform(rgbdFrames.begin(), rgbdFrames.end(), std::back_inserter(frames),
+                           [](const RGBDFrame::Ptr &rgbd) { return rgbd; });
+        } else if (Configor::DataStream::IsVelCamera(topic)) {
+            gravityDrawer = VisualOpticalFlowGravityDrawer::CreateDrawerForVelCameras(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            frames = _solver->_dataMagr->GetCameraMeasurements(topic);
+        } else {
+            throw Status(Status::CRITICAL,
+                         "can not create a optical-flow-based gravity drawer for sensor '{}'",
+                         topic);
+        }
+
         bar = std::make_shared<tqdm>();
         for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
             bar->progress(i, static_cast<int>(frames.size()));
@@ -499,7 +516,7 @@ void CalibSolverIO::SaveVisualKinematics() const {
     cv::destroyAllWindows();
 
     // linear velocities
-    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+    for (const auto &[topic, _] : Configor::DataStream::PosCameraTopics()) {
         const auto &data = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create visual linear velocity images for camera '{}'...", topic);
 
@@ -536,11 +553,28 @@ void CalibSolverIO::SaveVisualKinematics() const {
             continue;
         }
 
-        auto linVelDrawer =
-            RGBDVisualLinVelDrawer::Create(topic, data, _solver->_splines, _solver->_parMagr);
+        VisualOpticalFlowLinVelDrawer::Ptr linVelDrawer;
+        std::vector<CameraFrame::Ptr> frames;
+        if (Configor::DataStream::IsRGBD(topic)) {
+            // rgbd camera
+            linVelDrawer = VisualOpticalFlowLinVelDrawer::CreateDrawerForRGBDs(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            const auto &rgbdFrames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+            frames.reserve(rgbdFrames.size());
+            std::transform(rgbdFrames.begin(), rgbdFrames.end(), std::back_inserter(frames),
+                           [](const RGBDFrame::Ptr &rgbd) { return rgbd; });
+        } else if (Configor::DataStream::IsVelCamera(topic)) {
+            linVelDrawer = VisualOpticalFlowLinVelDrawer::CreateDrawerForVelCameras(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            frames = _solver->_dataMagr->GetCameraMeasurements(topic);
+        } else {
+            throw Status(
+                Status::CRITICAL,
+                "can not create a optical-flow-based linear velocity drawer for sensor '{}'",
+                topic);
+        }
 
         const TimeDeriv::ScaleSplineType &scaleSplineType = ns_ikalibr::CalibSolver::GetScaleType();
-        const auto &frames = _solver->_dataMagr->GetRGBDMeasurements(topic);
         bar = std::make_shared<tqdm>();
         for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
             bar->progress(i, static_cast<int>(frames.size()));
@@ -556,7 +590,7 @@ void CalibSolverIO::SaveVisualKinematics() const {
     cv::destroyAllWindows();
 
     // angular velocities
-    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+    for (const auto &[topic, _] : Configor::DataStream::PosCameraTopics()) {
         const auto &data = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create visual angular velocity images for camera '{}'...", topic);
 
@@ -592,10 +626,27 @@ void CalibSolverIO::SaveVisualKinematics() const {
             continue;
         }
 
-        auto angVelDrawer =
-            RGBDVisualAngVelDrawer::Create(topic, data, _solver->_splines, _solver->_parMagr);
+        VisualOpticalFlowAngVelDrawer::Ptr angVelDrawer;
+        std::vector<CameraFrame::Ptr> frames;
+        if (Configor::DataStream::IsRGBD(topic)) {
+            // rgbd camera
+            angVelDrawer = VisualOpticalFlowAngVelDrawer::CreateDrawerForRGBDs(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            const auto &rgbdFrames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+            frames.reserve(rgbdFrames.size());
+            std::transform(rgbdFrames.begin(), rgbdFrames.end(), std::back_inserter(frames),
+                           [](const RGBDFrame::Ptr &rgbd) { return rgbd; });
+        } else if (Configor::DataStream::IsVelCamera(topic)) {
+            angVelDrawer = VisualOpticalFlowAngVelDrawer::CreateDrawerForVelCameras(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            frames = _solver->_dataMagr->GetCameraMeasurements(topic);
+        } else {
+            throw Status(
+                Status::CRITICAL,
+                "can not create a optical-flow-based angular velocity drawer for sensor '{}'",
+                topic);
+        }
 
-        const auto &frames = _solver->_dataMagr->GetRGBDMeasurements(topic);
         bar = std::make_shared<tqdm>();
         for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
             bar->progress(i, static_cast<int>(frames.size()));

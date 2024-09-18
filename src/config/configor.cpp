@@ -204,6 +204,29 @@ std::map<std::string, Configor::DataStream::CameraConfig> Configor::DataStream::
     }
     return velCams;
 }
+bool Configor::DataStream::IsIMU(const std::string &topic) { return IMUTopics.count(topic) > 0; }
+
+bool Configor::DataStream::IsRadar(const std::string &topic) {
+    return RadarTopics.count(topic) > 0;
+}
+
+bool Configor::DataStream::IsLiDAR(const std::string &topic) {
+    return LiDARTopics.count(topic) > 0;
+}
+
+bool Configor::DataStream::IsCamera(const std::string &topic) {
+    return CameraTopics.count(topic) > 0;
+}
+
+bool Configor::DataStream::IsRGBD(const std::string &topic) { return RGBDTopics.count(topic) > 0; }
+
+bool Configor::DataStream::IsVelCamera(const std::string &topic) {
+    return VelCameraTopics().count(topic) > 0;
+}
+
+bool Configor::DataStream::IsPosCamera(const std::string &topic) {
+    return PosCameraTopics().count(topic) > 0;
+}
 
 int Configor::Preference::AvailableThreads() {
     int hardwareConcurrency = static_cast<int>(std::thread::hardware_concurrency());

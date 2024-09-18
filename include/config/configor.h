@@ -188,6 +188,20 @@ public:
 
         static std::map<std::string, CameraConfig> VelCameraTopics();
 
+        static bool IsIMU(const std::string &topic);
+
+        static bool IsRadar(const std::string &topic);
+
+        static bool IsLiDAR(const std::string &topic);
+
+        static bool IsCamera(const std::string &topic);
+
+        static bool IsRGBD(const std::string &topic);
+
+        static bool IsVelCamera(const std::string &topic);
+
+        static bool IsPosCamera(const std::string &topic);
+
         static std::map<std::string, IMUConfig> IMUTopics;
         static std::map<std::string, RadarConfig> RadarTopics;
         static std::map<std::string, LiDARConfig> LiDARTopics;

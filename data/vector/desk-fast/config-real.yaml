@@ -130,7 +130,7 @@ Configor:
     # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors, RGBDVelocityErrors
     # NONE, ALL
     Outputs:
-      - NONE
+      - VisualMaps
     # supported data output format:
     # 1. JSON
     # 2. XML

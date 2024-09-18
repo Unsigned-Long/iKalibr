@@ -141,7 +141,7 @@ public:
         std::map<std::string, std::vector<PointToSurfelCorrPtr>> lidarCorrs;
         // radar global map
         IKalibrPointCloudPtr radarMap;
-        // visual optical flow correspondences
+        // visual optical flow correspondences, orienting to RGBDs and VelCameras
         std::map<std::string, std::vector<OpticalFlowCorrPtr>> ofCorrs;
     };
 

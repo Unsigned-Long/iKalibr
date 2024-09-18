@@ -40,7 +40,6 @@
 #include "veta/veta.h"
 #include "veta/camera/pinhole.h"
 #include "opencv2/core.hpp"
-#include "sensor/rgbd_intrinsic.hpp"
 #include "calib/time_deriv.hpp"
 
 namespace {
@@ -50,10 +49,10 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_ikalibr {
 struct CalibParamManager;
 using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
-struct CameraFrame;
+class CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
 struct OpticalFlowCorr;
-using RGBDVelocityCorrPtr = std::shared_ptr<OpticalFlowCorr>;
+using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
 
 class VisualLinVelDrawer {
 public:
@@ -83,32 +82,39 @@ public:
     cv::Mat CreateLinVelImg(const CameraFramePtr &frame, float scale = 0.3f);
 };
 
-class RGBDVisualLinVelDrawer {
+class VisualOpticalFlowLinVelDrawer {
 public:
-    using Ptr = std::shared_ptr<RGBDVisualLinVelDrawer>;
+    using Ptr = std::shared_ptr<VisualOpticalFlowLinVelDrawer>;
     using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
 
 private:
     // frame id, correspondences
-    std::map<ns_veta::IndexT, std::vector<RGBDVelocityCorrPtr>> _velCorrs;
+    std::map<ns_veta::IndexT, std::vector<OpticalFlowCorrPtr>> _velCorrs;
     SplineBundleType::Ptr _splines;
 
-    RGBDIntrinsics::Ptr _intri;
+    ns_veta::PinholeIntrinsic::Ptr _intri;
 
-    Sophus::SE3d SE3_DnToBr;
-    double TO_DnToBr;
+    Sophus::SE3d SE3_SenToBr;
+    double TO_SenToBr;
     double RS_READOUT;
 
 public:
-    RGBDVisualLinVelDrawer(const std::string &topic,
-                           const std::vector<RGBDVelocityCorrPtr> &corrs,
-                           SplineBundleType::Ptr splines,
-                           const CalibParamManagerPtr &parMagr);
+    VisualOpticalFlowLinVelDrawer(const std::vector<OpticalFlowCorrPtr> &corrs,
+                                  SplineBundleType::Ptr splines,
+                                  ns_veta::PinholeIntrinsic::Ptr intri,
+                                  const Sophus::SE3d &SE3_SenToBr,
+                                  const double &TO_SenToBr,
+                                  const double &RS_READOUT);
 
-    static Ptr Create(const std::string &topic,
-                      const std::vector<RGBDVelocityCorrPtr> &dynamics,
-                      const SplineBundleType::Ptr &splines,
-                      const CalibParamManagerPtr &parMagr);
+    static Ptr CreateDrawerForRGBDs(const std::string &topic,
+                                    const std::vector<OpticalFlowCorrPtr> &corrs,
+                                    const SplineBundleType::Ptr &splines,
+                                    const CalibParamManagerPtr &parMagr);
+
+    static Ptr CreateDrawerForVelCameras(const std::string &topic,
+                                         const std::vector<OpticalFlowCorrPtr> &corrs,
+                                         const SplineBundleType::Ptr &splines,
+                                         const CalibParamManagerPtr &parMagr);
 
     cv::Mat CreateLinVelImg(const CameraFramePtr &frame,
                             const TimeDeriv::ScaleSplineType &scaleSplineType,

@@ -122,42 +122,54 @@ cv::Mat VisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame, float
 // RGBDVisualLinVelDrawer
 // ----------------------
 
-RGBDVisualLinVelDrawer::RGBDVisualLinVelDrawer(const std::string &topic,
-                                               const std::vector<OpticalFlowCorr::Ptr> &corrs,
-                                               SplineBundleType::Ptr splines,
-                                               const CalibParamManager::Ptr &parMagr)
-    : _splines(std::move(splines)) {
-    _intri = parMagr->INTRI.RGBD.at(topic);
-    SE3_DnToBr = parMagr->EXTRI.SE3_DnToBr(topic);
-    TO_DnToBr = parMagr->TEMPORAL.TO_DnToBr.at(topic);
-    RS_READOUT = parMagr->TEMPORAL.RS_READOUT.at(topic);
-
+VisualOpticalFlowLinVelDrawer::VisualOpticalFlowLinVelDrawer(
+    const std::vector<OpticalFlowCorr::Ptr> &corrs,
+    SplineBundleType::Ptr splines,
+    ns_veta::PinholeIntrinsic::Ptr intri,
+    const Sophus::SE3d &SE3_SenToBr,
+    const double &TO_SenToBr,
+    const double &RS_READOUT)
+    : _splines(std::move(splines)),
+      _intri(std::move(intri)),
+      SE3_SenToBr(SE3_SenToBr),
+      TO_SenToBr(TO_SenToBr),
+      RS_READOUT(RS_READOUT) {
     for (const auto &corr : corrs) {
-        if (_intri->ActualDepth(corr->depth) > 1E-3 /* 1 mm */) {
+        if (corr->depth > 1E-3 /* 1 mm */) {
             // a valid depth
             this->_velCorrs[corr->frame->GetId()].emplace_back(corr);
         }
     }
 }
 
-RGBDVisualLinVelDrawer::Ptr RGBDVisualLinVelDrawer::Create(
+VisualOpticalFlowLinVelDrawer::Ptr VisualOpticalFlowLinVelDrawer::CreateDrawerForRGBDs(
     const std::string &topic,
     const std::vector<OpticalFlowCorr::Ptr> &corrs,
     const SplineBundleType::Ptr &splines,
     const CalibParamManager::Ptr &parMagr) {
-    return std::make_shared<RGBDVisualLinVelDrawer>(topic, corrs, splines, parMagr);
+    return std::make_shared<VisualOpticalFlowLinVelDrawer>(
+        corrs, splines, parMagr->INTRI.RGBD.at(topic)->intri, parMagr->EXTRI.SE3_DnToBr(topic),
+        parMagr->TEMPORAL.TO_DnToBr.at(topic), parMagr->TEMPORAL.RS_READOUT.at(topic));
 }
 
-cv::Mat RGBDVisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame,
-                                                const TimeDeriv::ScaleSplineType &scaleSplineType,
-                                                float scale) {
+VisualOpticalFlowLinVelDrawer::Ptr VisualOpticalFlowLinVelDrawer::CreateDrawerForVelCameras(
+    const std::string &topic,
+    const std::vector<OpticalFlowCorrPtr> &corrs,
+    const SplineBundleType::Ptr &splines,
+    const CalibParamManagerPtr &parMagr) {
+    return std::make_shared<VisualOpticalFlowLinVelDrawer>(
+        corrs, splines, parMagr->INTRI.Camera.at(topic), parMagr->EXTRI.SE3_CmToBr(topic),
+        parMagr->TEMPORAL.TO_CmToBr.at(topic), parMagr->TEMPORAL.RS_READOUT.at(topic));
+}
+
+cv::Mat VisualOpticalFlowLinVelDrawer::CreateLinVelImg(
+    const CameraFrame::Ptr &frame, const TimeDeriv::ScaleSplineType &scaleSplineType, float scale) {
     // undistorted gray image
     cv::Mat undistImgColor, res;
-    undistImgColor =
-        CalibParamManager::ParIntri::UndistortImage(_intri->intri, frame->GetColorImage());
+    undistImgColor = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
 
     // compute timestamp by reference IMU, we do not consider the readout time for RS cameras here
-    double timeByBr = frame->GetTimestamp() + TO_DnToBr;
+    double timeByBr = frame->GetTimestamp() + TO_SenToBr;
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
     if (!so3Spline.TimeStampInRange(timeByBr) || !scaleSpline.TimeStampInRange(timeByBr)) {
@@ -165,12 +177,12 @@ cv::Mat RGBDVisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame,
     }
 
     auto SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
-    auto SO3_DnToBr0 = SO3_BrToBr0 * SE3_DnToBr.so3();
-    Sophus::SO3d SO3_BrToDn = SE3_DnToBr.so3().inverse();
+    auto SO3_SenToBr0 = SO3_BrToBr0 * SE3_SenToBr.so3();
+    Sophus::SO3d SO3_BrToSen = SE3_SenToBr.so3().inverse();
 
     Eigen::Vector3d ANG_VEL_BrToBr0InBr = so3Spline.VelocityBody(timeByBr);
     Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * ANG_VEL_BrToBr0InBr;
-    Eigen::Vector3d ANG_VEL_DnToBr0InDn = SO3_BrToDn * ANG_VEL_BrToBr0InBr;
+    Eigen::Vector3d ANG_VEL_SenToBr0InSen = SO3_BrToSen * ANG_VEL_BrToBr0InBr;
 
     Eigen::Vector3d LIN_VEL_BrToBr0InBr0;
     switch (scaleSplineType) {
@@ -185,34 +197,36 @@ cv::Mat RGBDVisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame,
             break;
     }
 
-    Eigen::Vector3d LIN_VEL_DnToBr0InBr0 =
+    Eigen::Vector3d LIN_VEL_SenToBr0InBr0 =
         LIN_VEL_BrToBr0InBr0 -
-        Sophus::SO3d::hat(SO3_BrToBr0 * SE3_DnToBr.translation()) * ANG_VEL_BrToBr0InBr0;
-    Eigen::Vector3d LIN_VEL_DnToBr0InDn = SO3_BrToDn * SO3_BrToBr0.inverse() * LIN_VEL_DnToBr0InBr0;
+        Sophus::SO3d::hat(SO3_BrToBr0 * SE3_SenToBr.translation()) * ANG_VEL_BrToBr0InBr0;
+    Eigen::Vector3d LIN_VEL_SenToBr0InSen =
+        SO3_BrToSen * SO3_BrToBr0.inverse() * LIN_VEL_SenToBr0InBr0;
 
-    const double FX = _intri->intri->FocalX(), FY = _intri->intri->FocalY();
-    const double CX = _intri->intri->PrincipalPoint()(0), CY = _intri->intri->PrincipalPoint()(1);
+    const double FX = _intri->FocalX(), FY = _intri->FocalY();
+    const double CX = _intri->PrincipalPoint()(0), CY = _intri->PrincipalPoint()(1);
 
     for (const auto &velCorr : _velCorrs[frame->GetId()]) {
         // map depth using alpha and beta
-        const double depth = _intri->ActualDepth(velCorr->depth);
+        const double depth = velCorr->depth;
 
         // draw linear velocity of the landmark with respect to the rgbd camera
         {  // obtain the landmark
-            Eigen::Vector2d lmInDnPlane = _intri->intri->ImgToCam(velCorr->MidPoint());
-            Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);
+            Eigen::Vector2d lmInCamPlane = _intri->ImgToCam(velCorr->MidPoint());
+            Eigen::Vector3d lmInCam(lmInCamPlane(0) * depth, lmInCamPlane(1) * depth, depth);
 
-            Eigen::Vector3d val1 = Sophus::SO3d::hat(SO3_DnToBr0 * lmInDn) * ANG_VEL_BrToBr0InBr0 -
-                                   LIN_VEL_DnToBr0InBr0;
-            Eigen::Vector3d val2 = SO3_DnToBr0.inverse() * val1;
+            Eigen::Vector3d val1 =
+                Sophus::SO3d::hat(SO3_SenToBr0 * lmInCam) * ANG_VEL_BrToBr0InBr0 -
+                LIN_VEL_SenToBr0InBr0;
+            Eigen::Vector3d val2 = SO3_SenToBr0.inverse() * val1;
 
-            Eigen::Vector3d end = lmInDn + scale * val2;
+            Eigen::Vector3d end = lmInCam + scale * val2;
 
-            if (end(2) < 1E-3 || lmInDn(2) < 1E-3) {
+            if (end(2) < 1E-3 || lmInCam(2) < 1E-3) {
                 continue;
             }
 
-            Eigen::Vector2d endPixel = _intri->intri->CamToImg({end(0) / end(2), end(1) / end(2)});
+            Eigen::Vector2d endPixel = _intri->CamToImg({end(0) / end(2), end(1) / end(2)});
 
             Eigen::Vector2d feat = velCorr->MidPoint();
 
@@ -233,7 +247,7 @@ cv::Mat RGBDVisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame,
             OpticalFlowCorr::SubMats<double>(&FX, &FY, &CX, &CY, velCorr->MidPoint(), &subAMat,
                                              &subBMat);
             Eigen::Vector2d pred =
-                1.0 / depth * subAMat * LIN_VEL_DnToBr0InDn + subBMat * ANG_VEL_DnToBr0InDn;
+                1.0 / depth * subAMat * LIN_VEL_SenToBr0InSen + subBMat * ANG_VEL_SenToBr0InSen;
 
             Eigen::Vector2d endPixel = velCorr->MidPoint() - scale * 0.5 * pred;
             DrawLineOnCVMat(undistImgColor, velCorr->MidPoint(), endPixel, cv::Scalar(0, 0, 255));
