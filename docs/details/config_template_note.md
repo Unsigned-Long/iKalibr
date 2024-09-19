@@ -163,7 +163,7 @@ Configor:
     ReadoutTimePadding: 0.01
     # leaf size when down sample the map using 'pcl::VoxelGrid' filter
     # note that this field just for visualization, no connection with calibration
-    # for outdoor, 0.05 is suggested, and for indoor: 0.1 is suggested
+    # if the built-in viewer is very stuck (too many points), please change this value to a larger value.
     MapDownSample: 0.05
     # the time distance of two neighbor control points, which determines the accuracy
     # of the representation of the B-splines. Smaller distance would lead to longer optimization time
@@ -177,10 +177,6 @@ Configor:
       Resolution: 0.5
       KeyFrameDownSample: 0.1
     LiDARDataAssociate:
-      # leaf size when down sample the map using 'pcl::VoxelGrid' filter
-      # note that this field just for visualization, no connection with calibration
-      # for outdoor, 0.1 is suggested, and for indoor: 0.05 is suggested
-      MapDownSample: 0.05
       # associate point and surfel when distance is less than this value
       PointToSurfelMax: 0.1
       # chose plane as a surfel for data association when planarity is larger than this value
@@ -188,12 +184,13 @@ Configor:
       PlanarityMin: 0.6
   Preference:
     # whether using cuda to speed up when solving least-squares problems
-    # if you do not install the cuda dependency, set it to 'false'
+    # if you do not install the cuda dependency, set it to 'false'.
+    # To use CUDA in iKalibr, you need to include CUDA dependency when compiling Ceres.
     UseCudaInSolving: false
     # currently available output content:
     # ParamInEachIter, BSplines, LiDARMaps, VisualMaps, RadarMaps, HessianMat,
     # VisualLiDARCovisibility, VisualKinematics, ColorizedLiDARMap,
-    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors, RGBDVelocityErrors, LiDARPointToSurfelErrors
+    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors, VisualOpticalFlowErrors, LiDARPointToSurfelErrors
     # NONE, ALL
     Outputs:
       - LiDARMaps

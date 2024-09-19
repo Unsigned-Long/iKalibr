@@ -400,6 +400,7 @@ protected:
      * @param lidarPtsCorrs the point-to-surfel correspondences for LiDARs
      * @param visualReprojCorrs the visual reprojection correspondence for cameras
      * @param rgbdCorrs the optical flow correspondence for RGBDs
+     * @param visualVelCorrs the optical flow correspondence for vel-powered cameras
      * @param rgbdPtsCorrs the point-to-surfel correspondences for RGBDs, its optional
      * @return the backup data from batch optimization
      */

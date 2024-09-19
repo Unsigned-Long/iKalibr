@@ -50,8 +50,6 @@
 #include "viewer/visual_lidar_covisibility.h"
 #include "viewer/visual_lin_vel_drawer.h"
 
-#include <math.h>
-
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
