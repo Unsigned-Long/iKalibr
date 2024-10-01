@@ -174,6 +174,8 @@ set(ctraj_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ctraj-install/lib/cmake/ctr
 find_package(ctraj)
 set(ufomap_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ufomap-install/lib/cmake/ufomap)
 find_package(ufomap)
+set(ufomap_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ufomap-install/include)
+include_directories(${ufomap_INCLUDE_DIR})
 set(veta_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/veta-install/lib/cmake/veta)
 find_package(veta)
 set(opengv_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/opengv-install/lib/cmake/opengv-1.0)
