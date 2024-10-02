@@ -47,7 +47,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     const std::map<std::string, std::vector<PointToSurfelCorr::Ptr>> &lidarPtsCorrs,
     const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualReprojCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &rgbdCorrs,
-    const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &visualVelCorrs,
+    const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &visualVelCorrs,
     const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>> &rgbdPtsCorrs) {
     // a lambda function to obtain the string of current optimization option
     auto GetOptString = [](OptOption opt) -> std::string {
@@ -69,14 +69,14 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
         if (IsOptionWith(OptOption::OPT_RS_CAM_READOUT_TIME, visualOpt)) {
             if (IsRSCamera(topic)) {
                 spdlog::info(
-                    "rgbd camera '{}' is a rolling shutter (RS) camera, "
-                    "use optimization option 'OPT_RS_CAM_READOUT_TIME'",
+                    "camera '{}' is a rolling shutter (RS) camera, use optimization option "
+                    "'OPT_RS_CAM_READOUT_TIME'",
                     topic);
             } else {
                 visualOpt ^= OptOption::OPT_RS_CAM_READOUT_TIME;
                 spdlog::info(
-                    "rgbd camera '{}' is a global shutter (GS) camera, "
-                    "remove optimization option 'OPT_RS_CAM_READOUT_TIME'",
+                    "camera '{}' is a global shutter (GS) camera, remove optimization option "
+                    "'OPT_RS_CAM_READOUT_TIME'",
                     topic);
             }
         }
@@ -148,10 +148,24 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddRGBDOpticalFlowFactor<TimeDeriv::LIN_POS_SPLINE,
                                                OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+                /**
+                 * when pos spline is maintained, we add additional reprojection constraints for
+                 * optical flow tracking correspondence
+                 */
+                this->AddRGBDOpticalFlowReprojFactor<TimeDeriv::LIN_POS_SPLINE,
+                                                     OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
             for (const auto &[topic, corrs] : visualVelCorrs) {
                 this->AddVisualOpticalFlowFactor<TimeDeriv::LIN_POS_SPLINE,
                                                  OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+                /**
+                 * when pos spline is maintained, we add additional reprojection constraints for
+                 * optical flow tracking correspondence
+                 */
+                this->AddVisualOpticalFlowReprojFactor<TimeDeriv::LIN_POS_SPLINE,
+                                                       OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
             if (rgbdPtsCorrs != std::nullopt) {

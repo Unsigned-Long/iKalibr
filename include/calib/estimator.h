@@ -324,10 +324,10 @@ public:
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr |
-     *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH_INFO ]
+     *   READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-    void AddRGBDOpticalFlowConstraint(const OpticalFlowCorrPtr &velCorr,
+    void AddRGBDOpticalFlowConstraint(const OpticalFlowCorrPtr &ofCorr,
                                       const std::string &topic,
                                       Opt option,
                                       double weight);
@@ -335,13 +335,35 @@ public:
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
-     *   READOUT_TIME | FX | FY | CX | CY | DEPTH ]
+     *   READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-    void AddVisualOpticalFlowConstraint(const OpticalFlowCorrPtr &velCorr,
+    void AddVisualOpticalFlowConstraint(const OpticalFlowCorrPtr &ofCorr,
                                         const std::string &topic,
                                         Opt option,
                                         double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+     * READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddVisualOpticalFlowReprojConstraint(const OpticalFlowCorrPtr &velCorr,
+                                              const std::string &topic,
+                                              Opt option,
+                                              double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr |
+     *   READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddRGBDOpticalFlowReprojConstraint(const OpticalFlowCorrPtr &velCorr,
+                                            const std::string &topic,
+                                            Opt option,
+                                            double weight);
 
     void SetRefIMUParamsConstant();
 

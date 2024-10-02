@@ -103,4 +103,11 @@ template struct VisualReProjFactor<Configor::Prior::SplineOrder, 2>;
 template struct VisualReProjFactor<Configor::Prior::SplineOrder, 1>;
 template struct VisualReProjFactor<Configor::Prior::SplineOrder, 0>;
 
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, false>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, false>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, false>;
+
 }  // namespace ns_ikalibr

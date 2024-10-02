@@ -53,7 +53,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
 **Key point** (you can't skip this part): 
 
-+ both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`.
++ both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`. If conflict about `fmt` still exists, it is recommended that you try to compile the `spdlog` library from [source code](https://github.com/gabime/spdlog.git) (directly compile and install), so that `spdlog` will use the internal `fmt` library.
 + Third-party dependency libraries that do not specify version numbers use the system default version. For example, the default `pcl` version of `Ubuntu 20.04` is `1.10` (`pcl` can be installed together with `ROS`).
 
 <p align="left">

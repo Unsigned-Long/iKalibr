@@ -115,7 +115,13 @@ OpticalFlowCorr::Ptr OpticalFlowCorr::Create(const std::array<double, 3>& timeAr
                                              rsExpFactor);
 }
 
+Eigen::Vector2d OpticalFlowCorr::FirPoint() const { return {xTraceAry.at(FIR), yTraceAry.at(FIR)}; }
+
 Eigen::Vector2d OpticalFlowCorr::MidPoint() const { return {xTraceAry.at(MID), yTraceAry.at(MID)}; }
+
+Eigen::Vector2d OpticalFlowCorr::LastPoint() const {
+    return {xTraceAry.at(LAST), yTraceAry.at(LAST)};
+}
 
 double OpticalFlowCorr::MidReadoutFactor() const { return rdFactorAry[MID]; }
 }  // namespace ns_ikalibr

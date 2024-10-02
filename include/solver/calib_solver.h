@@ -581,6 +581,36 @@ protected:
                                            OptOption option);
 
     /**
+     * add optical flow factors for the optical camera to the estimator
+     * @tparam type the linear scale spline type
+     * @tparam IsInvDepth estimate the depth or the inverse depth
+     * @param estimator the estimator
+     * @param camTopic the ros topic of this camera
+     * @param corrs the optical flow correspondences
+     * @param option the option for the optimization
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    static void AddVisualOpticalFlowReprojFactor(EstimatorPtr &estimator,
+                                                 const std::string &camTopic,
+                                                 const std::vector<OpticalFlowCorrPtr> &corrs,
+                                                 OptOption option);
+
+    /**
+     * add optical flow factors for the optical camera to the estimator
+     * @tparam type the linear scale spline type
+     * @tparam IsInvDepth estimate the depth or the inverse depth
+     * @param estimator the estimator
+     * @param rgbdTopic the ros topic of this camera
+     * @param corrs the optical flow correspondences
+     * @param option the option for the optimization
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    static void AddRGBDOpticalFlowReprojFactor(EstimatorPtr &estimator,
+                                               const std::string &rgbdTopic,
+                                               const std::vector<OpticalFlowCorrPtr> &corrs,
+                                               OptOption option);
+
+    /**
      * store images to the disk for structure from motion (SfM)
      * @param camTopic the ros topic of this camera
      * @param matchRes the match results of images of this camera

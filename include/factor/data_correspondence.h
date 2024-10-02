@@ -152,7 +152,9 @@ public:
 struct OpticalFlowCorr {
 public:
     using Ptr = std::shared_ptr<OpticalFlowCorr>;
+    static constexpr int FIR = 0;
     static constexpr int MID = 1;
+    static constexpr int LAST = 2;
 
 public:
     std::array<double, 3> timeAry;
@@ -182,7 +184,11 @@ public:
                       const CameraFramePtr &frame,
                       double rsExpFactor);
 
+    [[nodiscard]] Eigen::Vector2d FirPoint() const;
+
     [[nodiscard]] Eigen::Vector2d MidPoint() const;
+
+    [[nodiscard]] Eigen::Vector2d LastPoint() const;
 
     template <class Type>
     [[nodiscard]] Type MidPointTime(Type readout) const {

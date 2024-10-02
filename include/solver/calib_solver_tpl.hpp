@@ -133,6 +133,38 @@ void CalibSolver::AddVisualOpticalFlowFactor(Estimator::Ptr &estimator,
                                                                     weight * corr->weight);
     }
 }
+
+template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+void CalibSolver::AddVisualOpticalFlowReprojFactor(Estimator::Ptr &estimator,
+                                                   const std::string &camTopic,
+                                                   const std::vector<OpticalFlowCorr::Ptr> &corrs,
+                                                   Estimator::Opt option) {
+    if constexpr (type != TimeDeriv::LIN_POS_SPLINE) {
+        throw Status(Status::CRITICAL,
+                     "the 'AddVisualOpticalFlowReprojConstraint' only works for pos spline!!!");
+    }
+    double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
+    for (const auto &corr : corrs) {
+        estimator->AddVisualOpticalFlowReprojConstraint<type, IsInvDepth>(corr, camTopic, option,
+                                                                          weight * corr->weight);
+    }
+}
+
+template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+void CalibSolver::AddRGBDOpticalFlowReprojFactor(Estimator::Ptr &estimator,
+                                                 const std::string &camTopic,
+                                                 const std::vector<OpticalFlowCorr::Ptr> &corrs,
+                                                 Estimator::Opt option) {
+    if constexpr (type != TimeDeriv::LIN_POS_SPLINE) {
+        throw Status(Status::CRITICAL,
+                     "the 'AddRGBDOpticalFlowReprojConstraint' only works for pos spline!!!");
+    }
+    double weight = Configor::DataStream::RGBDTopics.at(camTopic).Weight;
+    for (const auto &corr : corrs) {
+        estimator->AddRGBDOpticalFlowReprojConstraint<type, IsInvDepth>(corr, camTopic, option,
+                                                                        weight * corr->weight);
+    }
+}
 }  // namespace ns_ikalibr
 
 #endif  // IKALIBR_CALIB_SOLVER_TPL_HPP
