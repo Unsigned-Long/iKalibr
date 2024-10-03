@@ -48,7 +48,8 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualReprojCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &rgbdCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &visualVelCorrs,
-    const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>> &rgbdPtsCorrs) {
+    const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>> &rgbdPtsCorrs)
+    const {
     // a lambda function to obtain the string of current optimization option
     auto GetOptString = [](OptOption opt) -> std::string {
         std::stringstream stringStream;
@@ -254,7 +255,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     for (const auto &[topic, corrs] : visualVelCorrs) {
         backUp->ofCorrs.insert({topic, corrs});
     }
-    // the maps not back up
+    // do not back up the maps
     backUp->lidarMap = nullptr;
     backUp->radarMap = nullptr;
     return backUp;

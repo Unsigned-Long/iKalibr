@@ -100,16 +100,24 @@ Configor:
           # these camera intrinsics are required pre-calibrated
           # Kalibr is recommended to perform intrinsic calibration (https://github.com/ethz-asl/kalibr.git)
           Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/.../cam0-intri.yaml"
+          # 0.1 for 'LIN_VEL_SPLINE', and 50.0 for 'LIN_POS_SPLINE'
           Weight: 50.0
           # use visual features that are tracked larger than 'TrackLengthMin'
           # smaller value means less features are considered in solving
           TrackLengthMin: 10
+          # 'LIN_POS_SPLINE' or 'LIN_VEL_SPLINE'
+          # You are advised to use 'LIN_VEL_SPLINE' only if your camera frequency is high enough
+          ScaleSplineType: LIN_POS_SPLINE
       - key: "/camera1/frame"
         value:
           Type: "SENSOR_IMAGE_RS_FIRST"
           Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/.../cam1-intri.yaml"
-          Weight: 50.0
-          TrackLengthMin: 10
+          # 0.1 for 'LIN_VEL_SPLINE', and 50.0 for 'LIN_POS_SPLINE'
+          Weight: 0.1
+          TrackLengthMin: 3
+          # 'LIN_POS_SPLINE' or 'LIN_VEL_SPLINE'
+          # You are advised to use 'LIN_VEL_SPLINE' only if your camera frequency is high enough
+          ScaleSplineType: LIN_VEL_SPLINE
     # key: rgbd color image topic, value: camera type. Supported camera types are the same as the ones in 'CameraTopics'
     RGBDTopics:
       - key: "/rgbd1/color_frame"
@@ -163,7 +171,7 @@ Configor:
     ReadoutTimePadding: 0.01
     # leaf size when down sample the map using 'pcl::VoxelGrid' filter
     # note that this field just for visualization, no connection with calibration
-    # if the built-in viewer is very stuck (too many points), please change this value to a larger value.
+    # for outdoor, 0.05 is suggested, and for indoor: 0.1 is suggested
     MapDownSample: 0.05
     # the time distance of two neighbor control points, which determines the accuracy
     # of the representation of the B-splines. Smaller distance would lead to longer optimization time
@@ -177,20 +185,23 @@ Configor:
       Resolution: 0.5
       KeyFrameDownSample: 0.1
     LiDARDataAssociate:
+      # leaf size when down sample the map using 'pcl::VoxelGrid' filter
+      # note that this field just for visualization, no connection with calibration
+      # for outdoor, 0.1 is suggested, and for indoor: 0.05 is suggested
+      MapDownSample: 0.05
       # associate point and surfel when distance is less than this value
       PointToSurfelMax: 0.1
       # chose plane as a surfel for data association when planarity is larger than this value
-      # range: 0.0-1.0, 0.5-1.0 is suggested 
+      # range: 0.0-1.0, 0.5-1.0 is suggested
       PlanarityMin: 0.6
   Preference:
     # whether using cuda to speed up when solving least-squares problems
-    # if you do not install the cuda dependency, set it to 'false'.
-    # To use CUDA in iKalibr, you need to include CUDA dependency when compiling Ceres.
+    # if you do not install the cuda dependency, set it to 'false'
     UseCudaInSolving: false
     # currently available output content:
     # ParamInEachIter, BSplines, LiDARMaps, VisualMaps, RadarMaps, HessianMat,
     # VisualLiDARCovisibility, VisualKinematics, ColorizedLiDARMap,
-    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors, VisualOpticalFlowErrors, LiDARPointToSurfelErrors
+    # AlignedInertialMes, VisualReprojErrors, RadarDopplerErrors, RGBDVelocityErrors, LiDARPointToSurfelErrors
     # NONE, ALL
     Outputs:
       - LiDARMaps

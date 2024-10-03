@@ -83,7 +83,7 @@ public:
 
     Eigen::Vector2d fi, fj;
 
-    // row / image height
+    // row / image height - 'ExposureFactor'
     double li{}, lj{};
 
     double weight{};

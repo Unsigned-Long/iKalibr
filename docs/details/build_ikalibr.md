@@ -38,6 +38,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   ```bash
   sudo apt-get install libcereal-dev
   sudo apt-get install libyaml-cpp-dev
+  # installing spdlog from source is a better way, to avoid fmt conflict
   sudo apt-get install libspdlog-dev
   # installing colmap from source is a better way
   sudo apt-get install colmap

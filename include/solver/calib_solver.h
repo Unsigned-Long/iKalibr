@@ -206,8 +206,8 @@ public:
      * @param calibParamManager the parameter manager
      * @return the shared pointer of this solver
      */
-    static CalibSolver::Ptr Create(const CalibDataManagerPtr &calibDataManager,
-                                   const CalibParamManagerPtr &calibParamManager);
+    static Ptr Create(const CalibDataManagerPtr &calibDataManager,
+                      const CalibParamManagerPtr &calibParamManager);
 
     /**
      * perform the spatiotemporal calibration
@@ -411,7 +411,7 @@ protected:
         const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &rgbdCorrs,
         const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &visualVelCorrs,
         const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>>
-            &rgbdPtsCorrs = std::nullopt);
+            &rgbdPtsCorrs = std::nullopt) const;
 
     /**
      * compute the pose of IMU in the global (world) coordinate frame

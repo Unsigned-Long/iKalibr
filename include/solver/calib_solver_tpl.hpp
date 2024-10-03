@@ -145,6 +145,15 @@ void CalibSolver::AddVisualOpticalFlowReprojFactor(Estimator::Ptr &estimator,
     }
     double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
     for (const auto &corr : corrs) {
+        /**
+         * given a optical flow tracking correspondence (triple tracking, three points), we throw
+         * the middle feature to the camera frame and reproject it to the first and last camera
+         * image plane, just like this:
+         *                         +-<---<---(*)--->--->-+
+         *                         |          ^          |
+         *                         v          |          v
+         *                      [ fir        mid        last ] -> a optical flow tracking (triple)
+         */
         estimator->AddVisualOpticalFlowReprojConstraint<type, IsInvDepth>(corr, camTopic, option,
                                                                           weight * corr->weight);
     }
@@ -161,6 +170,15 @@ void CalibSolver::AddRGBDOpticalFlowReprojFactor(Estimator::Ptr &estimator,
     }
     double weight = Configor::DataStream::RGBDTopics.at(camTopic).Weight;
     for (const auto &corr : corrs) {
+        /**
+         * given a optical flow tracking correspondence (triple tracking, three points), we throw
+         * the middle feature to the camera frame and reproject it to the first and last camera
+         * image plane, just like this:
+         *                         --<---<---(*)--->--->--
+         *                         |          ^          |
+         *                         v          |          v
+         *                      [ fir        mid        last ] -> a optical flow tracking (triple)
+         */
         estimator->AddRGBDOpticalFlowReprojConstraint<type, IsInvDepth>(corr, camTopic, option,
                                                                         weight * corr->weight);
     }

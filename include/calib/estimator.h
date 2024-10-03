@@ -461,6 +461,34 @@ protected:
                             const std::string &imuTopic,
                             double sTimeByBi,
                             double eTimeByBi);
+
+    /**
+     * compute the time range of knots to be considered in optimization based on given information
+     * @param timeByCam the time stamped by the camera
+     * @param RS_READOUT the readout time of rs camera
+     * @param RT_PADDING the time padding of the readout time
+     * @param rdFactor the readout factor
+     * @param optReadout whether optimize the readout time
+     * @param TO_CmToBr the time offset of the camera with respect to the reference IMU
+     * @param TO_PADDING the time padding og the time offset
+     * @param optTimeOffset whether optimize the time offset
+     * @return the time range [min time, max time]
+     */
+    static std::pair<double, double> ConsideredTimeRangeForCameraStamp(double timeByCam,
+                                                                       double RS_READOUT,
+                                                                       double RT_PADDING,
+                                                                       double rdFactor,
+                                                                       bool optReadout,
+                                                                       double TO_CmToBr,
+                                                                       double TO_PADDING,
+                                                                       bool optTimeOffset);
+
+    /**
+     * check whether time range (mainly from 'ConsideredTimeRangeForCameraStamp') is valid foe splines
+     * @param timePair the time stamp pair
+     * @return true: valid, false invalid
+     */
+    [[nodiscard]] bool TimeInRangeForSplines(const std::pair<double, double> &timePair) const;
 };
 }  // namespace ns_ikalibr
 

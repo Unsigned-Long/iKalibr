@@ -192,7 +192,7 @@ void Estimator::AddIMUAcceMeasurement(const IMUFrame::Ptr &imuFrame,
 template <TimeDeriv::ScaleSplineType type>
 void Estimator::AddRadarMeasurement(const RadarTarget::Ptr &radarFrame,
                                     const std::string &topic,
-                                    Estimator::Opt option,
+                                    Opt option,
                                     double weight) {
     const auto &so3Spline = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
@@ -297,11 +297,11 @@ void Estimator::AddRadarMeasurement(const RadarTarget::Ptr &radarFrame,
 template <int TimeDeriv>
 void Estimator::AddLinearScaleConstraint(double timeByBr,
                                          const Eigen::Vector3d &linScaleOfDeriv,
-                                         Estimator::Opt option,
+                                         Opt option,
                                          double weight) {
     const auto &scaleSpline = splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
     // check point time stamp
-    if (!scaleSpline.TimeStampInRange(timeByBr) || !scaleSpline.TimeStampInRange(timeByBr)) {
+    if (!scaleSpline.TimeStampInRange(timeByBr)) {
         return;
     }
 
@@ -571,61 +571,24 @@ void Estimator::AddVisualReprojection(const VisualReProjCorr::Ptr &visualCorr,
     double *RS_READOUT = &parMagr->TEMPORAL.RS_READOUT.at(topic);
     double *TO_CmToBr = &parMagr->TEMPORAL.TO_CmToBr.at(topic);
 
-    double minTimeI = visualCorr->ti;
-    double maxTimeI = visualCorr->ti;
+    std::pair<double, double> timePairI = ConsideredTimeRangeForCameraStamp(
+        visualCorr->ti,                                      // time stamped by the camera
+        *RS_READOUT, RT_PADDING, visualCorr->li,             // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_CmToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+    );
+    std::pair<double, double> timePairJ = ConsideredTimeRangeForCameraStamp(
+        visualCorr->tj,                                      // time stamped by the camera
+        *RS_READOUT, RT_PADDING, visualCorr->lj,             // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_CmToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+    );
 
-    double minTimeJ = visualCorr->tj;
-    double maxTimeJ = visualCorr->tj;
-
-    // different relative control points finding [single vs. range]
-    if (IsOptionWith(Opt::OPT_TO_CmToBr, option)) {
-        minTimeI -= TO_PADDING;
-        maxTimeI += TO_PADDING;
-
-        minTimeJ -= TO_PADDING;
-        maxTimeJ += TO_PADDING;
-    } else {
-        minTimeI += *TO_CmToBr;
-        maxTimeI += *TO_CmToBr;
-
-        minTimeJ += *TO_CmToBr;
-        maxTimeJ += *TO_CmToBr;
-    }
-
-    if (IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option)) {
-        minTimeI += std::min(visualCorr->li * 0.0, visualCorr->li * RT_PADDING);
-        maxTimeI += std::max(visualCorr->li * 0.0, visualCorr->li * RT_PADDING);
-
-        minTimeJ += std::min(visualCorr->lj * 0.0, visualCorr->lj * RT_PADDING);
-        maxTimeJ += std::max(visualCorr->lj * 0.0, visualCorr->lj * RT_PADDING);
-    } else {
-        minTimeI += visualCorr->li * *RS_READOUT;
-        maxTimeI += visualCorr->li * *RS_READOUT;
-
-        minTimeJ += visualCorr->lj * *RS_READOUT;
-        maxTimeJ += visualCorr->lj * *RS_READOUT;
-    }
-
-    // invalid time stamp
-    if (!splines->TimeInRangeForSo3(minTimeI, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForSo3(maxTimeI, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForRd(minTimeI, Configor::Preference::SCALE_SPLINE) ||
-        !splines->TimeInRangeForRd(maxTimeI, Configor::Preference::SCALE_SPLINE)) {
+    if (!TimeInRangeForSplines(timePairI) || !TimeInRangeForSplines(timePairJ)) {
         return;
     }
 
-    // invalid time stamp
-    if (!splines->TimeInRangeForSo3(minTimeJ, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForSo3(maxTimeJ, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForRd(minTimeJ, Configor::Preference::SCALE_SPLINE) ||
-        !splines->TimeInRangeForRd(maxTimeJ, Configor::Preference::SCALE_SPLINE)) {
-        return;
-    }
-
-    std::pair<double, double> timePairI = {minTimeI, maxTimeI};
-    std::pair<double, double> timePairJ = {minTimeJ, maxTimeJ};
-
-    if (minTimeI < minTimeJ) {
+    if (timePairI.first < timePairJ.first) {
         splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE, {timePairI, timePairJ},
                                         so3Meta);
         splines->CalculateRdSplineMeta(Configor::Preference::SCALE_SPLINE, {timePairI, timePairJ},
@@ -778,40 +741,20 @@ void Estimator::AddRGBDOpticalFlowConstraint(const OpticalFlowCorr::Ptr &ofCorr,
         return;
     }
 
-    // prepare metas for splines
-    SplineMetaType so3Meta, scaleMeta;
+    std::pair<double, double> timePair = ConsideredTimeRangeForCameraStamp(
+        ofCorr->timeAry.at(1),                               // time stamped by the camera
+        *RS_READOUT, RT_PADDING, ofCorr->rdFactorAry.at(1),  // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_DnToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_DnToBr, option)  // if opt time offset
+    );
 
-    // readout time equals to 0.0 means the raw middle time
-    double minTime = ofCorr->MidPointTime(0.0);
-    double maxTime = ofCorr->MidPointTime(0.0);
-
-    // different relative control points finding [single vs. range]
-    if (IsOptionWith(Opt::OPT_TO_DnToBr, option)) {
-        minTime -= TO_PADDING;
-        maxTime += TO_PADDING;
-    } else {
-        minTime += *TO_DnToBr;
-        maxTime += *TO_DnToBr;
-    }
-
-    const double midRDFactor = ofCorr->MidReadoutFactor();
-    if (IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option)) {
-        minTime += std::min(midRDFactor * 0.0, midRDFactor * RT_PADDING);
-        maxTime += std::max(midRDFactor * 0.0, midRDFactor * RT_PADDING);
-    } else {
-        minTime += midRDFactor * *RS_READOUT;
-        maxTime += midRDFactor * *RS_READOUT;
-    }
-
-    // invalid time stamp
-    if (!splines->TimeInRangeForSo3(minTime, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForSo3(maxTime, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForRd(minTime, Configor::Preference::SCALE_SPLINE) ||
-        !splines->TimeInRangeForRd(maxTime, Configor::Preference::SCALE_SPLINE)) {
+    if (!TimeInRangeForSplines(timePair)) {
         return;
     }
 
-    std::pair<double, double> timePair = {minTime, maxTime};
+    // prepare metas for splines
+    SplineMetaType so3Meta, scaleMeta;
+
     splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE, {timePair}, so3Meta);
     splines->CalculateRdSplineMeta(Configor::Preference::SCALE_SPLINE, {timePair}, scaleMeta);
 
@@ -955,40 +898,20 @@ void Estimator::AddVisualOpticalFlowConstraint(const OpticalFlowCorr::Ptr &ofCor
         return;
     }
 
-    // prepare metas for splines
-    SplineMetaType so3Meta, scaleMeta;
+    std::pair<double, double> timePair = ConsideredTimeRangeForCameraStamp(
+        ofCorr->timeAry.at(1),                               // time stamped by the camera
+        *RS_READOUT, RT_PADDING, ofCorr->rdFactorAry.at(1),  // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_CmToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+    );
 
-    // readout time equals to 0.0 means the raw middle time
-    double minTime = ofCorr->MidPointTime(0.0);
-    double maxTime = ofCorr->MidPointTime(0.0);
-
-    // different relative control points finding [single vs. range]
-    if (IsOptionWith(Opt::OPT_TO_CmToBr, option)) {
-        minTime -= TO_PADDING;
-        maxTime += TO_PADDING;
-    } else {
-        minTime += *TO_CmToBr;
-        maxTime += *TO_CmToBr;
-    }
-
-    const double midRDFactor = ofCorr->MidReadoutFactor();
-    if (IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option)) {
-        minTime += std::min(midRDFactor * 0.0, midRDFactor * RT_PADDING);
-        maxTime += std::max(midRDFactor * 0.0, midRDFactor * RT_PADDING);
-    } else {
-        minTime += midRDFactor * *RS_READOUT;
-        maxTime += midRDFactor * *RS_READOUT;
-    }
-
-    // invalid time stamp
-    if (!splines->TimeInRangeForSo3(minTime, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForSo3(maxTime, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForRd(minTime, Configor::Preference::SCALE_SPLINE) ||
-        !splines->TimeInRangeForRd(maxTime, Configor::Preference::SCALE_SPLINE)) {
+    if (!TimeInRangeForSplines(timePair)) {
         return;
     }
 
-    std::pair<double, double> timePair = {minTime, maxTime};
+    // prepare metas for splines
+    SplineMetaType so3Meta, scaleMeta;
+
     splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE, {timePair}, so3Meta);
     splines->CalculateRdSplineMeta(Configor::Preference::SCALE_SPLINE, {timePair}, scaleMeta);
 
@@ -1129,90 +1052,31 @@ void Estimator::AddVisualOpticalFlowReprojConstraint(const OpticalFlowCorrPtr &o
         return;
     }
 
+    std::pair<double, double> timePairFir = ConsideredTimeRangeForCameraStamp(
+        ofCorr->timeAry.at(0),                               // time stamped by the camera
+        *RS_READOUT, RT_PADDING, ofCorr->rdFactorAry.at(0),  // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_CmToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+    );
+    std::pair<double, double> timePairMid = ConsideredTimeRangeForCameraStamp(
+        ofCorr->timeAry.at(1),                               // time stamped by the camera
+        *RS_READOUT, RT_PADDING, ofCorr->rdFactorAry.at(1),  // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_CmToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+    );
+    std::pair<double, double> timePairLast = ConsideredTimeRangeForCameraStamp(
+        ofCorr->timeAry.at(2),                               // time stamped by the camera
+        *RS_READOUT, RT_PADDING, ofCorr->rdFactorAry.at(2),  // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_CmToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+    );
+    if (!TimeInRangeForSplines(timePairFir) || !TimeInRangeForSplines(timePairMid) ||
+        !TimeInRangeForSplines(timePairLast)) {
+        return;
+    }
+
     // prepare metas for splines
     SplineMetaType so3Meta, scaleMeta;
-
-    double minTimeFir = ofCorr->timeAry.at(0);
-    double maxTimeFir = ofCorr->timeAry.at(0);
-
-    double minTimeMid = ofCorr->timeAry.at(1);
-    double maxTimeMid = ofCorr->timeAry.at(1);
-
-    double minTimeLast = ofCorr->timeAry.at(2);
-    double maxTimeLast = ofCorr->timeAry.at(2);
-
-    // different relative control points finding [single vs. range]
-    if (IsOptionWith(Opt::OPT_TO_CmToBr, option)) {
-        minTimeFir -= TO_PADDING;
-        maxTimeFir += TO_PADDING;
-
-        minTimeMid -= TO_PADDING;
-        maxTimeMid += TO_PADDING;
-
-        minTimeLast -= TO_PADDING;
-        maxTimeLast += TO_PADDING;
-    } else {
-        minTimeFir += *TO_CmToBr;
-        maxTimeFir += *TO_CmToBr;
-
-        minTimeMid += *TO_CmToBr;
-        maxTimeMid += *TO_CmToBr;
-
-        minTimeLast += *TO_CmToBr;
-        maxTimeLast += *TO_CmToBr;
-    }
-
-    const double rdFir = ofCorr->rdFactorAry.at(0);
-    const double rdMid = ofCorr->rdFactorAry.at(1);
-    const double rdLast = ofCorr->rdFactorAry.at(2);
-
-    if (IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option)) {
-        minTimeFir += std::min(rdFir * 0.0, rdFir * RT_PADDING);
-        maxTimeFir += std::max(rdFir * 0.0, rdFir * RT_PADDING);
-
-        minTimeMid += std::min(rdMid * 0.0, rdMid * RT_PADDING);
-        maxTimeMid += std::max(rdMid * 0.0, rdMid * RT_PADDING);
-
-        minTimeLast += std::min(rdLast * 0.0, rdLast * RT_PADDING);
-        maxTimeLast += std::max(rdLast * 0.0, rdLast * RT_PADDING);
-    } else {
-        minTimeFir += rdFir * *RS_READOUT;
-        maxTimeFir += rdFir * *RS_READOUT;
-
-        minTimeMid += rdMid * *RS_READOUT;
-        maxTimeMid += rdMid * *RS_READOUT;
-
-        minTimeLast += rdLast * *RS_READOUT;
-        maxTimeLast += rdLast * *RS_READOUT;
-    }
-
-    // invalid time stamp
-    if (!splines->TimeInRangeForSo3(minTimeFir, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForSo3(maxTimeFir, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForRd(minTimeFir, Configor::Preference::SCALE_SPLINE) ||
-        !splines->TimeInRangeForRd(maxTimeFir, Configor::Preference::SCALE_SPLINE)) {
-        return;
-    }
-
-    // invalid time stamp
-    if (!splines->TimeInRangeForSo3(minTimeMid, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForSo3(maxTimeMid, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForRd(minTimeMid, Configor::Preference::SCALE_SPLINE) ||
-        !splines->TimeInRangeForRd(maxTimeMid, Configor::Preference::SCALE_SPLINE)) {
-        return;
-    }
-
-    // invalid time stamp
-    if (!splines->TimeInRangeForSo3(minTimeLast, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForSo3(maxTimeLast, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForRd(minTimeLast, Configor::Preference::SCALE_SPLINE) ||
-        !splines->TimeInRangeForRd(maxTimeLast, Configor::Preference::SCALE_SPLINE)) {
-        return;
-    }
-
-    std::pair<double, double> timePairFir = {minTimeFir, maxTimeFir};
-    std::pair<double, double> timePairMid = {minTimeMid, maxTimeMid};
-    std::pair<double, double> timePairLast = {minTimeLast, maxTimeLast};
 
     splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE,
                                     {timePairFir, timePairMid, timePairLast}, so3Meta);
@@ -1356,90 +1220,32 @@ void Estimator::AddRGBDOpticalFlowReprojConstraint(const OpticalFlowCorrPtr &ofC
         return;
     }
 
+    std::pair<double, double> timePairFir = ConsideredTimeRangeForCameraStamp(
+        ofCorr->timeAry.at(0),                               // time stamped by the camera
+        *RS_READOUT, RT_PADDING, ofCorr->rdFactorAry.at(0),  // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_DnToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_DnToBr, option)  // if opt time offset
+    );
+    std::pair<double, double> timePairMid = ConsideredTimeRangeForCameraStamp(
+        ofCorr->timeAry.at(1),                               // time stamped by the camera
+        *RS_READOUT, RT_PADDING, ofCorr->rdFactorAry.at(1),  // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_DnToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_DnToBr, option)  // if opt time offset
+    );
+    std::pair<double, double> timePairLast = ConsideredTimeRangeForCameraStamp(
+        ofCorr->timeAry.at(2),                               // time stamped by the camera
+        *RS_READOUT, RT_PADDING, ofCorr->rdFactorAry.at(2),  // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_DnToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_DnToBr, option)  // if opt time offset
+    );
+
+    if (!TimeInRangeForSplines(timePairFir) || !TimeInRangeForSplines(timePairMid) ||
+        !TimeInRangeForSplines(timePairLast)) {
+        return;
+    }
+
     // prepare metas for splines
     SplineMetaType so3Meta, scaleMeta;
-
-    double minTimeFir = ofCorr->timeAry.at(0);
-    double maxTimeFir = ofCorr->timeAry.at(0);
-
-    double minTimeMid = ofCorr->timeAry.at(1);
-    double maxTimeMid = ofCorr->timeAry.at(1);
-
-    double minTimeLast = ofCorr->timeAry.at(2);
-    double maxTimeLast = ofCorr->timeAry.at(2);
-
-    // different relative control points finding [single vs. range]
-    if (IsOptionWith(Opt::OPT_TO_DnToBr, option)) {
-        minTimeFir -= TO_PADDING;
-        maxTimeFir += TO_PADDING;
-
-        minTimeMid -= TO_PADDING;
-        maxTimeMid += TO_PADDING;
-
-        minTimeLast -= TO_PADDING;
-        maxTimeLast += TO_PADDING;
-    } else {
-        minTimeFir += *TO_DnToBr;
-        maxTimeFir += *TO_DnToBr;
-
-        minTimeMid += *TO_DnToBr;
-        maxTimeMid += *TO_DnToBr;
-
-        minTimeLast += *TO_DnToBr;
-        maxTimeLast += *TO_DnToBr;
-    }
-
-    const double rdFir = ofCorr->rdFactorAry.at(0);
-    const double rdMid = ofCorr->rdFactorAry.at(1);
-    const double rdLast = ofCorr->rdFactorAry.at(2);
-
-    if (IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option)) {
-        minTimeFir += std::min(rdFir * 0.0, rdFir * RT_PADDING);
-        maxTimeFir += std::max(rdFir * 0.0, rdFir * RT_PADDING);
-
-        minTimeMid += std::min(rdMid * 0.0, rdMid * RT_PADDING);
-        maxTimeMid += std::max(rdMid * 0.0, rdMid * RT_PADDING);
-
-        minTimeLast += std::min(rdLast * 0.0, rdLast * RT_PADDING);
-        maxTimeLast += std::max(rdLast * 0.0, rdLast * RT_PADDING);
-    } else {
-        minTimeFir += rdFir * *RS_READOUT;
-        maxTimeFir += rdFir * *RS_READOUT;
-
-        minTimeMid += rdMid * *RS_READOUT;
-        maxTimeMid += rdMid * *RS_READOUT;
-
-        minTimeLast += rdLast * *RS_READOUT;
-        maxTimeLast += rdLast * *RS_READOUT;
-    }
-
-    // invalid time stamp
-    if (!splines->TimeInRangeForSo3(minTimeFir, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForSo3(maxTimeFir, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForRd(minTimeFir, Configor::Preference::SCALE_SPLINE) ||
-        !splines->TimeInRangeForRd(maxTimeFir, Configor::Preference::SCALE_SPLINE)) {
-        return;
-    }
-
-    // invalid time stamp
-    if (!splines->TimeInRangeForSo3(minTimeMid, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForSo3(maxTimeMid, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForRd(minTimeMid, Configor::Preference::SCALE_SPLINE) ||
-        !splines->TimeInRangeForRd(maxTimeMid, Configor::Preference::SCALE_SPLINE)) {
-        return;
-    }
-
-    // invalid time stamp
-    if (!splines->TimeInRangeForSo3(minTimeLast, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForSo3(maxTimeLast, Configor::Preference::SO3_SPLINE) ||
-        !splines->TimeInRangeForRd(minTimeLast, Configor::Preference::SCALE_SPLINE) ||
-        !splines->TimeInRangeForRd(maxTimeLast, Configor::Preference::SCALE_SPLINE)) {
-        return;
-    }
-
-    std::pair<double, double> timePairFir = {minTimeFir, maxTimeFir};
-    std::pair<double, double> timePairMid = {minTimeMid, maxTimeMid};
-    std::pair<double, double> timePairLast = {minTimeLast, maxTimeLast};
 
     splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE,
                                     {timePairFir, timePairMid, timePairLast}, so3Meta);

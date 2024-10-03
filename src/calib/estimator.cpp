@@ -1633,4 +1633,44 @@ void Estimator::AddVisualVelocityDepthFactorForVelCam(Eigen::Vector3d *LIN_VEL_C
         parMagr->TEMPORAL.RS_READOUT.at(topic), parMagr->EXTRI.SO3_CmToBr.at(topic),
         parMagr->INTRI.Camera.at(topic), weight, estDepth, estVelDirOnly);
 }
+
+std::pair<double, double> Estimator::ConsideredTimeRangeForCameraStamp(double timeByCam,
+                                                                       double RS_READOUT,
+                                                                       double RT_PADDING,
+                                                                       double rdFactor,
+                                                                       bool optReadout,
+                                                                       double TO_CmToBr,
+                                                                       double TO_PADDING,
+                                                                       bool optTimeOffset) {
+    double minTime = timeByCam;
+    double maxTime = timeByCam;
+
+    if (optTimeOffset) {
+        minTime -= TO_PADDING;
+        maxTime += TO_PADDING;
+    } else {
+        minTime += TO_CmToBr;
+        maxTime += TO_CmToBr;
+    }
+
+    if (optReadout) {
+        minTime += std::min(rdFactor * 0.0, rdFactor * RT_PADDING);
+        maxTime += std::max(rdFactor * 0.0, rdFactor * RT_PADDING);
+    } else {
+        minTime += rdFactor * RS_READOUT;
+        maxTime += rdFactor * RS_READOUT;
+    }
+
+    return {minTime, maxTime};
+}
+
+bool Estimator::TimeInRangeForSplines(const std::pair<double, double> &timePair) const {
+    if (!splines->TimeInRangeForSo3(timePair.first, Configor::Preference::SO3_SPLINE) ||
+        !splines->TimeInRangeForSo3(timePair.second, Configor::Preference::SO3_SPLINE) ||
+        !splines->TimeInRangeForRd(timePair.first, Configor::Preference::SCALE_SPLINE) ||
+        !splines->TimeInRangeForRd(timePair.second, Configor::Preference::SCALE_SPLINE)) {
+        return false;
+    }
+    return true;
+}
 }  // namespace ns_ikalibr
