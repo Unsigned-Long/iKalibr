@@ -301,6 +301,24 @@ void CalibDataManager::LoadCalibData() {
 
     AdjustCalibDataSequence();
     AlignTimestamp();
+
+    /**
+     * to calibrate velocity-spline-derived cameras, high sampling frequency is required (larger
+     * than 30 Hz), to perform high-precision optical flow velocity recovery
+     */
+    for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
+        auto freq = GetCameraAvgFrequency(topic);
+        spdlog::info("sampling frequency for camera '{}': {:.3f}", topic, freq);
+        if (freq < 29.0) {
+            throw Status(
+                Status::WARNING,
+                "Sampling frequency of vel camera '{}' (freq: {:.3f}) is too small!!! "
+                "Frequency larger than 30 Hz is required!!! Please change 'ScaleSplineType' of "
+                "this camera to 'LIN_POS_SPLINE' which would perform a SfM-based calibration!!! Do "
+                "not forget to change its weight!",
+                topic, freq);
+        }
+    }
 }
 
 void CalibDataManager::AdjustCalibDataSequence() {
