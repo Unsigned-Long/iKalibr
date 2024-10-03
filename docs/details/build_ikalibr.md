@@ -40,7 +40,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   sudo apt-get install libyaml-cpp-dev
   # installing spdlog from source is a better way, to avoid fmt conflict
   sudo apt-get install libspdlog-dev
-  # installing colmap from source is a better way
+  # installing colmap from source is a better way, If the sensor suite you want to calibrate does not include optical cameras, you do not need to install colmap or glomap.
   sudo apt-get install colmap
   # if you want to use glomap to perform SfM, than clone it at (https://github.com/colmap/glomap.git), then build and install it. Generally speaking, glomap is recommanded for SfM (faster than colmap).
   ```
