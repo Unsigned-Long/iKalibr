@@ -319,6 +319,19 @@ void CalibDataManager::LoadCalibData() {
                 topic, freq);
         }
     }
+
+    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+        auto freq = GetRGBDAvgFrequency(topic);
+        spdlog::info("sampling frequency for rgbd camera '{}': {:.3f}", topic, freq);
+        if (freq < 29.0) {
+            throw Status(Status::WARNING,
+                         "Sampling frequency of rgbd camera '{}' (freq: {:.3f}) is too small!!! "
+                         "Frequency larger than 30 Hz is required!!! Please throw the depth "
+                         "information and treat it an optical camera, and perform "
+                         "'LIN_POS_SPLINE'-based calibration.",
+                         topic, freq);
+        }
+    }
 }
 
 void CalibDataManager::AdjustCalibDataSequence() {
