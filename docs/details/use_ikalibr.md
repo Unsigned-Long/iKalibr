@@ -15,13 +15,13 @@
     <a><strong>Collect Sufficiently Excited Sensor Data »</strong></a>
 </p> 
 
-Sufficiently excited motion is required for accurate spatiotemporal calibration in `iKalibr` (to ensure the observability of spatiotemporal parameters). This is a less noticeable but more important point, and we have to be ready at the starting line.
+Sufficiently excited motion is required for accurate spatiotemporal calibration in `iKalibr` (to ensure the observability of spatiotemporal parameters). This is a less noticeable but very important point, and we have to be ready at the starting line.
 
 Here we give a guiding data collection motion incentive method, see the following demo videos. The key is to make a circular motion, shaking your sensor in a 8-shape pattern as you go. **Be careful not to shake too fast or too slow**. 
 
 https://github.com/Unsigned-Long/iKalibr/assets/76953144/66bccd20-3aaa-4c76-8d32-b49a211f3c92
 
-If you are calibrating a Livox LiDAR (**small Fov solid-state LiDAR**, such as Livox Avia, not for Livox Mid-360, it has large FoV and can support the above data collection motion), you are recommended to follow the following motion to collect your data, as such motion is helpful for NDT-based LiDAR-only odometer in initialization in `iKalibr`:
+If you are calibrating a Livox LiDAR (**small FoV solid-state LiDAR**, such as Livox Avia, not for Livox Mid-360, it has large FoV and can support the above data collection motion), you are recommended to follow the following motion to collect your data, as such motion is helpful for NDT-based LiDAR-only odometer in initialization in `iKalibr`:
 
 
 
