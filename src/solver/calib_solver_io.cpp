@@ -37,9 +37,7 @@
 #include "calib/estimator.h"
 #include "cereal/types/list.hpp"
 #include "cereal/types/utility.hpp"
-#include "factor/point_to_surfel_factor.hpp"
-#include "factor/rgbd_velocity_factor.hpp"
-#include "factor/visual_reproj_factor.hpp"
+#include "factor/data_correspondence.h"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include "solver/calib_solver.h"
@@ -102,8 +100,8 @@ void CalibSolverIO::SaveByProductsToDisk() const {
         this->SaveRadarDopplerError();
     }
 
-    if (IsOptionWith(OutputOption::RGBDVelocityErrors, Configor::Preference::Outputs)) {
-        this->SaveRGBDVelocityError();
+    if (IsOptionWith(OutputOption::VisualOpticalFlowErrors, Configor::Preference::Outputs)) {
+        this->SaveVisualOpticalFlowError();
     }
 
     if (IsOptionWith(OutputOption::LiDARPointToSurfelErrors, Configor::Preference::Outputs)) {
@@ -294,7 +292,8 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
     if (!Configor::IsLiDARIntegrated()) {
         return;
     }
-    if (!Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
+    if (!Configor::IsPosCameraIntegrated() && !Configor::IsVelCameraIntegrated() &&
+        !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -308,7 +307,8 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
     auto covisibility = VisualLiDARCovisibility::Create(_solver->_backup->lidarMap);
     // for cameras
     std::shared_ptr<tqdm> bar;
-    for (const auto &[topic, data] : _solver->_dataMagr->GetCameraMeasurements()) {
+    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+        const auto &data = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("verify consistency between LiDAR and camera '{}'...", topic);
 
         auto subSaveDir = saveDir + '/' + topic;
@@ -433,7 +433,8 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
 }
 
 void CalibSolverIO::SaveVisualKinematics() const {
-    if (!Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
+    if (!Configor::IsPosCameraIntegrated() && !Configor::IsVelCameraIntegrated() &&
+        !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -446,7 +447,8 @@ void CalibSolverIO::SaveVisualKinematics() const {
 
     std::shared_ptr<tqdm> bar;
     // gravity
-    for (const auto &[topic, data] : _solver->_dataMagr->GetCameraMeasurements()) {
+    for (const auto &[topic, _] : Configor::DataStream::PosCameraTopics()) {
+        const auto &data = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create visual images with gravity for camera '{}'...", topic);
 
         auto subSaveDir = saveDir + "/gravity/" + topic;
@@ -471,9 +473,9 @@ void CalibSolverIO::SaveVisualKinematics() const {
     }
     cv::destroyAllWindows();
 
-    // gravity for rgbds
-    for (const auto &[topic, data] : _solver->_backup->rgbdCorrs) {
-        spdlog::info("create visual images with gravity for rgbd '{}'...", topic);
+    // gravity for rgbds and vel cameras
+    for (const auto &[topic, data] : _solver->_backup->ofCorrs) {
+        spdlog::info("create visual images with gravity for camera '{}'...", topic);
 
         auto subSaveDir = saveDir + "/gravity/" + topic;
         if (!TryCreatePath(subSaveDir)) {
@@ -481,9 +483,26 @@ void CalibSolverIO::SaveVisualKinematics() const {
             continue;
         }
 
-        auto gravityDrawer =
-            RGBDVisualGravityDrawer::Create(topic, data, _solver->_splines, _solver->_parMagr);
-        const auto &frames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+        VisualOpticalFlowGravityDrawer::Ptr gravityDrawer;
+        std::vector<CameraFrame::Ptr> frames;
+        if (Configor::DataStream::IsRGBD(topic)) {
+            // rgbd camera
+            gravityDrawer = VisualOpticalFlowGravityDrawer::CreateDrawerForRGBDs(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            const auto &rgbdFrames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+            frames.reserve(rgbdFrames.size());
+            std::transform(rgbdFrames.begin(), rgbdFrames.end(), std::back_inserter(frames),
+                           [](const RGBDFrame::Ptr &rgbd) { return rgbd; });
+        } else if (Configor::DataStream::IsVelCamera(topic)) {
+            gravityDrawer = VisualOpticalFlowGravityDrawer::CreateDrawerForVelCameras(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            frames = _solver->_dataMagr->GetCameraMeasurements(topic);
+        } else {
+            throw Status(Status::CRITICAL,
+                         "can not create a optical-flow-based gravity drawer for sensor '{}'",
+                         topic);
+        }
+
         bar = std::make_shared<tqdm>();
         for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
             bar->progress(i, static_cast<int>(frames.size()));
@@ -499,7 +518,8 @@ void CalibSolverIO::SaveVisualKinematics() const {
     cv::destroyAllWindows();
 
     // linear velocities
-    for (const auto &[topic, data] : _solver->_dataMagr->GetCameraMeasurements()) {
+    for (const auto &[topic, _] : Configor::DataStream::PosCameraTopics()) {
+        const auto &data = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create visual linear velocity images for camera '{}'...", topic);
 
         auto subSaveDir = saveDir + "/lin_vel/" + topic;
@@ -525,8 +545,8 @@ void CalibSolverIO::SaveVisualKinematics() const {
     }
     cv::destroyAllWindows();
 
-    // linear velocities for rgbds
-    for (const auto &[topic, data] : _solver->_backup->rgbdCorrs) {
+    // linear velocities for rgbds and vel cameras
+    for (const auto &[topic, data] : _solver->_backup->ofCorrs) {
         spdlog::info("create visual linear velocity images for rgbd '{}'...", topic);
 
         auto subSaveDir = saveDir + "/lin_vel/" + topic;
@@ -535,11 +555,28 @@ void CalibSolverIO::SaveVisualKinematics() const {
             continue;
         }
 
-        auto linVelDrawer =
-            RGBDVisualLinVelDrawer::Create(topic, data, _solver->_splines, _solver->_parMagr);
+        VisualOpticalFlowLinVelDrawer::Ptr linVelDrawer;
+        std::vector<CameraFrame::Ptr> frames;
+        if (Configor::DataStream::IsRGBD(topic)) {
+            // rgbd camera
+            linVelDrawer = VisualOpticalFlowLinVelDrawer::CreateDrawerForRGBDs(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            const auto &rgbdFrames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+            frames.reserve(rgbdFrames.size());
+            std::transform(rgbdFrames.begin(), rgbdFrames.end(), std::back_inserter(frames),
+                           [](const RGBDFrame::Ptr &rgbd) { return rgbd; });
+        } else if (Configor::DataStream::IsVelCamera(topic)) {
+            linVelDrawer = VisualOpticalFlowLinVelDrawer::CreateDrawerForVelCameras(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            frames = _solver->_dataMagr->GetCameraMeasurements(topic);
+        } else {
+            throw Status(
+                Status::CRITICAL,
+                "can not create a optical-flow-based linear velocity drawer for sensor '{}'",
+                topic);
+        }
 
         const TimeDeriv::ScaleSplineType &scaleSplineType = ns_ikalibr::CalibSolver::GetScaleType();
-        const auto &frames = _solver->_dataMagr->GetRGBDMeasurements(topic);
         bar = std::make_shared<tqdm>();
         for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
             bar->progress(i, static_cast<int>(frames.size()));
@@ -555,7 +592,8 @@ void CalibSolverIO::SaveVisualKinematics() const {
     cv::destroyAllWindows();
 
     // angular velocities
-    for (const auto &[topic, data] : _solver->_dataMagr->GetCameraMeasurements()) {
+    for (const auto &[topic, _] : Configor::DataStream::PosCameraTopics()) {
+        const auto &data = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create visual angular velocity images for camera '{}'...", topic);
 
         auto subSaveDir = saveDir + "/ang_vel/" + topic;
@@ -580,8 +618,8 @@ void CalibSolverIO::SaveVisualKinematics() const {
         bar->finish();
     }
 
-    // angular velocities for rgbds
-    for (const auto &[topic, data] : _solver->_backup->rgbdCorrs) {
+    // angular velocities for rgbds and vel cameras
+    for (const auto &[topic, data] : _solver->_backup->ofCorrs) {
         spdlog::info("create visual angular velocity images for rgbd '{}'...", topic);
 
         auto subSaveDir = saveDir + "/ang_vel/" + topic;
@@ -590,10 +628,27 @@ void CalibSolverIO::SaveVisualKinematics() const {
             continue;
         }
 
-        auto angVelDrawer =
-            RGBDVisualAngVelDrawer::Create(topic, data, _solver->_splines, _solver->_parMagr);
+        VisualOpticalFlowAngVelDrawer::Ptr angVelDrawer;
+        std::vector<CameraFrame::Ptr> frames;
+        if (Configor::DataStream::IsRGBD(topic)) {
+            // rgbd camera
+            angVelDrawer = VisualOpticalFlowAngVelDrawer::CreateDrawerForRGBDs(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            const auto &rgbdFrames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+            frames.reserve(rgbdFrames.size());
+            std::transform(rgbdFrames.begin(), rgbdFrames.end(), std::back_inserter(frames),
+                           [](const RGBDFrame::Ptr &rgbd) { return rgbd; });
+        } else if (Configor::DataStream::IsVelCamera(topic)) {
+            angVelDrawer = VisualOpticalFlowAngVelDrawer::CreateDrawerForVelCameras(
+                topic, data, _solver->_splines, _solver->_parMagr);
+            frames = _solver->_dataMagr->GetCameraMeasurements(topic);
+        } else {
+            throw Status(
+                Status::CRITICAL,
+                "can not create a optical-flow-based angular velocity drawer for sensor '{}'",
+                topic);
+        }
 
-        const auto &frames = _solver->_dataMagr->GetRGBDMeasurements(topic);
         bar = std::make_shared<tqdm>();
         for (int i = 0; i < static_cast<int>(frames.size()); ++i) {
             bar->progress(i, static_cast<int>(frames.size()));
@@ -615,7 +670,8 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
     if (!Configor::IsLiDARIntegrated()) {
         return;
     }
-    if (!Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated()) {
+    if (!Configor::IsPosCameraIntegrated() && !Configor::IsVelCameraIntegrated() &&
+        !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -627,7 +683,8 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
     }
 
     // cameras
-    for (const auto &[topic, frames] : _solver->_dataMagr->GetCameraMeasurements()) {
+    for (const auto &[topic, _] : Configor::DataStream::PosCameraTopics()) {
+        const auto &frames = _solver->_dataMagr->GetCameraMeasurements(topic);
         spdlog::info("create colorized map using camera '{}'...", topic);
 
         auto subSaveDir = saveDir + "/camera/" + topic;
@@ -636,9 +693,9 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
             continue;
         }
 
-        const auto shader =
-            ColorizedCloudMap::Create(topic, frames, _solver->_dataMagr->GetSfMData(topic),
-                                      _solver->_splines, _solver->_parMagr);
+        const auto shader = ColorizedCloudMap::CreateForCameras(
+            topic, frames, _solver->_dataMagr->GetSfMData(topic), _solver->_splines,
+            _solver->_parMagr);
         auto colorizedMap = shader->Colorize(_solver->_backup->lidarMap);
         auto filename = subSaveDir + "/colorized_map.pcd";
         if (pcl::io::savePCDFile(filename, *colorizedMap, true) == -1) {
@@ -646,22 +703,50 @@ void CalibSolverIO::SaveVisualColorizedMap() const {
         }
     }
 
-    // rgbds
-    for (const auto &[topic, frames] : _solver->_dataMagr->GetRGBDMeasurements()) {
-        spdlog::info("create colorized map using rgbd '{}'...", topic);
+    // rgbds and vel cameras
+    for (const auto &[topic, ofCorrVec] : _solver->_backup->ofCorrs) {
+        spdlog::info("create colorized map using camera '{}'...", topic);
 
-        auto subSaveDir = saveDir + "/rgbd/" + topic;
+        auto subSaveDir = saveDir + "/camera/" + topic;
         if (!TryCreatePath(subSaveDir)) {
             spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
             continue;
         }
-        const auto &veta = _solver->CreateVetaFromRGBD(topic);
-        if (veta == nullptr) {
-            continue;
+        ColorizedCloudMap::Ptr shader;
+        if (Configor::DataStream::IsRGBD(topic)) {
+            // rgbd camera
+            const auto &veta = _solver->CreateVetaFromOpticalFlow(
+                topic, ofCorrVec, _solver->_parMagr->INTRI.RGBD.at(topic)->intri,
+                &CalibSolver::CurDnToW);
+            if (veta == nullptr) {
+                continue;
+            }
+            const auto &rgbdFrames = _solver->_dataMagr->GetRGBDMeasurements(topic);
+            std::vector<CameraFrame::Ptr> frames;
+            frames.reserve(rgbdFrames.size());
+            std::transform(rgbdFrames.begin(), rgbdFrames.end(), std::back_inserter(frames),
+                           [](const RGBDFrame::Ptr &rgbd) { return rgbd; });
+            // todo: this has not been tested!!!
+            shader = ColorizedCloudMap::CreateForRGBDs(topic, frames, veta, _solver->_splines,
+                                                       _solver->_parMagr);
+        } else if (Configor::DataStream::IsVelCamera(topic)) {
+            const auto &veta = _solver->CreateVetaFromOpticalFlow(
+                topic, ofCorrVec, _solver->_parMagr->INTRI.Camera.at(topic),
+                &CalibSolver::CurCmToW);
+            if (veta == nullptr) {
+                continue;
+            }
+            const auto &frames = _solver->_dataMagr->GetCameraMeasurements(topic);
+            // todo: this has not been tested!!!
+            shader = ColorizedCloudMap::CreateForCameras(topic, frames, veta, _solver->_splines,
+                                                         _solver->_parMagr);
+        } else {
+            throw Status(
+                Status::CRITICAL,
+                "can not create a optical-flow-based angular velocity drawer for sensor '{}'",
+                topic);
         }
-        // todo: this has not been tested!!!
-        const auto shader = RGBDColorizedCloudMap::Create(topic, frames, veta, _solver->_splines,
-                                                          _solver->_parMagr);
+
         auto colorizedMap = shader->Colorize(_solver->_backup->lidarMap);
         auto filename = subSaveDir + "/colorized_map.pcd";
         if (pcl::io::savePCDFile(filename, *colorizedMap, true) == -1) {
@@ -812,7 +897,7 @@ void CalibSolverIO::SaveAlignedInertialMes() const {
 }
 
 void CalibSolverIO::SaveVisualReprojectionError() const {
-    if (!Configor::IsCameraIntegrated()) {
+    if (!Configor::IsPosCameraIntegrated()) {
         return;
     }
 
@@ -823,10 +908,6 @@ void CalibSolverIO::SaveVisualReprojectionError() const {
     } else {
         return;
     }
-
-    using VisualProjFactor =
-        VisualReProjFactor<Configor::Prior::SplineOrder,
-                           TimeDeriv::Deriv<TimeDeriv::LIN_POS_SPLINE, TimeDeriv::LIN_POS>()>;
 
     for (const auto &[topic, corrsVec] : _solver->_backup->visualCorrs) {
         const double TO_CmToBr = _solver->_parMagr->TEMPORAL.TO_CmToBr.at(topic);
@@ -871,14 +952,14 @@ void CalibSolverIO::SaveVisualReprojectionError() const {
                 Sophus::SE3d SE3_CmIToCmJ = SE3_CmToBr.inverse() * SE3_BrIToBrJ * SE3_CmToBr;
 
                 Eigen::Vector3d PI;
-                VisualProjFactor::TransformImgToCam<double>(&FX_INV, &FY_INV, &CX, &CY, corr->fi,
+                VisualReProjCorr::TransformImgToCam<double>(&FX_INV, &FY_INV, &CX, &CY, corr->fi,
                                                             &PI);
                 PI *= DEPTH * GLOBAL_SCALE;
 
                 Eigen::Vector3d PJ = SE3_CmIToCmJ * PI;
                 PJ /= PJ(2);
                 Eigen::Vector2d fjPred;
-                VisualProjFactor::TransformCamToImg<double>(&FX, &FY, &CX, &CY, PJ, &fjPred);
+                VisualReProjCorr::TransformCamToImg<double>(&FX, &FY, &CX, &CY, PJ, &fjPred);
 
                 Eigen::Vector2d residuals = fjPred - corr->fj;
                 reprojErrors.push_back(residuals);
@@ -913,8 +994,10 @@ bool CalibSolverIO::TryCreatePath(const std::string &path) {
 }
 
 void CalibSolverIO::SaveLiDARMaps() const {
-    if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
-        !Configor::IsLiDARIntegrated()) {
+    if (CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
+        return;
+    }
+    if (!Configor::IsLiDARIntegrated()) {
         return;
     }
 
@@ -982,10 +1065,11 @@ void CalibSolverIO::SaveLiDARMaps() const {
 }
 
 void CalibSolverIO::SaveVisualMaps() const {
-    if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
+    if (CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
         return;
     }
-    if (!Configor::IsCameraIntegrated() || !Configor::IsRGBDIntegrated()) {
+    if (!Configor::IsPosCameraIntegrated() && !Configor::IsVelCameraIntegrated() &&
+        !Configor::IsRGBDIntegrated()) {
         return;
     }
 
@@ -1023,7 +1107,11 @@ void CalibSolverIO::SaveVisualMaps() const {
             } else {
                 // veta
                 auto filename = subSaveDir + "/veta.bin";
-                if (auto veta = _solver->CreateVetaFromRGBD(topic); veta != nullptr) {
+                const auto &veta = _solver->CreateVetaFromOpticalFlow(
+                    topic, _solver->_backup->ofCorrs.at(topic),
+                    _solver->_parMagr->INTRI.RGBD.at(topic)->intri, &CalibSolver::CurDnToW);
+
+                if (veta != nullptr) {
                     if (!ns_veta::Save(*veta, filename, ns_veta::Veta::ALL)) {
                         spdlog::warn("create sub directory to save veta for '{}' failed: '{}'",
                                      topic, saveDir);
@@ -1046,8 +1134,10 @@ void CalibSolverIO::SaveVisualMaps() const {
 }
 
 void CalibSolverIO::SaveRadarMaps() const {
-    if (ns_ikalibr::CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE ||
-        !Configor::IsRadarIntegrated()) {
+    if (CalibSolver::GetScaleType() != TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
+        return;
+    }
+    if (!Configor::IsRadarIntegrated()) {
         return;
     }
 
@@ -1146,13 +1236,13 @@ void CalibSolverIO::SaveRadarDopplerError() const {
     spdlog::info("saving radar doppler errors finished!");
 }
 
-void CalibSolverIO::SaveRGBDVelocityError() const {
-    if (!Configor::IsRGBDIntegrated()) {
+void CalibSolverIO::SaveVisualOpticalFlowError() const {
+    if (!Configor::IsRGBDIntegrated() && !Configor::IsVelCameraIntegrated()) {
         return;
     }
 
     // folder
-    std::string saveDir = Configor::DataStream::OutputPath + "/residuals/rgbd_vel_error";
+    std::string saveDir = Configor::DataStream::OutputPath + "/residuals/optical_flow_error";
     if (TryCreatePath(saveDir)) {
         spdlog::info("saving radar rgbd velocity errors to dir: '{}'...", saveDir);
     } else {
@@ -1161,10 +1251,10 @@ void CalibSolverIO::SaveRGBDVelocityError() const {
 
     const auto &so3Spline = _solver->_splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _solver->_splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
-    auto scaleType = ns_ikalibr::CalibSolver::GetScaleType();
+    auto scaleType = CalibSolver::GetScaleType();
     const auto &parMagr = _solver->_parMagr;
 
-    for (const auto &[topic, corrVec] : _solver->_backup->rgbdCorrs) {
+    for (const auto &[topic, corrVec] : _solver->_backup->ofCorrs) {
         auto subSaveDir = saveDir + "/" + topic;
         if (!TryCreatePath(subSaveDir)) {
             spdlog::warn("create sub directory for '{}' failed: '{}'", topic, subSaveDir);
@@ -1172,24 +1262,36 @@ void CalibSolverIO::SaveRGBDVelocityError() const {
         }
 
         const double readout = parMagr->TEMPORAL.RS_READOUT.at(topic);
-        const double TO_DnToBr = parMagr->TEMPORAL.TO_DnToBr.at(topic);
-        auto SE3_DnToBr = parMagr->EXTRI.SE3_DnToBr(topic);
-        const auto &intri = parMagr->INTRI.RGBD.at(topic);
+        double TO_CamToBr;
+        Sophus::SE3d SE3_CamToBr;
+        ns_veta::PinholeIntrinsic::Ptr intri;
+
+        if (Configor::DataStream::IsRGBD(topic)) {
+            TO_CamToBr = parMagr->TEMPORAL.TO_DnToBr.at(topic);
+            SE3_CamToBr = parMagr->EXTRI.SE3_DnToBr(topic);
+            intri = parMagr->INTRI.RGBD.at(topic)->intri;
+        } else if (Configor::DataStream::IsVelCamera(topic)) {
+            TO_CamToBr = parMagr->TEMPORAL.TO_CmToBr.at(topic);
+            SE3_CamToBr = parMagr->EXTRI.SE3_CmToBr(topic);
+            intri = parMagr->INTRI.Camera.at(topic);
+        } else {
+            throw Status(Status::ERROR, "can not create optical flow error for sensor '{}'", topic);
+        }
 
         std::list<Eigen::Vector2d> velErrors;
 
         for (const auto &corr : corrVec) {
-            double timeByBr = corr->MidPointTime(readout) + TO_DnToBr;
+            double timeByBr = corr->MidPointTime(readout) + TO_CamToBr;
             if (!so3Spline.TimeStampInRange(timeByBr) || !scaleSpline.TimeStampInRange(timeByBr)) {
                 continue;
             }
 
             auto SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
-            Sophus::SO3d SO3_BrToDn = SE3_DnToBr.so3().inverse();
+            Sophus::SO3d SO3_BrToCam = SE3_CamToBr.so3().inverse();
 
             Eigen::Vector3d ANG_VEL_BrToBr0InBr = so3Spline.VelocityBody(timeByBr);
             Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * ANG_VEL_BrToBr0InBr;
-            Eigen::Vector3d ANG_VEL_DnToBr0InDn = SO3_BrToDn * ANG_VEL_BrToBr0InBr;
+            Eigen::Vector3d ANG_VEL_CamToBr0InCam = SO3_BrToCam * ANG_VEL_BrToBr0InBr;
 
             Eigen::Vector3d LIN_VEL_BrToBr0InBr0;
             switch (scaleType) {
@@ -1204,24 +1306,23 @@ void CalibSolverIO::SaveRGBDVelocityError() const {
                     break;
             }
 
-            Eigen::Vector3d LIN_VEL_DnToBr0InBr0 =
+            Eigen::Vector3d LIN_VEL_CamToBr0InBr0 =
                 LIN_VEL_BrToBr0InBr0 -
-                Sophus::SO3d::hat(SO3_BrToBr0 * SE3_DnToBr.translation()) * ANG_VEL_BrToBr0InBr0;
-            Eigen::Vector3d LIN_VEL_DnToBr0InDn =
-                SO3_BrToDn * SO3_BrToBr0.inverse() * LIN_VEL_DnToBr0InBr0;
+                Sophus::SO3d::hat(SO3_BrToBr0 * SE3_CamToBr.translation()) * ANG_VEL_BrToBr0InBr0;
+            Eigen::Vector3d LIN_VEL_CamToBr0InCam =
+                SO3_BrToCam * SO3_BrToBr0.inverse() * LIN_VEL_CamToBr0InBr0;
 
-            const double FX = intri->intri->FocalX(), FY = intri->intri->FocalY();
-            const double CX = intri->intri->PrincipalPoint()(0),
-                         CY = intri->intri->PrincipalPoint()(1);
+            const double FX = intri->FocalX(), FY = intri->FocalY();
+            const double CX = intri->PrincipalPoint()(0), CY = intri->PrincipalPoint()(1);
 
             // map depth using alpha and beta
-            const double depth = intri->ActualDepth(corr->depth);
+            const double depth = corr->depth;
 
             Eigen::Matrix<double, 2, 3> subAMat, subBMat;
-            RGBDVelocityFactor<0, 0>::SubMats<double>(&FX, &FY, &CX, &CY, corr->MidPoint(),
-                                                      &subAMat, &subBMat);
+            OpticalFlowCorr::SubMats<double>(&FX, &FY, &CX, &CY, corr->MidPoint(), &subAMat,
+                                             &subBMat);
             Eigen::Vector2d pred =
-                1.0 / depth * subAMat * LIN_VEL_DnToBr0InDn + subBMat * ANG_VEL_DnToBr0InDn;
+                1.0 / depth * subAMat * LIN_VEL_CamToBr0InCam + subBMat * ANG_VEL_CamToBr0InCam;
 
             Eigen::Vector2d mes = corr->MidPointVel(readout);
 
@@ -1233,7 +1334,7 @@ void CalibSolverIO::SaveRGBDVelocityError() const {
                            std::ios::out);
         auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
         SerializeByOutputArchiveVariant(ar, Configor::Preference::OutputDataFormat,
-                                        cereal::make_nvp("rgbd_vel_errors", velErrors));
+                                        cereal::make_nvp("of_errors", velErrors));
     }
 
     spdlog::info("saving rgbd velocity errors finished!");

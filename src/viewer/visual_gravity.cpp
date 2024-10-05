@@ -33,10 +33,12 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "viewer/visual_gravity.h"
+
+#include <utility>
 #include "calib/calib_param_manager.h"
 #include "opencv2/imgproc.hpp"
 #include "sensor/camera.h"
-#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -116,64 +118,78 @@ cv::Mat VisualGravityDrawer::CreateGravityImg(const CameraFrame::Ptr &frame, flo
 // RGBDVisualGravityDrawer
 // -----------------------
 
-RGBDVisualGravityDrawer::RGBDVisualGravityDrawer(const std::string &topic,
-                                                 const std::vector<OpticalFlowCorr::Ptr> &corrs,
-                                                 SplineBundleType::Ptr splines,
-                                                 const CalibParamManager::Ptr &parMagr)
-    : _splines(std::move(splines)) {
-    _intri = parMagr->INTRI.RGBD.at(topic);
-    SE3_DnToBr = parMagr->EXTRI.SE3_DnToBr(topic);
-    TO_DnToBr = parMagr->TEMPORAL.TO_DnToBr.at(topic);
-    GRAVITY = parMagr->GRAVITY;
-
+VisualOpticalFlowGravityDrawer::VisualOpticalFlowGravityDrawer(
+    const std::vector<OpticalFlowCorr::Ptr> &corrs,
+    SplineBundleType::Ptr splines,
+    ns_veta::PinholeIntrinsic::Ptr intri,
+    const Sophus::SE3d &SE3_SenToBr,
+    const double &TO_SenToBr,
+    Eigen::Vector3d GRAVITY)
+    : _splines(std::move(splines)),
+      _intri(std::move(intri)),
+      SE3_SenToBr(SE3_SenToBr),
+      TO_SenToBr(TO_SenToBr),
+      GRAVITY(std::move(GRAVITY)) {
     for (const auto &corr : corrs) {
-        if (_intri->ActualDepth(corr->depth) > 1E-3 /* 1 mm */) {
+        if (corr->depth > 1E-3 /* 1 mm */) {
             // a valid depth
             this->_velCorrs[corr->frame->GetId()].emplace_back(corr);
         }
     }
 }
 
-RGBDVisualGravityDrawer::Ptr RGBDVisualGravityDrawer::Create(
+VisualOpticalFlowGravityDrawer::Ptr VisualOpticalFlowGravityDrawer::CreateDrawerForRGBDs(
     const std::string &topic,
     const std::vector<OpticalFlowCorr::Ptr> &corrs,
     const SplineBundleType::Ptr &splines,
     const CalibParamManager::Ptr &parMagr) {
-    return std::make_shared<RGBDVisualGravityDrawer>(topic, corrs, splines, parMagr);
+    return std::make_shared<VisualOpticalFlowGravityDrawer>(
+        corrs, splines, parMagr->INTRI.RGBD.at(topic)->intri, parMagr->EXTRI.SE3_DnToBr(topic),
+        parMagr->TEMPORAL.TO_DnToBr.at(topic), parMagr->GRAVITY);
 }
 
-cv::Mat RGBDVisualGravityDrawer::CreateGravityImg(const CameraFrame::Ptr &frame, float scale) {
+VisualOpticalFlowGravityDrawer::Ptr VisualOpticalFlowGravityDrawer::CreateDrawerForVelCameras(
+    const std::string &topic,
+    const std::vector<OpticalFlowCorrPtr> &corrs,
+    const SplineBundleType::Ptr &splines,
+    const CalibParamManagerPtr &parMagr) {
+    return std::make_shared<VisualOpticalFlowGravityDrawer>(
+        corrs, splines, parMagr->INTRI.Camera.at(topic), parMagr->EXTRI.SE3_CmToBr(topic),
+        parMagr->TEMPORAL.TO_CmToBr.at(topic), parMagr->GRAVITY);
+}
+
+cv::Mat VisualOpticalFlowGravityDrawer::CreateGravityImg(const CameraFrame::Ptr &frame,
+                                                         float scale) {
     // undistorted gray image
     cv::Mat undistImgColor, res;
-    undistImgColor =
-        CalibParamManager::ParIntri::UndistortImage(_intri->intri, frame->GetColorImage());
+    undistImgColor = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
 
     // compute timestamp by reference IMU, we do not consider the readout time for RS cameras here
-    double timeByBr = frame->GetTimestamp() + TO_DnToBr;
+    double timeByBr = frame->GetTimestamp() + TO_SenToBr;
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     if (!so3Spline.TimeStampInRange(timeByBr)) {
         return undistImgColor;
     }
 
     auto SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
-    auto SO3_Br0ToDn = (SO3_BrToBr0 * SE3_DnToBr.so3()).inverse();
+    auto SO3_Br0ToSen = (SO3_BrToBr0 * SE3_SenToBr.so3()).inverse();
 
     for (const auto &velCorr : _velCorrs[frame->GetId()]) {
         // map depth using alpha and beta
-        const double depth = _intri->ActualDepth(velCorr->depth);
+        const double depth = velCorr->depth;
 
         // obtain the landmark
-        Eigen::Vector2d lmInDnPlane = _intri->intri->ImgToCam(velCorr->MidPoint());
-        Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);
-        Eigen::Vector3d gravityInDn = SO3_Br0ToDn * GRAVITY;
+        Eigen::Vector2d lmInCamPlane = _intri->ImgToCam(velCorr->MidPoint());
+        Eigen::Vector3d lmInCam(lmInCamPlane(0) * depth, lmInCamPlane(1) * depth, depth);
+        Eigen::Vector3d gravityInCam = SO3_Br0ToSen * GRAVITY;
 
-        Eigen::Vector3d end = lmInDn + scale * gravityInDn;
+        Eigen::Vector3d end = lmInCam + scale * gravityInCam;
 
-        if (end(2) < 1E-3 || lmInDn(2) < 1E-3) {
+        if (end(2) < 1E-3 || lmInCam(2) < 1E-3) {
             continue;
         }
 
-        Eigen::Vector2d endPixel = _intri->intri->CamToImg({end(0) / end(2), end(1) / end(2)});
+        Eigen::Vector2d endPixel = _intri->CamToImg({end(0) / end(2), end(1) / end(2)});
 
         Eigen::Vector2d feat = velCorr->MidPoint();
 

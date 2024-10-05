@@ -14,6 +14,22 @@
 ---
 
 <p align="center">
+    <a><strong>Version 2.1.0 » iKalibr Is Comming With Support for RGBD Cameras</strong></a>
+</p>
+
+Although spatiotemporal calibration of optical cameras were supported in the first version of `iKalibr`, it required computationally expensive SfM (Structure from Motion) to initialize the estimator. Fortunately, this has been greatly improved in the new version (v2.1.0). Specifically, inspired by the RGBD cameras supported in the previous version (v2.0.0), we implemented SfM-Free spatiotemporal calibration for ordinary optical cameras based on continuous-time velocity estimation.
+
+<div align=center>
+    <img src="../img/supported_sensors.drawio.svg" width =80%>
+</div>
+
+**Attention**: although the current camera calibration based on velocity estimation (v2.1.0) is more efficient, its repeatability may not be as good as that based on pose estimation (v1.0.0). If your camera has a **low sampling frequency**, we recommend that you use camera calibration based on translation spline (set `ScaleSplineType` as `LIN_POS_SPLINE` in configure file), otherwise, use the velocity spline based one (set `ScaleSplineType` as `LIN_VEL_SPLINE` in configure file).
+
+
+
+
+
+<p align="center">
     <a><strong>Version 2.0.0 » iKalibr Is Comming With Support for RGBD Cameras</strong></a>
 </p>
 

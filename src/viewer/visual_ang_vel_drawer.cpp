@@ -36,7 +36,7 @@
 #include "calib/calib_param_manager.h"
 #include "opencv2/imgproc.hpp"
 #include "sensor/camera.h"
-#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -112,69 +112,80 @@ cv::Mat VisualAngVelDrawer::CreateAngVelImg(const CameraFrame::Ptr &frame, float
 }
 
 // ----------------------
-// RGBDVisualAngVelDrawer
+// VisualOpticalFlowAngVelDrawer
 // ----------------------
 
-RGBDVisualAngVelDrawer::RGBDVisualAngVelDrawer(const std::string &topic,
-                                               const std::vector<OpticalFlowCorr::Ptr> &corrs,
-                                               SplineBundleType::Ptr splines,
-                                               const CalibParamManager::Ptr &parMagr)
-    : _splines(std::move(splines)) {
-    _intri = parMagr->INTRI.RGBD.at(topic);
-    SE3_DnToBr = parMagr->EXTRI.SE3_DnToBr(topic);
-    TO_DnToBr = parMagr->TEMPORAL.TO_DnToBr.at(topic);
-    GRAVITY = parMagr->GRAVITY;
-
+VisualOpticalFlowAngVelDrawer::VisualOpticalFlowAngVelDrawer(
+    const std::vector<OpticalFlowCorr::Ptr> &corrs,
+    SplineBundleType::Ptr splines,
+    ns_veta::PinholeIntrinsic::Ptr intri,
+    const Sophus::SE3d &SE3_SenToBr,
+    const double &TO_SenToBr)
+    : _splines(std::move(splines)),
+      _intri(std::move(intri)),
+      SE3_SenToBr(SE3_SenToBr),
+      TO_SenToBr(TO_SenToBr) {
     for (const auto &corr : corrs) {
-        if (_intri->ActualDepth(corr->depth) > 1E-3 /* 1 mm */) {
+        if (corr->depth > 1E-3 /* 1 mm */) {
             // a valid depth
             this->_velCorrs[corr->frame->GetId()].emplace_back(corr);
         }
     }
 }
 
-RGBDVisualAngVelDrawer::Ptr RGBDVisualAngVelDrawer::Create(
+VisualOpticalFlowAngVelDrawer::Ptr VisualOpticalFlowAngVelDrawer::CreateDrawerForRGBDs(
     const std::string &topic,
     const std::vector<OpticalFlowCorr::Ptr> &corrs,
     const SplineBundleType::Ptr &splines,
     const CalibParamManager::Ptr &parMagr) {
-    return std::make_shared<RGBDVisualAngVelDrawer>(topic, corrs, splines, parMagr);
+    return std::make_shared<VisualOpticalFlowAngVelDrawer>(
+        corrs, splines, parMagr->INTRI.RGBD.at(topic)->intri, parMagr->EXTRI.SE3_DnToBr(topic),
+        parMagr->TEMPORAL.TO_DnToBr.at(topic));
 }
 
-cv::Mat RGBDVisualAngVelDrawer::CreateAngVelImg(const CameraFrame::Ptr &frame, float scale) {
+VisualOpticalFlowAngVelDrawer::Ptr VisualOpticalFlowAngVelDrawer::CreateDrawerForVelCameras(
+    const std::string &topic,
+    const std::vector<OpticalFlowCorrPtr> &corrs,
+    const SplineBundleType::Ptr &splines,
+    const CalibParamManagerPtr &parMagr) {
+    return std::make_shared<VisualOpticalFlowAngVelDrawer>(
+        corrs, splines, parMagr->INTRI.Camera.at(topic), parMagr->EXTRI.SE3_CmToBr(topic),
+        parMagr->TEMPORAL.TO_CmToBr.at(topic));
+}
+
+cv::Mat VisualOpticalFlowAngVelDrawer::CreateAngVelImg(const CameraFrame::Ptr &frame, float scale) {
     // undistorted gray image
     cv::Mat undistImgColor, res;
-    undistImgColor =
-        CalibParamManager::ParIntri::UndistortImage(_intri->intri, frame->GetColorImage());
+    undistImgColor = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
 
     // compute timestamp by reference IMU, we do not consider the readout time for RS cameras here
-    double timeByBr = frame->GetTimestamp() + TO_DnToBr;
+    double timeByBr = frame->GetTimestamp() + TO_SenToBr;
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     if (!so3Spline.TimeStampInRange(timeByBr)) {
         return undistImgColor;
     }
 
     auto SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
-    auto SO3_Br0ToDn = (SO3_BrToBr0 * SE3_DnToBr.so3()).inverse();
+    auto SO3_Br0ToSen = (SO3_BrToBr0 * SE3_SenToBr.so3()).inverse();
 
     Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * so3Spline.VelocityBody(timeByBr);
-    Eigen::Vector3d ANG_VEL_CmToBr0InCm = SO3_Br0ToDn * ANG_VEL_BrToBr0InBr0;
+    Eigen::Vector3d ANG_VEL_CmToBr0InCm = SO3_Br0ToSen * ANG_VEL_BrToBr0InBr0;
 
     for (const auto &velCorr : _velCorrs[frame->GetId()]) {
         // map depth using alpha and beta
-        const double depth = _intri->ActualDepth(velCorr->depth);
+        const double depth = velCorr->depth;
 
         // obtain the landmark
-        Eigen::Vector2d lmInDnPlane = _intri->intri->ImgToCam(velCorr->MidPoint());
-        Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);
+        Eigen::Vector2d lmInCamPlane = _intri->ImgToCam(velCorr->MidPoint());
+        Eigen::Vector3d lmInCam(lmInCamPlane(0) * depth, lmInCamPlane(1) * depth, depth);
 
-        Eigen::Vector3d end = lmInDn + scale * ANG_VEL_CmToBr0InCm;
+        Eigen::Vector3d end = lmInCam + scale * ANG_VEL_CmToBr0InCm;
 
-        if (end(2) < 1E-3 || lmInDn(2) < 1E-3) {
+        if (end(2) < 1E-3 || lmInCam(2) < 1E-3) {
             continue;
         }
 
-        Eigen::Vector2d endPixel = _intri->intri->CamToImg({end(0) / end(2), end(1) / end(2)});
+        Eigen::Vector2d endPixel = _intri->CamToImg({end(0) / end(2), end(1) / end(2)});
 
         Eigen::Vector2d feat = velCorr->MidPoint();
 

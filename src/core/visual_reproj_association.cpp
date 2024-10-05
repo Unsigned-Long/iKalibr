@@ -33,8 +33,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/visual_reproj_association.h"
-#include "spdlog/spdlog.h"
-#include "factor/visual_reproj_factor.hpp"
+#include "factor/data_correspondence.h"
+#include "veta/veta.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);

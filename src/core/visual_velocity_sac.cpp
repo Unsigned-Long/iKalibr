@@ -35,7 +35,7 @@
 #include "core/visual_velocity_sac.h"
 #include "opengv/sac/Ransac.hpp"
 #include "spdlog/spdlog.h"
-#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -74,7 +74,7 @@ void VisualVelocitySacProblem::getSelectedDistancesToModel(
 
         Eigen::Matrix<double, 2, 3> subAMat, subBMat;
         // the template parameters, i.e., 'Order' and 'TimeDeriv', do not matter here
-        RGBDVelocityFactor<0, 0>::SubMats<double>(&fx, &fy, &cx, &cy, pixel, &subAMat, &subBMat);
+        OpticalFlowCorr::SubMats<double>(&fx, &fy, &cx, &cy, pixel, &subAMat, &subBMat);
 
         Eigen::Vector3d ANG_VEL_BrToWInBr = spline.VelocityBody(timeByBr);
         Eigen::Vector3d ANG_VEL_DnToWInDn = SO3_DnToBr.inverse() * ANG_VEL_BrToWInBr;
@@ -100,7 +100,7 @@ std::optional<Eigen::Vector3d> VisualVelocitySacProblem::VisualVelocityEstimatio
     std::shared_ptr<VisualVelocitySacProblem> probPtr(
         new VisualVelocitySacProblem(dynamics, intri, timeByBr, spline, SO3_DnToBr));
     ransac.sac_model_ = probPtr;
-    ransac.threshold_ = Configor::Prior::LossForRGBDFactor;
+    ransac.threshold_ = Configor::Prior::LossForOpticalFlowFactor;
     ransac.max_iterations_ = 20;
     bool res = ransac.computeModel();
     if (res) {

@@ -32,56 +32,74 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef IKALIBR_PRIOR_EXTRI_SO3_FACTOR_HPP
-#define IKALIBR_PRIOR_EXTRI_SO3_FACTOR_HPP
+#ifndef VEL_VISUAL_INERTIAL_ALIGN_FACTOR_HPP
+#define VEL_VISUAL_INERTIAL_ALIGN_FACTOR_HPP
 
-#include "ctraj/utils/sophus_utils.hpp"
-#include "ceres/dynamic_autodiff_cost_function.h"
-#include "util/utils.h"
+#include "factor/rgbd_inertial_align_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-struct PriorExtriSO3Factor {
+template <int Order>
+using VelVisualInertialAlignHelper = RGBDInertialAlignHelper<Order>;
+
+template <int Order>
+struct VelVisualInertialAlignFactor {
 private:
-    const Sophus::SO3d SO3_Sen1ToSen2;
+    VelVisualInertialAlignHelper<Order> _helper;
+
     double _weight;
 
 public:
-    explicit PriorExtriSO3Factor(const Sophus::SO3d &Sen1ToSen2, double weight)
-        : SO3_Sen1ToSen2(Sen1ToSen2),
+    explicit VelVisualInertialAlignFactor(const VelVisualInertialAlignHelper<Order> &helper,
+                                          double weight)
+        : _helper(helper),
           _weight(weight) {}
 
-    static auto Create(const Sophus::SO3d &Sen1ToSen2, double weight) {
-        return new ceres::DynamicAutoDiffCostFunction<PriorExtriSO3Factor>(
-            new PriorExtriSO3Factor(Sen1ToSen2, weight));
+    static auto Create(const VelVisualInertialAlignHelper<Order> &helper, double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<VelVisualInertialAlignFactor>(
+            new VelVisualInertialAlignFactor(helper, weight));
     }
 
-    static std::size_t TypeHashCode() { return typeid(PriorExtriSO3Factor).hash_code(); }
+    static std::size_t TypeHashCode() { return typeid(VelVisualInertialAlignFactor).hash_code(); }
 
 public:
     /**
      * param blocks:
-     * [ SO3_Sen1ToRef | SO3_Sen2ToRef ]
+     * [ POS_BiInBr | SO3_CmToBr | POS_CmInBr | GRAVITY | VEL_SCALE_S | VEL_SCALE_E ]
      */
     template <class T>
     bool operator()(T const *const *sKnots, T *sResiduals) const {
-        Eigen::Map<Sophus::SO3<T> const> const SO3_Sen1ToRef(sKnots[0]);
-        Eigen::Map<Sophus::SO3<T> const> const SO3_Sen2ToRef(sKnots[1]);
+        Eigen::Map<const Eigen::Vector3<T>> POS_BiInBr(sKnots[0]);
+        Eigen::Map<Sophus::SO3<T> const> const SO3_CmToBr(sKnots[1]);
+        Eigen::Map<const Eigen::Vector3<T>> POS_CmInBr(sKnots[2]);
+        Eigen::Map<const Eigen::Vector3<T>> GRAVITY(sKnots[3]);
+        T sVelScale = sKnots[4][0];
+        T eVelScale = sKnots[5][0];
 
-        Sophus::SO3<T> SO3_Sen1ToSen2_Pred = SO3_Sen2ToRef.inverse() * SO3_Sen1ToRef;
+        Eigen::Vector3<T> sLIN_VEL_BrToBr0InBr0 =
+            _helper.sSO3_BrToBr0 * SO3_CmToBr * (sVelScale * _helper.sDVec) +
+            Sophus::SO3<T>::hat(_helper.sSO3_BrToBr0 * POS_CmInBr) * _helper.sANG_VEL_BcToBc0;
+
+        Eigen::Vector3<T> eLIN_VEL_BrToBr0InBr0 =
+            _helper.eSO3_BrToBr0 * SO3_CmToBr * (eVelScale * _helper.eDVec) +
+            Sophus::SO3<T>::hat(_helper.eSO3_BrToBr0 * POS_CmInBr) * _helper.eANG_VEL_BcToBc0;
+
+        Eigen::Vector3<T> pred =
+            eLIN_VEL_BrToBr0InBr0 - sLIN_VEL_BrToBr0InBr0 - GRAVITY * _helper.dt;
+        Eigen::Vector3<T> mes =
+            _helper.velVec.template cast<T>() - _helper.velMat.template cast<T>() * POS_BiInBr;
 
         Eigen::Map<Eigen::Vector3<T>> residuals(sResiduals);
-        residuals = T(_weight) * (SO3_Sen1ToSen2.inverse() * SO3_Sen1ToSen2_Pred).log();
+        residuals.template block<3, 1>(0, 0) = T(_weight) * (pred - mes);
 
         return true;
     }
-
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+
+extern template struct VelVisualInertialAlignFactor<Configor::Prior::SplineOrder>;
 }  // namespace ns_ikalibr
 
-#endif  // IKALIBR_PRIOR_EXTRI_SO3_FACTOR_HPP
+#endif  // VEL_VISUAL_INERTIAL_ALIGN_FACTOR_HPP

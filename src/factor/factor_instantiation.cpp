@@ -43,10 +43,15 @@
 #include "factor/radar_inertial_align_factor.hpp"
 #include "factor/radar_inertial_rot_align_factor.hpp"
 #include "factor/rgbd_inertial_align_factor.hpp"
-#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/visual_optical_flow_factor.hpp"
 #include "factor/so3_factor.hpp"
 #include "factor/visual_inertial_align_factor.hpp"
 #include "factor/visual_reproj_factor.hpp"
+#include "factor/vel_visual_inertial_align_factor.hpp"
+
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
 
 namespace ns_ikalibr {
 template struct HandEyeRotationAlignFactor<Configor::Prior::SplineOrder>;
@@ -81,20 +86,28 @@ template struct RadarInertialRotRoughAlignFactor<Configor::Prior::SplineOrder>;
 template struct RGBDInertialAlignHelper<Configor::Prior::SplineOrder>;
 template struct RGBDInertialAlignFactor<Configor::Prior::SplineOrder>;
 
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 2, true>;
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 2, false>;
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 1, true>;
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 1, false>;
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 0, true>;
-template struct RGBDVelocityFactor<Configor::Prior::SplineOrder, 0, false>;
+template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 2, true>;
+template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 2, false>;
+template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 1, true>;
+template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 1, false>;
+template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 0, true>;
+template struct VisualOpticalFlowFactor<Configor::Prior::SplineOrder, 0, false>;
 
 template struct SO3Factor<Configor::Prior::SplineOrder>;
 
 template struct VisualInertialAlignHelper<Configor::Prior::SplineOrder>;
 template struct VisualInertialAlignFactor<Configor::Prior::SplineOrder>;
+template struct VelVisualInertialAlignFactor<Configor::Prior::SplineOrder>;
 
 template struct VisualReProjFactor<Configor::Prior::SplineOrder, 2>;
 template struct VisualReProjFactor<Configor::Prior::SplineOrder, 1>;
 template struct VisualReProjFactor<Configor::Prior::SplineOrder, 0>;
+
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, false>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, false>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, false>;
 
 }  // namespace ns_ikalibr

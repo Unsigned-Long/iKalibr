@@ -223,12 +223,12 @@ int main(int argc, char **argv) {
                 }
             }
 
-            // ----------
-            // kinematics
-            // ----------
+            // ---------
+            // residuals
+            // ---------
 
-            // linear acceleration
-            auto subWS = ws + "/kinematics/lin_acce";
+            // inertial errors
+            auto subWS = ws + "/residuals/inertial_error";
             if (std::filesystem::exists(subWS)) {
                 auto files = ns_ikalibr::FilesInDirRecursive(subWS);
                 files.erase(std::remove_if(files.begin(), files.end(),
@@ -276,7 +276,7 @@ int main(int argc, char **argv) {
             }
 
             // reprojection error
-            subWS = ws + "/kinematics/reproj_error";
+            subWS = ws + "/residuals/reproj_error";
             if (std::filesystem::exists(subWS)) {
                 auto files = ns_ikalibr::FilesInDirRecursive(subWS);
                 files.erase(std::remove_if(files.begin(), files.end(),
@@ -299,6 +299,93 @@ int main(int argc, char **argv) {
                         auto oar = GetOutputArchiveVariant(ofile, dstFormat);
                         SerializeByOutputArchiveVariant(
                             oar, dstFormat, cereal::make_nvp("reproj_errors", reprojErrors));
+                        spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+                    }
+                }
+            }
+
+            // optical flow error
+            subWS = ws + "/residuals/optical_flow_error";
+            if (std::filesystem::exists(subWS)) {
+                auto files = ns_ikalibr::FilesInDirRecursive(subWS);
+                files.erase(std::remove_if(files.begin(), files.end(),
+                                           [&srcExt](const std::string &str) {
+                                               return std::filesystem::path(str).extension() !=
+                                                      srcExt;
+                                           }),
+                            files.end());
+                for (const auto &filename : files) {
+                    if (std::filesystem::path(filename).filename() == "residuals" + srcExt) {
+                        std::list<Eigen::Vector2d> velErrors;
+                        // load
+                        std::ifstream ifile(filename);
+                        auto iar = GetInputArchiveVariant(ifile, srcFormat);
+                        SerializeByInputArchiveVariant(iar, srcFormat,
+                                                       cereal::make_nvp("of_errors", velErrors));
+                        // save
+                        wName = std::filesystem::path(filename).replace_extension(dstExt).string();
+                        std::ofstream ofile(wName);
+                        auto oar = GetOutputArchiveVariant(ofile, dstFormat);
+                        SerializeByOutputArchiveVariant(oar, dstFormat,
+                                                        cereal::make_nvp("of_errors", velErrors));
+                        spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+                    }
+                }
+            }
+
+            // radar doppler error
+            subWS = ws + "/residuals/doppler_error";
+            if (std::filesystem::exists(subWS)) {
+                auto files = ns_ikalibr::FilesInDirRecursive(subWS);
+                files.erase(std::remove_if(files.begin(), files.end(),
+                                           [&srcExt](const std::string &str) {
+                                               return std::filesystem::path(str).extension() !=
+                                                      srcExt;
+                                           }),
+                            files.end());
+                for (const auto &filename : files) {
+                    if (std::filesystem::path(filename).filename() == "residuals" + srcExt) {
+                        std::list<double> dopplerErrors;
+                        // load
+                        std::ifstream ifile(filename);
+                        auto iar = GetInputArchiveVariant(ifile, srcFormat);
+                        SerializeByInputArchiveVariant(
+                            iar, srcFormat, cereal::make_nvp("doppler_errors", dopplerErrors));
+                        // save
+                        wName = std::filesystem::path(filename).replace_extension(dstExt).string();
+                        std::ofstream ofile(wName);
+                        auto oar = GetOutputArchiveVariant(ofile, dstFormat);
+                        SerializeByOutputArchiveVariant(
+                            oar, dstFormat, cereal::make_nvp("doppler_errors", dopplerErrors));
+                        spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
+                    }
+                }
+            }
+
+            // lidar point-to-surfel error
+            subWS = ws + "/residuals/lidar_pts_error";
+            if (std::filesystem::exists(subWS)) {
+                auto files = ns_ikalibr::FilesInDirRecursive(subWS);
+                files.erase(std::remove_if(files.begin(), files.end(),
+                                           [&srcExt](const std::string &str) {
+                                               return std::filesystem::path(str).extension() !=
+                                                      srcExt;
+                                           }),
+                            files.end());
+                for (const auto &filename : files) {
+                    if (std::filesystem::path(filename).filename() == "residuals" + srcExt) {
+                        std::list<double> ptsErrors;
+                        // load
+                        std::ifstream ifile(filename);
+                        auto iar = GetInputArchiveVariant(ifile, srcFormat);
+                        SerializeByInputArchiveVariant(iar, srcFormat,
+                                                       cereal::make_nvp("pts_errors", ptsErrors));
+                        // save
+                        wName = std::filesystem::path(filename).replace_extension(dstExt).string();
+                        std::ofstream ofile(wName);
+                        auto oar = GetOutputArchiveVariant(ofile, dstFormat);
+                        SerializeByOutputArchiveVariant(oar, dstFormat,
+                                                        cereal::make_nvp("pts_errors", ptsErrors));
                         spdlog::info("perform transformation:\n   '{}'\n-> '{}'", filename, wName);
                     }
                 }

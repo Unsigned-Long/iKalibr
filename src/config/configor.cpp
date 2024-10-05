@@ -41,6 +41,8 @@
 #include "cereal/types/vector.hpp"
 #include "cereal/types/set.hpp"
 
+#include <calib/time_deriv.hpp>
+
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
@@ -60,7 +62,7 @@ const static std::map<std::string, OutputOption> OutputOptionMap = {
     {"AlignedInertialMes", OutputOption::AlignedInertialMes},
     {"VisualReprojErrors", OutputOption::VisualReprojErrors},
     {"RadarDopplerErrors", OutputOption::RadarDopplerErrors},
-    {"RGBDVelocityErrors", OutputOption::RGBDVelocityErrors},
+    {"VisualOpticalFlowErrors", OutputOption::VisualOpticalFlowErrors},
     {"LiDARPointToSurfelErrors", OutputOption::LiDARPointToSurfelErrors},
     {"ALL", OutputOption::ALL},
 };
@@ -109,13 +111,13 @@ const std::uint8_t Configor::Prior::LiDARDataAssociate::MapDepthLevels = 16;
 const int Configor::Prior::LiDARDataAssociate::PointToSurfelCountInScan = 200;
 
 // the loss function used for radar factor (m/s) (on the direction of target)
-const double Configor::Prior::LossForRadarFactor = 0.1;
+const double Configor::Prior::LossForRadarDopplerFactor = 0.1;
 // the loss function used for lidar factor (m)
-const double Configor::Prior::LossForLiDARFactor = 0.02;
+const double Configor::Prior::LossForPointToSurfelFactor = 0.02;
 // the loss function used for visual reprojection factor (pixel)
-const double Configor::Prior::LossForCameraFactor = 2.0;
-// the loss function used for rgbd velocity factor (pixel) (on the image pixel plane)
-const double Configor::Prior::LossForRGBDFactor = 50.0;
+const double Configor::Prior::LossForReprojFactor = 2.0;
+// the loss function used for visual optical flow factor (pixel) (on the image pixel plane)
+const double Configor::Prior::LossForOpticalFlowFactor = 30.0;
 
 bool Configor::Prior::OptTemporalParams = {};
 
@@ -161,6 +163,69 @@ std::optional<std::string> Configor::DataStream::CreateSfMWorkspace(const std::s
 std::string Configor::DataStream::GetImageStoreInfoFile(const std::string &camTopic) {
     return ns_ikalibr::Configor::DataStream::OutputPath + "/images/" + camTopic + "/info" +
            Configor::GetFormatExtension();
+}
+
+std::map<std::string, Configor::DataStream::CameraConfig> Configor::DataStream::PosCameraTopics() {
+    static auto posSplineStr = EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_POS_SPLINE);
+    static auto velSplineStr = EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE);
+
+    std::map<std::string, Configor::DataStream::CameraConfig> posCams;
+    for (const auto &[topic, config] : CameraTopics) {
+        if (config.ScaleSplineType == posSplineStr) {
+            posCams.insert({topic, config});
+        } else if (config.ScaleSplineType == velSplineStr) {
+            continue;
+        } else {
+            throw Status(Status::CRITICAL,
+                         "invalid linear scale spline type for camera '{}', it should be one of "
+                         "'{}' and '{}', but now it wrongly set to '{}'!!!",
+                         topic, posSplineStr, velSplineStr, config.ScaleSplineType);
+        }
+    }
+    return posCams;
+}
+
+std::map<std::string, Configor::DataStream::CameraConfig> Configor::DataStream::VelCameraTopics() {
+    static auto posSplineStr = EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_POS_SPLINE);
+    static auto velSplineStr = EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE);
+
+    std::map<std::string, Configor::DataStream::CameraConfig> velCams;
+    for (const auto &[topic, config] : CameraTopics) {
+        if (config.ScaleSplineType == velSplineStr) {
+            velCams.insert({topic, config});
+        } else if (config.ScaleSplineType == posSplineStr) {
+            continue;
+        } else {
+            throw Status(Status::CRITICAL,
+                         "invalid linear scale spline type for camera '{}', it should be one of "
+                         "'{}' and '{}', but now it wrongly set to '{}'!!!",
+                         topic, posSplineStr, velSplineStr, config.ScaleSplineType);
+        }
+    }
+    return velCams;
+}
+bool Configor::DataStream::IsIMU(const std::string &topic) { return IMUTopics.count(topic) > 0; }
+
+bool Configor::DataStream::IsRadar(const std::string &topic) {
+    return RadarTopics.count(topic) > 0;
+}
+
+bool Configor::DataStream::IsLiDAR(const std::string &topic) {
+    return LiDARTopics.count(topic) > 0;
+}
+
+bool Configor::DataStream::IsCamera(const std::string &topic) {
+    return CameraTopics.count(topic) > 0;
+}
+
+bool Configor::DataStream::IsRGBD(const std::string &topic) { return RGBDTopics.count(topic) > 0; }
+
+bool Configor::DataStream::IsVelCamera(const std::string &topic) {
+    return VelCameraTopics().count(topic) > 0;
+}
+
+bool Configor::DataStream::IsPosCamera(const std::string &topic) {
+    return PosCameraTopics().count(topic) > 0;
 }
 
 int Configor::Preference::AvailableThreads() {
@@ -224,11 +289,12 @@ void Configor::PrintMainFields() {
         DESC_FIELD(Prior::NDTLiDAROdometer::Resolution),
         DESC_FIELD(Prior::NDTLiDAROdometer::KeyFrameDownSample),
         DESC_FIELD(Prior::LiDARDataAssociate::PointToSurfelMax),
-        DESC_FIELD(Prior::LiDARDataAssociate::PlanarityMin), DESC_FIELD(Prior::LossForRadarFactor),
-        DESC_FIELD(Prior::LossForLiDARFactor), DESC_FIELD(Prior::LossForCameraFactor),
-        DESC_FIELD(Prior::LossForRGBDFactor), DESC_FIELD(Preference::UseCudaInSolving),
-        "Preference::OutputDataFormat", Preference::OutputDataFormatStr, "Preference::Outputs",
-        GetOptString(Preference::Outputs), DESC_FIELD(Preference::ThreadsToUse));
+        DESC_FIELD(Prior::LiDARDataAssociate::PlanarityMin),
+        DESC_FIELD(Prior::LossForRadarDopplerFactor), DESC_FIELD(Prior::LossForPointToSurfelFactor),
+        DESC_FIELD(Prior::LossForReprojFactor), DESC_FIELD(Prior::LossForOpticalFlowFactor),
+        DESC_FIELD(Preference::UseCudaInSolving), "Preference::OutputDataFormat",
+        Preference::OutputDataFormatStr, "Preference::Outputs", GetOptString(Preference::Outputs),
+        DESC_FIELD(Preference::ThreadsToUse));
 
 #undef DESC_FIELD
 #undef DESC_FORMAT
@@ -242,8 +308,8 @@ void Configor::CheckConfigure() {
             "the imu topic num (i.e., DataStream::IMUTopic) should be larger equal than 1!");
     }
     if (!Configor::IsLiDARIntegrated() && !Configor::IsRadarIntegrated() &&
-        !Configor::IsCameraIntegrated() && !Configor::IsRGBDIntegrated() &&
-        DataStream::IMUTopics.size() < 2) {
+        !Configor::IsPosCameraIntegrated() && !Configor::IsVelCameraIntegrated() &&
+        !Configor::IsRGBDIntegrated() && DataStream::IMUTopics.size() < 2) {
         throw Status(
             Status::ERROR,
             "performing multi-imu calibration requires imus that are more than or equal to 2!");
@@ -300,6 +366,16 @@ void Configor::CheckConfigure() {
         if (!std::filesystem::exists(config.Intrinsics)) {
             throw Status(Status::ERROR, "camera intrinsic file for '{}' dose not exist: '{}'",
                          topic, config.Intrinsics);
+        }
+        static auto posSplineStr =
+            EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_POS_SPLINE);
+        static auto velSplineStr =
+            EnumCast::enumToString(TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE);
+        if (config.ScaleSplineType != posSplineStr && config.ScaleSplineType != velSplineStr) {
+            throw Status(Status::ERROR,
+                         "the linear scale spline type, i.e., 'ScaleSplineType' of camera '{}' is "
+                         "invalid, it should be 'LIN_POS_SPLINE' or 'LIN_VEL_SPLINE'",
+                         topic);
         }
         topics.insert(topic);
     }
@@ -460,7 +536,9 @@ bool Configor::IsLiDARIntegrated() { return !DataStream::LiDARTopics.empty(); }
 
 bool Configor::IsRadarIntegrated() { return !DataStream::RadarTopics.empty(); }
 
-bool Configor::IsCameraIntegrated() { return !DataStream::CameraTopics.empty(); }
+bool Configor::IsPosCameraIntegrated() { return !DataStream::PosCameraTopics().empty(); }
+
+bool Configor::IsVelCameraIntegrated() { return !DataStream::VelCameraTopics().empty(); }
 
 bool Configor::IsRGBDIntegrated() { return !DataStream::RGBDTopics.empty(); }
 }  // namespace ns_ikalibr

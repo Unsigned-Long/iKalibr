@@ -37,7 +37,7 @@
 #include "core/pts_association.h"
 #include "calib/calib_param_manager.h"
 #include "sensor/rgbd.h"
-#include "factor/point_to_surfel_factor.hpp"
+#include "factor/data_correspondence.h"
 #include "tiny-viewer/object/landmark.h"
 #include "tiny-viewer/object/camera.h"
 #include "tiny-viewer/core/pose.hpp"
@@ -345,8 +345,8 @@ Viewer &Viewer::AddEntityLocal(const std::vector<ns_viewer::Entity::Ptr> &entiti
 void Viewer::SetNewSpline(const SplineBundleType::Ptr &splines) { _splines = splines; }
 
 Viewer &Viewer::FillEmptyViews(const std::string &objPath) {
-    std::array<std::map<std::string, bool>, 5> occupy;
-    std::array<bool, 5> senIntegrated{};
+    std::array<std::map<std::string, bool>, 6> occupy;
+    std::array<bool, 6> senIntegrated{};
     // imus
     occupy[0] = {
         {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, false}, {VIEW_ASSOCIATION, false}};
@@ -357,20 +357,25 @@ Viewer &Viewer::FillEmptyViews(const std::string &objPath) {
         {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, false}, {VIEW_ASSOCIATION, false}};
     senIntegrated[1] = Configor::IsRadarIntegrated();
 
-    // cameras
+    // pos cameras
     occupy[2] = {
         {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, true}};
-    senIntegrated[2] = Configor::IsCameraIntegrated();
+    senIntegrated[2] = Configor::IsPosCameraIntegrated();
+
+    // vel cameras
+    occupy[3] = {
+        {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, false}, {VIEW_ASSOCIATION, false}};
+    senIntegrated[3] = Configor::IsVelCameraIntegrated();
 
     // lidars
-    occupy[3] = {
+    occupy[4] = {
         {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, true}};
-    senIntegrated[3] = Configor::IsLiDARIntegrated();
+    senIntegrated[4] = Configor::IsLiDARIntegrated();
 
     // rgbds
-    occupy[4] = {
+    occupy[5] = {
         {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, false}};
-    senIntegrated[4] = Configor::IsRGBDIntegrated();
+    senIntegrated[5] = Configor::IsRGBDIntegrated();
 
     std::map<std::string, bool> viewOccupy;
     for (int i = 0; i < static_cast<int>(occupy.size()); ++i) {

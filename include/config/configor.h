@@ -64,11 +64,12 @@ enum class OutputOption : std::uint32_t {
     AlignedInertialMes = 1 << 10,
     VisualReprojErrors = 1 << 11,
     RadarDopplerErrors = 1 << 12,
-    RGBDVelocityErrors = 1 << 13,
+    VisualOpticalFlowErrors = 1 << 13,
     LiDARPointToSurfelErrors = 1 << 14,
     ALL = ParamInEachIter | BSplines | LiDARMaps | VisualMaps | RadarMaps | HessianMat |
           VisualLiDARCovisibility | VisualKinematics | ColorizedLiDARMap | AlignedInertialMes |
-          VisualReprojErrors | RadarDopplerErrors | RGBDVelocityErrors | LiDARPointToSurfelErrors
+          VisualReprojErrors | RadarDopplerErrors | VisualOpticalFlowErrors |
+          LiDARPointToSurfelErrors
 };
 
 struct Configor {
@@ -88,7 +89,7 @@ public:
                 : Type(),
                   Intrinsics(),
                   AcceWeight(),
-                  GyroWeight() {};
+                  GyroWeight(){};
 
         public:
             template <class Archive>
@@ -105,7 +106,7 @@ public:
 
             RadarConfig()
                 : Type(),
-                  Weight() {};
+                  Weight(){};
 
         public:
             template <class Archive>
@@ -121,7 +122,7 @@ public:
 
             LiDARConfig()
                 : Type(),
-                  Weight() {};
+                  Weight(){};
 
         public:
             template <class Archive>
@@ -136,18 +137,20 @@ public:
             std::string Intrinsics;
             double Weight;
             int TrackLengthMin;
+            std::string ScaleSplineType;
 
             CameraConfig()
                 : Type(),
                   Intrinsics(),
                   Weight(),
-                  TrackLengthMin() {};
+                  TrackLengthMin(),
+                  ScaleSplineType(){};
 
         public:
             template <class Archive>
             void serialize(Archive &ar) {
                 ar(CEREAL_NVP(Type), CEREAL_NVP(Intrinsics), CEREAL_NVP(Weight),
-                   CEREAL_NVP(TrackLengthMin));
+                   CEREAL_NVP(TrackLengthMin), CEREAL_NVP(ScaleSplineType));
             }
         };
 
@@ -166,7 +169,7 @@ public:
                   DepthTopic(),
                   DepthFactor(),
                   Weight(),
-                  TrackLengthMin() {};
+                  TrackLengthMin(){};
 
         public:
             template <class Archive>
@@ -181,6 +184,24 @@ public:
         static std::optional<std::string> CreateSfMWorkspace(const std::string &camTopic);
 
         static std::string GetImageStoreInfoFile(const std::string &camTopic);
+
+        static std::map<std::string, CameraConfig> PosCameraTopics();
+
+        static std::map<std::string, CameraConfig> VelCameraTopics();
+
+        static bool IsIMU(const std::string &topic);
+
+        static bool IsRadar(const std::string &topic);
+
+        static bool IsLiDAR(const std::string &topic);
+
+        static bool IsCamera(const std::string &topic);
+
+        static bool IsRGBD(const std::string &topic);
+
+        static bool IsVelCamera(const std::string &topic);
+
+        static bool IsPosCamera(const std::string &topic);
 
         static std::map<std::string, IMUConfig> IMUTopics;
         static std::map<std::string, RadarConfig> RadarTopics;
@@ -261,13 +282,13 @@ public:
         } lidarDataAssociate;
 
         // the loss function used for radar factor (m/s) (on the direction of target)
-        const static double LossForRadarFactor;
+        const static double LossForRadarDopplerFactor;
         // the loss function used for lidar factor (m)
-        const static double LossForLiDARFactor;
+        const static double LossForPointToSurfelFactor;
         // the loss function used for visual reprojection factor (pixel)
-        const static double LossForCameraFactor;
+        const static double LossForReprojFactor;
         // the loss function used for rgbd velocity factor (pixel) (on the image pixel plane)
-        const static double LossForRGBDFactor;
+        const static double LossForOpticalFlowFactor;
 
     public:
         template <class Archive>
@@ -328,7 +349,9 @@ public:
 
     [[nodiscard]] static bool IsLiDARIntegrated();
 
-    [[nodiscard]] static bool IsCameraIntegrated();
+    [[nodiscard]] static bool IsPosCameraIntegrated();
+
+    [[nodiscard]] static bool IsVelCameraIntegrated();
 
     [[nodiscard]] static bool IsRadarIntegrated();
 

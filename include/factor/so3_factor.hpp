@@ -35,11 +35,9 @@
 #ifndef IKALIBR_SO3_FACTOR_HPP
 #define IKALIBR_SO3_FACTOR_HPP
 
-#include "ctraj/utils/eigen_utils.hpp"
 #include "ctraj/utils/sophus_utils.hpp"
 #include "ctraj/spline/spline_segment.h"
 #include "ctraj/spline/ceres_spline_helper.h"
-#include "ctraj/spline/ceres_spline_helper_jet.h"
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "util/utils.h"
 #include "config/configor.h"

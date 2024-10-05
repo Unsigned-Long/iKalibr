@@ -27,7 +27,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
 + install `Ceres`: see the `GitHub` Profile of **[Ceres](https://github.com/ceres-solver/ceres-solver.git)** library, clone it, compile it, and install it. Make sure that the version of `Ceres` contains the `Manifold` module and `Cuda` support. **`Ceres` version equals to 2.2.0 or higher.**
 
-+ install `Sophus`: see the `GitHub` Profile of **[Sophus](https://github.com/strasdat/Sophus.git)** library, clone it, compile it, and install it.
++ install `Sophus`: see the `GitHub` Profile of **[Sophus](https://github.com/strasdat/Sophus.git)** library, clone it, compile it, and install it. Set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`!
 
 + install `magic-enum`: see the `GitHub` Profile of **[magic-enum](https://github.com/Neargye/magic_enum.git)** library, clone it, compile it, and install it.
 
@@ -38,8 +38,9 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   ```bash
   sudo apt-get install libcereal-dev
   sudo apt-get install libyaml-cpp-dev
+  # installing spdlog from source is a better way, to avoid fmt conflict
   sudo apt-get install libspdlog-dev
-  # installing colmap from source is a better way
+  # installing colmap from source is a better way, If the sensor suite you want to calibrate does not include optical cameras, you do not need to install colmap or glomap.
   sudo apt-get install colmap
   # if you want to use glomap to perform SfM, than clone it at (https://github.com/colmap/glomap.git), then build and install it. Generally speaking, glomap is recommanded for SfM (faster than colmap).
   ```
@@ -51,9 +52,9 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   sudo apt-get install ros-noetic-velodyne
   ```
 
-**Key point**: 
+**Key point** (you can't skip this part): 
 
-+ both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`.
++ both `spdlog` and `Sophus` would involve the `fmt` library, and would lead to conflict if the versions of involved `fmt` in `spdlog` and `Sophus` are different. To solve this, we recommend that you set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`, this would avoid to involve `fmt` logger dependency in `Sophus`. If conflict about `fmt` still exists, it is recommended that you try to compile the `spdlog` library from [source code](https://github.com/gabime/spdlog.git) (directly compile and install), so that `spdlog` will use the internal `fmt` library.
 + Third-party dependency libraries that do not specify version numbers use the system default version. For example, the default `pcl` version of `Ubuntu 20.04` is `1.10` (`pcl` can be installed together with `ROS`).
 
 <p align="left">
@@ -69,7 +70,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   git clone --recursive https://github.com/Unsigned-Long/iKalibr.git ikalibr
   ```
 
-  **Key point**: the ros package name is `ikalibr` (the letter `k` is lowercase), rather than `iKalibr` (the letter `K` is uppercase).
+  **Key point ** (you can't skip this part): the ros package name is `ikalibr` (the letter `k` is lowercase), rather than `iKalibr` (the letter `K` is uppercase).
 
   change directory to '`ikalibr`', and run '`build_thirdparty.sh`'.
 
@@ -81,7 +82,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
   this would build sub module libraries, namely `tiny-viewer`, `ctraj`, `ufomap`, `veta`, and `opengv`.
   
-  **Key point**: the sub module `ufomap` would be checkout to `origin/devel_surfel` branch in `build_thirdparty.sh`. If errors about `ufomap` happen when compiling `iKalibr`, make sure the branch of `ufomap` is correct.
+  **Key point ** (you can't skip this part): the sub module `ufomap` would be checkout to `origin/devel_surfel` branch in `build_thirdparty.sh`. If errors about `ufomap` happen when compiling `iKalibr`, make sure the branch of `ufomap` is correct.
 
 <p align="left">
     <a><strong>Compile iKalibr »</strong></a>

@@ -47,7 +47,7 @@ namespace ns_ikalibr {
 template <TimeDeriv::ScaleSplineType type>
 void CalibSolver::AddRadarFactor(Estimator::Ptr &estimator,
                                  const std::string &radarTopic,
-                                 Estimator::Opt option) {
+                                 Estimator::Opt option) const {
     double weight = Configor::DataStream::RadarTopics.at(radarTopic).Weight;
 
     for (const auto &targetAry : _dataMagr->GetRadarMeasurements(radarTopic)) {
@@ -60,7 +60,7 @@ void CalibSolver::AddRadarFactor(Estimator::Ptr &estimator,
 template <TimeDeriv::ScaleSplineType type>
 void CalibSolver::AddAcceFactor(Estimator::Ptr &estimator,
                                 const std::string &imuTopic,
-                                Estimator::Opt option) {
+                                Estimator::Opt option) const {
     double weight = Configor::DataStream::IMUTopics.at(imuTopic).AcceWeight;
 
     for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {
@@ -111,14 +111,76 @@ void CalibSolver::AddVisualReprojectionFactor(Estimator::Ptr &estimator,
 }
 
 template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-void CalibSolver::AddRGBDVelocityFactor(Estimator::Ptr &estimator,
-                                        const std::string &rgbdTopic,
-                                        const std::vector<OpticalFlowCorr::Ptr> &corrs,
-                                        Estimator::Opt option) {
+void CalibSolver::AddRGBDOpticalFlowFactor(Estimator::Ptr &estimator,
+                                           const std::string &rgbdTopic,
+                                           const std::vector<OpticalFlowCorr::Ptr> &corrs,
+                                           Estimator::Opt option) {
     double weight = Configor::DataStream::RGBDTopics.at(rgbdTopic).Weight;
     for (const auto &corr : corrs) {
-        estimator->AddRGBDVelocityConstraint<type, IsInvDepth>(corr, rgbdTopic, option,
-                                                               weight * corr->weight);
+        estimator->AddRGBDOpticalFlowConstraint<type, IsInvDepth>(corr, rgbdTopic, option,
+                                                                  weight * corr->weight);
+    }
+}
+
+template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+void CalibSolver::AddVisualOpticalFlowFactor(Estimator::Ptr &estimator,
+                                             const std::string &camTopic,
+                                             const std::vector<OpticalFlowCorr::Ptr> &corrs,
+                                             Estimator::Opt option) {
+    double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
+    for (const auto &corr : corrs) {
+        estimator->AddVisualOpticalFlowConstraint<type, IsInvDepth>(corr, camTopic, option,
+                                                                    weight * corr->weight);
+    }
+}
+
+template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+void CalibSolver::AddVisualOpticalFlowReprojFactor(Estimator::Ptr &estimator,
+                                                   const std::string &camTopic,
+                                                   const std::vector<OpticalFlowCorr::Ptr> &corrs,
+                                                   Estimator::Opt option) {
+    if constexpr (type != TimeDeriv::LIN_POS_SPLINE) {
+        throw Status(Status::CRITICAL,
+                     "the 'AddVisualOpticalFlowReprojConstraint' only works for pos spline!!!");
+    }
+    double weight = Configor::DataStream::CameraTopics.at(camTopic).Weight;
+    for (const auto &corr : corrs) {
+        /**
+         * given a optical flow tracking correspondence (triple tracking, three points), we throw
+         * the middle feature to the camera frame and reproject it to the first and last camera
+         * image plane, just like this:
+         *                         +-<---<---(*)--->--->-+
+         *                         |          ^          |
+         *                         v          |          v
+         *                      [ fir        mid        last ] -> a optical flow tracking (triple)
+         */
+        estimator->AddVisualOpticalFlowReprojConstraint<type, IsInvDepth>(corr, camTopic, option,
+                                                                          weight * corr->weight);
+    }
+}
+
+template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+void CalibSolver::AddRGBDOpticalFlowReprojFactor(Estimator::Ptr &estimator,
+                                                 const std::string &camTopic,
+                                                 const std::vector<OpticalFlowCorr::Ptr> &corrs,
+                                                 Estimator::Opt option) {
+    if constexpr (type != TimeDeriv::LIN_POS_SPLINE) {
+        throw Status(Status::CRITICAL,
+                     "the 'AddRGBDOpticalFlowReprojConstraint' only works for pos spline!!!");
+    }
+    double weight = Configor::DataStream::RGBDTopics.at(camTopic).Weight;
+    for (const auto &corr : corrs) {
+        /**
+         * given a optical flow tracking correspondence (triple tracking, three points), we throw
+         * the middle feature to the camera frame and reproject it to the first and last camera
+         * image plane, just like this:
+         *                         --<---<---(*)--->--->--
+         *                         |          ^          |
+         *                         v          |          v
+         *                      [ fir        mid        last ] -> a optical flow tracking (triple)
+         */
+        estimator->AddRGBDOpticalFlowReprojConstraint<type, IsInvDepth>(corr, camTopic, option,
+                                                                        weight * corr->weight);
     }
 }
 }  // namespace ns_ikalibr

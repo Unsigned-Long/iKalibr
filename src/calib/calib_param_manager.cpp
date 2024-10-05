@@ -477,12 +477,25 @@ std::vector<ns_viewer::Entity::Ptr> CalibParamManager::EntitiesForVisualization(
         entities.push_back(lidar);
     }
 
-    // cameras
-    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+    // pos cameras
+    for (const auto &[topic, _] : Configor::DataStream::PosCameraTopics()) {
         auto SE3_CmToBr = EXTRI.SE3_CmToBr(topic).cast<float>();
         auto camera = ns_viewer::CubeCamera::Create(
             ns_viewer::Posef(SE3_CmToBr.so3().matrix(), SE3_CmToBr.translation()), CAMERA_SIZE,
             ns_viewer::Colour::Blue());
+        auto line =
+            ns_viewer::Line::Create(Eigen::Vector3f::Zero(), SE3_CmToBr.translation().cast<float>(),
+                                    ns_viewer::Colour::Black());
+        entities.push_back(camera);
+        entities.push_back(line);
+    }
+
+    // vel cameras
+    for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
+        auto SE3_CmToBr = EXTRI.SE3_CmToBr(topic).cast<float>();
+        auto camera = ns_viewer::CubeCamera::Create(
+            ns_viewer::Posef(SE3_CmToBr.so3().matrix(), SE3_CmToBr.translation()), CAMERA_SIZE,
+            ns_viewer::Colour::Green());
         auto line =
             ns_viewer::Line::Create(Eigen::Vector3f::Zero(), SE3_CmToBr.translation().cast<float>(),
                                     ns_viewer::Colour::Black());

@@ -38,9 +38,7 @@
 #include "core/pts_association.h"
 #include "core/scan_undistortion.h"
 #include "core/visual_reproj_association.h"
-#include "factor/point_to_surfel_factor.hpp"
-#include "factor/rgbd_velocity_factor.hpp"
-#include "factor/visual_reproj_factor.hpp"
+#include "factor/data_correspondence.h"
 #include "pcl/common/transforms.h"
 #include "pcl/filters/random_sample.h"
 #include "pcl/filters/voxel_grid.h"
@@ -90,7 +88,7 @@ CalibSolver::BuildGlobalMapOfLiDAR() const {
     return {newMapCloud, undistFrames};
 }
 
-IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() {
+IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() const {
     if (!Configor::IsRadarIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return {};
     }
@@ -134,7 +132,7 @@ IKalibrPointCloud::Ptr CalibSolver::BuildGlobalMapOfRadar() {
     return radarCloud;
 }
 
-ColorPointCloud::Ptr CalibSolver::BuildGlobalColorMapOfRGBD(const std::string &topic) {
+ColorPointCloud::Ptr CalibSolver::BuildGlobalColorMapOfRGBD(const std::string &topic) const {
     if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return {};
     }
@@ -188,7 +186,7 @@ std::tuple<IKalibrPointCloud::Ptr,
            std::map<std::string, std::vector<IKalibrPointCloud::Ptr>>,
            // scans in local frame
            std::map<std::string, std::vector<IKalibrPointCloud::Ptr>>>
-CalibSolver::BuildGlobalMapOfRGBD() {
+CalibSolver::BuildGlobalMapOfRGBD() const {
     if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return {};
     }
@@ -442,8 +440,8 @@ std::map<std::string, std::vector<PointToSurfelCorrPtr>> CalibSolver::DataAssoci
 }
 
 std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>>
-CalibSolver::DataAssociationForCameras() const {
-    if (!Configor::IsCameraIntegrated()) {
+CalibSolver::DataAssociationForPosCameras() const {
+    if (!Configor::IsPosCameraIntegrated()) {
         return {};
     }
 
@@ -460,11 +458,9 @@ CalibSolver::DataAssociationForCameras() const {
     return corrs;
 }
 
-std::vector<OpticalFlowTripleTrace::Ptr> CalibSolver::CreateOpticalFlowTraceForRGBD(
-    const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList,
-    const std::string &topic) {
+std::vector<OpticalFlowTripleTrace::Ptr> CalibSolver::CreateOpticalFlowTrace(
+    const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList, int trackThd) {
     std::vector<OpticalFlowTripleTrace::Ptr> dynamics;
-    const int trackThd = Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin;
     for (const auto &trackInfo : trackInfoList) {
         for (const auto &[id, info] : trackInfo) {
             // for each tracked feature
@@ -499,28 +495,13 @@ std::vector<OpticalFlowTripleTrace::Ptr> CalibSolver::CreateOpticalFlowTraceForR
 
 std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssociationForRGBDs(
     bool estDepth) {
-    // add rgbd point cloud map
-    // if (auto map = BuildGlobalColorMapOfRGBD(0.05f); map != nullptr) {
-    //     _viewer->AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(map, 2.0f)},
-    //                             Viewer::VIEW_MAP);
-    // }
-
-    // add veta from pixel dynamics
-    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
-        auto veta = CreateVetaFromRGBD(topic);
-        if (veta != nullptr) {
-            DownsampleVeta(veta, 10000, Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin);
-            // we do not show the pose
-            _viewer->AddVeta(veta, Viewer::VIEW_MAP, {}, ns_viewer::Entity::GetUniqueColour());
-        }
-    }
-
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
 
     std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> corrs;
 
-    for (const auto &[topic, traceVec] : _dataMagr->GetRGBDOpticalFlowTrace()) {
+    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+        const auto &traceVec = _dataMagr->GetVisualOpticalFlowTrace(topic);
         spdlog::info("perform data association for RGBD camera '{}'...", topic);
         const auto &intri = _parMagr->INTRI.RGBD.at(topic);
         const double fx = intri->intri->FocalX(), fy = intri->intri->FocalY();
@@ -543,8 +524,7 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
         int estDepthCount = 0;
 
         for (const auto &trace : traceVec) {
-            // we use raw depth here (intrinsics is nullptr)
-            auto corr = trace->CreateOpticalFlowCorr(rsExposureFactor, nullptr);
+            auto corr = trace->CreateOpticalFlowCorr(rsExposureFactor, intri);
 
             double timeByBr = corr->MidPointTime(readout) + TO_DnToBr;
             if (!so3Spline.TimeStampInRange(timeByBr) || !scaleSpline.TimeStampInRange(timeByBr)) {
@@ -593,14 +573,13 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
                     SO3_BrToDn * SO3_BrToBr0.inverse() * LIN_VEL_DnToBr0InBr0;
 
                 Eigen::Matrix<double, 2, 3> subAMat, subBMat;
-                RGBDVelocityFactor<0, 0>::SubMats<double>(&fx, &fy, &cx, &cy, corr->MidPoint(),
-                                                          &subAMat, &subBMat);
+                OpticalFlowCorr::SubMats<double>(&fx, &fy, &cx, &cy, corr->MidPoint(), &subAMat,
+                                                 &subBMat);
 
                 Eigen::Vector2d lVec = subAMat * LIN_VEL_DnToBr0InDn;
                 Eigen::Vector2d bMat = corr->MidPointVel(readout) - subBMat * ANG_VEL_DnToBr0InDn;
                 Eigen::Vector1d HMat = bMat.transpose() * bMat;
                 double estimatedDepth = (HMat.inverse() * bMat.transpose() * lVec)(0, 0);
-                double newRawDepth = intri->RawDepth(estimatedDepth);
 
                 // spdlog::info(
                 //     "raw depth: {:.3f}, actual depth: {:.3f}, est depth: {:.3f}, new raw depth: "
@@ -611,14 +590,12 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
                     // depth is negative, do not  introduce it to estimator.
                     continue;
                 }
-                corr->depth = newRawDepth;
+                corr->depth = estimatedDepth;
                 corr->invDepth = 1.0 / corr->depth;
                 ++estDepthCount;
             }
-            // const double depth = intri->ActualDepth(corr->depth);
-            // corr->weight = 1.0 / (depth > 1E-3 ? depth : 1.0);
             const double pVelNorm = corr->MidPointVel(readout).norm();
-            corr->weight = pVelNorm / (pVelNorm + Configor::Prior::LossForRGBDFactor);
+            corr->weight = pVelNorm / (pVelNorm + Configor::Prior::LossForOpticalFlowFactor);
 
             curCorrs.push_back(corr);
         }
@@ -639,6 +616,142 @@ std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssoci
             curCorrs = SamplingWoutReplace2(engine, curCorrs, desiredCount);
             spdlog::info("total correspondences count for rgbd '{}' after down sampled: {}", topic,
                          curCorrs.size());
+        }
+    }
+
+    // add veta for visualization
+    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+        const auto &intri = _parMagr->INTRI.RGBD.at(topic);
+
+        auto veta =
+            CreateVetaFromOpticalFlow(topic, corrs.at(topic), intri->intri, &CalibSolver::CurDnToW);
+        if (veta != nullptr) {
+            DownsampleVeta(veta, 10000, Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin);
+            // we do not show the pose
+            _viewer->AddVeta(veta, Viewer::VIEW_MAP, {}, ns_viewer::Entity::GetUniqueColour());
+        }
+    }
+
+    return corrs;
+}
+
+std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> CalibSolver::DataAssociationForVelCameras()
+    const {
+    const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+
+    std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> corrs;
+
+    for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
+        const auto &traceVec = _dataMagr->GetVisualOpticalFlowTrace(topic);
+        spdlog::info("perform data association for camera '{}'...", topic);
+        const auto &intri = _parMagr->INTRI.Camera.at(topic);
+        const double fx = intri->FocalX(), fy = intri->FocalY();
+        const double cx = intri->PrincipalPoint()(0), cy = intri->PrincipalPoint()(1);
+
+        const auto &rsExposureFactor =
+            CameraModel::RSCameraExposureFactor(EnumCast::stringToEnum<CameraModelType>(
+                Configor::DataStream::CameraTopics.at(topic).Type));
+
+        const double readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
+        const double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(topic);
+
+        const auto SO3_CmToBr = _parMagr->EXTRI.SO3_CmToBr.at(topic);
+        Sophus::SO3d SO3_BrToCm = SO3_CmToBr.inverse();
+        Eigen::Vector3d POS_CmInBr = _parMagr->EXTRI.POS_CmInBr.at(topic);
+
+        auto &curCorrs = corrs[topic];
+        curCorrs.reserve(traceVec.size());
+
+        for (const auto &dynamic : traceVec) {
+            auto corr = dynamic->CreateOpticalFlowCorr(rsExposureFactor);
+
+            double timeByBr = corr->MidPointTime(readout) + TO_CmToBr;
+            if (!so3Spline.TimeStampInRange(timeByBr) || !scaleSpline.TimeStampInRange(timeByBr)) {
+                continue;
+            }
+
+            Eigen::Vector3d LIN_VEL_BrToBr0InBr0;
+            switch (GetScaleType()) {
+                case TimeDeriv::LIN_ACCE_SPLINE:
+                    // this would not happen
+                    continue;
+                case TimeDeriv::LIN_VEL_SPLINE:
+                    LIN_VEL_BrToBr0InBr0 = scaleSpline.Evaluate<0>(timeByBr);
+                    break;
+                case TimeDeriv::LIN_POS_SPLINE:
+                    LIN_VEL_BrToBr0InBr0 = scaleSpline.Evaluate<1>(timeByBr);
+                    break;
+            }
+
+            Sophus::SO3d SO3_BrToBr0 = so3Spline.Evaluate(timeByBr);
+            Eigen::Vector3d ANG_VEL_BrToBr0InBr = so3Spline.VelocityBody(timeByBr);
+            Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * ANG_VEL_BrToBr0InBr;
+            Eigen::Vector3d ANG_VEL_CmToBr0InCm = SO3_BrToCm * ANG_VEL_BrToBr0InBr;
+
+            Eigen::Vector3d LIN_VEL_CmToBr0InBr0 =
+                -Sophus::SO3d::hat(SO3_BrToBr0 * POS_CmInBr) * ANG_VEL_BrToBr0InBr0 +
+                LIN_VEL_BrToBr0InBr0;
+
+            corr->withDepthObservability =
+                // cond. 1: the rgbd camera is moving
+                (LIN_VEL_CmToBr0InBr0.norm() > 0.3 /* m/sed */) &&
+                // cond. 2: this feature is moving (not necessary but involved here)
+                (corr->MidPointVel(readout).norm() > 100.0 /* pixels/sed */);
+
+            if (!corr->withDepthObservability) {
+                // do not  introduce it to estimator.
+                continue;
+            }
+
+            Eigen::Vector3d LIN_VEL_CmToBr0InCm =
+                SO3_BrToCm * SO3_BrToBr0.inverse() * LIN_VEL_CmToBr0InBr0;
+
+            Eigen::Matrix<double, 2, 3> subAMat, subBMat;
+            OpticalFlowCorr::SubMats<double>(&fx, &fy, &cx, &cy, corr->MidPoint(), &subAMat,
+                                             &subBMat);
+
+            Eigen::Vector2d lVec = subAMat * LIN_VEL_CmToBr0InCm;
+            Eigen::Vector2d bMat = corr->MidPointVel(readout) - subBMat * ANG_VEL_CmToBr0InCm;
+            Eigen::Vector1d HMat = bMat.transpose() * bMat;
+            double estDepth = (HMat.inverse() * bMat.transpose() * lVec)(0, 0);
+
+            if (estDepth < 1E-3) {
+                // depth is negative, do not  introduce it to estimator.
+                continue;
+            }
+            corr->depth = estDepth;
+            corr->invDepth = 1.0 / corr->depth;
+            const double pVelNorm = corr->MidPointVel(readout).norm();
+            corr->weight = pVelNorm / (pVelNorm + Configor::Prior::LossForOpticalFlowFactor);
+
+            curCorrs.push_back(corr);
+        }
+
+        spdlog::info("total correspondences count for camera '{}': {}", topic, curCorrs.size());
+
+        std::default_random_engine engine(
+            std::chrono::system_clock::now().time_since_epoch().count());
+        constexpr int CorrCountPerFrame = 50;
+        auto desiredCount = CorrCountPerFrame * _dataMagr->GetCameraMeasurements(topic).size();
+        if (desiredCount < curCorrs.size()) {
+            curCorrs = SamplingWoutReplace2(engine, curCorrs, desiredCount);
+            spdlog::info("total correspondences count for camera '{}' after down sampled: {}",
+                         topic, curCorrs.size());
+        }
+    }
+
+    // add veta from pixel dynamics
+    for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
+        const auto &intri = _parMagr->INTRI.Camera.at(topic);
+
+        auto veta =
+            CreateVetaFromOpticalFlow(topic, corrs.at(topic), intri, &CalibSolver::CurCmToW);
+        if (veta != nullptr) {
+            DownsampleVeta(veta, 10000,
+                           Configor::DataStream::CameraTopics.at(topic).TrackLengthMin);
+            // we do not show the pose
+            _viewer->AddVeta(veta, Viewer::VIEW_MAP, {}, ns_viewer::Entity::GetUniqueColour());
         }
     }
     return corrs;

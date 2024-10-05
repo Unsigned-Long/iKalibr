@@ -66,7 +66,7 @@ private:
 
     std::map<std::string, ns_veta::Veta::Ptr> _sfmData;
 
-    std::map<std::string, std::vector<OpticalFlowTripleTracePtr>> _rgbdOpticalFlowTrace;
+    std::map<std::string, std::vector<OpticalFlowTripleTracePtr>> _visualOpticalFlowTrace;
 
     double _rawStartTimestamp{};
     double _rawEndTimestamp{};
@@ -103,8 +103,8 @@ public:
         const std::string &lidarTopic) const;
 
     // get raw camera measurements
-    [[nodiscard]] const std::map<std::string, std::vector<CameraFrame::Ptr>> &
-    GetCameraMeasurements() const;
+    // [[nodiscard]] const std::map<std::string, std::vector<CameraFrame::Ptr>> &
+    // GetCameraMeasurements() const;
 
     [[nodiscard]] const std::vector<CameraFrame::Ptr> &GetCameraMeasurements(
         const std::string &camTopic) const;
@@ -123,14 +123,14 @@ public:
 
     void SetSfMData(const std::string &camTopic, const ns_veta::Veta::Ptr &veta);
 
-    [[nodiscard]] const std::map<std::string, std::vector<OpticalFlowTripleTracePtr>> &
-    GetRGBDOpticalFlowTrace() const;
+    // [[nodiscard]] const std::map<std::string, std::vector<OpticalFlowTripleTracePtr>> &
+    // GetVisualOpticalFlowTrace() const;
 
-    [[nodiscard]] const std::vector<OpticalFlowTripleTracePtr> &GetRGBDOpticalFlowTrace(
-        const std::string &rgbdTopic) const;
+    [[nodiscard]] const std::vector<OpticalFlowTripleTracePtr> &GetVisualOpticalFlowTrace(
+        const std::string &visualTopic) const;
 
-    void SetRGBDOpticalFlowTrace(const std::string &rgbdTopic,
-                                 const std::vector<OpticalFlowTripleTracePtr> &dynamics);
+    void SetVisualOpticalFlowTrace(const std::string &visualTopic,
+                                   const std::vector<OpticalFlowTripleTracePtr> &dynamics);
 
     [[nodiscard]] double GetRawStartTimestamp() const;
 

@@ -67,10 +67,21 @@ public:
 
     [[nodiscard]] const CameraFrame::Ptr& GetMidCameraFrame() const;
 
+    /**
+     * create the optical flow correspondence based on current optical flow trace, note that the
+     * depth and inverse depth on the constructed optical flow correspondence would be set to '-1'
+     * @param rsExposureFactor the rs exposure factor of the camera
+     * @return the optical flow correspondence
+     */
     [[nodiscard]] OpticalFlowCorrPtr CreateOpticalFlowCorr(double rsExposureFactor) const;
 
-    // for rgbd cameras whose have depth images
-    // if rgbd intrinsic pointer is nullptr, use raw depth, otherwise, use actual depth (mapped one)
+    /**
+     * create the optical flow correspondence based on current optical flow trace
+     * @param rsExposureFactor the rs exposure factor of the camera
+     * @param intri the rgbd intrinsics, if it's not a nullptr, the actual depth information would
+     * be stored in depth and inverse depth fields, otherwise, they are raw depth (not scale/mapped)
+     * @return the optical flow correspondence
+     */
     [[nodiscard]] OpticalFlowCorrPtr CreateOpticalFlowCorr(double rsExposureFactor,
                                                            const RGBDIntrinsicsPtr& intri) const;
 

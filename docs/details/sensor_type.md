@@ -20,25 +20,28 @@ When you want to calibrate a sensor suite, you need to write their information i
 
 Currently, the following types of sensor are supported in `iKalibr`:
 
-+ **IMU** type: corresponding type definition can be found [here](https://github.com/Unsigned-Long/iKalibr/blob/master/include/sensor/imu_data_loader.h#L46-L50).
-  + `SENSOR_IMU`, `SBG_IMU`, `SENSOR_IMU_G`
-+ **Radar** Type: corresponding type definition can be found [here](https://github.com/Unsigned-Long/iKalibr/blob/master/include/sensor/radar_data_loader.h#L46-L53). ROS message definition can be found [here](https://github.com/Unsigned-Long/iKalibr/tree/master/msg).
-  + `AINSTEIN_RADAR`, `AWR1843BOOST_RAW`, `AWR1843BOOST_CUSTOM`, `POINTCLOUD2_POSV`, `POINTCLOUD2_POSIV`, `POINTCLOUD2_XRIO`
-+ **LiDAR** type: corresponding type definition can be found [here](https://github.com/Unsigned-Long/iKalibr/blob/master/include/sensor/lidar_data_loader.h#L56-L71). The type of LiDAR is more prone to error than others, most of the time error happens when decoding time stamps of points if the wrong LiDAR type is passed in `iKalibr`.
-  + *Velodyne LiDARs*: `VLP_16_PACKET`, `VLP_16_POINTS`, `VLP_32E_POINTS`
++ **IMU** type: corresponding type definition can be found [here](https://github.com/Unsigned-Long/iKalibr/blob/master/include/sensor/sensor_model.h#L82-L105).
+  + `SENSOR_IMU`, `SENSOR_IMU_G`, `SENSOR_IMU_G_NEG`, `SENSOR_IMU_DEG`, `SENSOR_IMU_DEG_G`, `SENSOR_IMU_DEG_G_NEG`.
++ **Radar** Type: corresponding type definition can be found [here](https://github.com/Unsigned-Long/iKalibr/blob/master/include/sensor/sensor_model.h#L126-L141). ROS message definition can be found [here](https://github.com/Unsigned-Long/iKalibr/tree/master/msg).
+  + `AINSTEIN_RADAR`, `AWR1843BOOST_RAW`, `AWR1843BOOST_CUSTOM`, `POINTCLOUD2_POSV`, `POINTCLOUD2_POSIV`, `POINTCLOUD2_XRIO`.
++ **LiDAR** type: corresponding type definition can be found [here](https://github.com/Unsigned-Long/iKalibr/blob/master/include/sensor/sensor_model.h#L109-L122). The type of LiDAR is more prone to error than others, most of the time error happens when decoding time stamps of points if the wrong LiDAR type is passed in `iKalibr`.
+  + *Velodyne LiDARs*: `VLP_16_PACKET`, `VLP_POINTS`.
 
-  + *Ouster LiDARs*: `OUSTER_16_POINTS`, `OUSTER_32_POINTS`, `OUSTER_64_POINTS`, `OUSTER_128_POINTS`
+  + *Ouster LiDARs*: `OUSTER_POINTS`.
 
-  + *Hesai Pandar XT LiDARs*: `PANDAR_XT_16`, `PANDAR_XT_32`
+  + *Hesai Pandar XT LiDARs*: `PANDAR_XT_POINTS`.
 
-  + *Livox LiDARs*: `LIVOX_MID_360`, `LIVOX_AVIA`
-+ **Camera** type: corresponding type definition can be found [here](https://github.com/Unsigned-Long/iKalibr/blob/master/include/sensor/camera_data_loader.h#L45-L65). If you have an RS camera but use the GS camera option, it will not cause a fatal error, but it will reduce the calibration accuracy.
-  + `SENSOR_IMAGE_GS`, `SENSOR_IMAGE_RS_FIRST`, `SENSOR_IMAGE_RS_MID`, `SENSOR_IMAGE_RS_LAST`
+  + *Livox LiDARs*: `LIVOX_CUSTOM`.
++ **Camera** type: corresponding type definition can be found [here](https://github.com/Unsigned-Long/iKalibr/blob/master/include/sensor/sensor_model.h#L46-L78). If you have an RS camera but use the GS camera option, it will not cause a fatal error, but it will reduce the calibration accuracy.
+  + `SENSOR_IMAGE_GS`, `SENSOR_IMAGE_COMP_GS`
+  +  `SENSOR_IMAGE_RS_FIRST`, `SENSOR_IMAGE_COMP_RS_FIRST`
+  + `SENSOR_IMAGE_RS_MID`, `SENSOR_IMAGE_COMP_RS_MID` 
+  + `SENSOR_IMAGE_RS_LAST`, `SENSOR_IMAGE_COMP_RS_LAST`
   + for RS cameras, make sure understand how the RS images are timestamped: 
     + `SENSOR_IMAGE_RS_FIRST`: the timestamp of an image is denoted as the time of the first row;
     + `SENSOR_IMAGE_RS_MID`: the timestamp of an image is denoted as the time of the middle row;
     + `SENSOR_IMAGE_RS_LAST`: the timestamp of an image is denoted as the time of the last row;
-+ **RGBD Camera** type: same as **Camera** type above. If your optical camera has depth information, you can calibrate it as an RGBD camera. Compared with calibrating ordinary optical cameras, calibrate a RGBD camera is faster as no SfM is required.
++ **RGBD Camera** type: same as **Camera** type above. If your optical camera has depth information, you can calibrate it as an RGBD camera.
 
 <p align="left">
     <a><strong>Can Not Find Suitable Sensor Type »</strong></a>

@@ -68,12 +68,13 @@ void CalibSolver::Process() {
      * for each type of sensor, the preparation is first performed to obtain necessary quantities
      * for one-shot sensor-inertial alignment
      */
-    this->InitPrepCameraInertialAlign();    // visual-inertial
-    this->InitPrepRGBDInertialAlign();      // rgbd-inertial
-    this->InitPrepLiDARInertialAlign();     // lidar-inertial
-    this->InitPrepRadarInertialAlign();     // radar-inertial
-    this->InitPrepInertialInertialAlign();  // inertial-inertial
-    this->InitSensorInertialAlign();        // one-shot sensor-inertial alignment
+    this->InitPrepPosCameraInertialAlign();  // visual-inertial (pos scale spline based)
+    this->InitPrepVelCameraInertialAlign();  // visual-inertial (vel scale spline based)
+    this->InitPrepRGBDInertialAlign();       // rgbd-inertial
+    this->InitPrepLiDARInertialAlign();      // lidar-inertial
+    this->InitPrepRadarInertialAlign();      // radar-inertial
+    this->InitPrepInertialInertialAlign();   // inertial-inertial
+    this->InitSensorInertialAlign();         // one-shot sensor-inertial alignment
 
     if (outputParams) {
         SaveStageCalibParam(_parMagr, "stage_2_align");
@@ -153,9 +154,11 @@ void CalibSolver::Process() {
             // point to surfel data association for LiDARs
             lidarPtsCorr,
             // visual reprojection data association for cameras
-            DataAssociationForCameras(),
+            DataAssociationForPosCameras(),
             // visual velocity creation for rgbd cameras
-            DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_RGBD_DEPTH, options.at(i))));
+            DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_VISUAL_DEPTH, options.at(i))),
+            // visual velocity creation for optical cameras
+            DataAssociationForVelCameras());
 
         /**
          * update the viewer and output the spatiotemporal parameters after this batch optimization
@@ -211,7 +214,7 @@ void CalibSolver::Process() {
             // visual reprojection data association for cameras
             DataAssociationForCameras(),
             // visual velocity creation for rgbd cameras
-            {},  // DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_RGBD_DEPTH,
+            {},  // DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_VISUAL_DEPTH,
                  // options.back())),
             // point to surfel data association for RGBDs
             // attention!!! if depth images are not well-matched with rgb images
@@ -247,7 +250,7 @@ void CalibSolver::Process() {
         // radar map would be added to the viewer in this function
         _backup->radarMap = BuildGlobalMapOfRadar();
     }
-    if (Configor::IsCameraIntegrated()) {
+    if (Configor::IsPosCameraIntegrated()) {
         for (const auto &[topic, sfmData] : _dataMagr->GetSfMData()) {
             _viewer->AddVeta(sfmData, Viewer::VIEW_MAP);
         }
@@ -255,9 +258,28 @@ void CalibSolver::Process() {
     if (Configor::IsRGBDIntegrated() && GetScaleType() == TimeDeriv::LIN_POS_SPLINE) {
         // add veta from pixel dynamics
         for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
-            if (auto veta = CreateVetaFromRGBD(topic); veta != nullptr) {
+            const auto &veta = CreateVetaFromOpticalFlow(topic, _backup->ofCorrs.at(topic),
+                                                         _parMagr->INTRI.RGBD.at(topic)->intri,
+                                                         &CalibSolver::CurDnToW);
+
+            if (veta != nullptr) {
                 const auto lenThd = Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin;
                 DownsampleVeta(veta, 10000, lenThd);
+                // we do not show the pose
+                _viewer->AddVeta(veta, Viewer::VIEW_MAP, {}, ns_viewer::Entity::GetUniqueColour());
+            }
+        }
+    }
+    if (Configor::IsVelCameraIntegrated() && GetScaleType() == TimeDeriv::LIN_POS_SPLINE) {
+        // add veta from pixel dynamics
+        for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
+            const auto &intri = _parMagr->INTRI.Camera.at(topic);
+
+            auto veta = CreateVetaFromOpticalFlow(topic, _backup->ofCorrs.at(topic), intri,
+                                                  &CalibSolver::CurCmToW);
+            if (veta != nullptr) {
+                DownsampleVeta(veta, 10000,
+                               Configor::DataStream::CameraTopics.at(topic).TrackLengthMin);
                 // we do not show the pose
                 _viewer->AddVeta(veta, Viewer::VIEW_MAP, {}, ns_viewer::Entity::GetUniqueColour());
             }

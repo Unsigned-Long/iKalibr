@@ -60,7 +60,7 @@ using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
 // OPT_SO3_RjToBr OPT_POS_RjInBr OPT_SO3_LkToBr OPT_POS_LkInBr OPT_SO3_CmToBr OPT_POS_CmInBr
 // OPT_SO3_DnToBr OPT_POS_DnInBr OPT_TO_BiToBr OPT_TO_RjToBr OPT_TO_LkToBr OPT_TO_CmToBr
 // OPT_TO_DnToBr OPT_GYRO_BIAS OPT_GYRO_MAP_COEFF OPT_ACCE_BIAS OPT_ACCE_MAP_COEFF OPT_SO3_AtoG
-// OPT_GRAVITY OPT_VISUAL_GLOBAL_SCALE OPT_VISUAL_INV_DEPTH OPT_RGBD_DEPTH OPT_RGBD_ALPHA
+// OPT_GRAVITY OPT_VISUAL_GLOBAL_SCALE OPT_VISUAL_DEPTH OPT_RGBD_ALPHA
 // OPT_RGBD_BETA OPT_CAM_FOCAL_LEN OPT_CAM_PRINCIPAL_POINT OPT_RS_CAM_READOUT_TIME
 enum class OptOption : std::uint32_t {
     /**
@@ -100,24 +100,23 @@ enum class OptOption : std::uint32_t {
     OPT_GRAVITY = std::uint32_t(1) << 23,
 
     OPT_VISUAL_GLOBAL_SCALE = std::uint32_t(1) << 24,
-    OPT_VISUAL_INV_DEPTH = std::uint32_t(1) << 25,
+    OPT_VISUAL_DEPTH = std::uint32_t(1) << 25,
 
     OPT_RGBD_ALPHA = std::uint32_t(1) << 26,
     OPT_RGBD_BETA = std::uint32_t(1) << 27,
-    OPT_RGBD_DEPTH = std::uint32_t(1) << 28,
 
-    OPT_CAM_FOCAL_LEN = std::uint32_t(1) << 29,
-    OPT_CAM_PRINCIPAL_POINT = std::uint32_t(1) << 30,
+    OPT_CAM_FOCAL_LEN = std::uint32_t(1) << 28,
+    OPT_CAM_PRINCIPAL_POINT = std::uint32_t(1) << 29,
 
-    OPT_RS_CAM_READOUT_TIME = std::uint32_t(1) << 31,
+    OPT_RS_CAM_READOUT_TIME = std::uint32_t(1) << 30,
 
     ALL = OPT_SO3_SPLINE | OPT_SCALE_SPLINE | OPT_SO3_BiToBr | OPT_POS_BiInBr | OPT_SO3_RjToBr |
           OPT_POS_RjInBr | OPT_SO3_LkToBr | OPT_POS_LkInBr | OPT_SO3_CmToBr | OPT_POS_CmInBr |
           OPT_SO3_DnToBr | OPT_POS_DnInBr | OPT_TO_BiToBr | OPT_TO_RjToBr | OPT_TO_LkToBr |
           OPT_TO_CmToBr | OPT_TO_DnToBr | OPT_GYRO_BIAS | OPT_GYRO_MAP_COEFF | OPT_ACCE_BIAS |
           OPT_ACCE_MAP_COEFF | OPT_SO3_AtoG | OPT_GRAVITY | OPT_VISUAL_GLOBAL_SCALE |
-          OPT_VISUAL_INV_DEPTH | OPT_RGBD_ALPHA | OPT_RGBD_BETA | OPT_RGBD_DEPTH |
-          OPT_CAM_FOCAL_LEN | OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME
+          OPT_VISUAL_DEPTH | OPT_RGBD_ALPHA | OPT_RGBD_BETA | OPT_CAM_FOCAL_LEN |
+          OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME
 };
 
 struct SpatialTemporalPriori;
@@ -222,6 +221,16 @@ public:
                                   Estimator::Opt option,
                                   double weight);
 
+    void AddVelVisualInertialAlignment(const std::vector<IMUFrame::Ptr> &data,
+                                       const std::string &imuTopic,
+                                       const std::string &topic,
+                                       const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &sVelAry,
+                                       double *sVelScale,
+                                       const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &eVelAry,
+                                       double *eVelScale,
+                                       Estimator::Opt option,
+                                       double weight);
+
     void AddRadarInertialRotRoughAlignment(const std::vector<IMUFrame::Ptr> &data,
                                            const std::string &imuTopic,
                                            const std::string &radarTopic,
@@ -315,13 +324,46 @@ public:
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr |
-     *   READOUT_TIME | FX | FY | CX | CY | ALPHA | BETA | DEPTH_INFO ]
+     *   READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-    void AddRGBDVelocityConstraint(const OpticalFlowCorrPtr &velCorr,
-                                   const std::string &topic,
-                                   Opt option,
-                                   double weight);
+    void AddRGBDOpticalFlowConstraint(const OpticalFlowCorrPtr &ofCorr,
+                                      const std::string &topic,
+                                      Opt option,
+                                      double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+     *   READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddVisualOpticalFlowConstraint(const OpticalFlowCorrPtr &ofCorr,
+                                        const std::string &topic,
+                                        Opt option,
+                                        double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+     * READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddVisualOpticalFlowReprojConstraint(const OpticalFlowCorrPtr &velCorr,
+                                              const std::string &topic,
+                                              Opt option,
+                                              double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_DnToBr | POS_DnInBr | TO_DnToBr |
+     *   READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddRGBDOpticalFlowReprojConstraint(const OpticalFlowCorrPtr &velCorr,
+                                            const std::string &topic,
+                                            Opt option,
+                                            double weight);
 
     void SetRefIMUParamsConstant();
 
@@ -380,6 +422,13 @@ public:
                                              bool estDepth,
                                              bool estVelDirOnly);
 
+    void AddVisualVelocityDepthFactorForVelCam(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                               const OpticalFlowCorrPtr &corr,
+                                               const std::string &topic,
+                                               double weight,
+                                               bool estDepth,
+                                               bool estVelDirOnly);
+
 protected:
     void AddSo3KnotsData(std::vector<double *> &paramBlockVec,
                          const SplineBundleType::So3SplineType &spline,
@@ -412,6 +461,34 @@ protected:
                             const std::string &imuTopic,
                             double sTimeByBi,
                             double eTimeByBi);
+
+    /**
+     * compute the time range of knots to be considered in optimization based on given information
+     * @param timeByCam the time stamped by the camera
+     * @param RS_READOUT the readout time of rs camera
+     * @param RT_PADDING the time padding of the readout time
+     * @param rdFactor the readout factor
+     * @param optReadout whether optimize the readout time
+     * @param TO_CmToBr the time offset of the camera with respect to the reference IMU
+     * @param TO_PADDING the time padding og the time offset
+     * @param optTimeOffset whether optimize the time offset
+     * @return the time range [min time, max time]
+     */
+    static std::pair<double, double> ConsideredTimeRangeForCameraStamp(double timeByCam,
+                                                                       double RS_READOUT,
+                                                                       double RT_PADDING,
+                                                                       double rdFactor,
+                                                                       bool optReadout,
+                                                                       double TO_CmToBr,
+                                                                       double TO_PADDING,
+                                                                       bool optTimeOffset);
+
+    /**
+     * check whether time range (mainly from 'ConsideredTimeRangeForCameraStamp') is valid foe splines
+     * @param timePair the time stamp pair
+     * @return true: valid, false invalid
+     */
+    [[nodiscard]] bool TimeInRangeForSplines(const std::pair<double, double> &timePair) const;
 };
 }  // namespace ns_ikalibr
 

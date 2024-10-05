@@ -301,6 +301,37 @@ void CalibDataManager::LoadCalibData() {
 
     AdjustCalibDataSequence();
     AlignTimestamp();
+
+    /**
+     * to calibrate velocity-spline-derived cameras, high sampling frequency is required (larger
+     * than 30 Hz), to perform high-precision optical flow velocity recovery
+     */
+    for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
+        auto freq = GetCameraAvgFrequency(topic);
+        spdlog::info("sampling frequency for camera '{}': {:.3f}", topic, freq);
+        if (freq < 29.0) {
+            throw Status(
+                Status::WARNING,
+                "Sampling frequency of vel camera '{}' (freq: {:.3f}) is too small!!! "
+                "Frequency larger than 30 Hz is required!!! Please change 'ScaleSplineType' of "
+                "this camera to 'LIN_POS_SPLINE' which would perform a SfM-based calibration!!! Do "
+                "not forget to change its weight!",
+                topic, freq);
+        }
+    }
+
+    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+        auto freq = GetRGBDAvgFrequency(topic);
+        spdlog::info("sampling frequency for rgbd camera '{}': {:.3f}", topic, freq);
+        if (freq < 29.0) {
+            throw Status(Status::WARNING,
+                         "Sampling frequency of rgbd camera '{}' (freq: {:.3f}) is too small!!! "
+                         "Frequency larger than 30 Hz is required!!! Please throw the depth "
+                         "information and treat it an optical camera, and perform "
+                         "'LIN_POS_SPLINE'-based calibration.",
+                         topic, freq);
+        }
+    }
 }
 
 void CalibDataManager::AdjustCalibDataSequence() {
@@ -393,7 +424,7 @@ void CalibDataManager::AdjustCalibDataSequence() {
         _rawEndTimestamp = std::min({_rawEndTimestamp, lidarMaxTime});
     }
 
-    if (Configor::IsCameraIntegrated()) {
+    if (Configor::IsPosCameraIntegrated() || Configor::IsVelCameraIntegrated()) {
         auto camMinTime = std::max_element(_camMes.begin(), _camMes.end(),
                                            [](const auto &p1, const auto &p2) {
                                                return p1.second.front()->GetTimestamp() <
@@ -714,10 +745,10 @@ const std::vector<LiDARFrame::Ptr> &CalibDataManager::GetLiDARMeasurements(
     return _lidarMes.at(lidarTopic);
 }
 
-const std::map<std::string, std::vector<CameraFrame::Ptr>> &
-CalibDataManager::GetCameraMeasurements() const {
-    return _camMes;
-}
+// const std::map<std::string, std::vector<CameraFrame::Ptr>> &
+// CalibDataManager::GetCameraMeasurements() const {
+//     return _camMes;
+// }
 
 const std::vector<CameraFrame::Ptr> &CalibDataManager::GetCameraMeasurements(
     const std::string &camTopic) const {
@@ -745,18 +776,18 @@ const ns_veta::Veta::Ptr &CalibDataManager::GetSfMData(const std::string &camTop
 void CalibDataManager::SetSfMData(const std::string &camTopic, const ns_veta::Veta::Ptr &veta) {
     _sfmData[camTopic] = veta;
 }
-void CalibDataManager::SetRGBDOpticalFlowTrace(
-    const std::string &rgbdTopic, const std::vector<OpticalFlowTripleTrace::Ptr> &dynamics) {
-    _rgbdOpticalFlowTrace[rgbdTopic] = dynamics;
+void CalibDataManager::SetVisualOpticalFlowTrace(
+    const std::string &visualTopic, const std::vector<OpticalFlowTripleTrace::Ptr> &dynamics) {
+    _visualOpticalFlowTrace[visualTopic] = dynamics;
 }
 
-const std::map<std::string, std::vector<OpticalFlowTripleTrace::Ptr>> &
-CalibDataManager::GetRGBDOpticalFlowTrace() const {
-    return _rgbdOpticalFlowTrace;
-}
+// const std::map<std::string, std::vector<OpticalFlowTripleTrace::Ptr>> &
+// CalibDataManager::GetVisualOpticalFlowTrace() const {
+//     return _visualOpticalFlowTrace;
+// }
 
-const std::vector<OpticalFlowTripleTrace::Ptr> &CalibDataManager::GetRGBDOpticalFlowTrace(
-    const std::string &rgbdTopic) const {
-    return _rgbdOpticalFlowTrace.at(rgbdTopic);
+const std::vector<OpticalFlowTripleTrace::Ptr> &CalibDataManager::GetVisualOpticalFlowTrace(
+    const std::string &visualTopic) const {
+    return _visualOpticalFlowTrace.at(visualTopic);
 }
 }  // namespace ns_ikalibr

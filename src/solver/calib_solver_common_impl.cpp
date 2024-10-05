@@ -40,7 +40,7 @@
 #include "core/colmap_data_io.h"
 #include "core/optical_flow_trace.h"
 #include "core/vision_only_sfm.h"
-#include "factor/rgbd_velocity_factor.hpp"
+#include "factor/data_correspondence.h"
 #include "opencv2/highgui.hpp"
 #include "pangolin/display/display.h"
 #include "ros/package.h"
@@ -148,7 +148,7 @@ CalibSolver::~CalibSolver() {
     }
 }
 
-std::optional<Sophus::SE3d> CalibSolver::CurBrToW(double timeByBr) {
+std::optional<Sophus::SE3d> CalibSolver::CurBrToW(double timeByBr) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,
                      "'CurBrToW' error, scale spline is not translation spline!!!");
@@ -162,7 +162,7 @@ std::optional<Sophus::SE3d> CalibSolver::CurBrToW(double timeByBr) {
     }
 }
 
-std::optional<Sophus::SE3d> CalibSolver::CurLkToW(double timeByLk, const std::string &topic) {
+std::optional<Sophus::SE3d> CalibSolver::CurLkToW(double timeByLk, const std::string &topic) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,
                      "'CurLkToW' error, scale spline is not translation spline!!!");
@@ -179,7 +179,7 @@ std::optional<Sophus::SE3d> CalibSolver::CurLkToW(double timeByLk, const std::st
     }
 }
 
-std::optional<Sophus::SE3d> CalibSolver::CurCmToW(double timeByCm, const std::string &topic) {
+std::optional<Sophus::SE3d> CalibSolver::CurCmToW(double timeByCm, const std::string &topic) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,
                      "'CurCmToW' error, scale spline is not translation spline!!!");
@@ -196,7 +196,7 @@ std::optional<Sophus::SE3d> CalibSolver::CurCmToW(double timeByCm, const std::st
     }
 }
 
-std::optional<Sophus::SE3d> CalibSolver::CurDnToW(double timeByDn, const std::string &topic) {
+std::optional<Sophus::SE3d> CalibSolver::CurDnToW(double timeByDn, const std::string &topic) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,
                      "'CurDnToW' error, scale spline is not translation spline!!!");
@@ -213,7 +213,7 @@ std::optional<Sophus::SE3d> CalibSolver::CurDnToW(double timeByDn, const std::st
     }
 }
 
-std::optional<Sophus::SE3d> CalibSolver::CurRjToW(double timeByRj, const std::string &topic) {
+std::optional<Sophus::SE3d> CalibSolver::CurRjToW(double timeByRj, const std::string &topic) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,
                      "'CurRjToW' error, scale spline is not translation spline!!!");
@@ -231,9 +231,10 @@ std::optional<Sophus::SE3d> CalibSolver::CurRjToW(double timeByRj, const std::st
 }
 
 TimeDeriv::ScaleSplineType CalibSolver::GetScaleType() {
-    if (Configor::IsLiDARIntegrated() || Configor::IsCameraIntegrated()) {
+    if (Configor::IsLiDARIntegrated() || Configor::IsPosCameraIntegrated()) {
         return TimeDeriv::ScaleSplineType::LIN_POS_SPLINE;
-    } else if (Configor::IsRadarIntegrated() || Configor::IsRGBDIntegrated()) {
+    } else if (Configor::IsRadarIntegrated() || Configor::IsRGBDIntegrated() ||
+               Configor::IsVelCameraIntegrated()) {
         return TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE;
     } else {
         return TimeDeriv::ScaleSplineType::LIN_ACCE_SPLINE;
@@ -256,7 +257,7 @@ CalibSolver::SplineBundleType::Ptr CalibSolver::CreateSplineBundle(double st,
     return SplineBundleType::Create({so3SplineInfo, scaleSplineInfo});
 }
 
-void CalibSolver::AlignStatesToGravity() {
+void CalibSolver::AlignStatesToGravity() const {
     auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
     // current gravity, velocities, and rotations are expressed in the reference frame
@@ -273,7 +274,8 @@ void CalibSolver::AlignStatesToGravity() {
     }
 }
 
-void CalibSolver::StoreImagesForSfM(const std::string &topic, const std::set<IndexPair> &matchRes) {
+void CalibSolver::StoreImagesForSfM(const std::string &topic,
+                                    const std::set<IndexPair> &matchRes) const {
     // -------------
     // output images
     // -------------
@@ -408,7 +410,7 @@ void CalibSolver::StoreImagesForSfM(const std::string &topic, const std::set<Ind
 
 ns_veta::Veta::Ptr CalibSolver::TryLoadSfMData(const std::string &topic,
                                                double errorThd,
-                                               std::size_t trackLenThd) {
+                                               std::size_t trackLenThd) const {
     // info file
     const auto infoFilename = ns_ikalibr::Configor::DataStream::GetImageStoreInfoFile(topic);
     if (!std::filesystem::exists(infoFilename)) {
@@ -625,29 +627,27 @@ void CalibSolver::SaveStageCalibParam(const CalibParamManager::Ptr &par, const s
     }
 }
 
-ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) {
-    if (!Configor::IsRGBDIntegrated() || GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
+ns_veta::Veta::Ptr CalibSolver::CreateVetaFromOpticalFlow(
+    const std::string &topic,
+    const std::vector<OpticalFlowCorr::Ptr> &traceVec,
+    const ns_veta::PinholeIntrinsic::Ptr &intri,
+    const std::function<std::optional<Sophus::SE3d>(
+        const CalibSolver *, double, const std::string &)> &SE3_CurSenToW) const {
+    if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         return nullptr;
     }
-    const auto &intri = _parMagr->INTRI.RGBD.at(topic);
-
-    const auto &rsExposureFactor = CameraModel::RSCameraExposureFactor(
-        EnumCast::stringToEnum<CameraModelType>(Configor::DataStream::RGBDTopics.at(topic).Type));
-
     auto veta = std::make_shared<ns_veta::Veta>();
 
     // intrinsics
     const ns_veta::IndexT INTRI_ID = 0;
-    veta->intrinsics.insert({INTRI_ID, intri->intri});
+    veta->intrinsics.insert({INTRI_ID, intri});
 
     ns_veta::IndexT LM_ID_COUNTER = 0;
-    for (const auto &dynamic : _dataMagr->GetRGBDOpticalFlowTrace(topic)) {
-        // we use actual depth here
-        auto corr = dynamic->CreateOpticalFlowCorr(rsExposureFactor, intri);
+    for (const auto &corr : traceVec) {
         if (corr->depth < 1E-3 /* 1 mm */) {
             continue;
         }
-        auto SE3_CurDnToW = CurDnToW(corr->frame->GetTimestamp(), topic);
+        auto SE3_CurDnToW = SE3_CurSenToW(this, corr->frame->GetTimestamp(), topic);
         if (SE3_CurDnToW == std::nullopt) {
             continue;
         }
@@ -665,11 +665,11 @@ ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) {
             // index
             viewId, intriIdx, poseId,
             // width, height
-            intri->intri->imgWidth, intri->intri->imgHeight);
+            intri->imgWidth, intri->imgHeight);
 
         // landmark
         const double depth = corr->depth;
-        Eigen::Vector2d lmInDnPlane = intri->intri->ImgToCam(corr->MidPoint());
+        Eigen::Vector2d lmInDnPlane = intri->ImgToCam(corr->MidPoint());
         Eigen::Vector3d lmInDn(lmInDnPlane(0) * depth, lmInDnPlane(1) * depth, depth);
         Eigen::Vector3d lmInW = *SE3_CurDnToW * lmInDn;
         // this landmark has only one observation
@@ -690,7 +690,7 @@ ns_veta::Veta::Ptr CalibSolver::CreateVetaFromRGBD(const std::string &topic) {
 
 void CalibSolver::AddGyroFactor(Estimator::Ptr &estimator,
                                 const std::string &imuTopic,
-                                Estimator::Opt option) {
+                                Estimator::Opt option) const {
     double weight = Configor::DataStream::IMUTopics.at(imuTopic).GyroWeight;
 
     for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {

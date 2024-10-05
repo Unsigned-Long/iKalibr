@@ -84,7 +84,7 @@ protected:
 
     void SaveRadarDopplerError() const;
 
-    void SaveRGBDVelocityError() const;
+    void SaveVisualOpticalFlowError() const;
 
     void SaveLiDARPointToSurfelError() const;
 

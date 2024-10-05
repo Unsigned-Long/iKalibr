@@ -80,16 +80,24 @@ Configor:
           # these camera intrinsics are required pre-calibrated
           # Kalibr is recommended to perform intrinsic calibration (https://github.com/ethz-asl/kalibr.git)
           Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/.../cam0-intri.yaml"
+          # 0.1 for 'LIN_VEL_SPLINE', and 50.0 for 'LIN_POS_SPLINE'
           Weight: 50.0
           # use visual features that are tracked larger than 'TrackLengthMin'
           # smaller value means less features are considered in solving
           TrackLengthMin: 10
+          # 'LIN_POS_SPLINE' or 'LIN_VEL_SPLINE'
+          # You are advised to use 'LIN_VEL_SPLINE' only if your camera frequency is high enough
+          ScaleSplineType: LIN_POS_SPLINE
       - key: "/camera1/frame"
         value:
           Type: "SENSOR_IMAGE_RS_FIRST"
           Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/.../cam1-intri.yaml"
-          Weight: 50.0
-          TrackLengthMin: 10
+          # 0.1 for 'LIN_VEL_SPLINE', and 50.0 for 'LIN_POS_SPLINE'
+          Weight: 0.1
+          TrackLengthMin: 3
+          # 'LIN_POS_SPLINE' or 'LIN_VEL_SPLINE'
+          # You are advised to use 'LIN_VEL_SPLINE' only if your camera frequency is high enough
+          ScaleSplineType: LIN_VEL_SPLINE
     # key: rgbd color image topic, value: camera type. Supported camera types are the same as the ones in 'CameraTopics'
     RGBDTopics:
       - key: "/rgbd1/color_frame"

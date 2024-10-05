@@ -32,28 +32,27 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include "solver/calib_solver.h"
+#include "util/tqdm.h"
+#include "spdlog/spdlog.h"
 #include "calib/calib_data_manager.h"
 #include "calib/calib_param_manager.h"
-#include "calib/estimator.h"
-#include "core/optical_flow_trace.h"
-#include "core/rotation_estimator.h"
-#include "core/visual_velocity_sac.h"
-#include "factor/data_correspondence.h"
-#include "opencv2/highgui.hpp"
-#include "solver/calib_solver.h"
-#include "spdlog/spdlog.h"
-#include "tiny-viewer/object/camera.h"
-#include "util/tqdm.h"
 #include "viewer/viewer.h"
+#include "opencv2/highgui.hpp"
+#include "core/rotation_estimator.h"
+#include "tiny-viewer/object/camera.h"
+#include "calib/estimator.h"
+#include "sensor/sensor_model.h"
+#include "factor/data_correspondence.h"
+#include "core/optical_flow_trace.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-
-void CalibSolver::InitPrepRGBDInertialAlign() const {
-    if (!Configor::IsRGBDIntegrated()) {
+void CalibSolver::InitPrepVelCameraInertialAlign() const {
+    if (!Configor::IsVelCameraIntegrated()) {
         return;
     }
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
@@ -72,22 +71,23 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
      * the rotation-only visual odometry means we only estimate the time-varying rotations of the
      * camera, which would be utilized for extrinsic rotation recovery
      */
-    // 'FeatTrackingInfo' is a list for each rgbd camera, as fail tracking leads to multiple pieces
-    std::map<std::string, std::list<RotOnlyVisualOdometer::FeatTrackingInfo>> RGBDTrackingInfo;
+    // 'FeatTrackingInfo' is a list for each camera, as fail tracking leads to multiple pieces
+    std::map<std::string, std::list<RotOnlyVisualOdometer::FeatTrackingInfo>> trackingInfo;
     // how many features to maintain in each image
     constexpr int featNumPerImg = 300;
     // the min distance between two features (to ensure features are distributed uniformly)
     constexpr int minDist = 25;
-    for (const auto &[topic, frameVec] : _dataMagr->GetRGBDMeasurements()) {
+    for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
+        const auto &frameVec = _dataMagr->GetCameraMeasurements(topic);
         spdlog::info(
-            "perform rotation-only visual odometer to recover extrinsic rotations for RGBD "
-            "camera '{}'...",
+            "perform rotation-only visual odometer to recover extrinsic rotations for camera "
+            "'{}'...",
             topic);
 
         // estimates rotations
-        auto intri = _parMagr->INTRI.RGBD.at(topic);
-        auto tracker = LKFeatureTracking::Create(featNumPerImg, minDist, intri->intri);
-        auto odometer = RotOnlyVisualOdometer::Create(tracker, intri->intri);
+        auto intri = _parMagr->INTRI.Camera.at(topic);
+        auto tracker = LKFeatureTracking::Create(featNumPerImg, minDist, intri);
+        auto odometer = RotOnlyVisualOdometer::Create(tracker, intri);
 
         // sensor-inertial rotation estimator (linear least-squares problem)
         auto rotEstimator = RotationEstimator::Create();
@@ -96,22 +96,6 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
         for (int i = 0; i < static_cast<int>(frameVec.size()); ++i) {
             bar->progress(i, static_cast<int>(frameVec.size()));
 
-            if (i % 30 == 0) {
-                /**
-                 * we do not update the viewer too frequent, which would lead to heavy tasks
-                 */
-                _viewer->ClearViewer(Viewer::VIEW_MAP);
-                // rgbd camera
-                static auto rgbd = ns_viewer::CubeCamera::Create(
-                    ns_viewer::Posef(), 0.04, ns_viewer::Colour(1.0f, 0.5f, 0.0f, 1.0f));
-                _viewer->AddEntityLocal({rgbd}, Viewer::VIEW_MAP);
-                // depth point could
-                _viewer->AddRGBDFrame(frameVec.at(i), intri, Viewer::VIEW_MAP, true, 2.0f);
-                // auto img = frameVec.at(i)->CreateColorDepthMap(intri, true);
-                // cv::imshow("img", img);
-                // cv::waitKey();
-            }
-
             /*
              * we try to compute the prior rotation to accelerate the feature tracking.
              * only the extrinsic rotation is recovered, we can compute such priori.
@@ -119,10 +103,11 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
             std::optional<Sophus::SO3d> SO3_LastToCur = std::nullopt;
             if (rotEstimator->SolveStatus()) {
                 // such codes should be put out of the for loop, but fore better readability...
-                const auto SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
-                const auto TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
-                double lastTimeByBr = frameVec.at(i - 1)->GetTimestamp() + TO_DnToBr;
-                double curTimeByBr = frameVec.at(i)->GetTimestamp() + TO_DnToBr;
+                const auto &SO3_CmToBr = _parMagr->EXTRI.SO3_CmToBr.at(topic);
+                const auto &TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(topic);
+
+                double lastTimeByBr = frameVec.at(i - 1)->GetTimestamp() + TO_CmToBr;
+                double curTimeByBr = frameVec.at(i)->GetTimestamp() + TO_CmToBr;
                 if (so3Spline.TimeStampInRange(lastTimeByBr) &&
                     so3Spline.TimeStampInRange(curTimeByBr)) {
                     // compute rotations at two timestamps
@@ -131,7 +116,7 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
                     // compute the relative rotation of the reference imu
                     auto SO3_LastBrToCurBr = SO3_CurBrToW.inverse() * SO3_LastBrToW;
                     // assignment
-                    SO3_LastToCur = SO3_DnToBr.inverse() * SO3_LastBrToCurBr * SO3_DnToBr;
+                    SO3_LastToCur = SO3_CmToBr.inverse() * SO3_LastBrToCurBr * SO3_CmToBr;
                 }
             }
 
@@ -140,7 +125,7 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
                 spdlog::warn(
                     "tracking failed when grab the '{}' image frame!!! try to reinitialize", i);
                 // save the tracking information
-                RGBDTrackingInfo[topic].push_back(odometer->GetLmTrackInfo());
+                trackingInfo[topic].push_back(odometer->GetLmTrackInfo());
                 // clear workspace
                 odometer->ResetWorkspace();
             }
@@ -158,7 +143,7 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
             // check solver status
             if (rotEstimator->SolveStatus()) {
                 // assign the estimated extrinsic rotation
-                _parMagr->EXTRI.SO3_DnToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
+                _parMagr->EXTRI.SO3_CmToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
 
                 /**
                  * once the extrinsic rotation is recovered, if time offset is also required, we
@@ -168,20 +153,20 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
                 if (Configor::Prior::OptTemporalParams) {
                     auto estimator = Estimator::Create(_splines, _parMagr);
 
-                    auto optOption = OptOption::OPT_SO3_DnToBr | OptOption::OPT_TO_DnToBr;
-                    double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
-                    double weight = Configor::DataStream::RGBDTopics.at(topic).Weight;
+                    auto optOption = OptOption::OPT_SO3_CmToBr | OptOption::OPT_TO_CmToBr;
+                    double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(topic);
+                    double weight = Configor::DataStream::CameraTopics.at(topic).Weight;
 
                     const auto &rotations = odometer->GetRotations();
                     for (int j = 0; j < static_cast<int>(rotations.size()) - 1; ++j) {
                         const auto &sRot = rotations.at(j), eRot = rotations.at(j + 1);
                         // we throw the head and tail data as the rotations from the fitted SO3
                         // Spline in that range are poor
-                        if (sRot.first + TO_DnToBr < st || eRot.first + TO_DnToBr > et) {
+                        if (sRot.first + TO_CmToBr < st || eRot.first + TO_CmToBr > et) {
                             continue;
                         }
 
-                        estimator->AddHandEyeRotationAlignmentForRGBD(
+                        estimator->AddHandEyeRotationAlignmentForCamera(
                             topic,        // the ros topic
                             sRot.first,   // the time of start rotation stamped by the camera
                             eRot.first,   // the time of end rotation stamped by the camera
@@ -207,7 +192,7 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
         bar->finish();
 
         // add tracking info
-        RGBDTrackingInfo[topic].push_back(odometer->GetLmTrackInfo());
+        trackingInfo[topic].push_back(odometer->GetLmTrackInfo());
 
         /**
          * after all images are grabbed, if the extrinsic rotation is not recovered (use min
@@ -215,7 +200,7 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
          */
         if (!rotEstimator->SolveStatus()) {
             throw Status(Status::ERROR,
-                         "initialize rotation 'SO3_DnToBr' failed, this may be related to "
+                         "initialize rotation 'SO3_CmToBr' failed, this may be related to "
                          "insufficiently excited motion or bad images.");
         }
     }
@@ -226,11 +211,11 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
      * based on the tracking information, we construct the optical flow trace to estimate pixel
      * velocity of tracked featuers
      */
-    for (const auto &[topic, trackInfoList] : RGBDTrackingInfo) {
-        const int trackThd = Configor::DataStream::RGBDTopics.at(topic).TrackLengthMin;
+    for (const auto &[topic, trackInfoList] : trackingInfo) {
+        const int trackThd = Configor::DataStream::CameraTopics.at(topic).TrackLengthMin;
         // store
         _dataMagr->SetVisualOpticalFlowTrace(
-            // ros topic of this rgbd camera
+            // ros topic of this camera
             topic,
             // create the optical flow trace
             CreateOpticalFlowTrace(trackInfoList, trackThd));
@@ -241,38 +226,34 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
      */
     std::map<std::string, std::map<CameraFrame::Ptr, std::vector<OpticalFlowCorr::Ptr>>>
         opticalFlowInFrame;
-    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
+    for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
         const auto &traceVec = _dataMagr->GetVisualOpticalFlowTrace(topic);
-        const auto &intri = _parMagr->INTRI.RGBD.at(topic);
         // the rs exposure factor to compute the real visual timestamps
         const auto &rsExpFactor =
             CameraModel::RSCameraExposureFactor(EnumCast::stringToEnum<CameraModelType>(
-                Configor::DataStream::RGBDTopics.at(topic).Type));
+                Configor::DataStream::CameraTopics.at(topic).Type));
         auto &curOpticalFlowInFrame = opticalFlowInFrame[topic];
 
         for (const auto &trace : traceVec) {
             auto midCamFrame = trace->GetMidCameraFrame();
-            // we use actual depth here (intrinsics is not nullptr)
-            const auto &corr = trace->CreateOpticalFlowCorr(rsExpFactor, intri);
-            if (corr->depth < 1E-3 /* 1 mm */) {
-                continue;
-            }
-            // a valid depth
+            // the depth information stored in 'OpticalFlowCorr' is invalid currently
+            const auto &corr = trace->CreateOpticalFlowCorr(rsExpFactor);
             curOpticalFlowInFrame[midCamFrame].emplace_back(corr);
 
 #define VISUALIZE_OPTICAL_FLOW_TRACE 0
 #if VISUALIZE_OPTICAL_FLOW_TRACE
+            const double readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
             if (Eigen::Vector2d vel = corr->MidPointVel(readout);  // the pixel velocity
                 vel.norm() > 2.0 * Configor::Prior::LossForOpticalFlowFactor) {
                 // show the visual pixel trace image (features, mid-point pixel velocity)
-                auto img = trace->CreateOpticalFlowMat(_parMagr->INTRI.RGBD.at(topic)->intri,
+                auto img = trace->CreateOpticalFlowMat(_parMagr->INTRI.Camera.at(topic),
                                                        corr->MidPointVel(readout));
                 Eigen::Vector2d mp = corr->MidPoint();
                 const auto filename = fmt::format(
                     "{}/{}-{}-{}.png", Configor::DataStream::DebugPath, corr->frame->GetId(),
                     static_cast<int>(mp(0)), static_cast<int>(mp(1)));
                 // save this image to disk
-                cv::imwrite(filename, img);
+                // cv::imwrite(filename, img);
                 cv::imshow("img", img);
                 cv::waitKey(0);
             }
@@ -282,57 +263,63 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
 
     /**
      * for each camera frame of each topic, we estimate the linear velocity, and store them in
-     * 'rgbdBodyFrameVels' [topic, camera frame, body-frame velocity]
+     * 'velCamBodyFrameVelDirs' [topic, camera frame, body-frame velocity]
      */
-    auto &rgbdBodyFrameVels = _initAsset->rgbdBodyFrameVels;
-    for (const auto &[topic, _] : Configor::DataStream::RGBDTopics) {
-        spdlog::info("estimate RGBD-derived linear velocities for '{}'...", topic);
+    auto &velCamBodyFrameVelDirs = _initAsset->velCamBodyFrameVelDirs;
+    for (const auto &[topic, _] : Configor::DataStream::VelCameraTopics()) {
+        spdlog::info("estimate camera-derived linear velocities for '{}'...", topic);
         const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
-        const auto &rgbdIntri = _parMagr->INTRI.RGBD.at(topic);
-        const double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(topic);
-        const Sophus::SO3d &SO3_DnToBr = _parMagr->EXTRI.SO3_DnToBr.at(topic);
-        for (const auto &[frame, ofVec] : opticalFlowInFrame.at(topic)) {
-            const double timeByBr = frame->GetTimestamp() + TO_DnToBr;
+        const double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(topic);
+
+        auto bar = std::make_shared<tqdm>();
+        const auto &curOpticalFlowInFrame = opticalFlowInFrame.at(topic);
+        auto totalSize = static_cast<int>(curOpticalFlowInFrame.size());
+        int curIdx = 0;
+        for (const auto &[frame, ofVec] : curOpticalFlowInFrame) {
+            bar->progress(curIdx++, totalSize);
+            const double timeByBr = frame->GetTimestamp() + TO_CmToBr;
             // at least two measurements are required, here we up the ante
             if (timeByBr < st || timeByBr > et || ofVec.size() < 5) {
                 continue;
             }
-            auto res = VisualVelocitySacProblem::VisualVelocityEstimationRANSAC(
-                ofVec,             // pixel velocity sequence in this image
-                readout,           // the readout time of the associated camera
-                rgbdIntri->intri,  // the visual intrinsics
-                timeByBr,          // the time stamped by the reference imu
-                so3Spline,         // the rotation spline
-                SO3_DnToBr         // the extrinsic rotation
-            );
-            if (res) {
-                rgbdBodyFrameVels[topic].emplace_back(frame, *res);
-#define VISUALIZE_RGBD_ONLY_VEL_EST 0
-#if VISUALIZE_RGBD_ONLY_VEL_EST
-                // feature, velocity, depth
-                std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>> dynamics;
-                dynamics.reserve(ofVec.size());
-                for (const auto &ofCorr : ofVec) {
-                    if (ofCorr->depth < 1E-3 /* 1mm */) {
-                        continue;
-                    }
-                    dynamics.emplace_back(
-                        ofCorr->MidPoint(),            // feature position
-                        ofCorr->MidPointVel(readout),  // pixel velocity of the middle point
-                        ofCorr->depth                  // the depth of the middle point
-                    );
-                }
-                auto img = VisualVelocityEstimator::DrawVisualVelocityMat(
-                    dynamics, rgbdIntri->intri, timeByBr, so3Spline, SO3_DnToBr, *res, frame, 0.25);
-#endif
+            // if the camera is moving too slow, we do not estimate its velocity direction
+            double avgPixelVel = 0.0;
+            for (const auto &corr : ofVec) {
+                avgPixelVel += corr->MidPointVel(readout).norm();
             }
+            avgPixelVel /= static_cast<double>(ofVec.size());
+            if (avgPixelVel < Configor::Prior::LossForOpticalFlowFactor) {
+                continue;
+            }
+            auto estimator = Estimator::Create(_splines, _parMagr);
+            Eigen::Vector3d velDir(0.0, 0.0, 1.0f);
+            for (auto &corr : ofVec) {
+                // we initialize the depth as 1.0, this value would be optimized in estimator
+                corr->depth = 1.0;
+                estimator->AddVisualVelocityDepthFactorForVelCam(
+                    &velDir,  // the direction of linear velocity to be estimated
+                    corr,     // the optical flow correspondence
+                    topic,    // rostopic
+                    1.0,      // weight
+                    true,     // estimate the depth information
+                    true);    // only estimate the direction of the linear velocity
+            }
+            // we don't want to output the solving information
+            auto optWithoutOutput =
+                Estimator::DefaultSolverOptions(Configor::Preference::AvailableThreads(),
+                                                false,   // do not output the solving information
+                                                false);  // we do not use cuda solving here
+            auto sum = estimator->Solve(optWithoutOutput, this->_priori);
+
+            velCamBodyFrameVelDirs[topic].emplace_back(frame, velDir);
         }
+        bar->finish();
         /**
-         * the obtained rgbd-frame velocities may not time-ordered, thus we sort these quantities
-         * based on their time stamps
+         * the obtained camera-frame velocities may not time-ordered, thus we sort these quantities
+         * based on their timestamps
          */
-        auto &curRGBDVels = rgbdBodyFrameVels.at(topic);
-        std::sort(curRGBDVels.begin(), curRGBDVels.end(), [](const auto &p1, const auto &p2) {
+        auto &curVelDirs = velCamBodyFrameVelDirs.at(topic);
+        std::sort(curVelDirs.begin(), curVelDirs.end(), [](const auto &p1, const auto &p2) {
             return p1.first->GetTimestamp() < p2.first->GetTimestamp();
         });
     }

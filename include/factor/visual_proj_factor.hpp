@@ -35,7 +35,6 @@
 #ifndef IKALIBR_VISUAL_PROJ_FACTOR_HPP
 #define IKALIBR_VISUAL_PROJ_FACTOR_HPP
 
-#include "ctraj/utils/eigen_utils.hpp"
 #include "ctraj/utils/sophus_utils.hpp"
 #include "ceres/dynamic_autodiff_cost_function.h"
 #include "veta/camera/pinhole_brown.h"
