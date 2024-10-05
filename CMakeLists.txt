@@ -121,6 +121,9 @@ add_message_files(
 
         AWR1843RadarScan.msg
         AWR1843RadarScanCustom.msg
+
+        PropheseeEvent.msg
+        PropheseeEventArray.msg
 )
 
 ## Generate services in the 'srv' folder
