@@ -14,8 +14,9 @@
 ---
 
 <p align="center">
-    <a><strong>Version 2.1.0 » iKalibr Is Comming With Support for RGBD Cameras</strong></a>
+    <a><strong>Version 2.1.0 » support of SfM-free calibration for optical cameras!</strong></a>
 </p>
+
 
 Although spatiotemporal calibration of optical cameras were supported in the first version of `iKalibr`, it required computationally expensive SfM (Structure from Motion) to initialize the estimator. Fortunately, this has been greatly improved in the new version (v2.1.0). Specifically, inspired by the RGBD cameras supported in the previous version (v2.0.0), we implemented SfM-Free spatiotemporal calibration for ordinary optical cameras based on continuous-time velocity estimation.
 
