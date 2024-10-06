@@ -63,7 +63,8 @@ CalibParamManager::CalibParamManager(const std::vector<std::string> &imuTopics,
                                      const std::vector<std::string> &radarTopics,
                                      const std::vector<std::string> &lidarTopics,
                                      const std::vector<std::string> &cameraTopics,
-                                     const std::vector<std::string> &rgbdTopics)
+                                     const std::vector<std::string> &rgbdTopics,
+                                     const std::vector<std::string> &eventTopics)
     : EXTRI(),
       TEMPORAL(),
       INTRI(),
@@ -98,6 +99,13 @@ CalibParamManager::CalibParamManager(const std::vector<std::string> &imuTopics,
         TEMPORAL.RS_READOUT[topic] = 0.0;
         INTRI.RGBD[topic] = nullptr;
     }
+    for (const auto &topic : eventTopics) {
+        EXTRI.SO3_EsToBr[topic] = Sophus::SO3d();
+        EXTRI.POS_EsInBr[topic] = Eigen::Vector3d::Zero();
+        TEMPORAL.TO_EsToBr[topic] = 0.0;
+        TEMPORAL.RS_READOUT[topic] = 0.0;
+        INTRI.Camera[topic] = nullptr;
+    }
     GRAVITY = Eigen::Vector3d(0.0, 0.0, -9.8);
 }
 
@@ -105,9 +113,10 @@ CalibParamManager::Ptr CalibParamManager::Create(const std::vector<std::string> 
                                                  const std::vector<std::string> &radarTopics,
                                                  const std::vector<std::string> &lidarTopics,
                                                  const std::vector<std::string> &cameraTopics,
-                                                 const std::vector<std::string> &rgbdTopics) {
+                                                 const std::vector<std::string> &rgbdTopics,
+                                                 const std::vector<std::string> &eventTopics) {
     return std::make_shared<CalibParamManager>(imuTopics, radarTopics, lidarTopics, cameraTopics,
-                                               rgbdTopics);
+                                               rgbdTopics, eventTopics);
 }
 
 CalibParamManager::Ptr CalibParamManager::InitParamsFromConfigor() {
@@ -117,22 +126,35 @@ CalibParamManager::Ptr CalibParamManager::InitParamsFromConfigor() {
                                              ExtractKeysAsVec(Configor::DataStream::RadarTopics),
                                              ExtractKeysAsVec(Configor::DataStream::LiDARTopics),
                                              ExtractKeysAsVec(Configor::DataStream::CameraTopics),
-                                             ExtractKeysAsVec(Configor::DataStream::RGBDTopics));
+                                             ExtractKeysAsVec(Configor::DataStream::RGBDTopics),
+                                             ExtractKeysAsVec(Configor::DataStream::EventTopics));
 
     // intrinsics
     for (auto &[topic, intri] : parMarg->INTRI.IMU) {
         intri = ParIntri::LoadIMUIntri(Configor::DataStream::IMUTopics.at(topic).Intrinsics,
                                        Configor::Preference::OutputDataFormat);
     }
-    for (auto &[topic, intri] : parMarg->INTRI.Camera) {
-        intri = ParIntri::LoadCameraIntri(Configor::DataStream::CameraTopics.at(topic).Intrinsics,
-                                          Configor::Preference::OutputDataFormat);
+    for (const auto &[topic, config] : Configor::DataStream::CameraTopics) {
+        parMarg->INTRI.Camera.at(topic) =
+            ParIntri::LoadCameraIntri(config.Intrinsics, Configor::Preference::OutputDataFormat);
     }
     for (auto &[topic, intri] : parMarg->INTRI.RGBD) {
         intri = RGBDIntrinsics::Create(
             ParIntri::LoadCameraIntri(Configor::DataStream::RGBDTopics.at(topic).Intrinsics,
                                       Configor::Preference::OutputDataFormat),
             std::abs(Configor::DataStream::RGBDTopics.at(topic).DepthFactor), 0.0);
+    }
+    for (const auto &[topic, config] : Configor::DataStream::EventTopics) {
+        parMarg->INTRI.Camera.at(topic) =
+            ParIntri::LoadCameraIntri(config.Intrinsics, Configor::Preference::OutputDataFormat);
+        if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(
+                parMarg->INTRI.Camera.at(topic)) == nullptr) {
+            // the intrinsics of this camera is not 'ns_veta::PinholeIntrinsicBrownT2'
+            throw Status(Status::CRITICAL,
+                         "intrinsics of event camera '{}' is invalid, only the "
+                         "'PinholeIntrinsicBrownT2' is supported currently!!!",
+                         topic);
+        }
     }
 
     // align to the negative 'z' axis
@@ -203,6 +225,13 @@ void CalibParamManager::ShowParamStatus() {
         STREAM_PACK("")
     }
 
+    // events
+    for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
+        STREAM_PACK("Event: '" << topic << "'")
+        OUTPUT_EXTRINSICS(E, s, B, r)
+        STREAM_PACK("")
+    }
+
     STREAM_PACK(std::string(n, '-'))
 
     // ----------------------------
@@ -254,6 +283,15 @@ void CalibParamManager::ShowParamStatus() {
         STREAM_PACK("")
     }
 
+    // cameras
+    for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
+        STREAM_PACK("Event: '" << topic << "'")
+        OUTPUT_TEMPORAL(E, s, B, r)
+        const auto RS_READOUT = TEMPORAL.RS_READOUT.at(topic);
+        STREAM_PACK(fmt::format("{}: {:+010.6f} (s)", PARAM("RS_READOUT"), RS_READOUT))
+        STREAM_PACK("")
+    }
+
     STREAM_PACK(std::string(n, '-'))
 
     // -------------------------
@@ -296,9 +334,8 @@ void CalibParamManager::ShowParamStatus() {
     }
 
     // cameras
-    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+    for (const auto &[topic, intri] : INTRI.Camera) {
         STREAM_PACK("Camera: '" << topic << "'")
-        const auto &intri = INTRI.Camera.at(topic);
         const auto &pars = intri->GetParams();
 
         STREAM_PACK(
@@ -513,6 +550,19 @@ std::vector<ns_viewer::Entity::Ptr> CalibParamManager::EntitiesForVisualization(
             ns_viewer::Line::Create(Eigen::Vector3f::Zero(), SE3_DnToBr.translation().cast<float>(),
                                     ns_viewer::Colour::Black());
         entities.push_back(rgbd);
+        entities.push_back(line);
+    }
+
+    // event cameras
+    for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
+        auto SE3_EsToBr = EXTRI.SE3_EsToBr(topic).cast<float>();
+        auto event = ns_viewer::CubeCamera::Create(
+            ns_viewer::Posef(SE3_EsToBr.so3().matrix(), SE3_EsToBr.translation()), CAMERA_SIZE,
+            ns_viewer::Colour::Black());
+        auto line =
+            ns_viewer::Line::Create(Eigen::Vector3f::Zero(), SE3_EsToBr.translation().cast<float>(),
+                                    ns_viewer::Colour::Black());
+        entities.push_back(event);
         entities.push_back(line);
     }
 
