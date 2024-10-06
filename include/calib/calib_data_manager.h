@@ -41,6 +41,7 @@
 #include "sensor/lidar.h"
 #include "sensor/radar.h"
 #include "sensor/rgbd.h"
+#include "sensor/event.h"
 #include "util/status.hpp"
 #include "veta/veta.h"
 

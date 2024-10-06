@@ -138,4 +138,15 @@ std::string RadarModel::UnsupportedRadarModelMsg(const std::string &modelStr) {
         modelStr);
 }
 
+std::string EventModel::UnsupportedEventModelMsg(const std::string &modelStr) {
+    return fmt::format(
+        "Unsupported Event Camera Type: '{}'. "
+        "Currently supported event camera types are: \n"
+        "1. PROPHESEE_EVENT: https://github.com/prophesee-ai/prophesee_ros_wrapper.git\n"
+        "...\n"
+        "If you need to use other event camera types, "
+        "please 'Issues' us on the profile of the github repository.",
+        modelStr);
+}
+
 }  // namespace ns_ikalibr
