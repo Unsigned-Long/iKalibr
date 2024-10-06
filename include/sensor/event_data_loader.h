@@ -32,85 +32,59 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef EVENT_H
-#define EVENT_H
+#ifndef EVENT_DATA_LOADER_H
+#define EVENT_DATA_LOADER_H
 
-#include "util/utils.h"
-#include "ctraj/utils/macros.hpp"
+#include "sensor/event.h"
+#include "sensor/sensor_model.h"
+#include "rosbag/message_instance.h"
+#include "util/enum_cast.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-class Event {
+class EventDataLoader {
 public:
-    using Ptr = std::shared_ptr<Event>;
+    using Ptr = std::shared_ptr<EventDataLoader>;
 
-private:
-    // the timestamp of this event
-    double _timestamp;
-    Eigen::Vector2d _pos;
-    bool _polarity;
+protected:
+    EventModelType _model;
 
 public:
-    explicit Event(double timestamp = INVALID_TIME_STAMP,
-                   Eigen::Vector2d pos = Eigen::Vector2d::Zero(),
-                   bool polarity = {});
+    explicit EventDataLoader(EventModelType model);
 
-    static Ptr Create(double timestamp = INVALID_TIME_STAMP,
-                      const Eigen::Vector2d& pos = Eigen::Vector2d::Zero(),
-                      bool polarity = {});
+    virtual EventArray::Ptr UnpackData(const rosbag::MessageInstance &msgInstance) = 0;
 
-    [[nodiscard]] double GetTimestamp() const;
+    static EventDataLoader::Ptr GetLoader(const std::string &modelStr);
 
-    void SetTimestamp(double timestamp);
+    [[nodiscard]] EventModelType GetEventModel() const;
 
-    [[nodiscard]] Eigen::Vector2d GetPos() const;
+    virtual ~EventDataLoader() = default;
 
-    [[nodiscard]] bool GetPolarity() const;
-
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-public:
-    template <class Archive>
-    void serialize(Archive& ar) {
-        ar(cereal::make_nvp("timestamp", _timestamp), cereal::make_nvp("pos", _pos),
-           cereal::make_nvp("polarity", _polarity));
+protected:
+    template <class MsgType>
+    void CheckMessage(typename MsgType::ConstPtr msg) {
+        if (msg == nullptr) {
+            throw std::runtime_error(
+                "Wrong sensor model: '" + std::string(EnumCast::enumToString(GetEventModel())) +
+                "' for event cameras! It's incompatible with the type of ros message to load in!");
+        }
     }
 };
 
-class EventArray {
+class PropheseeEventDataLoader : public EventDataLoader {
 public:
-    using Ptr = std::shared_ptr<EventArray>;
-
-private:
-    double _timestamp;
-    std::vector<Event::Ptr> _events;
+    using Ptr = std::shared_ptr<PropheseeEventDataLoader>;
 
 public:
-    explicit EventArray(double timestamp = INVALID_TIME_STAMP,
-                        const std::vector<Event::Ptr>& events = {});
+    explicit PropheseeEventDataLoader(EventModelType model);
 
-    static Ptr Create(double timestamp = INVALID_TIME_STAMP,
-                      const std::vector<Event::Ptr>& events = {});
+    static Ptr Create(EventModelType model);
 
-    [[nodiscard]] double GetTimestamp() const;
-
-    [[nodiscard]] std::vector<Event::Ptr> GetEvents() const;
-
-    void SetTimestamp(double timestamp);
-
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-public:
-    template <class Archive>
-    void serialize(Archive& ar) {
-        ar(cereal::make_nvp("timestamp", _timestamp), cereal::make_nvp("events", _events));
-    }
+    EventArray::Ptr UnpackData(const rosbag::MessageInstance &msgInstance) override;
 };
 }  // namespace ns_ikalibr
 
-#endif  // EVENT_H
+#endif  // EVENT_DATA_LOADER_H

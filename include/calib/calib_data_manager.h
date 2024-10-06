@@ -44,6 +44,7 @@
 #include "sensor/event.h"
 #include "util/status.hpp"
 #include "veta/veta.h"
+#include "rosbag/bag.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -63,6 +64,7 @@ private:
     std::map<std::string, std::vector<RadarTargetArray::Ptr>> _radarMes;
     std::map<std::string, std::vector<LiDARFrame::Ptr>> _lidarMes;
     std::map<std::string, std::vector<CameraFrame::Ptr>> _camMes;
+    std::map<std::string, std::vector<EventArray::Ptr>> _eventMes;
     std::map<std::string, std::vector<RGBDFrame::Ptr>> _rgbdMes;
 
     std::map<std::string, ns_veta::Veta::Ptr> _sfmData;
@@ -224,7 +226,7 @@ protected:
     template <typename MesSeqType>
     static void CheckTopicExists(const std::string &topic,
                                  const std::map<std::string, MesSeqType> &mesSeq) {
-        if (mesSeq.count(topic) == 0) {
+        if (auto iter = mesSeq.find(topic); iter == mesSeq.end() || iter->second.empty()) {
             throw Status(Status::CRITICAL,
                          "there is no data in topic '{}'! "
                          "check your configure file and rosbag!",
@@ -255,6 +257,11 @@ protected:
             return hz / static_cast<double>(mesMap.size());
         }
     }
+
+    static std::uint32_t MessageNumInTopic(const rosbag::Bag *bag,
+                                           const std::string &topic,
+                                           const ros::Time &begTime,
+                                           const ros::Time &endTime);
 };
 
 }  // namespace ns_ikalibr

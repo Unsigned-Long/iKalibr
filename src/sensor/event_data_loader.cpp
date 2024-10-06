@@ -32,85 +32,58 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef EVENT_H
-#define EVENT_H
-
-#include "util/utils.h"
-#include "ctraj/utils/macros.hpp"
+#include "sensor/event_data_loader.h"
+#include "ikalibr/PropheseeEventArray.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-class Event {
-public:
-    using Ptr = std::shared_ptr<Event>;
+EventDataLoader::EventDataLoader(EventModelType model)
+    : _model(model) {}
 
-private:
-    // the timestamp of this event
-    double _timestamp;
-    Eigen::Vector2d _pos;
-    bool _polarity;
-
-public:
-    explicit Event(double timestamp = INVALID_TIME_STAMP,
-                   Eigen::Vector2d pos = Eigen::Vector2d::Zero(),
-                   bool polarity = {});
-
-    static Ptr Create(double timestamp = INVALID_TIME_STAMP,
-                      const Eigen::Vector2d& pos = Eigen::Vector2d::Zero(),
-                      bool polarity = {});
-
-    [[nodiscard]] double GetTimestamp() const;
-
-    void SetTimestamp(double timestamp);
-
-    [[nodiscard]] Eigen::Vector2d GetPos() const;
-
-    [[nodiscard]] bool GetPolarity() const;
-
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-public:
-    template <class Archive>
-    void serialize(Archive& ar) {
-        ar(cereal::make_nvp("timestamp", _timestamp), cereal::make_nvp("pos", _pos),
-           cereal::make_nvp("polarity", _polarity));
+EventDataLoader::Ptr EventDataLoader::GetLoader(const std::string& modelStr) {
+    // try extract radar model
+    EventModelType model;
+    try {
+        model = EnumCast::stringToEnum<EventModelType>(modelStr);
+    } catch (...) {
+        throw Status(Status::ERROR, EventModel::UnsupportedEventModelMsg(modelStr));
     }
-};
-
-class EventArray {
-public:
-    using Ptr = std::shared_ptr<EventArray>;
-
-private:
-    double _timestamp;
-    std::vector<Event::Ptr> _events;
-
-public:
-    explicit EventArray(double timestamp = INVALID_TIME_STAMP,
-                        const std::vector<Event::Ptr>& events = {});
-
-    static Ptr Create(double timestamp = INVALID_TIME_STAMP,
-                      const std::vector<Event::Ptr>& events = {});
-
-    [[nodiscard]] double GetTimestamp() const;
-
-    [[nodiscard]] std::vector<Event::Ptr> GetEvents() const;
-
-    void SetTimestamp(double timestamp);
-
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-public:
-    template <class Archive>
-    void serialize(Archive& ar) {
-        ar(cereal::make_nvp("timestamp", _timestamp), cereal::make_nvp("events", _events));
+    EventDataLoader::Ptr dataLoader;
+    switch (model) {
+        case EventModelType::PROPHESEE_EVENT:
+            dataLoader = PropheseeEventDataLoader::Create(model);
+            break;
+        default:
+            throw Status(Status::ERROR, EventModel::UnsupportedEventModelMsg(modelStr));
     }
-};
+    return dataLoader;
+}
+
+EventModelType EventDataLoader::GetEventModel() const { return _model; }
+
+PropheseeEventDataLoader::PropheseeEventDataLoader(EventModelType model)
+    : EventDataLoader(model) {}
+
+PropheseeEventDataLoader::Ptr PropheseeEventDataLoader::Create(EventModelType model) {
+    return std::make_shared<PropheseeEventDataLoader>(model);
+}
+
+EventArray::Ptr PropheseeEventDataLoader::UnpackData(const rosbag::MessageInstance& msgInstance) {
+    ikalibr::PropheseeEventArrayPtr msg = msgInstance.instantiate<ikalibr::PropheseeEventArray>();
+
+    CheckMessage<ikalibr::PropheseeEventArray>(msg);
+
+    std::vector<Event::Ptr> events(msg->events.size());
+
+    for (int i = 0; i < static_cast<int>(msg->events.size()); i++) {
+        const auto& event = msg->events.at(i);
+        events.at(i) =
+            Event::Create(event.ts.toSec(), Eigen::Vector2d(event.x, event.y), event.polarity);
+    }
+
+    return EventArray::Create(msg->header.stamp.toSec(), events);
+}
 }  // namespace ns_ikalibr
-
-#endif  // EVENT_H

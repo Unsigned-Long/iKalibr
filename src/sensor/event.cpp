@@ -34,6 +34,10 @@
 
 #include "sensor/event.h"
 
+namespace {
+bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
+}
+
 namespace ns_ikalibr {
 Event::Event(double timestamp, Eigen::Vector2d pos, bool polarity)
     : _timestamp(timestamp),
@@ -55,6 +59,10 @@ bool Event::GetPolarity() const { return _polarity; }
 EventArray::EventArray(double timestamp, const std::vector<Event::Ptr>& events)
     : _timestamp(timestamp),
       _events(events) {}
+
+EventArray::Ptr EventArray::Create(double timestamp, const std::vector<Event::Ptr>& events) {
+    return std::make_shared<EventArray>(timestamp, events);
+}
 
 double EventArray::GetTimestamp() const { return _timestamp; }
 
