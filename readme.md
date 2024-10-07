@@ -44,6 +44,10 @@ For more details, please refer to our article :point_down::
 
 ---
 
+<div align=center><img src="docs/img/sensor_suite.jpg" width =100%></div>
+
+---
+
 <div align=center><img src="docs/img/overview.drawio.jpg" width =100%></div>
 
 ---
