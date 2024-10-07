@@ -73,6 +73,7 @@ void CalibSolver::Process() {
     this->InitPrepRGBDInertialAlign();       // rgbd-inertial
     this->InitPrepLiDARInertialAlign();      // lidar-inertial
     this->InitPrepRadarInertialAlign();      // radar-inertial
+    this->InitPrepEventInertialAlign();      // event-inertial
     this->InitPrepInertialInertialAlign();   // inertial-inertial
     this->InitSensorInertialAlign();         // one-shot sensor-inertial alignment
 

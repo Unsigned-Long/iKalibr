@@ -89,6 +89,8 @@ void SpatialTemporalPriori::CheckValidityWithConfigor() const {
                      p.first, p.second);
     }
 
+    // topic, camera type string
+    std::map<std::string, std::string> optCamModelType;
     std::set<std::string> topics;
     // add topics to vector
     for (const auto& [topic, _] : Configor::DataStream::IMUTopics) {
@@ -100,8 +102,18 @@ void SpatialTemporalPriori::CheckValidityWithConfigor() const {
     for (const auto& [topic, _] : Configor::DataStream::LiDARTopics) {
         topics.insert(topic);
     }
-    for (const auto& [topic, _] : Configor::DataStream::CameraTopics) {
+    for (const auto& [topic, config] : Configor::DataStream::CameraTopics) {
         topics.insert(topic);
+        optCamModelType.insert({topic, config.Type});
+    }
+    for (const auto& [topic, config] : Configor::DataStream::RGBDTopics) {
+        topics.insert(topic);
+        optCamModelType.insert({topic, config.Type});
+    }
+    for (const auto& [topic, _] : Configor::DataStream::EventTopics) {
+        topics.insert(topic);
+        // for event, rs exposure mode dose not make sense
+        // optCamModelType.insert({topic, config.Type});
     }
     auto CheckTopic = [&topics](const std::pair<std::string, std::string>& sensorPair,
                                 const std::string& prioriDesc) {
@@ -118,7 +130,8 @@ void SpatialTemporalPriori::CheckValidityWithConfigor() const {
                          "invalid prior {}: sensor '{}' does not exist in Configor!!!  Check the "
                          "spatiotemporal priori config file!!!",
                          prioriDesc, sen1);
-        } else if (topics.count(sen2) == 0) {
+        }
+        if (topics.count(sen2) == 0) {
             throw Status(Status::WARNING,
                          "invalid prior {}: sensor '{}' does not exist in Configor!!!  Check the "
                          "spatiotemporal priori config file!!!",
@@ -136,20 +149,20 @@ void SpatialTemporalPriori::CheckValidityWithConfigor() const {
     }
     const double RT_PADDING = Configor::Prior::ReadoutTimePadding;
     for (const auto& [sensor, readout] : RS_READOUT) {
-        auto iter = Configor::DataStream::CameraTopics.find(sensor);
+        auto iter = optCamModelType.find(sensor);
         // this topic does not exist
-        if (iter == Configor::DataStream::CameraTopics.cend()) {
+        if (iter == optCamModelType.cend()) {
             throw Status(Status::WARNING,
                          "invalid prior readout time: camera '{}' does not exist in Configor!!!  "
                          "Check the spatiotemporal priori config file!!!",
                          sensor);
         }
-        auto model = EnumCast::stringToEnum<CameraModelType>(iter->second.Type);
+        auto model = EnumCast::stringToEnum<CameraModelType>(iter->second);
         if (!IsOptionWith(CameraModelType::RS, model)) {
             // is not a rs camera
             throw Status(Status::ERROR,
                          "prior readout time is set for camera '{}', but it's not a RS camera in "
-                         "Configor!!!  Check the spatiotemporal priori config file!!!",
+                         "Configor!!! Check the spatiotemporal priori config file!!!",
                          sensor);
         }
         // range check
@@ -182,6 +195,12 @@ void SpatialTemporalPriori::AddSpatTempPrioriConstraint(Estimator& estimator,
     for (auto& [topic, item] : parMagr.EXTRI.SO3_CmToBr) {
         SO3Address.insert({topic, &item});
     }
+    for (auto& [topic, item] : parMagr.EXTRI.SO3_DnToBr) {
+        SO3Address.insert({topic, &item});
+    }
+    for (auto& [topic, item] : parMagr.EXTRI.SO3_EsToBr) {
+        SO3Address.insert({topic, &item});
+    }
     // extrinsic translations
     for (auto& [topic, item] : parMagr.EXTRI.POS_BiInBr) {
         POSAddress.insert({topic, &item});
@@ -195,6 +214,12 @@ void SpatialTemporalPriori::AddSpatTempPrioriConstraint(Estimator& estimator,
     for (auto& [topic, item] : parMagr.EXTRI.POS_CmInBr) {
         POSAddress.insert({topic, &item});
     }
+    for (auto& [topic, item] : parMagr.EXTRI.POS_DnInBr) {
+        POSAddress.insert({topic, &item});
+    }
+    for (auto& [topic, item] : parMagr.EXTRI.POS_EsInBr) {
+        POSAddress.insert({topic, &item});
+    }
     // time offsets
     for (auto& [topic, item] : parMagr.TEMPORAL.TO_BiToBr) {
         TOAddress.insert({topic, &item});
@@ -206,6 +231,12 @@ void SpatialTemporalPriori::AddSpatTempPrioriConstraint(Estimator& estimator,
         TOAddress.insert({topic, &item});
     }
     for (auto& [topic, item] : parMagr.TEMPORAL.TO_CmToBr) {
+        TOAddress.insert({topic, &item});
+    }
+    for (auto& [topic, item] : parMagr.TEMPORAL.TO_DnToBr) {
+        TOAddress.insert({topic, &item});
+    }
+    for (auto& [topic, item] : parMagr.TEMPORAL.TO_EsToBr) {
         TOAddress.insert({topic, &item});
     }
     auto RefIMU = Configor::DataStream::ReferIMU;
