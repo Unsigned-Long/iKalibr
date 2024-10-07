@@ -100,7 +100,7 @@ Configor:
     # Note that the 'BegTime' here is measured from the start time of bag
     # and is not related to the timestamp of the data recorded in the package.
     BeginTime: -1
-    Duration: -1
+    Duration: 10
     OutputPath: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/desk-fast"
   Prior:
     GravityNorm: 9.79

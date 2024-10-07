@@ -33,6 +33,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "sensor/event.h"
+#include "veta/camera/pinhole.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -69,5 +70,50 @@ double EventArray::GetTimestamp() const { return _timestamp; }
 std::vector<Event::Ptr> EventArray::GetEvents() const { return _events; }
 
 void EventArray::SetTimestamp(double timestamp) { _timestamp = timestamp; }
+
+cv::Mat EventArray::DrawRawEventFrame(const ns_veta::PinholeIntrinsic::Ptr& intri) const {
+    cv::Mat eventFrame =
+        cv::Mat(static_cast<int>(intri->imgHeight), static_cast<int>(intri->imgWidth), CV_8UC3,
+                cv::Scalar(255, 255, 255));
+
+    for (const auto& event : _events) {
+        cv::Vec3b color;
+        if (event->GetPolarity()) {
+            // red
+            color = cv::Vec3b(0, 0, 255);
+        } else {
+            // green
+            color = cv::Vec3b(255, 0, 0);
+        }
+        eventFrame.at<cv::Vec3b>(static_cast<int>(event->GetPos()(1)),
+                                 static_cast<int>(event->GetPos()(0))) = color;
+    }
+    return eventFrame;
+}
+
+cv::Mat EventArray::DrawRawEventFrame(const std::vector<Ptr>::const_iterator& sIter,
+                                      const std::vector<Ptr>::const_iterator& eIter,
+                                      const ns_veta::PinholeIntrinsicPtr& intri) {
+    cv::Mat eventFrame =
+        cv::Mat(static_cast<int>(intri->imgHeight), static_cast<int>(intri->imgWidth), CV_8UC3,
+                cv::Scalar(255, 255, 255));
+
+    for (auto iter = sIter; iter != eIter; ++iter) {
+        for (const auto& event : (*iter)->GetEvents()) {
+            cv::Vec3b color;
+            if (event->GetPolarity()) {
+                // red
+                color = cv::Vec3b(0, 0, 255);
+            } else {
+                // green
+                color = cv::Vec3b(255, 0, 0);
+            }
+            eventFrame.at<cv::Vec3b>(static_cast<int>(event->GetPos()(1)),
+                                     static_cast<int>(event->GetPos()(0))) = color;
+        }
+    }
+
+    return eventFrame;
+}
 
 }  // namespace ns_ikalibr

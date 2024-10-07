@@ -64,6 +64,56 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * We first dedistort the events, then export them to files and use third-party software for
      * feature tracking.
      */
+    for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
+        const auto &intri = _parMagr->INTRI.Camera.at(topic);
+        const std::size_t EVENT_FRAME_NUM_THD = intri->imgHeight * intri->imgWidth / 2;
+        /**
+         * |--> 'outputSIter1'
+         * |            |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
+         * ------------------------------------------------------------------
+         * |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
+         * | data in this windown would be output for event-based feature tracking
+         * |--> 'outputSIter2'
+         */
+        constexpr double BATCH_TIME_WIN_THD = 1.0;
+        constexpr double BATCH_TIME_WIN_THD_HALF = BATCH_TIME_WIN_THD * 0.5;
+
+        // this queue maintain two iterators
+        std::queue<std::vector<EventArray::Ptr>::const_iterator> outputSIter;
+        outputSIter.push(eventMes.cbegin());
+        outputSIter.push(eventMes.cbegin());
+
+        auto matSIter = eventMes.cbegin();
+        std::size_t num = 0;
+        cv::Mat eventFrameMat;
+        for (auto curIter = matSIter; curIter != eventMes.cend(); ++curIter) {
+            num += (*curIter)->GetEvents().size();
+            if (num > EVENT_FRAME_NUM_THD) {
+                // note that this even frame is a distorted one
+                eventFrameMat = EventArray::DrawRawEventFrame(matSIter, curIter, intri);
+                // spdlog::info("time span from '{:.5f}' to '{:.5f}', total: '{:.5f}'.",
+                //              (*matSIter)->GetTimestamp(), (*curIter)->GetTimestamp(),
+                //              (*curIter)->GetTimestamp() - (*matSIter)->GetTimestamp());
+                cv::imshow("Event Frame", eventFrameMat);
+                cv::waitKey(1);
+
+                matSIter = curIter;
+                num = 0;
+            }
+
+            if ((*curIter)->GetTimestamp() - (*outputSIter.back())->GetTimestamp() >
+                BATCH_TIME_WIN_THD_HALF) {
+                if ((*curIter)->GetTimestamp() - (*outputSIter.front())->GetTimestamp() >
+                    BATCH_TIME_WIN_THD) {
+                    // todo: output from 'outputSIter.front()' to 'curIter'
+                }
+
+                outputSIter.push(curIter);
+                outputSIter.pop();
+            }
+        }
+    }
+
     spdlog::warn("developing!!!");
     std::cin.get();
 }

@@ -119,6 +119,13 @@ public:
     [[nodiscard]] const std::vector<RGBDFrame::Ptr> &GetRGBDMeasurements(
         const std::string &rgbdTopic) const;
 
+    // get raw event measurements
+    [[nodiscard]] const std::map<std::string, std::vector<EventArray::Ptr>> &GetEventMeasurements()
+        const;
+
+    [[nodiscard]] const std::vector<EventArray::Ptr> &GetEventMeasurements(
+        const std::string &eventTopic) const;
+
     // get raw SfM data
     [[nodiscard]] const std::map<std::string, ns_veta::Veta::Ptr> &GetSfMData() const;
 
@@ -181,6 +188,22 @@ public:
 
     auto ExtractIMUDataPiece(const std::string &topic, double st, double et) {
         return ExtractIMUDataPiece(_imuMes.at(topic), st, et);
+    }
+
+    static auto ExtractEventDataPiece(const std::vector<EventArray::Ptr> &data,
+                                      double st,
+                                      double et) {
+        auto sIter = std::find_if(data.begin(), data.end(), [st](const EventArray::Ptr &frame) {
+            return frame->GetTimestamp() > st;
+        });
+        auto eIter = std::find_if(data.rbegin(), data.rend(), [et](const EventArray::Ptr &frame) {
+                         return frame->GetTimestamp() < et;
+                     }).base();
+        return std::pair(sIter, eIter);
+    }
+
+    auto ExtractEventDataPiece(const std::string &topic, double st, double et) {
+        return ExtractEventDataPiece(_eventMes.at(topic), st, et);
     }
 
     // load camera, lidar, imu data from the ros bag [according to the config file]

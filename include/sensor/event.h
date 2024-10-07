@@ -42,6 +42,11 @@ namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
+namespace ns_veta {
+struct PinholeIntrinsic;
+using PinholeIntrinsicPtr = std::shared_ptr<PinholeIntrinsic>;
+}  // namespace ns_veta
+
 namespace ns_ikalibr {
 class Event {
 public:
@@ -101,6 +106,12 @@ public:
     [[nodiscard]] std::vector<Event::Ptr> GetEvents() const;
 
     void SetTimestamp(double timestamp);
+
+    [[nodiscard]] cv::Mat DrawRawEventFrame(const ns_veta::PinholeIntrinsicPtr& intri) const;
+
+    static cv::Mat DrawRawEventFrame(const std::vector<Ptr>::const_iterator& sIter,
+                                     const std::vector<Ptr>::const_iterator& eIter,
+                                     const ns_veta::PinholeIntrinsicPtr& intri);
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

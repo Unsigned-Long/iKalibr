@@ -871,6 +871,16 @@ const std::vector<RGBDFrame::Ptr> &CalibDataManager::GetRGBDMeasurements(
     return _rgbdMes.at(rgbdTopic);
 }
 
+const std::map<std::string, std::vector<EventArray::Ptr>> &CalibDataManager::GetEventMeasurements()
+    const {
+    return _eventMes;
+}
+
+const std::vector<EventArray::Ptr> &CalibDataManager::GetEventMeasurements(
+    const std::string &eventTopic) const {
+    return _eventMes.at(eventTopic);
+}
+
 const std::map<std::string, ns_veta::Veta::Ptr> &CalibDataManager::GetSfMData() const {
     return _sfmData;
 }
