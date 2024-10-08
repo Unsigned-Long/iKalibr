@@ -42,6 +42,7 @@
 #include "core/vision_only_sfm.h"
 #include "factor/data_correspondence.h"
 #include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
 #include "pangolin/display/display.h"
 #include "ros/package.h"
 #include "sensor/camera_data_loader.h"
@@ -696,5 +697,81 @@ void CalibSolver::AddGyroFactor(Estimator::Ptr &estimator,
     for (const auto &item : _dataMagr->GetIMUMeasurements(imuTopic)) {
         estimator->AddIMUGyroMeasurement(item, imuTopic, option, weight);
     }
+}
+
+std::vector<Eigen::Vector2d> CalibSolver::FindTexturePoints(const cv::Mat &eventFrame) {
+    cv::Mat imgFiltered;
+    cv::medianBlur(eventFrame, imgFiltered, 5);
+
+    cv::Mat gray;
+    cv::cvtColor(imgFiltered, gray, cv::COLOR_BGR2GRAY);
+
+    std::vector<cv::Point2f> corners;
+    cv::goodFeaturesToTrack(gray, corners, 100, 0.01 /*qualityLevel*/, 10 /*minDistance*/,
+                            cv::Mat(), 9 /*blockSize, we use a large one here*/,
+                            true /*useHarrisDetector*/);
+
+    std::vector<Eigen::Vector2d> vertex;
+    vertex.reserve(corners.size());
+
+    for (const auto &corner : corners) {
+        vertex.emplace_back(corner.x, corner.y);
+        // DrawKeypointOnCVMat(imgFiltered, corner, true, cv::Scalar(0, 255, 0));
+    }
+
+    // cv::imshow("Filtered Event Frame", imgFiltered);
+    // cv::waitKey(0);
+
+    return vertex;
+}
+
+void CalibSolver::SaveEventDataForFeatureTracking(
+    const std::vector<EventArray::Ptr>::const_iterator &sIter,
+    const std::vector<EventArray::Ptr>::const_iterator &eIter,
+    const ns_veta::PinholeIntrinsicPtr &intri,
+    const std::vector<Eigen::Vector2d> &seeds,
+    const std::string &dir) {
+    // event.txt
+    std::ofstream ofUndistortedEvents(dir + "/events.txt", std::ios::out);
+    for (auto iter = sIter; iter != eIter; ++iter) {
+        const auto &events = (*iter)->GetEvents();
+        for (const auto &event : events) {
+            // undistort
+            const Eigen::Vector2d &up = intri->GetUndistoPixel(event->GetPos());
+
+            // todo: this is too too slow!!!
+            ofUndistortedEvents << fmt::format("{:.6f} {:.3f} {:.3f} {}\n",  // time, x, y, polarity
+                                               event->GetTimestamp(),        // time
+                                               up(0),                        // x
+                                               up(1),                        // y
+                                               static_cast<int>(event->GetPolarity())  // polarity
+            );
+        }
+    }
+    ofUndistortedEvents.close();
+
+    // calib.txt
+    std::ofstream ofCalib(dir + "/calib.txt", std::ios::out);
+    // since the events have been undistorted, the distortion parameters are all zeros
+    // fx, fy, cx, cy, k1, k2, p1, p2, k3
+    ofCalib << fmt::format(
+        "{:.3f} {:.3f} {:.3f} {:.3f} 0.0 0.0 0.0 0.0 0.0\n",  // fx, fy, cx, cy, k1, k2, p1, p2, k3
+        intri->FocalX(), intri->FocalY(),                     // fx, fy
+        intri->PrincipalPoint()(0), intri->PrincipalPoint()(1)  // cx, cy
+    );
+    ofCalib.close();
+
+    // seeds.txt
+    std::ofstream ofSeeds(dir + "/seeds.txt", std::ios::out);
+    for (int id = 0; id != static_cast<int>(seeds.size()); ++id) {
+        const auto &seed = seeds.at(id);
+        // t, x, y, theta, id
+        ofSeeds << fmt::format("{:.6f},{:.3f},{:.3f},0.0,{}\n",  // t, x, y, theta, id
+                               (*sIter)->GetTimestamp(),         // t
+                               seed(0), seed(1),                 // x, y
+                               id                                // id
+        );
+    }
+    ofSeeds.close();
 }
 }  // namespace ns_ikalibr

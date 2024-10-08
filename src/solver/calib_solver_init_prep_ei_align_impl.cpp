@@ -48,16 +48,16 @@ void CalibSolver::InitPrepEventInertialAlign() const {
     if (!Configor::IsEventIntegrated()) {
         return;
     }
-    const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
-    const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+    // const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    // const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
     /**
      * we throw the head and tail data as the rotations from the fitted SO3 Spline in that range are
      * poor
      */
-    const double st = std::max(so3Spline.MinTime(), scaleSpline.MinTime()) +  // the max as start
-                      Configor::Prior::TimeOffsetPadding;
-    const double et = std::min(so3Spline.MaxTime(), scaleSpline.MaxTime()) -  // the min as end
-                      Configor::Prior::TimeOffsetPadding;
+    // const double st = std::max(so3Spline.MinTime(), scaleSpline.MinTime()) +  // the max as start
+    //                   Configor::Prior::TimeOffsetPadding;
+    // const double et = std::min(so3Spline.MaxTime(), scaleSpline.MaxTime()) -  // the min as end
+    //                   Configor::Prior::TimeOffsetPadding;
 
     /**
      * we first perform event-based feature tracking.
@@ -84,35 +84,79 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         outputSIter.push(eventMes.cbegin());
 
         auto matSIter = eventMes.cbegin();
-        std::size_t num = 0;
+        std::size_t accumulatedEventNum = 0;
         cv::Mat eventFrameMat;
+
+        // create a workspace for event-based feature tracking
+        const std::string outputDir =
+            Configor::DataStream::OutputPath + "/events/" + topic + "/haste_ws";
+        if (!std::filesystem::exists(outputDir)) {
+            if (!std::filesystem::create_directories(outputDir)) {
+                throw Status(Status::CRITICAL,
+                             "can not create output directory '{}' for event camera '{}'!!!",
+                             outputDir, topic);
+            }
+        }
+        int subEventDataIdx = 0;
+        std::shared_ptr<tqdm> bar = std::make_shared<tqdm>();
+        auto totalSubSeqNum = (eventMes.back()->GetTimestamp() - eventMes.front()->GetTimestamp()) /
+                              BATCH_TIME_WIN_THD * 2;
+        spdlog::info("output sub event data sequence for feature tracking for camera '{}'.", topic);
         for (auto curIter = matSIter; curIter != eventMes.cend(); ++curIter) {
-            num += (*curIter)->GetEvents().size();
-            if (num > EVENT_FRAME_NUM_THD) {
-                // note that this even frame is a distorted one
+            accumulatedEventNum += (*curIter)->GetEvents().size();
+            if (accumulatedEventNum > EVENT_FRAME_NUM_THD) {
+                /**
+                 * If the number of events accumulates to a certain number, we construct it into an
+                 * event frame. The event frame is used for visualization, and for calculating rough
+                 * texture positions for feature tracking (haste-based). Note that this even frame
+                 * is a distorted one
+                 */
                 eventFrameMat = EventArray::DrawRawEventFrame(matSIter, curIter, intri);
-                // spdlog::info("time span from '{:.5f}' to '{:.5f}', total: '{:.5f}'.",
-                //              (*matSIter)->GetTimestamp(), (*curIter)->GetTimestamp(),
-                //              (*curIter)->GetTimestamp() - (*matSIter)->GetTimestamp());
                 cv::imshow("Event Frame", eventFrameMat);
                 cv::waitKey(1);
 
                 matSIter = curIter;
-                num = 0;
+                accumulatedEventNum = 0;
             }
 
             if ((*curIter)->GetTimestamp() - (*outputSIter.back())->GetTimestamp() >
                 BATCH_TIME_WIN_THD_HALF) {
                 if ((*curIter)->GetTimestamp() - (*outputSIter.front())->GetTimestamp() >
                     BATCH_TIME_WIN_THD) {
-                    // todo: output from 'outputSIter.front()' to 'curIter'
+                    bar->progress(subEventDataIdx, static_cast<int>(totalSubSeqNum));
+
+                    // calculate rough texture positions for feature tracking (haste-based)
+                    auto vertex = FindTexturePoints(eventFrameMat);
+
+                    // the directory to save sub event data
+                    const std::string subOutputDir =
+                        outputDir + "/" + std::to_string(subEventDataIdx);
+                    if (!std::filesystem::exists(subOutputDir)) {
+                        if (!std::filesystem::create_directories(subOutputDir)) {
+                            throw Status(Status::CRITICAL,
+                                         "can not create sub output directory '{}' for event "
+                                         "camera '{}' sub event data sequence '{}'!!!",
+                                         subOutputDir, topic, subEventDataIdx);
+                        }
+                    }
+
+                    SaveEventDataForFeatureTracking(outputSIter.front(),  // from
+                                                    curIter,              // to
+                                                    intri,                // intrinsics
+                                                    vertex,               // position
+                                                    subOutputDir          // directory
+                    );
+                    ++subEventDataIdx;
                 }
 
                 outputSIter.push(curIter);
                 outputSIter.pop();
             }
         }
+        bar->progress(subEventDataIdx, subEventDataIdx);
+        bar->finish();
     }
+    cv::destroyAllWindows();
 
     spdlog::warn("developing!!!");
     std::cin.get();

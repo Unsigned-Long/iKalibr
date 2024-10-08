@@ -51,6 +51,8 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_veta {
 class Veta;
 using VetaPtr = std::shared_ptr<Veta>;
+struct PinholeIntrinsic;
+using PinholeIntrinsicPtr = std::shared_ptr<PinholeIntrinsic>;
 }  // namespace ns_veta
 
 namespace pcl {
@@ -87,6 +89,8 @@ using ViewerPtr = std::shared_ptr<Viewer>;
 class Estimator;
 using EstimatorPtr = std::shared_ptr<Estimator>;
 enum class OptOption : std::uint32_t;
+struct EventArray;
+using EventArrayPtr = std::shared_ptr<EventArray>;
 
 struct ImagesInfo {
 public:
@@ -668,6 +672,19 @@ protected:
      */
     static std::vector<OpticalFlowTripleTracePtr> CreateOpticalFlowTrace(
         const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList, int trackThd);
+
+    /**
+     * find texture points for HASTE-based feature tracking
+     * @param eventFrame the event frame mat
+     */
+    static std::vector<Eigen::Vector2d> FindTexturePoints(const cv::Mat &eventFrame);
+
+    static void SaveEventDataForFeatureTracking(
+        const std::vector<EventArrayPtr>::const_iterator &sIter,
+        const std::vector<EventArrayPtr>::const_iterator &eIter,
+        const ns_veta::PinholeIntrinsicPtr &intri,
+        const std::vector<Eigen::Vector2d> &seeds,
+        const std::string &dir);
 };
 
 }  // namespace ns_ikalibr
