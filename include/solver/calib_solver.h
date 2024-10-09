@@ -686,13 +686,13 @@ protected:
         std::size_t eventNumThd,
         const ns_veta::PinholeIntrinsicPtr &intri);
 
-    static std::string SaveEventDataForFeatureTracking(
+    std::string SaveEventDataForFeatureTracking(
         const std::vector<EventArrayPtr>::const_iterator &sIter,
         const std::vector<EventArrayPtr>::const_iterator &eIter,
         const ns_veta::PinholeIntrinsicPtr &intri,
         const std::vector<Eigen::Vector2d> &seeds,
         double seedsTime,
-        const std::string &dir);
+        const std::string &dir) const;
 };
 
 }  // namespace ns_ikalibr

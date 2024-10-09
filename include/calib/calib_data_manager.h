@@ -158,6 +158,8 @@ public:
 
     [[nodiscard]] double GetCalibTimeRange() const;
 
+    [[nodiscard]] double RecoverRawTimeFromAlignedTime(double alignedTimestamp) const;
+
     // sensor measurement frequency
 
     [[nodiscard]] double GetLiDARAvgFrequency() const;

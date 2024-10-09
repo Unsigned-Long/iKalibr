@@ -785,6 +785,10 @@ double CalibDataManager::GetCalibTimeRange() const {
     return GetCalibEndTimestamp() - GetCalibStartTimestamp();
 }
 
+double CalibDataManager::RecoverRawTimeFromAlignedTime(double alignedTimestamp) const {
+    return alignedTimestamp + _rawStartTimestamp;
+}
+
 double CalibDataManager::GetLiDARAvgFrequency() const {
     return GetSensorAvgFrequency<LiDARFrame>(_lidarMes);
 }

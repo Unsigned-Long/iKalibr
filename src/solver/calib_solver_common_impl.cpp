@@ -775,7 +775,7 @@ std::string CalibSolver::SaveEventDataForFeatureTracking(
     const ns_veta::PinholeIntrinsic::Ptr &intri,
     const std::vector<Eigen::Vector2d> &seeds,
     double seedsTime,
-    const std::string &dir) {
+    const std::string &dir) const {
     // event.txt
     const std::string &eventsPath = dir + "/events.txt";
     std::ofstream ofUndistortedEvents(eventsPath, std::ios::out);
@@ -784,11 +784,12 @@ std::string CalibSolver::SaveEventDataForFeatureTracking(
         const auto &events = (*iter)->GetEvents();
         for (const auto &event : events) {
             // todo: this is too too slow!!! modify haste to support binary data loading
-            buffer << fmt::format("{:.9f} {} {} {}\n",                    // time, x, y, polarity
-                                  event->GetTimestamp(),                  // time
-                                  event->GetPos()(0),                     // x
-                                  event->GetPos()(1),                     // y
-                                  static_cast<int>(event->GetPolarity())  // polarity
+            buffer << fmt::format(
+                "{:.9f} {} {} {}\n",  // time, x, y, polarity
+                _dataMagr->RecoverRawTimeFromAlignedTime(event->GetTimestamp()),  // time
+                event->GetPos()(0),                                               // x
+                event->GetPos()(1),                                               // y
+                static_cast<int>(event->GetPolarity())                            // polarity
             );
         }
     }
@@ -826,9 +827,9 @@ std::string CalibSolver::SaveEventDataForFeatureTracking(
         const Eigen::Vector2d &seed = seeds.at(id);
         // todo: this is too too slow!!! modify haste to support binary data loading
         buffer << fmt::format("{:.9f},{:.3f},{:.3f},0.0,{}\n",  // t, x, y, theta, id
-                              seedsTime,                        // t
-                              seed(0), seed(1),                 // x, y
-                              id                                // id
+                              _dataMagr->RecoverRawTimeFromAlignedTime(seedsTime),  // t
+                              seed(0), seed(1),                                     // x, y
+                              id                                                    // id
         );
     }
     ofSeeds << buffer.str();
