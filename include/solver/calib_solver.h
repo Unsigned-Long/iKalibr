@@ -123,62 +123,6 @@ public:
     }
 };
 
-struct EventsInfo {
-public:
-    struct SubBatch {
-        int index;
-        double start_time;
-        double end_time;
-        std::size_t event_count;
-
-        SubBatch(int index, double start_time, double end_time, std::size_t event_count)
-            : index(index),
-              start_time(start_time),
-              end_time(end_time),
-              event_count(event_count) {}
-
-        SubBatch() = default;
-
-        template <class Archive>
-        void serialize(Archive &ar) {
-            ar(CEREAL_NVP(index), CEREAL_NVP(start_time), CEREAL_NVP(end_time),
-               CEREAL_NVP(event_count));
-        }
-    };
-
-public:
-    std::string topic;
-    std::string root_path;
-    double raw_start_time{};
-    std::vector<SubBatch> batches;
-
-public:
-    EventsInfo(std::string topic,
-               std::string root_path,
-               double raw_start_time,
-               const std::vector<SubBatch> &batches)
-        : topic(std::move(topic)),
-          root_path(std::move(root_path)),
-          raw_start_time(raw_start_time),
-          batches(batches) {}
-
-    EventsInfo() = default;
-
-    void SaveToDisk(const std::string &filename,
-                    CerealArchiveType::Enum archiveType = CerealArchiveType::Enum::YAML);
-
-    static EventsInfo LoadFromDisk(
-        const std::string &filename,
-        CerealArchiveType::Enum archiveType = CerealArchiveType::Enum::YAML);
-
-public:
-    template <class Archive>
-    void serialize(Archive &ar) {
-        ar(CEREAL_NVP(topic), CEREAL_NVP(root_path), CEREAL_NVP(raw_start_time),
-           CEREAL_NVP(batches));
-    }
-};
-
 class CalibSolver {
 public:
     using Ptr = std::shared_ptr<CalibSolver>;
@@ -735,24 +679,16 @@ protected:
      * find texture points for HASTE-based feature tracking
      * @param eventFrame the event frame mat
      */
-    static std::vector<Eigen::Vector2d> FindTexturePoints(const cv::Mat &eventFrame);
+    static std::vector<Eigen::Vector2d> FindTexturePoints(const cv::Mat &eventFrame, int num);
 
     static std::vector<Eigen::Vector2d> FindTexturePointsAt(
         const std::vector<EventArrayPtr>::const_iterator &tarIter,
-        const std::vector<EventArrayPtr>::const_iterator &begIter,
-        const std::vector<EventArrayPtr>::const_iterator &endIter,
+        const std::vector<EventArrayPtr> &data,
         std::size_t eventNumThd,
-        const ns_veta::PinholeIntrinsicPtr &intri);
-
-    static std::pair<std::string, std::size_t> SaveEventDataForFeatureTracking(
-        const std::vector<EventArrayPtr>::const_iterator &sIter,
-        const std::vector<EventArrayPtr>::const_iterator &eIter,
         const ns_veta::PinholeIntrinsicPtr &intri,
-        const std::vector<Eigen::Vector2d> &seeds,
-        double seedsTime,
-        const std::string &dir);
+        int num);
 
-    void SaveEventDataForFeatureTracking(const std::string &topic, const std::string &dir) const;
+    void SaveEventDataForFeatureTracking(const std::string &topic, const std::string &ws) const;
 };
 
 }  // namespace ns_ikalibr

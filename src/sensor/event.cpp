@@ -105,7 +105,7 @@ cv::Mat EventArray::DrawRawEventFrame(const std::vector<Ptr>::const_iterator& sI
                 color = cv::Vec3b(0, 0, 255);
             } else {
                 // green
-                color = cv::Vec3b(255, 0, 0);
+                color = cv::Vec3b(0, 255, 0);
             }
             eventFrame.at<cv::Vec3b>(event->GetPos()(1), event->GetPos()(0)) = color;
         }

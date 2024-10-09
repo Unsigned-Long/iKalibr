@@ -65,16 +65,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * We first dedistort the events, then export them to files and use third-party software for
      * feature tracking.
      */
+    int needFeatureTrackingCount = 0;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
-        /**
-         * |--> 'outputSIter1'
-         * |            |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
-         * ------------------------------------------------------------------
-         * |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
-         * | data in this windown would be output for event-based feature tracking
-         * |--> 'outputSIter2'
-         */
-
         // create a workspace for event-based feature tracking
         const std::string trackingWorkspace =
             Configor::DataStream::OutputPath + "/events/" + topic + "/haste_ws";
@@ -86,15 +78,25 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             }
         }
         // if tracking is not performed, we output raw event data for haste-powered feature tracking
+        /**
+         * |--> 'outputSIter1'
+         * |            |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
+         * ------------------------------------------------------------------
+         * |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
+         * | data in this windown would be output for event-based feature tracking
+         * |--> 'outputSIter2'
+         */
         spdlog::info("saving event data of camera '{}' for haste-based feature tracking...", topic);
         SaveEventDataForFeatureTracking(topic, trackingWorkspace);
+        ++needFeatureTrackingCount;
     }
     cv::destroyAllWindows();
-    throw Status(Status::FINE,
-                 "files for haste-based feature tracking have been output to '{}', run "
-                 "corresponding commands shell files to generate tracking results!",
-                 Configor::DataStream::OutputPath + "/events/");
-
+    if (needFeatureTrackingCount != 0) {
+        throw Status(Status::FINE,
+                     "files for haste-based feature tracking have been output to '{}', run "
+                     "corresponding commands shell files to generate tracking results!",
+                     Configor::DataStream::OutputPath + "/events/");
+    }
     spdlog::warn("developing!!!");
     std::cin.get();
 }

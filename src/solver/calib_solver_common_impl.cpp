@@ -51,6 +51,7 @@
 #include "util/tqdm.h"
 #include "util/utils_tpl.hpp"
 #include "viewer/viewer.h"
+#include "core/haste_data_io.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -88,21 +89,6 @@ std::map<std::string, ns_veta::IndexT> ImagesInfo::GetImagesNameToIdx() const {
         imgsInvKV.insert({v, k});
     }
     return imgsInvKV;
-}
-
-void EventsInfo::SaveToDisk(const std::string &filename, CerealArchiveType::Enum archiveType) {
-    std::ofstream ofInfo(filename);
-    auto ar = GetOutputArchiveVariant(ofInfo, archiveType);
-    SerializeByOutputArchiveVariant(ar, archiveType, cereal::make_nvp("info", *this));
-}
-
-EventsInfo EventsInfo::LoadFromDisk(const std::string &filename,
-                                    CerealArchiveType::Enum archiveType) {
-    EventsInfo info;
-    std::ifstream ifInfo(filename);
-    auto ar = GetInputArchiveVariant(ifInfo, archiveType);
-    SerializeByInputArchiveVariant(ar, archiveType, cereal::make_nvp("info", info));
-    return info;
 }
 
 // -----------
@@ -714,7 +700,7 @@ void CalibSolver::AddGyroFactor(Estimator::Ptr &estimator,
     }
 }
 
-std::vector<Eigen::Vector2d> CalibSolver::FindTexturePoints(const cv::Mat &eventFrame) {
+std::vector<Eigen::Vector2d> CalibSolver::FindTexturePoints(const cv::Mat &eventFrame, int num) {
     cv::Mat imgFiltered;
     cv::medianBlur(eventFrame, imgFiltered, 5);
 
@@ -722,7 +708,7 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePoints(const cv::Mat &event
     cv::cvtColor(imgFiltered, gray, cv::COLOR_BGR2GRAY);
 
     std::vector<cv::Point2f> corners;
-    cv::goodFeaturesToTrack(gray, corners, 100, 0.01 /*qualityLevel*/, 10 /*minDistance*/,
+    cv::goodFeaturesToTrack(gray, corners, num, 0.01 /*qualityLevel*/, 10 /*minDistance*/,
                             cv::Mat(), 9 /*blockSize, we use a large one here*/,
                             true /*useHarrisDetector*/);
 
@@ -742,16 +728,16 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePoints(const cv::Mat &event
 
 std::vector<Eigen::Vector2d> CalibSolver::FindTexturePointsAt(
     const std::vector<EventArrayPtr>::const_iterator &tarIter,
-    const std::vector<EventArrayPtr>::const_iterator &begIter,
-    const std::vector<EventArrayPtr>::const_iterator &endIter,
+    const std::vector<EventArrayPtr> &data,
     std::size_t eventNumThd,
-    const ns_veta::PinholeIntrinsic::Ptr &intri) {
+    const ns_veta::PinholeIntrinsic::Ptr &intri,
+    int num) {
     std::size_t accumulatedEventNum = 0;
     auto fIter = tarIter, bIter = tarIter;
 
     while (true) {
         bool updated = false;
-        if (std::distance(begIter, fIter) > 0) {
+        if (std::distance(data.cbegin(), fIter) > 0) {
             accumulatedEventNum += (*fIter)->GetEvents().size();
             if (accumulatedEventNum > eventNumThd) {
                 break;
@@ -761,7 +747,7 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePointsAt(
             updated = true;
         }
 
-        if (std::distance(bIter, endIter) > 0) {
+        if (std::distance(bIter, data.cend()) > 0) {
             accumulatedEventNum += (*bIter)->GetEvents().size();
             if (accumulatedEventNum > eventNumThd) {
                 break;
@@ -775,102 +761,17 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePointsAt(
         }
     }
     auto mat = EventArray::DrawRawEventFrame(fIter, bIter, intri);
-    auto vertex = FindTexturePoints(EventArray::DrawRawEventFrame(fIter, bIter, intri));
+    auto vertex = FindTexturePoints(EventArray::DrawRawEventFrame(fIter, bIter, intri), num);
     for (const auto &v : vertex) {
-        DrawKeypointOnCVMat(mat, v, true, cv::Scalar(0, 255, 0));
+        DrawKeypointOnCVMat(mat, v, true, cv::Scalar(0, 0, 0));
     }
     cv::imshow("Event-Based Feature Tracking Initial Points", mat);
     cv::waitKey(1);
     return vertex;
 }
 
-std::pair<std::string, std::size_t> CalibSolver::SaveEventDataForFeatureTracking(
-    const std::vector<EventArray::Ptr>::const_iterator &sIter,
-    const std::vector<EventArray::Ptr>::const_iterator &eIter,
-    const ns_veta::PinholeIntrinsic::Ptr &intri,
-    const std::vector<Eigen::Vector2d> &seeds,
-    double seedsTime,
-    const std::string &dir) {
-    // event.txt
-    const std::string &eventsPath = dir + "/events.txt";
-    std::ofstream ofUndistortedEvents(eventsPath, std::ios::out);
-    std::stringstream buffer;
-    std::size_t eventCount = 0;
-    for (auto iter = sIter; iter != eIter; ++iter) {
-        const auto &events = (*iter)->GetEvents();
-        for (const auto &event : events) {
-            // todo: this is too too slow!!! modify haste to support binary data loading
-            buffer << fmt::format("{:.9f} {} {} {}\n",                    // time, x, y, polarity
-                                  event->GetTimestamp(),                  // time
-                                  event->GetPos()(0),                     // x
-                                  event->GetPos()(1),                     // y
-                                  static_cast<int>(event->GetPolarity())  // polarity
-            );
-            ++eventCount;
-        }
-    }
-    ofUndistortedEvents << buffer.str();
-    ofUndistortedEvents.close();
-
-    // calib.txt
-    const std::string &calibPath = dir + "/calib.txt";
-    std::ofstream ofCalib(calibPath, std::ios::out);
-    // since the events have been undistorted, the distortion parameters are all zeros
-    // fx, fy, cx, cy, k1, k2, p1, p2, k3
-    auto t2Intri = std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(intri);
-    if (t2Intri == nullptr) {
-        // the intrinsics of this camera is not 'ns_veta::PinholeIntrinsicBrownT2'
-        throw Status(Status::CRITICAL,
-                     "intrinsics of event camera is invalid, only the "
-                     "'PinholeIntrinsicBrownT2' is supported currently!!!");
-    }
-    ofCalib << fmt::format(
-        // fx, fy, cx, cy, k1, k2, p1, p2, k3
-        "{:.3f} {:.3f} {:.3f} {:.3f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f}\n",  // params
-        t2Intri->GetParams().at(0), t2Intri->GetParams().at(1),              // fx, fy
-        t2Intri->GetParams().at(2), t2Intri->GetParams().at(3),              // cx, cy
-        t2Intri->GetParams().at(4), t2Intri->GetParams().at(5),              // k1, k2
-        t2Intri->GetParams().at(7), t2Intri->GetParams().at(8),              // p1, p2
-        t2Intri->GetParams().at(6)                                           // k3
-    );
-    ofCalib.close();
-
-    // seeds.txt
-    const std::string &seedsPath = dir + "/seeds.txt";
-    std::ofstream ofSeeds(seedsPath, std::ios::out);
-    buffer = std::stringstream();
-    for (int id = 0; id != static_cast<int>(seeds.size()); ++id) {
-        const Eigen::Vector2d &seed = seeds.at(id);
-        // todo: this is too too slow!!! modify haste to support binary data loading
-        buffer << fmt::format("{:.9f},{:.3f},{:.3f},0.0,{}\n",  // t, x, y, theta, id
-                              seedsTime,                        // t
-                              seed(0), seed(1),                 // x, y
-                              id                                // id
-        );
-    }
-    ofSeeds << buffer.str();
-    ofSeeds.close();
-
-    // command
-    const std::string hasteProg = "/home/csl/Software/haste/build/tracking_app_file";
-    auto command = fmt::format(
-        "{} "
-        "-events_file={} "  // Plain text file with events
-        "-seeds_file={} "   // Plain text file with several initial tracking seeds
-        "-tracker_type={} "  // correlation|haste_correlation|haste_correlation_star|haste_difference|haste_difference_star
-        "-centered_initialization={} "  // Force tracker to be centered/non-centered initialized
-        "-camera_params_file={} "       // Load pinhole camera calibration model
-        "-camera_size={}x{} "           // Set image sensor resolution
-        "-visualize={} "                // Visualize internal tracker state
-        "-output_file={}",              // Write tracking results to file
-        hasteProg, eventsPath, seedsPath, "haste_correlation_star", false, calibPath,
-        intri->imgWidth, intri->imgHeight, false, dir + "/haste_results.txt");
-
-    return {command, eventCount};
-}
-
 void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
-                                                  const std::string &outputDir) const {
+                                                  const std::string &ws) const {
     /**
      * |--> 'outputSIter1'
      * |            |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
@@ -896,7 +797,7 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
     cv::Mat eventFrameMat;
 
     // the command shell file
-    const std::string cmdOutputPath = outputDir + "/run_haste.sh";
+    const std::string cmdOutputPath = ws + "/run_haste.sh";
     std::ofstream ofCmdShell(cmdOutputPath, std::ios::out);
     std::vector<EventsInfo::SubBatch> subBatches;
 
@@ -932,13 +833,13 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                 bar->progress(subEventDataIdx, static_cast<int>(totalSubBatchCount));
 
                 // the directory to save sub event data
-                const std::string subOutputDir = outputDir + "/" + std::to_string(subEventDataIdx);
-                if (!std::filesystem::exists(subOutputDir)) {
-                    if (!std::filesystem::create_directories(subOutputDir)) {
+                const std::string subWS = ws + "/" + std::to_string(subEventDataIdx);
+                if (!std::filesystem::exists(subWS)) {
+                    if (!std::filesystem::create_directories(subWS)) {
                         throw Status(Status::CRITICAL,
                                      "can not create sub output directory '{}' for event "
                                      "camera '{}' sub event data sequence '{}'!!!",
-                                     subOutputDir, topic, subEventDataIdx);
+                                     subWS, topic, subEventDataIdx);
                     }
                 }
 
@@ -950,23 +851,20 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                  */
                 // calculate rough texture positions for feature tracking (haste-based)
                 const double seedsTime = (*headIter)->GetTimestamp();
-                auto seeds = FindTexturePointsAt(headIter, eventMes.cbegin(), eventMes.cend(),
-                                                 EVENT_FRAME_NUM_THD, intri);
-                auto [command, eventCount] = SaveEventDataForFeatureTracking(  //
-                    headIter,                                                  // from
-                    curIter,                                                   // to
-                    intri,                                                     // intrinsics
-                    seeds,                                                     // seed positions
-                    seedsTime,                                                 // seed timestamps
-                    subOutputDir                                               // directory
-                );
+                auto seeds =
+                    FindTexturePointsAt(headIter, eventMes, EVENT_FRAME_NUM_THD, intri, 50);
+                auto [command, batchInfo] =
+                    HASTEDataIO::SaveRawEventData(headIter,   // from
+                                                  curIter,    // to
+                                                  intri,      // intrinsics
+                                                  seeds,      // seed positions
+                                                  seedsTime,  // seed timestamps
+                                                  subWS,      // directory
+                                                  subEventDataIdx);
 
                 // record information
                 ofCmdShell << command << std::endl;
-                subBatches.emplace_back(subEventDataIdx,              // index
-                                        (*headIter)->GetTimestamp(),  // from
-                                        (*curIter)->GetTimestamp(),   // to
-                                        eventCount);                  // event count
+                subBatches.emplace_back(batchInfo);
 
                 // plus index of sub data batch
                 ++subEventDataIdx;
@@ -980,16 +878,7 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
     bar->progress(subEventDataIdx, subEventDataIdx);
     bar->finish();
     ofCmdShell.close();
-
-    /**
-     * save info for events:
-     * 1. raw time stamps
-     * 2. batch information
-     * 3. root path
-     * 4. ...
-     */
-    EventsInfo info(topic, outputDir, _dataMagr->GetRawStartTimestamp(), subBatches);
-    info.SaveToDisk(outputDir + "/info" + Configor::GetFormatExtension(),
-                    Configor::Preference::OutputDataFormat);
+    EventsInfo info(topic, ws, _dataMagr->GetRawStartTimestamp(), subBatches);
+    HASTEDataIO::SaveEventsInfo(info, ws);
 }
 }  // namespace ns_ikalibr
