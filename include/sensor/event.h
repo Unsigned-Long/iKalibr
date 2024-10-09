@@ -51,27 +51,28 @@ namespace ns_ikalibr {
 class Event {
 public:
     using Ptr = std::shared_ptr<Event>;
+    using PosType = Eigen::Vector2<std::uint16_t>;
 
 private:
     // the timestamp of this event
     double _timestamp;
-    Eigen::Vector2d _pos;
+    PosType _pos;
     bool _polarity;
 
 public:
     explicit Event(double timestamp = INVALID_TIME_STAMP,
-                   Eigen::Vector2d pos = Eigen::Vector2d::Zero(),
+                   PosType pos = PosType::Zero(),
                    bool polarity = {});
 
     static Ptr Create(double timestamp = INVALID_TIME_STAMP,
-                      const Eigen::Vector2d& pos = Eigen::Vector2d::Zero(),
+                      const PosType& pos = PosType::Zero(),
                       bool polarity = {});
 
     [[nodiscard]] double GetTimestamp() const;
 
     void SetTimestamp(double timestamp);
 
-    [[nodiscard]] Eigen::Vector2d GetPos() const;
+    [[nodiscard]] PosType GetPos() const;
 
     [[nodiscard]] bool GetPolarity() const;
 

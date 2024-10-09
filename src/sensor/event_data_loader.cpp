@@ -81,7 +81,7 @@ EventArray::Ptr PropheseeEventDataLoader::UnpackData(const rosbag::MessageInstan
     for (int i = 0; i < static_cast<int>(msg->events.size()); i++) {
         const auto& event = msg->events.at(i);
         events.at(i) =
-            Event::Create(event.ts.toSec(), Eigen::Vector2d(event.x, event.y), event.polarity);
+            Event::Create(event.ts.toSec(), Event::PosType(event.x, event.y), event.polarity);
     }
 
     return EventArray::Create(msg->header.stamp.toSec(), events);

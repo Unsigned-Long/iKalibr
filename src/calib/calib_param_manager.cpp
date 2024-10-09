@@ -148,18 +148,14 @@ CalibParamManager::Ptr CalibParamManager::InitParamsFromConfigor() {
     for (const auto &[topic, config] : Configor::DataStream::EventTopics) {
         parMarg->INTRI.Camera.at(topic) =
             ParIntri::LoadCameraIntri(config.Intrinsics, Configor::Preference::OutputDataFormat);
-        /**
-         * We first remove distortion events and then event-based feature tracking, so no matter
-         * which camera intrinsic parameter model is used, it is applicable.
-         */
-        // if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(
-        //         parMarg->INTRI.Camera.at(topic)) == nullptr) {
-        //     // the intrinsics of this camera is not 'ns_veta::PinholeIntrinsicBrownT2'
-        //     throw Status(Status::CRITICAL,
-        //                  "intrinsics of event camera '{}' is invalid, only the "
-        //                  "'PinholeIntrinsicBrownT2' is supported currently!!!",
-        //                  topic);
-        // }
+        if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(
+                parMarg->INTRI.Camera.at(topic)) == nullptr) {
+            // the intrinsics of this camera is not 'ns_veta::PinholeIntrinsicBrownT2'
+            throw Status(Status::CRITICAL,
+                         "intrinsics of event camera '{}' is invalid, only the "
+                         "'PinholeIntrinsicBrownT2' is supported currently!!!",
+                         topic);
+        }
     }
 
     // align to the negative 'z' axis

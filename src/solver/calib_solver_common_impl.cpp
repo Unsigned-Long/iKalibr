@@ -719,59 +719,134 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePoints(const cv::Mat &event
         // DrawKeypointOnCVMat(imgFiltered, corner, true, cv::Scalar(0, 255, 0));
     }
 
-    // cv::imshow("Filtered Event Frame", imgFiltered);
+    // cv::imshow("Event Frame", imgFiltered);
     // cv::waitKey(0);
 
     return vertex;
 }
 
-void CalibSolver::SaveEventDataForFeatureTracking(
+std::vector<Eigen::Vector2d> CalibSolver::FindTexturePointsAt(
+    const std::vector<EventArrayPtr>::const_iterator &startIter,
+    const std::vector<EventArrayPtr>::const_iterator &begIter,
+    const std::vector<EventArrayPtr>::const_iterator &endIter,
+    std::size_t eventNumThd,
+    const ns_veta::PinholeIntrinsic::Ptr &intri) {
+    std::size_t accumulatedEventNum = 0;
+    auto fIter = startIter, bIter = startIter;
+
+    while (true) {
+        bool updated = false;
+        if (std::distance(begIter, fIter) > 0) {
+            accumulatedEventNum += (*fIter)->GetEvents().size();
+            if (accumulatedEventNum > eventNumThd) {
+                break;
+            } else {
+                fIter = std::prev(fIter);
+            }
+            updated = true;
+        }
+
+        if (std::distance(bIter, endIter) > 0) {
+            accumulatedEventNum += (*bIter)->GetEvents().size();
+            if (accumulatedEventNum > eventNumThd) {
+                break;
+            } else {
+                bIter = std::next(bIter);
+            }
+            updated = true;
+        }
+        if (!updated) {
+            break;
+        }
+    }
+    auto mat = EventArray::DrawRawEventFrame(fIter, bIter, intri);
+    auto vertex = FindTexturePoints(EventArray::DrawRawEventFrame(fIter, bIter, intri));
+    for (const auto &v : vertex) {
+        DrawKeypointOnCVMat(mat, v, true, cv::Scalar(0, 255, 0));
+    }
+    cv::imshow("Event-Based Feature Tracking Initial Points", mat);
+    cv::waitKey(1);
+    return vertex;
+}
+
+std::string CalibSolver::SaveEventDataForFeatureTracking(
     const std::vector<EventArray::Ptr>::const_iterator &sIter,
     const std::vector<EventArray::Ptr>::const_iterator &eIter,
-    const ns_veta::PinholeIntrinsicPtr &intri,
+    const ns_veta::PinholeIntrinsic::Ptr &intri,
     const std::vector<Eigen::Vector2d> &seeds,
+    double seedsTime,
     const std::string &dir) {
     // event.txt
-    std::ofstream ofUndistortedEvents(dir + "/events.txt", std::ios::out);
+    const std::string &eventsPath = dir + "/events.txt";
+    std::ofstream ofUndistortedEvents(eventsPath, std::ios::out);
+    std::stringstream buffer;
     for (auto iter = sIter; iter != eIter; ++iter) {
         const auto &events = (*iter)->GetEvents();
         for (const auto &event : events) {
-            // undistort
-            const Eigen::Vector2d &up = intri->GetUndistoPixel(event->GetPos());
-
-            // todo: this is too too slow!!!
-            ofUndistortedEvents << fmt::format("{:.6f} {:.3f} {:.3f} {}\n",  // time, x, y, polarity
-                                               event->GetTimestamp(),        // time
-                                               up(0),                        // x
-                                               up(1),                        // y
-                                               static_cast<int>(event->GetPolarity())  // polarity
+            // todo: this is too too slow!!! modify haste to support binary data loading
+            buffer << fmt::format("{:.9f} {} {} {}\n",                    // time, x, y, polarity
+                                  event->GetTimestamp(),                  // time
+                                  event->GetPos()(0),                     // x
+                                  event->GetPos()(1),                     // y
+                                  static_cast<int>(event->GetPolarity())  // polarity
             );
         }
     }
+    ofUndistortedEvents << buffer.str();
     ofUndistortedEvents.close();
 
     // calib.txt
-    std::ofstream ofCalib(dir + "/calib.txt", std::ios::out);
+    const std::string &calibPath = dir + "/calib.txt";
+    std::ofstream ofCalib(calibPath, std::ios::out);
     // since the events have been undistorted, the distortion parameters are all zeros
     // fx, fy, cx, cy, k1, k2, p1, p2, k3
+    auto t2Intri = std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(intri);
+    if (t2Intri == nullptr) {
+        // the intrinsics of this camera is not 'ns_veta::PinholeIntrinsicBrownT2'
+        throw Status(Status::CRITICAL,
+                     "intrinsics of event camera is invalid, only the "
+                     "'PinholeIntrinsicBrownT2' is supported currently!!!");
+    }
     ofCalib << fmt::format(
-        "{:.3f} {:.3f} {:.3f} {:.3f} 0.0 0.0 0.0 0.0 0.0\n",  // fx, fy, cx, cy, k1, k2, p1, p2, k3
-        intri->FocalX(), intri->FocalY(),                     // fx, fy
-        intri->PrincipalPoint()(0), intri->PrincipalPoint()(1)  // cx, cy
+        // fx, fy, cx, cy, k1, k2, p1, p2, k3
+        "{:.3f} {:.3f} {:.3f} {:.3f} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f}\n",  // params
+        t2Intri->GetParams().at(0), t2Intri->GetParams().at(1),              // fx, fy
+        t2Intri->GetParams().at(2), t2Intri->GetParams().at(3),              // cx, cy
+        t2Intri->GetParams().at(4), t2Intri->GetParams().at(5),              // k1, k2
+        t2Intri->GetParams().at(7), t2Intri->GetParams().at(8),              // p1, p2
+        t2Intri->GetParams().at(6)                                           // k3
     );
     ofCalib.close();
 
     // seeds.txt
-    std::ofstream ofSeeds(dir + "/seeds.txt", std::ios::out);
+    const std::string &seedsPath = dir + "/seeds.txt";
+    std::ofstream ofSeeds(seedsPath, std::ios::out);
+    buffer = std::stringstream();
     for (int id = 0; id != static_cast<int>(seeds.size()); ++id) {
-        const auto &seed = seeds.at(id);
-        // t, x, y, theta, id
-        ofSeeds << fmt::format("{:.6f},{:.3f},{:.3f},0.0,{}\n",  // t, x, y, theta, id
-                               (*sIter)->GetTimestamp(),         // t
-                               seed(0), seed(1),                 // x, y
-                               id                                // id
+        const Eigen::Vector2d &seed = seeds.at(id);
+        // todo: this is too too slow!!! modify haste to support binary data loading
+        buffer << fmt::format("{:.9f},{:.3f},{:.3f},0.0,{}\n",  // t, x, y, theta, id
+                              seedsTime,                        // t
+                              seed(0), seed(1),                 // x, y
+                              id                                // id
         );
     }
+    ofSeeds << buffer.str();
     ofSeeds.close();
+
+    // command
+    const std::string hasteProg = "/home/csl/Software/haste/build/tracking_app_file";
+    return fmt::format(
+        "{} "
+        "-events_file={} "  // Plain text file with events
+        "-seeds_file={} "   // Plain text file with several initial tracking seeds
+        "-tracker_type={} "  // correlation|haste_correlation|haste_correlation_star|haste_difference|haste_difference_star
+        "-centered_initialization={} "  // Force tracker to be centered/non-centered initialized
+        "-camera_params_file={} "       // Load pinhole camera calibration model
+        "-camera_size={}x{} "           // Set image sensor resolution
+        "-visualize={} "                // Visualize internal tracker state
+        "-output_file={}",              // Write tracking results to file
+        hasteProg, eventsPath, seedsPath, "haste_correlation_star", false, calibPath,
+        intri->imgWidth, intri->imgHeight, false, dir + "/haste_results.txt");
 }
 }  // namespace ns_ikalibr

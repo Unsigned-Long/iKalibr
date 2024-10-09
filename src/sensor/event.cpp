@@ -40,12 +40,12 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-Event::Event(double timestamp, Eigen::Vector2d pos, bool polarity)
+Event::Event(double timestamp, PosType pos, bool polarity)
     : _timestamp(timestamp),
       _pos(std::move(pos)),
       _polarity(polarity) {}
 
-Event::Ptr Event::Create(double timestamp, const Eigen::Vector2d& pos, bool polarity) {
+Event::Ptr Event::Create(double timestamp, const PosType& pos, bool polarity) {
     return std::make_shared<Event>(timestamp, pos, polarity);
 }
 
@@ -53,7 +53,7 @@ double Event::GetTimestamp() const { return _timestamp; }
 
 void Event::SetTimestamp(double timestamp) { _timestamp = timestamp; }
 
-Eigen::Vector2d Event::GetPos() const { return _pos; }
+Event::PosType Event::GetPos() const { return _pos; }
 
 bool Event::GetPolarity() const { return _polarity; }
 
@@ -85,8 +85,7 @@ cv::Mat EventArray::DrawRawEventFrame(const ns_veta::PinholeIntrinsic::Ptr& intr
             // green
             color = cv::Vec3b(255, 0, 0);
         }
-        eventFrame.at<cv::Vec3b>(static_cast<int>(event->GetPos()(1)),
-                                 static_cast<int>(event->GetPos()(0))) = color;
+        eventFrame.at<cv::Vec3b>(event->GetPos()(1), event->GetPos()(0)) = color;
     }
     return eventFrame;
 }
@@ -108,8 +107,7 @@ cv::Mat EventArray::DrawRawEventFrame(const std::vector<Ptr>::const_iterator& sI
                 // green
                 color = cv::Vec3b(255, 0, 0);
             }
-            eventFrame.at<cv::Vec3b>(static_cast<int>(event->GetPos()(1)),
-                                     static_cast<int>(event->GetPos()(0))) = color;
+            eventFrame.at<cv::Vec3b>(event->GetPos()(1), event->GetPos()(0)) = color;
         }
     }
 

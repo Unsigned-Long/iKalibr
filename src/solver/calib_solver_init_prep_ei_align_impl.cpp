@@ -38,6 +38,7 @@
 #include "calib/calib_data_manager.h"
 #include "calib/calib_param_manager.h"
 #include "viewer/viewer.h"
+#include "util/status.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -79,9 +80,9 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         constexpr double BATCH_TIME_WIN_THD_HALF = BATCH_TIME_WIN_THD * 0.5;
 
         // this queue maintain two iterators
-        std::queue<std::vector<EventArray::Ptr>::const_iterator> outputSIter;
-        outputSIter.push(eventMes.cbegin());
-        outputSIter.push(eventMes.cbegin());
+        std::queue<std::vector<EventArray::Ptr>::const_iterator> batchHeadIter;
+        batchHeadIter.push(eventMes.cbegin());
+        batchHeadIter.push(eventMes.cbegin());
 
         auto matSIter = eventMes.cbegin();
         std::size_t accumulatedEventNum = 0;
@@ -97,6 +98,9 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                              outputDir, topic);
             }
         }
+        const std::string commandOutputPath = outputDir + "/run_haste.sh";
+        std::ofstream commandShell(commandOutputPath, std::ios::out);
+
         int subEventDataIdx = 0;
         std::shared_ptr<tqdm> bar = std::make_shared<tqdm>();
         auto totalSubSeqNum = (eventMes.back()->GetTimestamp() - eventMes.front()->GetTimestamp()) /
@@ -119,14 +123,11 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 accumulatedEventNum = 0;
             }
 
-            if ((*curIter)->GetTimestamp() - (*outputSIter.back())->GetTimestamp() >
+            if ((*curIter)->GetTimestamp() - (*batchHeadIter.back())->GetTimestamp() >
                 BATCH_TIME_WIN_THD_HALF) {
-                if ((*curIter)->GetTimestamp() - (*outputSIter.front())->GetTimestamp() >
+                if ((*curIter)->GetTimestamp() - (*batchHeadIter.front())->GetTimestamp() >
                     BATCH_TIME_WIN_THD) {
                     bar->progress(subEventDataIdx, static_cast<int>(totalSubSeqNum));
-
-                    // calculate rough texture positions for feature tracking (haste-based)
-                    auto vertex = FindTexturePoints(eventFrameMat);
 
                     // the directory to save sub event data
                     const std::string subOutputDir =
@@ -140,23 +141,41 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                         }
                     }
 
-                    SaveEventDataForFeatureTracking(outputSIter.front(),  // from
-                                                    curIter,              // to
-                                                    intri,                // intrinsics
-                                                    vertex,               // position
-                                                    subOutputDir          // directory
+                    /**
+                     *   |---|--> event data to be accumulated to locate seed positions
+                     * ----|-------------------|----
+                     *     |<--batch windown-->|
+                     *     |--> the seed time
+                     */
+                    // calculate rough texture positions for feature tracking (haste-based)
+                    const double seedsTime = (*batchHeadIter.front())->GetTimestamp();
+                    auto seeds = FindTexturePointsAt(batchHeadIter.front(), eventMes.cbegin(),
+                                                     eventMes.cend(), EVENT_FRAME_NUM_THD, intri);
+                    auto command = SaveEventDataForFeatureTracking(batchHeadIter.front(),  // from
+                                                                   curIter,                // to
+                                                                   intri,        // intrinsics
+                                                                   seeds,        // seed positions
+                                                                   seedsTime,    // seed timestamps
+                                                                   subOutputDir  // directory
                     );
+                    commandShell << command << std::endl;
                     ++subEventDataIdx;
                 }
 
-                outputSIter.push(curIter);
-                outputSIter.pop();
+                batchHeadIter.push(curIter);
+                batchHeadIter.pop();
             }
         }
+
         bar->progress(subEventDataIdx, subEventDataIdx);
         bar->finish();
+        commandShell.close();
     }
     cv::destroyAllWindows();
+    throw Status(Status::FINE,
+                 "files for haste-based feature tracking have been output to '{}', run "
+                 "corresponding commands shell files to generate tracking results!",
+                 Configor::DataStream::OutputPath + "/events/");
 
     spdlog::warn("developing!!!");
     std::cin.get();
