@@ -66,8 +66,6 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * feature tracking.
      */
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
-        const auto &intri = _parMagr->INTRI.Camera.at(topic);
-        const std::size_t EVENT_FRAME_NUM_THD = intri->imgHeight * intri->imgWidth / 2;
         /**
          * |--> 'outputSIter1'
          * |            |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
@@ -76,100 +74,20 @@ void CalibSolver::InitPrepEventInertialAlign() const {
          * | data in this windown would be output for event-based feature tracking
          * |--> 'outputSIter2'
          */
-        constexpr double BATCH_TIME_WIN_THD = 1.0;
-        constexpr double BATCH_TIME_WIN_THD_HALF = BATCH_TIME_WIN_THD * 0.5;
-
-        // this queue maintain two iterators
-        std::queue<std::vector<EventArray::Ptr>::const_iterator> batchHeadIter;
-        batchHeadIter.push(eventMes.cbegin());
-        batchHeadIter.push(eventMes.cbegin());
-
-        auto matSIter = eventMes.cbegin();
-        std::size_t accumulatedEventNum = 0;
-        cv::Mat eventFrameMat;
 
         // create a workspace for event-based feature tracking
-        const std::string outputDir =
+        const std::string trackingWorkspace =
             Configor::DataStream::OutputPath + "/events/" + topic + "/haste_ws";
-        if (!std::filesystem::exists(outputDir)) {
-            if (!std::filesystem::create_directories(outputDir)) {
+        if (!std::filesystem::exists(trackingWorkspace)) {
+            if (!std::filesystem::create_directories(trackingWorkspace)) {
                 throw Status(Status::CRITICAL,
                              "can not create output directory '{}' for event camera '{}'!!!",
-                             outputDir, topic);
+                             trackingWorkspace, topic);
             }
         }
-        const std::string commandOutputPath = outputDir + "/run_haste.sh";
-        std::ofstream commandShell(commandOutputPath, std::ios::out);
-
-        int subEventDataIdx = 0;
-        std::shared_ptr<tqdm> bar = std::make_shared<tqdm>();
-        auto totalSubSeqNum = (eventMes.back()->GetTimestamp() - eventMes.front()->GetTimestamp()) /
-                              BATCH_TIME_WIN_THD * 2;
-        spdlog::info("output sub event data sequence for feature tracking for camera '{}'.", topic);
-        for (auto curIter = matSIter; curIter != eventMes.cend(); ++curIter) {
-            accumulatedEventNum += (*curIter)->GetEvents().size();
-            if (accumulatedEventNum > EVENT_FRAME_NUM_THD) {
-                /**
-                 * If the number of events accumulates to a certain number, we construct it into an
-                 * event frame. The event frame is used for visualization, and for calculating rough
-                 * texture positions for feature tracking (haste-based). Note that this even frame
-                 * is a distorted one
-                 */
-                eventFrameMat = EventArray::DrawRawEventFrame(matSIter, curIter, intri);
-                cv::imshow("Event Frame", eventFrameMat);
-                cv::waitKey(1);
-
-                matSIter = curIter;
-                accumulatedEventNum = 0;
-            }
-
-            if ((*curIter)->GetTimestamp() - (*batchHeadIter.back())->GetTimestamp() >
-                BATCH_TIME_WIN_THD_HALF) {
-                if ((*curIter)->GetTimestamp() - (*batchHeadIter.front())->GetTimestamp() >
-                    BATCH_TIME_WIN_THD) {
-                    bar->progress(subEventDataIdx, static_cast<int>(totalSubSeqNum));
-
-                    // the directory to save sub event data
-                    const std::string subOutputDir =
-                        outputDir + "/" + std::to_string(subEventDataIdx);
-                    if (!std::filesystem::exists(subOutputDir)) {
-                        if (!std::filesystem::create_directories(subOutputDir)) {
-                            throw Status(Status::CRITICAL,
-                                         "can not create sub output directory '{}' for event "
-                                         "camera '{}' sub event data sequence '{}'!!!",
-                                         subOutputDir, topic, subEventDataIdx);
-                        }
-                    }
-
-                    /**
-                     *   |---|--> event data to be accumulated to locate seed positions
-                     * ----|-------------------|----
-                     *     |<--batch windown-->|
-                     *     |--> the seed time
-                     */
-                    // calculate rough texture positions for feature tracking (haste-based)
-                    const double seedsTime = (*batchHeadIter.front())->GetTimestamp();
-                    auto seeds = FindTexturePointsAt(batchHeadIter.front(), eventMes.cbegin(),
-                                                     eventMes.cend(), EVENT_FRAME_NUM_THD, intri);
-                    auto command = SaveEventDataForFeatureTracking(batchHeadIter.front(),  // from
-                                                                   curIter,                // to
-                                                                   intri,        // intrinsics
-                                                                   seeds,        // seed positions
-                                                                   seedsTime,    // seed timestamps
-                                                                   subOutputDir  // directory
-                    );
-                    commandShell << command << std::endl;
-                    ++subEventDataIdx;
-                }
-
-                batchHeadIter.push(curIter);
-                batchHeadIter.pop();
-            }
-        }
-
-        bar->progress(subEventDataIdx, subEventDataIdx);
-        bar->finish();
-        commandShell.close();
+        // if tracking is not performed, we output raw event data for haste-powered feature tracking
+        spdlog::info("saving event data of camera '{}' for haste-based feature tracking...", topic);
+        SaveEventDataForFeatureTracking(topic, trackingWorkspace);
     }
     cv::destroyAllWindows();
     throw Status(Status::FINE,
