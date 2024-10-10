@@ -697,6 +697,10 @@ protected:
         const ns_veta::PinholeIntrinsicPtr &intri,
         int featNum);
 
+    static std::vector<Eigen::Vector2d> GenUniformSeeds(const ns_veta::PinholeIntrinsicPtr &intri,
+                                                        int seedNum,
+                                                        int padding);
+
     void SaveEventDataForFeatureTracking(const std::string &topic,
                                          const std::string &ws,
                                          double BATCH_TIME_WIN_THD) const;

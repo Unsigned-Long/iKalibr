@@ -717,10 +717,10 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePoints(const cv::Mat &event
 
     for (const auto &corner : corners) {
         vertex.emplace_back(corner.x, corner.y);
-        // DrawKeypointOnCVMat(imgFiltered, corner, true, cv::Scalar(0, 255, 0));
+        // DrawKeypointOnCVMat(imgFiltered, corner, true, cv::Scalar(0, 0, 0));
     }
 
-    // cv::imshow("Event Frame", imgFiltered);
+    // cv::imshow("Filtered Event Frame", imgFiltered);
     // cv::waitKey(0);
 
     return vertex;
@@ -770,6 +770,21 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePointsAt(
     return vertex;
 }
 
+std::vector<Eigen::Vector2d> CalibSolver::GenUniformSeeds(const ns_veta::PinholeIntrinsicPtr &intri,
+                                                          int seedNum,
+                                                          int padding) {
+    auto w = intri->imgWidth, h = intri->imgHeight;
+    int delta = static_cast<int>(
+        std::sqrt(static_cast<double>((w - 2 * padding) * (h - 2 * padding)) / seedNum));
+    std::vector<Eigen::Vector2d> seeds;
+    for (int x = padding; x < static_cast<int>(w) - padding; x += delta) {
+        for (int y = padding; y < static_cast<int>(h) - padding; y += delta) {
+            seeds.emplace_back(x, y);
+        }
+    }
+    return seeds;
+}
+
 void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                                                   const std::string &ws,
                                                   double BATCH_TIME_WIN_THD) const {
@@ -783,7 +798,7 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
      */
     const double BATCH_TIME_WIN_THD_HALF = BATCH_TIME_WIN_THD * 0.5;
     const auto &intri = _parMagr->INTRI.Camera.at(topic);
-    const std::size_t EVENT_FRAME_NUM_THD = intri->imgHeight * intri->imgWidth / 2;
+    const std::size_t EVENT_FRAME_NUM_THD = intri->imgHeight * intri->imgWidth / 5;
 
     const auto &eventMes = _dataMagr->GetEventMeasurements(topic);
     // this queue maintain two iterators
@@ -850,9 +865,17 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                  *     |--> the seed time
                  */
                 // calculate rough texture positions for feature tracking (haste-based)
-                const double seedsTime = (*headIter)->GetTimestamp();
-                auto seeds =
-                    FindTexturePointsAt(headIter, eventMes, EVENT_FRAME_NUM_THD, intri, 50);
+                auto seedIter = headIter;
+                while ((*seedIter)->GetTimestamp() - (*headIter)->GetTimestamp() < 0.05) {
+                    ++seedIter;
+                }
+                // feature points are extracted as seeds
+                // auto seeds = FindTexturePointsAt(seedIter,  // the reference iterator
+                //                                  eventMes, EVENT_FRAME_NUM_THD, intri, 50);
+
+                auto seeds = GenUniformSeeds(intri, 200 /*generate about 200 seeds*/, 10);
+                const double seedsTime = (*seedIter)->GetTimestamp();
+
                 auto [command, batchInfo] =
                     HASTEDataIO::SaveRawEventData(headIter,   // from
                                                   curIter,    // to

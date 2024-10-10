@@ -488,11 +488,11 @@ Viewer &Viewer::AddEventData(const std::vector<EventArray::Ptr>::const_iterator 
                 cp.g = 255;
                 cp.r = cp.b = 0;
             }
-            cp.a = 30;
+            cp.a = 255;
             cloud->push_back(cp);
         }
     }
-    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, 1.0f)}, view);
+    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, 0.5f)}, view);
     return *this;
 }
 }  // namespace ns_ikalibr
