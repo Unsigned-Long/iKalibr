@@ -206,7 +206,7 @@ std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResults
             feature.pos = {std::stod(strVec.at(1)), std::stod(strVec.at(2))};
             feature.angle = std::stod(strVec.at(3)) * DEG_TO_RAD;
             int id = std::stoi(strVec.at(4));
-            tracking[id].push_back(feature);
+            tracking[id].push_back(std::make_shared<HASTEFeature>(feature));
 
             ++trackedFeatCount;
             if (feature.timestamp < minTime) {

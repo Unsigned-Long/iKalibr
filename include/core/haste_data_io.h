@@ -98,7 +98,10 @@ public:
            CEREAL_NVP(batches));
     }
 };
+
 struct HASTEFeature {
+    using Ptr = std::shared_ptr<HASTEFeature>;
+
     double timestamp;
     Eigen::Vector2d pos;
     double angle;
@@ -110,7 +113,7 @@ public:
     constexpr static double DEG_TO_RAD = M_PI / 180.0;
 
     // feature id, tracking list
-    using TrackingResultsPerBatchType = std::map<int, std::vector<HASTEFeature>>;
+    using TrackingResultsPerBatchType = std::map<int, std::vector<HASTEFeature::Ptr>>;
     // batch index, tracking results in a batch
     using TrackingResultsType = std::map<int, TrackingResultsPerBatchType>;
 
@@ -139,7 +142,7 @@ public:
     static std::optional<TrackingResultsType> TryLoadHASTEResults(const EventsInfo &info,
                                                                   double newRawStartTime = 0);
 
-    // static void FilterHASTETrackingResults(TrackingResultsType &results, );
+    // static void FilterHASTETrackingResults(TrackingResultsPerBatchType &tracking);
 
     static void SaveEventsInfo(const EventsInfo &info, const std::string &ws);
 

@@ -44,6 +44,8 @@
 #include "tiny-viewer/entity/arrow.h"
 #include "tiny-viewer/entity/line.h"
 #include "tiny-viewer/object/surfel.h"
+#include "core/haste_data_io.h"
+#include "veta/camera/pinhole.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -345,8 +347,8 @@ Viewer &Viewer::AddEntityLocal(const std::vector<ns_viewer::Entity::Ptr> &entiti
 void Viewer::SetNewSpline(const SplineBundleType::Ptr &splines) { _splines = splines; }
 
 Viewer &Viewer::FillEmptyViews(const std::string &objPath) {
-    std::array<std::map<std::string, bool>, 6> occupy;
-    std::array<bool, 6> senIntegrated{};
+    std::array<std::map<std::string, bool>, 7> occupy;
+    std::array<bool, 7> senIntegrated{};
     // imus
     occupy[0] = {
         {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, false}, {VIEW_ASSOCIATION, false}};
@@ -376,6 +378,11 @@ Viewer &Viewer::FillEmptyViews(const std::string &objPath) {
     occupy[5] = {
         {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, false}};
     senIntegrated[5] = Configor::IsRGBDIntegrated();
+
+    // event cameras
+    occupy[6] = {
+        {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, false}};
+    senIntegrated[6] = Configor::IsEventIntegrated();
 
     std::map<std::string, bool> viewOccupy;
     for (int i = 0; i < static_cast<int>(occupy.size()); ++i) {
@@ -419,6 +426,51 @@ Viewer &Viewer::AddRGBDFrame(const RGBDFrame::Ptr &frame,
         cloud = RGBDFrame(INVALID_TIME_STAMP, cv::Mat(), cMat, dMat).CreatePointCloud(intri);
     }
     AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, size)}, view);
+    return *this;
+}
+
+Viewer &Viewer::AddHASTETracking(const std::map<int, std::vector<HASTEFeature::Ptr>> &batchTracking,
+                                 const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                 const std::string &view,
+                                 float posScaleFactor,
+                                 float timeScaleFactor) {
+    std::vector<ns_viewer::Entity::Ptr> entities;
+
+    float zMax = 0.0f;
+    for (const auto &[id, tracking] : batchTracking) {
+        auto color = ns_viewer::Entity::GetUniqueColour();
+        const double headTime = tracking.front()->timestamp;
+        for (int i = 0; i != static_cast<int>(tracking.size()) - 1; ++i) {
+            const auto &f1 = tracking.at(i), f2 = tracking.at(i + 1);
+            const Eigen::Vector2f &p1 = f1->pos.cast<float>() * posScaleFactor;
+            const auto z1 = static_cast<float>(f1->timestamp - headTime) * timeScaleFactor;
+            const Eigen::Vector2f &p2 = f2->pos.cast<float>() * posScaleFactor;
+            const auto z2 = static_cast<float>(f2->timestamp - headTime) * timeScaleFactor;
+            auto line = ns_viewer::Line::Create({p1(0), p1(1), z1}, {p2(0), p2(1), z2}, color);
+            entities.push_back(line);
+
+            if (z1 > zMax) {
+                zMax = z1;
+            }
+            if (z2 > zMax) {
+                zMax = z2;
+            }
+        }
+    }
+    // image plane
+    float width = static_cast<float>(intri->imgWidth) * posScaleFactor;
+    float height = static_cast<float>(intri->imgHeight) * posScaleFactor;
+
+    auto imgPlane1 = ns_viewer::Polygon::Create(
+        {{0.0f, 0.0f, 0.0f}, {width, 0.0f, 0.0f}, {width, height, 0.0f}, {0.0f, height, 0.0f}},
+        true, ns_viewer::Colour::Black());
+    auto imgPlane2 = ns_viewer::Polygon::Create(
+        {{0.0f, 0.0f, zMax}, {width, 0.0f, zMax}, {width, height, zMax}, {0.0f, height, zMax}},
+        true, ns_viewer::Colour::Black());
+    entities.push_back(imgPlane1);
+    entities.push_back(imgPlane2);
+
+    AddEntityLocal(entities, view);
     return *this;
 }
 }  // namespace ns_ikalibr

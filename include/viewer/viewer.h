@@ -48,6 +48,11 @@ namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
+namespace ns_veta {
+class PinholeIntrinsic;
+using PinholeIntrinsicPtr = std::shared_ptr<PinholeIntrinsic>;
+}  // namespace ns_veta
+
 namespace ns_ikalibr {
 struct CalibParamManager;
 using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
@@ -58,6 +63,8 @@ struct RGBDFrame;
 using RGBDFramePtr = std::shared_ptr<RGBDFrame>;
 struct RGBDIntrinsics;
 using RGBDIntrinsicsPtr = std::shared_ptr<RGBDIntrinsics>;
+struct HASTEFeature;
+using HASTEFeaturePtr = std::shared_ptr<HASTEFeature>;
 
 class Viewer : public ns_viewer::MultiViewer {
 public:
@@ -132,6 +139,12 @@ public:
                          const std::string &view,
                          bool trueColor,
                          float size);
+
+    Viewer &AddHASTETracking(const std::map<int, std::vector<HASTEFeaturePtr>> &batchTracking,
+                             const ns_veta::PinholeIntrinsicPtr &intri,
+                             const std::string &view,
+                             float posScaleFactor = 0.01f,
+                             float timeScaleFactor = 2.0f);
 
 protected:
     ns_viewer::MultiViewerConfigor GenViewerConfigor();

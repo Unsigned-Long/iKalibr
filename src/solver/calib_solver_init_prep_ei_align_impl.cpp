@@ -67,6 +67,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      */
     int needFeatureTrackingCount = 0;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
+        const auto &intri = _parMagr->INTRI.Camera.at(topic);
         // create a workspace for event-based feature tracking
         const std::string hasteWorkspace =
             Configor::DataStream::OutputPath + "/events/" + topic + "/haste_ws";
@@ -85,9 +86,13 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             auto tracking =
                 HASTEDataIO::TryLoadHASTEResults(*eventsInfo, _dataMagr->GetRawStartTimestamp());
             if (tracking != std::nullopt) {
-                // filter
-                // FilterHASTETrackingResults
-                std::cin.get();
+                for (const auto &[index, batch] : *tracking) {
+                    // todo: filter raw tracking results
+
+                    _viewer->AddHASTETracking(batch, intri, Viewer::VIEW_MAP);
+                    std::cin.get();
+                    _viewer->ClearViewer(Viewer::VIEW_MAP);
+                }
             }
         }
         // if tracking is not performed, we output raw event data for haste-powered feature
