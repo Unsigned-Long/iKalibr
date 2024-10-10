@@ -811,10 +811,8 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
     std::size_t accumulatedEventCount = 0;
     cv::Mat eventFrameMat;
 
-    // the command shell file
-    const std::string cmdOutputPath = ws + "/run_haste.sh";
-    std::ofstream ofCmdShell(cmdOutputPath, std::ios::out);
     std::vector<EventsInfo::SubBatch> subBatches;
+    std::stringstream commands;
 
     // the index of sub batch in event data
     int subEventDataIdx = 0;
@@ -866,10 +864,12 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                  */
                 // calculate rough texture positions for feature tracking (haste-based)
                 auto seedIter = headIter;
-                while ((*seedIter)->GetTimestamp() - (*headIter)->GetTimestamp() < 0.05) {
-                    ++seedIter;
-                }
-                // feature points are extracted as seeds
+                /**
+                 * feature points are extracted as seeds
+                 */
+                // while ((*seedIter)->GetTimestamp() - (*headIter)->GetTimestamp() < 0.05) {
+                //     ++seedIter;
+                // }
                 // auto seeds = FindTexturePointsAt(seedIter,  // the reference iterator
                 //                                  eventMes, EVENT_FRAME_NUM_THD, intri, 50);
 
@@ -886,7 +886,7 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                                                   subEventDataIdx);
 
                 // record information
-                ofCmdShell << command << std::endl;
+                commands << '\"' << command << "\"\n";
                 subBatches.emplace_back(batchInfo);
 
                 // plus index of sub data batch
@@ -900,7 +900,25 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
 
     bar->progress(subEventDataIdx, subEventDataIdx);
     bar->finish();
+
+    // the command shell file
+    const std::string cmdOutputPath = ws + "/run_haste.sh";
+    std::ofstream ofCmdShell(cmdOutputPath, std::ios::out);
+    ofCmdShell << "#!/bin/bash\n"
+                  "commands=(\n"
+               << commands.str()
+               << ")\n"
+                  "max_parallel=8\n"
+                  "for cmd in \"${commands[@]}\"; do\n"
+                  "  $cmd &\n"
+                  "  running=$(jobs -r | wc -l)\n"
+                  "  if [ \"$running\" -ge \"$max_parallel\" ]; then\n"
+                  "    wait -n\n"
+                  "  fi\n"
+                  "done\n"
+                  "wait";
     ofCmdShell.close();
+
     EventsInfo info(topic, ws, _dataMagr->GetRawStartTimestamp(), subBatches);
     HASTEDataIO::SaveEventsInfo(info, ws);
 }
