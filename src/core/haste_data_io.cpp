@@ -37,6 +37,8 @@
 #include "veta/camera/pinhole_brown.h"
 #include "util/status.hpp"
 #include "config/configor.h"
+#include "filesystem"
+#include "util/tqdm.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -167,8 +169,73 @@ std::pair<std::string, EventsInfo::SubBatch> HASTEDataIO::SaveRawEventData(
     return {command, batchInfo};
 }
 
+std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResults(
+    const EventsInfo &info, double newRawStartTime) {
+    if (info.batches.empty()) {
+        spdlog::warn("there is no any batch in '{}'!!!", info.root_path);
+        return {};
+    }
+    std::shared_ptr<tqdm> bar = std::make_shared<tqdm>();
+    // batch index, feature id, tracking list
+    TrackingResultsType trackResults;
+    std::size_t trackedFeatCount = 0;
+    double minTime = std::numeric_limits<double>::max();
+    double maxTime = std::numeric_limits<double>::min();
+    for (const auto &batch : info.batches) {
+        bar->progress(batch.index, static_cast<int>(info.batches.size()));
+
+        const std::string resultsPath =
+            fmt::format("{}/{}/haste_results.txt", info.root_path, batch.index);
+        if (!std::filesystem::exists(resultsPath)) {
+            spdlog::warn("haste result file of batch indexed as {} is not found!!!", batch.index);
+            continue;
+        }
+
+        std::ifstream ifResults(resultsPath, std::ios::in);
+        std::string strLine;
+        auto &tracking = trackResults[batch.index];
+
+        while (std::getline(ifResults, strLine)) {
+            auto strVec = SplitString(strLine, ',');
+            if (strVec.size() != 5) {
+                spdlog::warn("the feature tracking result item '{}' may broken!!!", strLine);
+                continue;
+            }
+            HASTEFeature feature;
+            feature.timestamp = std::stod(strVec.at(0)) + info.raw_start_time - newRawStartTime;
+            feature.pos = {std::stod(strVec.at(1)), std::stod(strVec.at(2))};
+            feature.angle = std::stod(strVec.at(3)) * DEG_TO_RAD;
+            int id = std::stoi(strVec.at(4));
+            tracking[id].push_back(feature);
+
+            ++trackedFeatCount;
+            if (feature.timestamp < minTime) {
+                minTime = feature.timestamp;
+            }
+            if (feature.timestamp > maxTime) {
+                maxTime = feature.timestamp;
+            }
+        }
+        ifResults.close();
+    }
+    bar->finish();
+    spdlog::info(
+        "load tracking results finished, batch count: {}, total tracked feature count: {}, time "
+        "span from '{:.5f}' to '{:.5f}', time range: '{:.5f}'",
+        trackResults.size(), trackedFeatCount, minTime, maxTime, maxTime - minTime);
+    return trackResults;
+}
+
 void HASTEDataIO::SaveEventsInfo(const EventsInfo &info, const std::string &ws) {
     info.SaveToDisk(ws + "/info" + Configor::GetFormatExtension(),
                     Configor::Preference::OutputDataFormat);
+}
+
+std::optional<EventsInfo> HASTEDataIO::TryLoadEventsInfo(const std::string &ws) {
+    const std::string filepath = ws + "/info" + Configor::GetFormatExtension();
+    if (!std::filesystem::exists(filepath)) {
+        return {};
+    }
+    return EventsInfo::LoadFromDisk(filepath, Configor::Preference::OutputDataFormat);
 }
 }  // namespace ns_ikalibr

@@ -681,12 +681,21 @@ protected:
      */
     static std::vector<Eigen::Vector2d> FindTexturePoints(const cv::Mat &eventFrame, int num);
 
+    /**
+     * Given a reference point, accumulate event data near the point and then detect feature points.
+     * @param tarIter the reference iterator
+     * @param data the total event data container
+     * @param eventNumThd cumulative event count threshold
+     * @param intri the intrinsics of the camera
+     * @param featNum the feature number to detect
+     * @return the detected seeds (initial features/points)
+     */
     static std::vector<Eigen::Vector2d> FindTexturePointsAt(
         const std::vector<EventArrayPtr>::const_iterator &tarIter,
         const std::vector<EventArrayPtr> &data,
         std::size_t eventNumThd,
         const ns_veta::PinholeIntrinsicPtr &intri,
-        int num);
+        int featNum);
 
     void SaveEventDataForFeatureTracking(const std::string &topic, const std::string &ws) const;
 };

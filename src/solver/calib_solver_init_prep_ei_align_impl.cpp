@@ -68,16 +68,30 @@ void CalibSolver::InitPrepEventInertialAlign() const {
     int needFeatureTrackingCount = 0;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
         // create a workspace for event-based feature tracking
-        const std::string trackingWorkspace =
+        const std::string hasteWorkspace =
             Configor::DataStream::OutputPath + "/events/" + topic + "/haste_ws";
-        if (!std::filesystem::exists(trackingWorkspace)) {
-            if (!std::filesystem::create_directories(trackingWorkspace)) {
+        if (!std::filesystem::exists(hasteWorkspace)) {
+            if (!std::filesystem::create_directories(hasteWorkspace)) {
                 throw Status(Status::CRITICAL,
                              "can not create output directory '{}' for event camera '{}'!!!",
-                             trackingWorkspace, topic);
+                             hasteWorkspace, topic);
             }
         }
-        // if tracking is not performed, we output raw event data for haste-powered feature tracking
+
+        if (auto eventsInfo = HASTEDataIO::TryLoadEventsInfo(hasteWorkspace);
+            eventsInfo != std::nullopt) {
+            spdlog::info("try to load feature tracking results from haste for camera '{}'...",
+                         topic);
+            auto tracking =
+                HASTEDataIO::TryLoadHASTEResults(*eventsInfo, _dataMagr->GetRawStartTimestamp());
+            if (tracking != std::nullopt) {
+                // filter
+                // FilterHASTETrackingResults
+                std::cin.get();
+            }
+        }
+        // if tracking is not performed, we output raw event data for haste-powered feature
+        // tracking
         /**
          * |--> 'outputSIter1'
          * |            |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
@@ -87,7 +101,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
          * |--> 'outputSIter2'
          */
         spdlog::info("saving event data of camera '{}' for haste-based feature tracking...", topic);
-        SaveEventDataForFeatureTracking(topic, trackingWorkspace);
+        SaveEventDataForFeatureTracking(topic, hasteWorkspace);
         ++needFeatureTrackingCount;
     }
     cv::destroyAllWindows();

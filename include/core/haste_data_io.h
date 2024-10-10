@@ -98,9 +98,35 @@ public:
            CEREAL_NVP(batches));
     }
 };
+struct HASTEFeature {
+    double timestamp;
+    Eigen::Vector2d pos;
+    double angle;
+};
 
 struct HASTEDataIO {
 public:
+    // trans degree angle to radian angle
+    constexpr static double DEG_TO_RAD = M_PI / 180.0;
+
+    // feature id, tracking list
+    using TrackingResultsPerBatchType = std::map<int, std::vector<HASTEFeature>>;
+    // batch index, tracking results in a batch
+    using TrackingResultsType = std::map<int, TrackingResultsPerBatchType>;
+
+public:
+    /**
+     * Saves the event data between two iterators to disk, generating and saving the necessary files
+     * for haste feature tracking
+     * @param fromIter the start iterator
+     * @param toIter the end iterator
+     * @param intri the intrinsics of the camera
+     * @param seeds the initial feature locations for tracking
+     * @param seedsTime the timestamp of seeds
+     * @param subWS the sub workspace of this batch data
+     * @param batchIdx the index of this batch
+     * @return the command to perform haste, and the information of this batch data
+     */
     static std::pair<std::string, EventsInfo::SubBatch> SaveRawEventData(
         const std::vector<EventArrayPtr>::const_iterator &fromIter,
         const std::vector<EventArrayPtr>::const_iterator &toIter,
@@ -110,7 +136,14 @@ public:
         const std::string &subWS,
         int batchIdx = 0);
 
+    static std::optional<TrackingResultsType> TryLoadHASTEResults(const EventsInfo &info,
+                                                                  double newRawStartTime = 0);
+
+    // static void FilterHASTETrackingResults(TrackingResultsType &results, );
+
     static void SaveEventsInfo(const EventsInfo &info, const std::string &ws);
+
+    static std::optional<EventsInfo> TryLoadEventsInfo(const std::string &ws);
 };
 }  // namespace ns_ikalibr
 

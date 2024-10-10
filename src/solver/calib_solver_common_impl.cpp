@@ -731,7 +731,7 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePointsAt(
     const std::vector<EventArrayPtr> &data,
     std::size_t eventNumThd,
     const ns_veta::PinholeIntrinsic::Ptr &intri,
-    int num) {
+    int featNum) {
     std::size_t accumulatedEventNum = 0;
     auto fIter = tarIter, bIter = tarIter;
 
@@ -761,7 +761,7 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePointsAt(
         }
     }
     auto mat = EventArray::DrawRawEventFrame(fIter, bIter, intri);
-    auto vertex = FindTexturePoints(EventArray::DrawRawEventFrame(fIter, bIter, intri), num);
+    auto vertex = FindTexturePoints(EventArray::DrawRawEventFrame(fIter, bIter, intri), featNum);
     for (const auto &v : vertex) {
         DrawKeypointOnCVMat(mat, v, true, cv::Scalar(0, 0, 0));
     }
