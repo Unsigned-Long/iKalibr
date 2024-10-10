@@ -46,6 +46,7 @@
 #include "tiny-viewer/object/surfel.h"
 #include "core/haste_data_io.h"
 #include "veta/camera/pinhole.h"
+#include "sensor/event.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -431,38 +432,31 @@ Viewer &Viewer::AddRGBDFrame(const RGBDFrame::Ptr &frame,
 
 Viewer &Viewer::AddHASTETracking(const std::map<int, std::vector<HASTEFeature::Ptr>> &batchTracking,
                                  const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                 float sTime,
+                                 float eTime,
                                  const std::string &view,
                                  float posScaleFactor,
                                  float timeScaleFactor) {
     std::vector<ns_viewer::Entity::Ptr> entities;
 
-    float zMax = 0.0f;
     for (const auto &[id, tracking] : batchTracking) {
-        auto color = ns_viewer::Entity::GetUniqueColour();
-        const double headTime = tracking.front()->timestamp;
+        auto color = ns_viewer::Colour::Blue();
         for (int i = 0; i != static_cast<int>(tracking.size()) - 1; ++i) {
             const auto &f1 = tracking.at(i), f2 = tracking.at(i + 1);
             const Eigen::Vector2f &p1 = f1->pos.cast<float>() * posScaleFactor;
-            const auto z1 = static_cast<float>(f1->timestamp - headTime) * timeScaleFactor;
+            const auto z1 = static_cast<float>(f1->timestamp - sTime) * timeScaleFactor;
             const Eigen::Vector2f &p2 = f2->pos.cast<float>() * posScaleFactor;
-            const auto z2 = static_cast<float>(f2->timestamp - headTime) * timeScaleFactor;
+            const auto z2 = static_cast<float>(f2->timestamp - sTime) * timeScaleFactor;
             auto line = ns_viewer::Line::Create({p1(0), p1(1), z1}, {p2(0), p2(1), z2}, color);
             entities.push_back(line);
-
-            if (z1 > zMax) {
-                zMax = z1;
-            }
-            if (z2 > zMax) {
-                zMax = z2;
-            }
         }
     }
     // image plane
     float width = static_cast<float>(intri->imgWidth) * posScaleFactor;
     float height = static_cast<float>(intri->imgHeight) * posScaleFactor;
-
+    float zMin = 0.0f, zMax = (eTime - sTime) * timeScaleFactor;
     auto imgPlane1 = ns_viewer::Polygon::Create(
-        {{0.0f, 0.0f, 0.0f}, {width, 0.0f, 0.0f}, {width, height, 0.0f}, {0.0f, height, 0.0f}},
+        {{0.0f, 0.0f, zMin}, {width, 0.0f, zMin}, {width, height, zMin}, {0.0f, height, zMin}},
         true, ns_viewer::Colour::Black());
     auto imgPlane2 = ns_viewer::Polygon::Create(
         {{0.0f, 0.0f, zMax}, {width, 0.0f, zMax}, {width, height, zMax}, {0.0f, height, zMax}},
@@ -471,6 +465,34 @@ Viewer &Viewer::AddHASTETracking(const std::map<int, std::vector<HASTEFeature::P
     entities.push_back(imgPlane2);
 
     AddEntityLocal(entities, view);
+    return *this;
+}
+
+Viewer &Viewer::AddEventData(const std::vector<EventArray::Ptr>::const_iterator &sIter,
+                             const std::vector<EventArray::Ptr>::const_iterator &eIter,
+                             float sTime,
+                             const std::string &view,
+                             float posScaleFactor,
+                             float timeScaleFactor) {
+    pcl::PointCloud<ColorPoint>::Ptr cloud(new ColorPointCloud);
+    for (auto iter = sIter; iter != eIter; ++iter) {
+        for (const auto &event : (*iter)->GetEvents()) {
+            Eigen::Vector2f p = event->GetPos().cast<float>() * posScaleFactor;
+            float t = ((float)event->GetTimestamp() - sTime) * timeScaleFactor;
+            ColorPoint cp;
+            cp.x = p(0), cp.y = p(1), cp.z = t;
+            if (event->GetPolarity()) {
+                cp.r = 255;
+                cp.b = cp.g = 0;
+            } else {
+                cp.g = 255;
+                cp.r = cp.b = 0;
+            }
+            cp.a = 30;
+            cloud->push_back(cp);
+        }
+    }
+    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, 1.0f)}, view);
     return *this;
 }
 }  // namespace ns_ikalibr

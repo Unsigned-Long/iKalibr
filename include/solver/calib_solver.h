@@ -697,7 +697,9 @@ protected:
         const ns_veta::PinholeIntrinsicPtr &intri,
         int featNum);
 
-    void SaveEventDataForFeatureTracking(const std::string &topic, const std::string &ws) const;
+    void SaveEventDataForFeatureTracking(const std::string &topic,
+                                         const std::string &ws,
+                                         double BATCH_TIME_WIN_THD) const;
 };
 
 }  // namespace ns_ikalibr

@@ -65,6 +65,8 @@ struct RGBDIntrinsics;
 using RGBDIntrinsicsPtr = std::shared_ptr<RGBDIntrinsics>;
 struct HASTEFeature;
 using HASTEFeaturePtr = std::shared_ptr<HASTEFeature>;
+struct EventArray;
+using EventArrayPtr = std::shared_ptr<EventArray>;
 
 class Viewer : public ns_viewer::MultiViewer {
 public:
@@ -142,9 +144,18 @@ public:
 
     Viewer &AddHASTETracking(const std::map<int, std::vector<HASTEFeaturePtr>> &batchTracking,
                              const ns_veta::PinholeIntrinsicPtr &intri,
+                             float sTime,
+                             float eTime,
                              const std::string &view,
                              float posScaleFactor = 0.01f,
                              float timeScaleFactor = 2.0f);
+
+    Viewer &AddEventData(const std::vector<EventArrayPtr>::const_iterator &sIter,
+                         const std::vector<EventArrayPtr>::const_iterator &eIter,
+                         float sTime,
+                         const std::string &view,
+                         float posScaleFactor = 0.01f,
+                         float timeScaleFactor = 2.0f);
 
 protected:
     ns_viewer::MultiViewerConfigor GenViewerConfigor();

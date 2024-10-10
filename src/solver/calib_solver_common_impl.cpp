@@ -771,7 +771,8 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePointsAt(
 }
 
 void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
-                                                  const std::string &ws) const {
+                                                  const std::string &ws,
+                                                  double BATCH_TIME_WIN_THD) const {
     /**
      * |--> 'outputSIter1'
      * |            |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
@@ -780,8 +781,7 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
      * | data in this windown would be output for event-based feature tracking
      * |--> 'outputSIter2'
      */
-    constexpr double BATCH_TIME_WIN_THD = 1.0;
-    constexpr double BATCH_TIME_WIN_THD_HALF = BATCH_TIME_WIN_THD * 0.5;
+    const double BATCH_TIME_WIN_THD_HALF = BATCH_TIME_WIN_THD * 0.5;
     const auto &intri = _parMagr->INTRI.Camera.at(topic);
     const std::size_t EVENT_FRAME_NUM_THD = intri->imgHeight * intri->imgWidth / 2;
 
