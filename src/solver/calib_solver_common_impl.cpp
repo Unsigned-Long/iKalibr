@@ -787,7 +787,9 @@ std::vector<Eigen::Vector2d> CalibSolver::GenUniformSeeds(const ns_veta::Pinhole
 
 void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                                                   const std::string &ws,
-                                                  double BATCH_TIME_WIN_THD) const {
+                                                  double BATCH_TIME_WIN_THD,
+                                                  std::size_t EVENT_FRAME_NUM_THD,
+                                                  std::size_t seedNum) const {
     /**
      * |--> 'outputSIter1'
      * |            |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
@@ -798,7 +800,6 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
      */
     const double BATCH_TIME_WIN_THD_HALF = BATCH_TIME_WIN_THD * 0.5;
     const auto &intri = _parMagr->INTRI.Camera.at(topic);
-    const std::size_t EVENT_FRAME_NUM_THD = intri->imgHeight * intri->imgWidth / 5;
 
     const auto &eventMes = _dataMagr->GetEventMeasurements(topic);
     // this queue maintain two iterators
@@ -857,7 +858,7 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                 }
 
                 /**
-                 *   |---|--> event data to be accumulated to locate seed positions
+                 *        |--> event data to be accumulated to locate seed positions
                  * ----|-------------------|----
                  *     |<--batch windown-->|
                  *     |--> the seed time
@@ -867,11 +868,11 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                 /**
                  * feature points are extracted as seeds
                  */
-                while ((*seedIter)->GetTimestamp() - (*headIter)->GetTimestamp() < 0.02) {
+                while ((*seedIter)->GetTimestamp() - (*headIter)->GetTimestamp() < 0.01) {
                     ++seedIter;
                 }
                 auto seeds = FindTexturePointsAt(seedIter,  // the reference iterator
-                                                 eventMes, EVENT_FRAME_NUM_THD, intri, 100);
+                                                 eventMes, EVENT_FRAME_NUM_THD, intri, seedNum);
 
                 /**
                  * another way to select seeds is direct uniform selection

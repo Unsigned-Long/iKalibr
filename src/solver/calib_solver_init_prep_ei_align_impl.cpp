@@ -107,7 +107,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
 
                     const auto oldSize = batch.size();
                     HASTEDataIO::FilterResultsByTrackingLength(batch, 0.2);
-                    HASTEDataIO::FilterResultsByTraceFittingSAC(batch, 2.0);
+                    HASTEDataIO::FilterResultsByTraceFittingSAC(batch, 5.0);
                     HASTEDataIO::FilterResultsByTrackingAge(batch, 0.2);
                     HASTEDataIO::FilterResultsByTrackingFreq(batch, 0.2);
                     spdlog::info(
@@ -136,7 +136,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
          * |--> 'outputSIter2'
          */
         spdlog::info("saving event data of camera '{}' for haste-based feature tracking...", topic);
-        SaveEventDataForFeatureTracking(topic, hasteWorkspace, 0.2 /*sed*/);
+        const std::size_t EVENT_FRAME_NUM_THD = intri->imgHeight * intri->imgWidth / 5;
+        SaveEventDataForFeatureTracking(topic, hasteWorkspace, 0.2, EVENT_FRAME_NUM_THD, 200);
         ++needFeatureTrackingCount;
     }
     cv::destroyAllWindows();
