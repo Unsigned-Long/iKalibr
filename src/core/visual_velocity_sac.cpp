@@ -70,7 +70,7 @@ void VisualVelocitySacProblem::getSelectedDistancesToModel(
     const double cx = intri->PrincipalPoint()(0), cy = intri->PrincipalPoint()(1);
 
     for (int i = 0; i < static_cast<int>(indices.size()); ++i) {
-        const auto &[pixel, vel, depth] = dynamics.at(i);
+        const auto &[pixel, vel, depth] = dynamics.at(indices.at(i));
 
         Eigen::Matrix<double, 2, 3> subAMat, subBMat;
         // the template parameters, i.e., 'Order' and 'TimeDeriv', do not matter here

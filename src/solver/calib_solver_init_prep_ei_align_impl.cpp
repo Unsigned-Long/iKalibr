@@ -94,18 +94,6 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                     const auto &batchETime = batchInfo.end_time + eventsInfo->raw_start_time -
                                              _dataMagr->GetRawStartTimestamp();
 
-                    // draw
-                    {
-                        _viewer->ClearViewer(Viewer::VIEW_MAP);
-                        _viewer->AddHASTETracking(batch, intri, batchSTime, batchETime,
-                                                  Viewer::VIEW_MAP, 0.01, 20);
-                        auto iters =
-                            _dataMagr->ExtractEventDataPiece(topic, batchSTime, batchETime);
-                        _viewer->AddEventData(iters.first, iters.second, batchSTime,
-                                              Viewer::VIEW_MAP, 0.01, 20);
-                        std::cin.get();
-                    }
-
                     // todo: filter raw tracking results, select good ones
                     HASTEDataIO::FilterResultsByTrackingLength(batch, 0.1);
 

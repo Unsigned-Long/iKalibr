@@ -343,6 +343,7 @@ target_link_libraries(
         ctraj
         veta
         UFO::Map
+        opengv
 )
 #target_precompile_headers(
 #        ${PROJECT_NAME}_viewer REUSE_FROM

@@ -150,6 +150,28 @@ public:
                              float posScaleFactor = 0.01f,
                              float timeScaleFactor = 2.0f);
 
+    Viewer &AddHASTETracking(const std::vector<HASTEFeaturePtr> &tracking,
+                             float sTime,
+                             const std::string &view,
+                             float posScaleFactor = 0.01f,
+                             float timeScaleFactor = 2.0f);
+
+    Viewer &AddSpatioTemporalTrace(const std::vector<Eigen::Vector3d> &trace,
+                                   float sTime,
+                                   const std::string &view,
+                                   float size = 0.5f,
+                                   const ns_viewer::Colour &color = ns_viewer::Colour::Blue(),
+                                   float posScaleFactor = 0.01f,
+                                   float timeScaleFactor = 2.0f);
+
+    Viewer &AddSpatioTemporalTrace(const std::vector<HASTEFeaturePtr> &tracking,
+                                   float sTime,
+                                   const std::string &view,
+                                   float size = 0.5f,
+                                   const ns_viewer::Colour &color = ns_viewer::Colour::Blue(),
+                                   float posScaleFactor = 0.01f,
+                                   float timeScaleFactor = 2.0f);
+
     Viewer &AddEventData(const std::vector<EventArrayPtr>::const_iterator &sIter,
                          const std::vector<EventArrayPtr>::const_iterator &eIter,
                          float sTime,

@@ -47,6 +47,7 @@
 #include "core/haste_data_io.h"
 #include "veta/camera/pinhole.h"
 #include "sensor/event.h"
+#include "core/event_trace_sac.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -439,18 +440,11 @@ Viewer &Viewer::AddHASTETracking(const std::map<int, std::vector<HASTEFeature::P
                                  float timeScaleFactor) {
     std::vector<ns_viewer::Entity::Ptr> entities;
 
+    // trackings
     for (const auto &[id, tracking] : batchTracking) {
-        auto color = ns_viewer::Colour::Blue();
-        for (int i = 0; i != static_cast<int>(tracking.size()) - 1; ++i) {
-            const auto &f1 = tracking.at(i), f2 = tracking.at(i + 1);
-            const Eigen::Vector2f &p1 = f1->pos.cast<float>() * posScaleFactor;
-            const auto z1 = static_cast<float>(f1->timestamp - sTime) * timeScaleFactor;
-            const Eigen::Vector2f &p2 = f2->pos.cast<float>() * posScaleFactor;
-            const auto z2 = static_cast<float>(f2->timestamp - sTime) * timeScaleFactor;
-            auto line = ns_viewer::Line::Create({p1(0), p1(1), z1}, {p2(0), p2(1), z2}, color);
-            entities.push_back(line);
-        }
+        AddHASTETracking(tracking, sTime, view, posScaleFactor, timeScaleFactor);
     }
+
     // image plane
     float width = static_cast<float>(intri->imgWidth) * posScaleFactor;
     float height = static_cast<float>(intri->imgHeight) * posScaleFactor;
@@ -466,6 +460,72 @@ Viewer &Viewer::AddHASTETracking(const std::map<int, std::vector<HASTEFeature::P
 
     AddEntityLocal(entities, view);
     return *this;
+}
+
+Viewer &Viewer::AddHASTETracking(const std::vector<HASTEFeaturePtr> &tracking,
+                                 float sTime,
+                                 const std::string &view,
+                                 float posScaleFactor,
+                                 float timeScaleFactor) {
+    // samples (raw)
+    AddSpatioTemporalTrace(tracking, sTime, view, 1.0f, ns_viewer::Colour::Red(), posScaleFactor,
+                           timeScaleFactor);
+
+    // if (auto [trace, inliers] =
+    // EventTrackingTraceSacProblem::EventTrackingTraceSac(tracking, 4.0);
+    //     trace != nullptr) {
+    //     std::vector<Eigen::Vector3d> posVec = trace->DiscretePositions();
+    //     // curve
+    //     AddSpatioTemporalTrace(posVec, sTime, view, 2.0f, ns_viewer::Colour::Blue(),
+    //     posScaleFactor,
+    //                            timeScaleFactor);
+    //     // samples (inliers)
+    //     AddSpatioTemporalTrace(inliers, sTime, view, 1.5f, ns_viewer::Colour::Green(),
+    //                            posScaleFactor, timeScaleFactor);
+    // }
+
+    return *this;
+}
+
+Viewer &Viewer::AddSpatioTemporalTrace(const std::vector<Eigen::Vector3d> &trace,
+                                       float sTime,
+                                       const std::string &view,
+                                       float size,
+                                       const ns_viewer::Colour &color,
+                                       float posScaleFactor,
+                                       float timeScaleFactor) {
+    std::vector<ns_viewer::Entity::Ptr> entities;
+    for (int i = 0; i != static_cast<int>(trace.size()) - 1; ++i) {
+        const Eigen::Vector3f &f1 = trace.at(i).cast<float>();
+        const Eigen::Vector3f &f2 = trace.at(i + 1).cast<float>();
+
+        const Eigen::Vector2f &p1 = f1.tail<2>() * posScaleFactor;
+        const auto z1 = (f1(0) - sTime) * timeScaleFactor;
+
+        const Eigen::Vector2f &p2 = f2.tail<2>() * posScaleFactor;
+        const auto z2 = (f2(0) - sTime) * timeScaleFactor;
+
+        auto line = ns_viewer::Line::Create({p1(0), p1(1), z1}, {p2(0), p2(1), z2}, color, size);
+        entities.push_back(line);
+    }
+    AddEntityLocal(entities, view);
+    return *this;
+}
+
+Viewer &Viewer::AddSpatioTemporalTrace(const std::vector<HASTEFeaturePtr> &tracking,
+                                       float sTime,
+                                       const std::string &view,
+                                       float size,
+                                       const ns_viewer::Colour &color,
+                                       float posScaleFactor,
+                                       float timeScaleFactor) {
+    std::vector<Eigen::Vector3d> rawTrace(tracking.size());
+    for (int i = 0; i != static_cast<int>(tracking.size()); ++i) {
+        const auto &f = tracking.at(i);
+        rawTrace.at(i) = Eigen::Vector3d(f->timestamp, f->pos(0), f->pos(1));
+    }
+    return AddSpatioTemporalTrace(rawTrace, sTime, view, size, color, posScaleFactor,
+                                  timeScaleFactor);
 }
 
 Viewer &Viewer::AddEventData(const std::vector<EventArray::Ptr>::const_iterator &sIter,
