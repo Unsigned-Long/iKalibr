@@ -468,8 +468,15 @@ Viewer &Viewer::AddHASTETracking(const std::vector<HASTEFeaturePtr> &tracking,
                                  float posScaleFactor,
                                  float timeScaleFactor) {
     // samples (raw)
-    AddSpatioTemporalTrace(tracking, sTime, view, 1.0f, ns_viewer::Colour::Red(), posScaleFactor,
+    AddSpatioTemporalTrace(tracking, sTime, view, 1.0f, ns_viewer::Colour::Blue(), posScaleFactor,
                            timeScaleFactor);
+
+    if (auto trace = EventTrackingTrace::CreateFrom(tracking); trace != nullptr) {
+        std::vector<Eigen::Vector3d> posVec = trace->DiscretePositions();
+        // curve
+        AddSpatioTemporalTrace(posVec, sTime, view, 2.0f, ns_viewer::Colour::Black(), posScaleFactor,
+                               timeScaleFactor);
+    }
 
     // if (auto [trace, inliers] =
     // EventTrackingTraceSacProblem::EventTrackingTraceSac(tracking, 4.0);

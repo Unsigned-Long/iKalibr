@@ -145,6 +145,14 @@ public:
     static void FilterResultsByTrackingLength(TrackingResultsPerBatchType &tracking,
                                               double acceptedTrackedThdCompBest);
 
+    static void FilterResultsByTraceFittingSAC(TrackingResultsPerBatchType &tracking, double thd);
+
+    static void FilterResultsByTrackingAge(TrackingResultsPerBatchType &tracking,
+                                           double acceptedTrackedThdCompBest);
+
+    static void FilterResultsByTrackingFreq(TrackingResultsPerBatchType &tracking,
+                                            double acceptedTrackedThdCompBest);
+
     static void SaveEventsInfo(const EventsInfo &info, const std::string &ws);
 
     static std::optional<EventsInfo> TryLoadEventsInfo(const std::string &ws);
