@@ -160,7 +160,7 @@ std::pair<std::string, EventsInfo::SubBatch> HASTEDataIO::SaveRawEventData(
         "-camera_size={}x{} "           // Set image sensor resolution
         "-visualize={} "                // Visualize internal tracker state
         "-output_file={}",              // Write tracking results to file
-        hasteProg, eventsPath, seedsPath, "haste_correlation_star", false, calibPath,
+        hasteProg, eventsPath, seedsPath, "haste_correlation_star", true, calibPath,
         intri->imgWidth, intri->imgHeight, false, subWS + "/haste_results.txt");
 
     auto batchInfo = EventsInfo::SubBatch(batchIdx, (*fromIter)->GetTimestamp(),
@@ -224,6 +224,27 @@ std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResults
         "span from '{:.5f}' to '{:.5f}', time range: '{:.5f}'",
         trackResults.size(), trackedFeatCount, minTime, maxTime, maxTime - minTime);
     return trackResults;
+}
+
+void HASTEDataIO::FilterResultsByTrackingLength(TrackingResultsPerBatchType &tracking,
+                                                double acceptedTrackedThdCompBest) {
+    std::size_t maxLength = 0;
+    for (const auto &[featId, trackingList] : tracking) {
+        if (trackingList.size() > maxLength) {
+            maxLength = trackingList.size();
+        }
+    }
+    auto oldSize = tracking.size();
+    auto acceptedMinLength = static_cast<double>(maxLength) * acceptedTrackedThdCompBest;
+    for (auto it = tracking.begin(); it != tracking.end();) {
+        if (it->second.size() < static_cast<std::size_t>(acceptedMinLength)) {
+            it = tracking.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    spdlog::info("size before filtering: {}, size after filtering: {}, filtered: {}", oldSize,
+                 tracking.size(), oldSize - tracking.size());
 }
 
 void HASTEDataIO::SaveEventsInfo(const EventsInfo &info, const std::string &ws) {

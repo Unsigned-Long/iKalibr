@@ -86,10 +86,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             auto tracking =
                 HASTEDataIO::TryLoadHASTEResults(*eventsInfo, _dataMagr->GetRawStartTimestamp());
             if (tracking != std::nullopt) {
-                for (const auto &[index, batch] : *tracking) {
-                    // todo: filter raw tracking results, select good ones
-                    // ...
-
+                for (auto &[index, batch] : *tracking) {
                     // aligned time (start and end)
                     const auto &batchInfo = eventsInfo->batches.at(index);
                     const auto &batchSTime = batchInfo.start_time + eventsInfo->raw_start_time -
@@ -98,13 +95,28 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                                              _dataMagr->GetRawStartTimestamp();
 
                     // draw
+                    {
+                        _viewer->ClearViewer(Viewer::VIEW_MAP);
+                        _viewer->AddHASTETracking(batch, intri, batchSTime, batchETime,
+                                                  Viewer::VIEW_MAP, 0.01, 20);
+                        auto iters =
+                            _dataMagr->ExtractEventDataPiece(topic, batchSTime, batchETime);
+                        _viewer->AddEventData(iters.first, iters.second, batchSTime,
+                                              Viewer::VIEW_MAP, 0.01, 20);
+                        std::cin.get();
+                    }
+
+                    // todo: filter raw tracking results, select good ones
+                    HASTEDataIO::FilterResultsByTrackingLength(batch, 0.1);
+
+                    // draw
+
                     _viewer->ClearViewer(Viewer::VIEW_MAP);
                     _viewer->AddHASTETracking(batch, intri, batchSTime, batchETime,
-                                              Viewer::VIEW_MAP, 0.01, 10);
+                                              Viewer::VIEW_MAP, 0.01, 20);
                     auto iters = _dataMagr->ExtractEventDataPiece(topic, batchSTime, batchETime);
                     _viewer->AddEventData(iters.first, iters.second, batchSTime, Viewer::VIEW_MAP,
-                                          0.01, 10);
-
+                                          0.01, 20);
                     std::cin.get();
                 }
             }
@@ -120,7 +132,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
          * |--> 'outputSIter2'
          */
         spdlog::info("saving event data of camera '{}' for haste-based feature tracking...", topic);
-        SaveEventDataForFeatureTracking(topic, hasteWorkspace, 0.5 /*sed*/);
+        SaveEventDataForFeatureTracking(topic, hasteWorkspace, 0.2 /*sed*/);
         ++needFeatureTrackingCount;
     }
     cv::destroyAllWindows();

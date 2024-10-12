@@ -142,7 +142,8 @@ public:
     static std::optional<TrackingResultsType> TryLoadHASTEResults(const EventsInfo &info,
                                                                   double newRawStartTime = 0);
 
-    // static void FilterHASTETrackingResults(TrackingResultsPerBatchType &tracking);
+    static void FilterResultsByTrackingLength(TrackingResultsPerBatchType &tracking,
+                                              double acceptedTrackedThdCompBest);
 
     static void SaveEventsInfo(const EventsInfo &info, const std::string &ws);
 

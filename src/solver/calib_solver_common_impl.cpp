@@ -867,13 +867,17 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                 /**
                  * feature points are extracted as seeds
                  */
-                // while ((*seedIter)->GetTimestamp() - (*headIter)->GetTimestamp() < 0.05) {
-                //     ++seedIter;
-                // }
-                // auto seeds = FindTexturePointsAt(seedIter,  // the reference iterator
-                //                                  eventMes, EVENT_FRAME_NUM_THD, intri, 50);
+                while ((*seedIter)->GetTimestamp() - (*headIter)->GetTimestamp() < 0.02) {
+                    ++seedIter;
+                }
+                auto seeds = FindTexturePointsAt(seedIter,  // the reference iterator
+                                                 eventMes, EVENT_FRAME_NUM_THD, intri, 100);
 
-                auto seeds = GenUniformSeeds(intri, 200 /*generate about 200 seeds*/, 10);
+                /**
+                 * another way to select seeds is direct uniform selection
+                 */
+                // auto seeds = GenUniformSeeds(intri, 200 /*generate about 200 seeds*/, 10);
+
                 const double seedsTime = (*seedIter)->GetTimestamp();
 
                 auto [command, batchInfo] =
