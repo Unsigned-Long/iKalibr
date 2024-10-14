@@ -40,6 +40,7 @@
 #include "viewer/viewer.h"
 #include "util/status.hpp"
 #include "core/tracked_event_feature.h"
+#include "core/event_trace_sac.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -50,16 +51,16 @@ void CalibSolver::InitPrepEventInertialAlign() const {
     if (!Configor::IsEventIntegrated()) {
         return;
     }
-    // const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
-    // const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+    const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
     /**
      * we throw the head and tail data as the rotations from the fitted SO3 Spline in that range are
      * poor
      */
-    // const double st = std::max(so3Spline.MinTime(), scaleSpline.MinTime()) +  // the max as start
-    //                   Configor::Prior::TimeOffsetPadding;
-    // const double et = std::min(so3Spline.MaxTime(), scaleSpline.MaxTime()) -  // the min as end
-    //                   Configor::Prior::TimeOffsetPadding;
+    const double st = std::max(so3Spline.MinTime(), scaleSpline.MinTime()) +  // the max as start
+                      Configor::Prior::TimeOffsetPadding;
+    const double et = std::min(so3Spline.MaxTime(), scaleSpline.MaxTime()) -  // the min as end
+                      Configor::Prior::TimeOffsetPadding;
 
     /**
      * we first perform event-based feature tracking.
@@ -140,6 +141,55 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                      "corresponding commands shell files to generate tracking results!",
                      Configor::DataStream::OutputPath + "/events/");
     }
+
+    /**
+     * Based on the results given by HASTE, we perform consistency detection based on the visual
+     * model to estimate the camera rotation and remove bad tracking.
+     */
+    constexpr double REL_ROT_TIME_INTERVAL = 0.03 /* about 30 Hz */;
+    for (const auto &[topic, tracking] : eventFeatTrackingRes) {
+        // traces of all features
+        std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec> traceVec;
+        for (const auto &[id, batch] : tracking) {
+            for (const auto &[fId, featVec] : batch) {
+                auto trace = FeatureTrackingTrace::CreateFrom(featVec);
+                if (trace != nullptr) {
+                    traceVec[trace] = featVec;
+                }
+            }
+        }
+        auto FindInRangeTrace = [&traceVec](double time) {
+            std::map<FeatureTrackingTrace::Ptr, Eigen::Vector2d> inRangeTraceVec;
+            for (const auto &[trace, featVec] : traceVec) {
+                if (auto pos = trace->PositionAt(time); pos != std::nullopt) {
+                    inRangeTraceVec[trace] = *pos;
+                }
+            }
+            return inRangeTraceVec;
+        };
+        for (double time = st; time < et;) {
+            const double t1 = time, t2 = time + REL_ROT_TIME_INTERVAL;
+            const auto traceVec1 = FindInRangeTrace(t1), traceVec2 = FindInRangeTrace(t2);
+
+            // trace, pos at t1, pos at t2
+            std::map<FeatureTrackingTrace::Ptr, std::pair<Eigen::Vector2d, Eigen::Vector2d>>
+                matchedTraceVec;
+            for (const auto &[trace, pos1] : traceVec1) {
+                auto iter = traceVec2.find(trace);
+                if (iter != traceVec2.cend()) {
+                    matchedTraceVec[trace] = {pos1, iter->second};
+                }
+            }
+            spdlog::info("matched feature count from '{:.3f}' to '{:.3f}': {}", t1, t2,
+                         matchedTraceVec.size());
+
+            // todo: using rotation-only relative rotation solver to estimate the relative rotation
+            std::cin.get();
+
+            time += REL_ROT_TIME_INTERVAL;
+        }
+    }
+
     spdlog::warn("developing!!!");
     std::cin.get();
 }
