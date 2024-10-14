@@ -63,8 +63,9 @@ struct RGBDFrame;
 using RGBDFramePtr = std::shared_ptr<RGBDFrame>;
 struct RGBDIntrinsics;
 using RGBDIntrinsicsPtr = std::shared_ptr<RGBDIntrinsics>;
-struct HASTEFeature;
-using HASTEFeaturePtr = std::shared_ptr<HASTEFeature>;
+struct EventFeature;
+using EventFeaturePtr = std::shared_ptr<EventFeature>;
+using EventFeatTrackingVec = std::vector<EventFeaturePtr>;
 struct EventArray;
 using EventArrayPtr = std::shared_ptr<EventArray>;
 
@@ -142,19 +143,19 @@ public:
                          bool trueColor,
                          float size);
 
-    Viewer &AddHASTETracking(const std::map<int, std::vector<HASTEFeaturePtr>> &batchTracking,
-                             const ns_veta::PinholeIntrinsicPtr &intri,
-                             float sTime,
-                             float eTime,
-                             const std::string &view,
-                             float posScaleFactor = 0.01f,
-                             float timeScaleFactor = 2.0f);
+    Viewer &AddEventFeatTracking(const std::map<int, EventFeatTrackingVec> &batchTracking,
+                                 const ns_veta::PinholeIntrinsicPtr &intri,
+                                 float sTime,
+                                 float eTime,
+                                 const std::string &view,
+                                 float posScaleFactor = 0.01f,
+                                 float timeScaleFactor = 2.0f);
 
-    Viewer &AddHASTETracking(const std::vector<HASTEFeaturePtr> &tracking,
-                             float sTime,
-                             const std::string &view,
-                             float posScaleFactor = 0.01f,
-                             float timeScaleFactor = 2.0f);
+    Viewer &AddEventFeatTracking(const EventFeatTrackingVec &tracking,
+                                 float sTime,
+                                 const std::string &view,
+                                 float posScaleFactor = 0.01f,
+                                 float timeScaleFactor = 2.0f);
 
     Viewer &AddSpatioTemporalTrace(const std::vector<Eigen::Vector3d> &trace,
                                    float sTime,
@@ -164,7 +165,7 @@ public:
                                    float posScaleFactor = 0.01f,
                                    float timeScaleFactor = 2.0f);
 
-    Viewer &AddSpatioTemporalTrace(const std::vector<HASTEFeaturePtr> &tracking,
+    Viewer &AddSpatioTemporalTrace(const EventFeatTrackingVec &tracking,
                                    float sTime,
                                    const std::string &view,
                                    float size = 0.5f,

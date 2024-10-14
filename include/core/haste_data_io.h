@@ -51,6 +51,11 @@ namespace ns_ikalibr {
 struct EventArray;
 using EventArrayPtr = std::shared_ptr<EventArray>;
 
+struct EventFeature;
+using EventFeaturePtr = std::shared_ptr<EventFeature>;
+using EventFeatTrackingVec = std::vector<EventFeaturePtr>;
+using EventFeatTrackingBatch = std::map<int, EventFeatTrackingVec>;
+
 struct EventsInfo {
 public:
     struct SubBatch {
@@ -99,23 +104,13 @@ public:
     }
 };
 
-struct HASTEFeature {
-    using Ptr = std::shared_ptr<HASTEFeature>;
-
-    double timestamp;
-    Eigen::Vector2d pos;
-    double angle;
-};
-
 struct HASTEDataIO {
 public:
     // trans degree angle to radian angle
     constexpr static double DEG_TO_RAD = M_PI / 180.0;
 
-    // feature id, tracking list
-    using TrackingResultsPerBatchType = std::map<int, std::vector<HASTEFeature::Ptr>>;
     // batch index, tracking results in a batch
-    using TrackingResultsType = std::map<int, TrackingResultsPerBatchType>;
+    using TrackingResultsType = std::map<int, EventFeatTrackingBatch>;
 
 public:
     /**
@@ -141,17 +136,6 @@ public:
 
     static std::optional<TrackingResultsType> TryLoadHASTEResults(const EventsInfo &info,
                                                                   double newRawStartTime = 0);
-
-    static void FilterResultsByTrackingLength(TrackingResultsPerBatchType &tracking,
-                                              double acceptedTrackedThdCompBest);
-
-    static void FilterResultsByTraceFittingSAC(TrackingResultsPerBatchType &tracking, double thd);
-
-    static void FilterResultsByTrackingAge(TrackingResultsPerBatchType &tracking,
-                                           double acceptedTrackedThdCompBest);
-
-    static void FilterResultsByTrackingFreq(TrackingResultsPerBatchType &tracking,
-                                            double acceptedTrackedThdCompBest);
 
     static void SaveEventsInfo(const EventsInfo &info, const std::string &ws);
 

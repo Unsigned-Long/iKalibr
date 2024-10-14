@@ -47,6 +47,7 @@
 #include "core/haste_data_io.h"
 #include "veta/camera/pinhole.h"
 #include "sensor/event.h"
+#include "core/tracked_event_feature.h"
 #include "core/event_trace_sac.h"
 
 namespace {
@@ -431,18 +432,19 @@ Viewer &Viewer::AddRGBDFrame(const RGBDFrame::Ptr &frame,
     return *this;
 }
 
-Viewer &Viewer::AddHASTETracking(const std::map<int, std::vector<HASTEFeature::Ptr>> &batchTracking,
-                                 const ns_veta::PinholeIntrinsic::Ptr &intri,
-                                 float sTime,
-                                 float eTime,
-                                 const std::string &view,
-                                 float posScaleFactor,
-                                 float timeScaleFactor) {
+Viewer &Viewer::AddEventFeatTracking(
+    const std::map<int, std::vector<EventFeature::Ptr>> &batchTracking,
+    const ns_veta::PinholeIntrinsic::Ptr &intri,
+    float sTime,
+    float eTime,
+    const std::string &view,
+    float posScaleFactor,
+    float timeScaleFactor) {
     std::vector<ns_viewer::Entity::Ptr> entities;
 
-    // trackings
+    // tracking
     for (const auto &[id, tracking] : batchTracking) {
-        AddHASTETracking(tracking, sTime, view, posScaleFactor, timeScaleFactor);
+        AddEventFeatTracking(tracking, sTime, view, posScaleFactor, timeScaleFactor);
     }
 
     // image plane
@@ -451,7 +453,7 @@ Viewer &Viewer::AddHASTETracking(const std::map<int, std::vector<HASTEFeature::P
     float zMin = 0.0f, zMax = (eTime - sTime) * timeScaleFactor;
     auto imgPlane1 = ns_viewer::Polygon::Create(
         {{0.0f, 0.0f, zMin}, {width, 0.0f, zMin}, {width, height, zMin}, {0.0f, height, zMin}},
-        true, ns_viewer::Colour::Black());
+        false, ns_viewer::Colour(1.0f, 0.7f, 0.0f, 1.0f));
     auto imgPlane2 = ns_viewer::Polygon::Create(
         {{0.0f, 0.0f, zMax}, {width, 0.0f, zMax}, {width, height, zMax}, {0.0f, height, zMax}},
         true, ns_viewer::Colour::Black());
@@ -462,20 +464,20 @@ Viewer &Viewer::AddHASTETracking(const std::map<int, std::vector<HASTEFeature::P
     return *this;
 }
 
-Viewer &Viewer::AddHASTETracking(const std::vector<HASTEFeaturePtr> &tracking,
-                                 float sTime,
-                                 const std::string &view,
-                                 float posScaleFactor,
-                                 float timeScaleFactor) {
+Viewer &Viewer::AddEventFeatTracking(const EventFeatTrackingVec &tracking,
+                                     float sTime,
+                                     const std::string &view,
+                                     float posScaleFactor,
+                                     float timeScaleFactor) {
     // samples (raw)
-    AddSpatioTemporalTrace(tracking, sTime, view, 1.0f, ns_viewer::Colour::Blue(), posScaleFactor,
+    AddSpatioTemporalTrace(tracking, sTime, view, 1.0f, ns_viewer::Colour::Black(), posScaleFactor,
                            timeScaleFactor);
 
-    if (auto trace = EventTrackingTrace::CreateFrom(tracking); trace != nullptr) {
+    if (auto trace = FeatureTrackingTrace::CreateFrom(tracking); trace != nullptr) {
         std::vector<Eigen::Vector3d> posVec = trace->DiscretePositions();
         // curve
-        AddSpatioTemporalTrace(posVec, sTime, view, 2.0f, ns_viewer::Colour::Black(), posScaleFactor,
-                               timeScaleFactor);
+        AddSpatioTemporalTrace(posVec, sTime, view, 2.0f, ns_viewer::Colour::Green(),
+                               posScaleFactor, timeScaleFactor);
     }
 
     // if (auto [trace, inliers] =
@@ -519,7 +521,7 @@ Viewer &Viewer::AddSpatioTemporalTrace(const std::vector<Eigen::Vector3d> &trace
     return *this;
 }
 
-Viewer &Viewer::AddSpatioTemporalTrace(const std::vector<HASTEFeaturePtr> &tracking,
+Viewer &Viewer::AddSpatioTemporalTrace(const EventFeatTrackingVec &tracking,
                                        float sTime,
                                        const std::string &view,
                                        float size,
@@ -552,8 +554,8 @@ Viewer &Viewer::AddEventData(const std::vector<EventArray::Ptr>::const_iterator 
                 cp.r = 255;
                 cp.b = cp.g = 0;
             } else {
-                cp.g = 255;
-                cp.r = cp.b = 0;
+                cp.b = 255;
+                cp.r = cp.g = 0;
             }
             cp.a = 255;
             cloud->push_back(cp);

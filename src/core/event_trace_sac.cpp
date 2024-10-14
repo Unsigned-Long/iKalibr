@@ -30,30 +30,32 @@
 #include "core/event_trace_sac.h"
 #include "spdlog/spdlog.h"
 #include "opengv/sac/Ransac.hpp"
+#include "core/tracked_event_feature.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-EventTrackingTrace::EventTrackingTrace(double s_time,
-                                       double e_time,
-                                       Eigen::Vector3d x_parm,
-                                       Eigen::Vector3d y_parm)
+
+FeatureTrackingTrace::FeatureTrackingTrace(double s_time,
+                                           double e_time,
+                                           Eigen::Vector3d x_parm,
+                                           Eigen::Vector3d y_parm)
     : sTime(s_time),
       eTime(e_time),
       xParm(std::move(x_parm)),
       yParm(std::move(y_parm)) {}
 
-EventTrackingTrace::Ptr EventTrackingTrace::Create(double s_time,
-                                                   double e_time,
-                                                   const Eigen::Vector3d& x_parm,
-                                                   const Eigen::Vector3d& y_parm) {
-    return std::make_shared<EventTrackingTrace>(s_time, e_time, x_parm, y_parm);
+FeatureTrackingTrace::Ptr FeatureTrackingTrace::Create(double s_time,
+                                                       double e_time,
+                                                       const Eigen::Vector3d& x_parm,
+                                                       const Eigen::Vector3d& y_parm) {
+    return std::make_shared<FeatureTrackingTrace>(s_time, e_time, x_parm, y_parm);
 }
 
-EventTrackingTrace::Ptr EventTrackingTrace::CreateFrom(
-    const std::vector<HASTEFeature::Ptr>& trackingAry) {
+FeatureTrackingTrace::Ptr FeatureTrackingTrace::CreateFrom(
+    const std::vector<EventFeature::Ptr>& trackingAry) {
     if (trackingAry.size() < 3) {
         return nullptr;
     }
@@ -79,7 +81,7 @@ EventTrackingTrace::Ptr EventTrackingTrace::CreateFrom(
     return Create(tMin, tMax, xParm, yParm);
 }
 
-std::optional<Eigen::Vector2d> EventTrackingTrace::PositionAt(double t) const {
+std::optional<Eigen::Vector2d> FeatureTrackingTrace::PositionAt(double t) const {
     if (t < sTime || t > eTime) {
         return std::nullopt;
     }
@@ -88,7 +90,7 @@ std::optional<Eigen::Vector2d> EventTrackingTrace::PositionAt(double t) const {
     return Eigen::Vector2d{x, y};
 }
 
-std::vector<Eigen::Vector3d> EventTrackingTrace::DiscretePositions(double dt) const {
+std::vector<Eigen::Vector3d> FeatureTrackingTrace::DiscretePositions(double dt) const {
     std::vector<Eigen::Vector3d> positions;
     for (double t = this->sTime; t < this->eTime;) {
         std::optional<Eigen::Vector2d> pos = this->PositionAt(t);
@@ -101,15 +103,15 @@ std::vector<Eigen::Vector3d> EventTrackingTrace::DiscretePositions(double dt) co
     return positions;
 }
 
-double EventTrackingTrace::QuadraticCurveValueAt(double x, const Eigen::Vector3d& params) {
+double FeatureTrackingTrace::QuadraticCurveValueAt(double x, const Eigen::Vector3d& params) {
     double a = params[0];
     double b = params[1];
     double c = params[2];
     return a * x * x + b * x + c;
 }
 
-Eigen::Vector3d EventTrackingTrace::FitQuadraticCurve(const std::vector<double>& x,
-                                                      const std::vector<double>& y) {
+Eigen::Vector3d FeatureTrackingTrace::FitQuadraticCurve(const std::vector<double>& x,
+                                                        const std::vector<double>& y) {
     int n = static_cast<int>(x.size());
     Eigen::MatrixXd A(n, 3);
     Eigen::VectorXd B(n);
@@ -127,15 +129,15 @@ Eigen::Vector3d EventTrackingTrace::FitQuadraticCurve(const std::vector<double>&
 }
 
 EventTrackingTraceSacProblem::EventTrackingTraceSacProblem(
-    const std::vector<HASTEFeature::Ptr>& trackingAry, bool randomSeed)
+    const std::vector<EventFeature::Ptr>& trackingAry, bool randomSeed)
     : opengv::sac::SampleConsensusProblem<model_t>(randomSeed),
       _trackingAry(trackingAry) {
     setUniformIndices(static_cast<int>(_trackingAry.size()));
 }
 
-std::pair<EventTrackingTrace::Ptr, std::vector<HASTEFeature::Ptr>>
+std::pair<FeatureTrackingTrace::Ptr, std::vector<EventFeature::Ptr>>
 EventTrackingTraceSacProblem::EventTrackingTraceSac(
-    const std::vector<HASTEFeature::Ptr>& trackingAry, double thd) {
+    const std::vector<EventFeature::Ptr>& trackingAry, double thd) {
     opengv::sac::Ransac<EventTrackingTraceSacProblem> ransac;
     std::shared_ptr<EventTrackingTraceSacProblem> probPtr(
         new EventTrackingTraceSacProblem(trackingAry));
@@ -143,9 +145,9 @@ EventTrackingTraceSacProblem::EventTrackingTraceSac(
     ransac.threshold_ = thd;
     ransac.max_iterations_ = 20;
     if (ransac.computeModel()) {
-        EventTrackingTrace trace;
+        FeatureTrackingTrace trace;
         probPtr->optimizeModelCoefficients(ransac.inliers_, ransac.model_coefficients_, trace);
-        std::vector<HASTEFeature::Ptr> goods(ransac.inliers_.size());
+        std::vector<EventFeature::Ptr> goods(ransac.inliers_.size());
         for (int i = 0; i != static_cast<int>(ransac.inliers_.size()); ++i) {
             goods.at(i) = trackingAry.at(ransac.inliers_.at(i));
         }
@@ -154,7 +156,7 @@ EventTrackingTraceSacProblem::EventTrackingTraceSac(
         //     "total: {}, inliner: {}, rate: {:.3f}", trackingAry.size(), ransac.inliers_.size(),
         //     static_cast<double>(ransac.inliers_.size()) /
         //     static_cast<double>(trackingAry.size()));
-        return {std::make_shared<EventTrackingTrace>(trace), goods};
+        return {std::make_shared<FeatureTrackingTrace>(trace), goods};
     } else {
         spdlog::warn("compute event trace using RANSAC failed!!!");
         return {nullptr, {}};
@@ -163,11 +165,11 @@ EventTrackingTraceSacProblem::EventTrackingTraceSac(
 
 bool EventTrackingTraceSacProblem::computeModelCoefficients(const std::vector<int>& indices,
                                                             model_t& outModel) const {
-    std::vector<HASTEFeature::Ptr> selected(indices.size());
+    std::vector<EventFeature::Ptr> selected(indices.size());
     for (int i = 0; i < static_cast<int>(indices.size()); ++i) {
         selected.at(i) = _trackingAry.at(indices.at(i));
     }
-    EventTrackingTrace::Ptr trace = EventTrackingTrace::CreateFrom(selected);
+    FeatureTrackingTrace::Ptr trace = FeatureTrackingTrace::CreateFrom(selected);
 
     if (trace == nullptr) {
         return false;

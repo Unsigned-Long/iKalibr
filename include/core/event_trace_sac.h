@@ -38,28 +38,32 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-struct EventTrackingTrace {
+struct EventFeature;
+using EventFeaturePtr = std::shared_ptr<EventFeature>;
+using EventFeatTrackingVec = std::vector<EventFeaturePtr>;
+
+struct FeatureTrackingTrace {
 public:
-    using Ptr = std::shared_ptr<EventTrackingTrace>;
+    using Ptr = std::shared_ptr<FeatureTrackingTrace>;
 
 public:
     double sTime{}, eTime{};
     Eigen::Vector3d xParm, yParm;
 
 public:
-    EventTrackingTrace(double s_time,
-                       double e_time,
-                       Eigen::Vector3d x_parm,
-                       Eigen::Vector3d y_parm);
+    FeatureTrackingTrace(double s_time,
+                         double e_time,
+                         Eigen::Vector3d x_parm,
+                         Eigen::Vector3d y_parm);
 
-    EventTrackingTrace() = default;
+    FeatureTrackingTrace() = default;
 
     static Ptr Create(double s_time,
                       double e_time,
                       const Eigen::Vector3d &x_parm,
                       const Eigen::Vector3d &y_parm);
 
-    static Ptr CreateFrom(const std::vector<HASTEFeature::Ptr> &trackingAry);
+    static Ptr CreateFrom(const std::vector<EventFeaturePtr> &trackingAry);
 
     [[nodiscard]] std::optional<Eigen::Vector2d> PositionAt(double t) const;
 
@@ -73,20 +77,20 @@ protected:
 };
 
 class EventTrackingTraceSacProblem
-    : public opengv::sac::SampleConsensusProblem<EventTrackingTrace> {
+    : public opengv::sac::SampleConsensusProblem<FeatureTrackingTrace> {
 public:
     /** The model we are trying to fit */
-    typedef EventTrackingTrace model_t;
+    typedef FeatureTrackingTrace model_t;
 
 public:
     /**
      * \brief Constructor.
      */
-    explicit EventTrackingTraceSacProblem(const std::vector<HASTEFeature::Ptr> &trackingAry,
+    explicit EventTrackingTraceSacProblem(const EventFeatTrackingVec &trackingAry,
                                           bool randomSeed = true);
 
-    static std::pair<EventTrackingTrace::Ptr, std::vector<HASTEFeature::Ptr>> EventTrackingTraceSac(
-        const std::vector<HASTEFeature::Ptr> &trackingAry, double thd);
+    static std::pair<FeatureTrackingTrace::Ptr, EventFeatTrackingVec> EventTrackingTraceSac(
+        const EventFeatTrackingVec &trackingAry, double thd);
 
     /**
      * Destructor.
@@ -127,7 +131,7 @@ protected:
 
 protected:
     /** The adapter holding all input data */
-    std::vector<HASTEFeature::Ptr> _trackingAry;
+    EventFeatTrackingVec _trackingAry;
 };
 }  // namespace ns_ikalibr
 

@@ -40,6 +40,7 @@
 #include "filesystem"
 #include "util/tqdm.h"
 #include "core/event_trace_sac.h"
+#include "core/tracked_event_feature.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -202,12 +203,12 @@ std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResults
                 spdlog::warn("the feature tracking result item '{}' may broken!!!", strLine);
                 continue;
             }
-            HASTEFeature feature;
+            EventFeature feature;
             feature.timestamp = std::stod(strVec.at(0)) + info.raw_start_time - newRawStartTime;
             feature.pos = {std::stod(strVec.at(1)), std::stod(strVec.at(2))};
-            feature.angle = std::stod(strVec.at(3)) * DEG_TO_RAD;
+            // feature.angle = std::stod(strVec.at(3)) * DEG_TO_RAD;
             int id = std::stoi(strVec.at(4));
-            tracking[id].push_back(std::make_shared<HASTEFeature>(feature));
+            tracking[id].push_back(std::make_shared<EventFeature>(feature));
 
             ++trackedFeatCount;
             if (feature.timestamp < minTime) {
@@ -225,89 +226,6 @@ std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResults
         "span from '{:.5f}' to '{:.5f}', time range: '{:.5f}'",
         trackResults.size(), trackedFeatCount, minTime, maxTime, maxTime - minTime);
     return trackResults;
-}
-
-void HASTEDataIO::FilterResultsByTrackingLength(TrackingResultsPerBatchType &tracking,
-                                                double acceptedTrackedThdCompBest) {
-    std::size_t maxLength = 0;
-    for (const auto &[featId, trackingList] : tracking) {
-        if (trackingList.size() > maxLength) {
-            maxLength = trackingList.size();
-        }
-    }
-    // auto oldSize = tracking.size();
-    auto acceptedMinLength = static_cast<double>(maxLength) * acceptedTrackedThdCompBest;
-    for (auto it = tracking.begin(); it != tracking.end();) {
-        if (it->second.size() < static_cast<std::size_t>(acceptedMinLength)) {
-            it = tracking.erase(it);
-        } else {
-            ++it;
-        }
-    }
-}
-
-void HASTEDataIO::FilterResultsByTraceFittingSAC(TrackingResultsPerBatchType &tracking,
-                                                 double thd) {
-    for (auto it = tracking.begin(); it != tracking.end();) {
-        auto &trackingList = it->second;
-        auto res = EventTrackingTraceSacProblem::EventTrackingTraceSac(trackingList, thd);
-        if (res.first != nullptr) {
-            trackingList = res.second;
-            std::sort(trackingList.begin(), trackingList.end(),
-                      [](const std::shared_ptr<HASTEFeature> &f1,
-                         const std::shared_ptr<HASTEFeature> &f2) {
-                          return f1->timestamp < f2->timestamp;
-                      });
-            ++it;
-        } else {
-            it = tracking.erase(it);
-        }
-    }
-}
-
-void HASTEDataIO::FilterResultsByTrackingAge(TrackingResultsPerBatchType &tracking,
-                                             double acceptedTrackedThdCompBest) {
-    double maxAge = 0.0;
-    for (const auto &[featId, trackingList] : tracking) {
-        const double age = trackingList.back()->timestamp - trackingList.front()->timestamp;
-        if (age > maxAge) {
-            maxAge = age;
-        }
-    }
-    auto acceptedMinAge = maxAge * acceptedTrackedThdCompBest;
-    for (auto it = tracking.begin(); it != tracking.end();) {
-        const auto &trackingList = it->second;
-        const double age = trackingList.back()->timestamp - trackingList.front()->timestamp;
-
-        if (age < acceptedMinAge) {
-            it = tracking.erase(it);
-        } else {
-            ++it;
-        }
-    }
-}
-void HASTEDataIO::FilterResultsByTrackingFreq(TrackingResultsPerBatchType &tracking,
-                                              double acceptedTrackedThdCompBest) {
-    double maxFreq = 0.0;
-    for (const auto &[featId, trackingList] : tracking) {
-        const double age = trackingList.back()->timestamp - trackingList.front()->timestamp;
-        const double freq = static_cast<double>(trackingList.size()) / age;
-        if (freq > maxFreq) {
-            maxFreq = freq;
-        }
-    }
-    auto acceptedMinFreq = maxFreq * acceptedTrackedThdCompBest;
-    for (auto it = tracking.begin(); it != tracking.end();) {
-        const auto &trackingList = it->second;
-        const double age = trackingList.back()->timestamp - trackingList.front()->timestamp;
-        const double freq = static_cast<double>(trackingList.size()) / age;
-
-        if (freq < acceptedMinFreq) {
-            it = tracking.erase(it);
-        } else {
-            ++it;
-        }
-    }
 }
 
 void HASTEDataIO::SaveEventsInfo(const EventsInfo &info, const std::string &ws) {

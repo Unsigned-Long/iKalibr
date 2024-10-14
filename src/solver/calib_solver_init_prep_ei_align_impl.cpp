@@ -40,6 +40,8 @@
 #include "viewer/viewer.h"
 #include "util/status.hpp"
 
+#include <core/tracked_event_feature.h>
+
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
@@ -94,35 +96,26 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                     const auto &batchETime = batchInfo.end_time + eventsInfo->raw_start_time -
                                              _dataMagr->GetRawStartTimestamp();
 
-                    {
-                        _viewer->ClearViewer(Viewer::VIEW_MAP);
-                        _viewer->AddHASTETracking(batch, intri, batchSTime, batchETime,
-                                                  Viewer::VIEW_MAP, 0.01, 20);
-                        auto iters =
-                            _dataMagr->ExtractEventDataPiece(topic, batchSTime, batchETime);
-                        _viewer->AddEventData(iters.first, iters.second, batchSTime,
-                                              Viewer::VIEW_MAP, 0.01, 20);
-                        std::cin.get();
-                    }
-
-                    const auto oldSize = batch.size();
-                    HASTEDataIO::FilterResultsByTrackingLength(batch, 0.2);
-                    HASTEDataIO::FilterResultsByTraceFittingSAC(batch, 5.0);
-                    HASTEDataIO::FilterResultsByTrackingAge(batch, 0.2);
-                    HASTEDataIO::FilterResultsByTrackingFreq(batch, 0.2);
-                    spdlog::info(
-                        "size before filtering: {}, size after filtering: {}, filtered: {}",
-                        oldSize, batch.size(), oldSize - batch.size());
+                    // const auto oldSize = batch.size();
+                    EventTrackingFilter::FilterByTrackingLength(batch, 0.2 /*percent*/);
+                    EventTrackingFilter::FilterByTraceFittingSAC(batch, 5.0 /*pixel*/);
+                    EventTrackingFilter::FilterByTrackingAge(batch, 0.2 /*percent*/);
+                    EventTrackingFilter::FilterByTrackingFreq(batch, 0.2 /*percent*/);
+                    // spdlog::info(
+                    //     "size before filtering: {}, size after filtering: {}, filtered: {}",
+                    //     oldSize, batch.size(), oldSize - batch.size());
 
                     // draw
                     _viewer->ClearViewer(Viewer::VIEW_MAP);
-                    _viewer->AddHASTETracking(batch, intri, batchSTime, batchETime,
-                                              Viewer::VIEW_MAP, 0.01, 20);
+                    _viewer->AddEventFeatTracking(batch, intri, batchSTime, batchETime,
+                                                  Viewer::VIEW_MAP, 0.01, 20);
                     auto iters = _dataMagr->ExtractEventDataPiece(topic, batchSTime, batchETime);
                     _viewer->AddEventData(iters.first, iters.second, batchSTime, Viewer::VIEW_MAP,
                                           0.01, 20);
-                    std::cin.get();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 }
+                // todo: save tracking results to calibration data manager
+                continue;
             }
         }
         // if tracking is not performed, we output raw event data for haste-powered feature
