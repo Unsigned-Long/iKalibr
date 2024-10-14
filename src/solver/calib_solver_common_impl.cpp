@@ -707,10 +707,11 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePoints(const cv::Mat &event
     cv::Mat gray;
     cv::cvtColor(imgFiltered, gray, cv::COLOR_BGR2GRAY);
 
+    cv::Mat edges;
+    cv::Canny(gray, edges, 50, 150);
+
     std::vector<cv::Point2f> corners;
-    cv::goodFeaturesToTrack(gray, corners, num, 0.01 /*qualityLevel*/, 10 /*minDistance*/,
-                            cv::Mat(), 9 /*blockSize, we use a large one here*/,
-                            true /*useHarrisDetector*/);
+    cv::goodFeaturesToTrack(gray, corners, num, 0.01 /*qualityLevel*/, 10 /*minDistance*/);
 
     std::vector<Eigen::Vector2d> vertex;
     vertex.reserve(corners.size());
@@ -720,6 +721,7 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePoints(const cv::Mat &event
         // DrawKeypointOnCVMat(imgFiltered, corner, true, cv::Scalar(0, 0, 0));
     }
 
+    // cv::imshow("Edges", edges);
     // cv::imshow("Filtered Event Frame", imgFiltered);
     // cv::waitKey(0);
 

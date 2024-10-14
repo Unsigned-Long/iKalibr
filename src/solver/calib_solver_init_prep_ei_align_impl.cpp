@@ -39,8 +39,7 @@
 #include "calib/calib_param_manager.h"
 #include "viewer/viewer.h"
 #include "util/status.hpp"
-
-#include <core/tracked_event_feature.h>
+#include "core/tracked_event_feature.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -67,7 +66,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * We first dedistort the events, then export them to files and use third-party software for
      * feature tracking.
      */
-    int needFeatureTrackingCount = 0;
+    // topic, batch index, tracked features
+    std::map<std::string, std::map<int, EventFeatTrackingBatch>> eventFeatTrackingRes;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
         // create a workspace for event-based feature tracking
@@ -85,6 +85,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             eventsInfo != std::nullopt) {
             spdlog::info("try to load feature tracking results from haste for camera '{}'...",
                          topic);
+            // the output tracking results from HASTE should be distortion-free?
             auto tracking =
                 HASTEDataIO::TryLoadHASTEResults(*eventsInfo, _dataMagr->GetRawStartTimestamp());
             if (tracking != std::nullopt) {
@@ -97,10 +98,10 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                                              _dataMagr->GetRawStartTimestamp();
 
                     // const auto oldSize = batch.size();
-                    EventTrackingFilter::FilterByTrackingLength(batch, 0.2 /*percent*/);
+                    EventTrackingFilter::FilterByTrackingLength(batch, 0.1 /*percent*/);
                     EventTrackingFilter::FilterByTraceFittingSAC(batch, 5.0 /*pixel*/);
-                    EventTrackingFilter::FilterByTrackingAge(batch, 0.2 /*percent*/);
-                    EventTrackingFilter::FilterByTrackingFreq(batch, 0.2 /*percent*/);
+                    EventTrackingFilter::FilterByTrackingAge(batch, 0.1 /*percent*/);
+                    EventTrackingFilter::FilterByTrackingFreq(batch, 0.1 /*percent*/);
                     // spdlog::info(
                     //     "size before filtering: {}, size after filtering: {}, filtered: {}",
                     //     oldSize, batch.size(), oldSize - batch.size());
@@ -109,12 +110,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                     _viewer->ClearViewer(Viewer::VIEW_MAP);
                     _viewer->AddEventFeatTracking(batch, intri, batchSTime, batchETime,
                                                   Viewer::VIEW_MAP, 0.01, 20);
-                    auto iters = _dataMagr->ExtractEventDataPiece(topic, batchSTime, batchETime);
-                    _viewer->AddEventData(iters.first, iters.second, batchSTime, Viewer::VIEW_MAP,
-                                          0.01, 20);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    // auto iters = _dataMagr->ExtractEventDataPiece(topic, batchSTime, batchETime);
+                    // _viewer->AddEventData(iters.first, iters.second, batchSTime,
+                    // Viewer::VIEW_MAP, 0.01, 20);
                 }
-                // todo: save tracking results to calibration data manager
+                // save tracking results
+                eventFeatTrackingRes[topic] = *tracking;
                 continue;
             }
         }
@@ -131,10 +132,9 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         spdlog::info("saving event data of camera '{}' for haste-based feature tracking...", topic);
         const std::size_t EVENT_FRAME_NUM_THD = intri->imgHeight * intri->imgWidth / 5;
         SaveEventDataForFeatureTracking(topic, hasteWorkspace, 0.2, EVENT_FRAME_NUM_THD, 200);
-        ++needFeatureTrackingCount;
     }
     cv::destroyAllWindows();
-    if (needFeatureTrackingCount != 0) {
+    if (eventFeatTrackingRes.size() != Configor::DataStream::EventTopics.size()) {
         throw Status(Status::FINE,
                      "files for haste-based feature tracking have been output to '{}', run "
                      "corresponding commands shell files to generate tracking results!",

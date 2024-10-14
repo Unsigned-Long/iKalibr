@@ -139,7 +139,7 @@ std::pair<std::string, EventsInfo::SubBatch> HASTEDataIO::SaveRawEventData(
     std::ofstream ofSeeds(seedsPath, std::ios::out);
     buffer = std::stringstream();
     for (int id = 0; id != static_cast<int>(seeds.size()); ++id) {
-        const Eigen::Vector2d &seed = seeds.at(id);
+        const Eigen::Vector2d &seed = intri->GetUndistoPixel(seeds.at(id));
         // todo: this is too too slow!!! modify haste to support binary data loading
         buffer << fmt::format("{:.9f},{:.3f},{:.3f},0.0,{}\n",  // t, x, y, theta, id
                               seedsTime,                        // t
