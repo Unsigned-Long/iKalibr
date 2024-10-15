@@ -133,7 +133,7 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
     undistFeatCur = ExtractFeatMapAsUndistoFeatVec(
         trackedFeats->featCur, ExtractValsAsVec(trackedFeats->featMatchLast2Cur));
 
-    auto res = RelRotationRecovery(undistFeatLast.second, undistFeatCur.second);
+    auto res = RelRotationRecovery(undistFeatLast.second, undistFeatCur.second, _intri, 1.0);
 
     // solving failed
     if (res.second.empty()) {
@@ -203,6 +203,33 @@ void RotOnlyVisualOdometer::ResetWorkspace() {
     _rotations.clear();
 }
 
+std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotationRecovery(
+    const std::vector<Eigen::Vector2d> &featUndisto1,
+    const std::vector<Eigen::Vector2d> &featUndisto2,
+    const ns_veta::PinholeIntrinsic::Ptr &intri,
+    double thd) {
+    if (featUndisto1.size() != featUndisto2.size()) {
+        spdlog::warn(
+            "the size of 'featUndisto1' (count: {}) and 'featUndisto2' (count: {}) is "
+            "different!!!",
+            featUndisto1.size(), featUndisto2.size());
+        return {};
+    }
+    const auto size = featUndisto1.size();
+    if (size < 2) {
+        // todo: warning
+        spdlog::warn("at least two features are required while current input has {} element(s)!!!",
+                     size);
+        return {};
+    }
+    std::vector<cv::Point2f> ptsUndisto1(size), ptsUndisto2(size);
+    for (int i = 0; i < static_cast<int>(size); ++i) {
+        ptsUndisto1.at(i) = cv::Point2d(featUndisto1.at(i)(0), featUndisto1.at(i)(1));
+        ptsUndisto2.at(i) = cv::Point2d(featUndisto2.at(i)(0), featUndisto2.at(i)(1));
+    }
+    return RelRotationRecovery(ptsUndisto1, ptsUndisto2, intri, thd);
+}
+
 void RotOnlyVisualOdometer::ShowCurrentFrame() const {
     cv::Mat img = _trackFeatLast->imgCur->GetImage().clone();
     cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
@@ -247,10 +274,12 @@ std::vector<uchar> RotOnlyVisualOdometer::RejectUsingFMat(
 
 std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotationRecovery(
     const std::vector<cv::Point2f> &ptsUndisto1,
-    const std::vector<cv::Point2f> &ptsUndisto2) const {
+    const std::vector<cv::Point2f> &ptsUndisto2,
+    const ns_veta::PinholeIntrinsic::Ptr &intri,
+    double thd) {
     assert(ptsUndisto1.size() == ptsUndisto2.size());
-    opengv::bearingVectors_t bearingVectors1 = ComputeBeringVec(ptsUndisto1);
-    opengv::bearingVectors_t bearingVectors2 = ComputeBeringVec(ptsUndisto2);
+    opengv::bearingVectors_t bearingVectors1 = ComputeBeringVec(ptsUndisto1, intri);
+    opengv::bearingVectors_t bearingVectors2 = ComputeBeringVec(ptsUndisto2, intri);
     // create a central relative adapter
     opengv::relative_pose::CentralRelativeAdapter adapter(bearingVectors1, bearingVectors2);
 
@@ -262,7 +291,7 @@ std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotati
     std::shared_ptr<opengv::sac_problems::relative_pose::RotationOnlySacProblem> probPtr(
         new opengv::sac_problems::relative_pose::RotationOnlySacProblem(adapter));
     ransac.sac_model_ = probPtr;
-    ransac.threshold_ = _intri->ImagePlaneToCameraPlaneError(1.0);
+    ransac.threshold_ = intri->ImagePlaneToCameraPlaneError(thd);
     ransac.max_iterations_ = 50;
 
     auto res = ransac.computeModel(0);
@@ -280,11 +309,11 @@ std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotati
 }
 
 opengv::bearingVectors_t RotOnlyVisualOdometer::ComputeBeringVec(
-    const std::vector<cv::Point2f> &ptsUndist) const {
+    const std::vector<cv::Point2f> &ptsUndist, const ns_veta::PinholeIntrinsic::Ptr &intri) {
     opengv::bearingVectors_t bearingVec(ptsUndist.size());
     for (int i = 0; i < static_cast<int>(ptsUndist.size()); ++i) {
         const auto &p = ptsUndist.at(i);
-        ns_veta::Vec2d pCam = _intri->ImgToCam(ns_veta::Vec2d(p.x, p.y));
+        ns_veta::Vec2d pCam = intri->ImgToCam(ns_veta::Vec2d(p.x, p.y));
         bearingVec.at(i) = ns_veta::Vec3d(pCam(0), pCam(1), 1.0).normalized();
     }
     return bearingVec;

@@ -167,6 +167,9 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             }
             return inRangeTraceVec;
         };
+        const auto &intri = _parMagr->INTRI.Camera.at(topic);
+        // time from {t1} to {t2}, relative rotation from {t2} to {t1}
+        std::vector<std::tuple<double, double, Sophus::SO3d>> relRotations;
         for (double time = st; time < et;) {
             const double t1 = time, t2 = time + REL_ROT_TIME_INTERVAL;
             const auto traceVec1 = FindInRangeTrace(t1), traceVec2 = FindInRangeTrace(t2);
@@ -180,13 +183,114 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                     matchedTraceVec[trace] = {pos1, iter->second};
                 }
             }
-            spdlog::info("matched feature count from '{:.3f}' to '{:.3f}': {}", t1, t2,
-                         matchedTraceVec.size());
+            // spdlog::info("matched feature count from '{:.3f}' to '{:.3f}': {}", t1, t2,
+            //              matchedTraceVec.size());
 
-            // todo: using rotation-only relative rotation solver to estimate the relative rotation
-            std::cin.get();
+            // using rotation-only relative rotation solver to estimate the relative rotation
+            auto size = matchedTraceVec.size();
+            std::vector<Eigen::Vector2d> featUndisto1, featUndisto2;
+            featUndisto1.reserve(size), featUndisto2.reserve(size);
+            std::map<int, FeatureTrackingTrace::Ptr> featIdxMap;
+            int index = 0;
+            for (const auto &[trace, posPair] : matchedTraceVec) {
+                featUndisto1.push_back(posPair.first);
+                featUndisto2.push_back(posPair.second);
+                featIdxMap[index++] = trace;
+            }
+            auto res = RotOnlyVisualOdometer::RelRotationRecovery(
+                featUndisto1,  // features at t1
+                featUndisto2,  // corresponding features at t2
+                intri,         // the camera intrinsics
+                1.0);          // the threshold
+            if (res.second.empty()) {
+                // solving failed
+                spdlog::warn(
+                    "failed to recover rotation recovery from rotation recovery from '{:.3f}' to "
+                    "'{:.3f}'!!!",
+                    t1, t2);
+            } else {
+                // solving successful
+                relRotations.emplace_back(t1, t2,
+                                          Sophus::SO3d(Sophus::makeRotationMatrix(res.first)));
+                // find outliers
+                std::set<FeatureTrackingTrace::Ptr> inlierTrace, outlierTrace;
+                for (int idx : res.second) {
+                    inlierTrace.insert(featIdxMap.at(idx));
+                }
+                for (const auto &[trace, posPair] : matchedTraceVec) {
+                    if (inlierTrace.find(trace) == inlierTrace.end()) {
+                        // bad one
+                        outlierTrace.insert(trace);
+                        // we remove this trace as it's poor
+                        traceVec.erase(trace);
+                    }
+                }
+                spdlog::info("inliers count: {}, outliers count: {}, total: {}", inlierTrace.size(),
+                             outlierTrace.size(), matchedTraceVec.size());
+
+                // draw match figure
+                // cv::Mat matchImg(static_cast<int>(intri->imgHeight),
+                //                  static_cast<int>(intri->imgWidth) * 2, CV_8UC3,
+                //                  cv::Scalar(255, 255, 255));
+                // matchImg.colRange(0.0, static_cast<int>(intri->imgWidth))
+                //     .setTo(cv::Scalar(200, 200, 200));
+                // for (const auto &[trace, posPair] : matchedTraceVec) {
+                //     Eigen::Vector2d p2 = posPair.second + Eigen::Vector2d(intri->imgWidth, 0.0);
+                //     // feature pair
+                //     DrawKeypointOnCVMat(matchImg, posPair.first, true, cv::Scalar(0, 0, 255));
+                //     DrawKeypointOnCVMat(matchImg, p2, true, cv::Scalar(0, 0, 255));
+                //     // line
+                //     DrawLineOnCVMat(matchImg, posPair.first, p2, cv::Scalar(0, 0, 255));
+                //     if (inlierTrace.find(trace) != inlierTrace.end()) {
+                //         DrawKeypointOnCVMat(matchImg, posPair.first, true, cv::Scalar(0, 255,
+                //         0)); DrawKeypointOnCVMat(matchImg, p2, true, cv::Scalar(0, 255, 0));
+                //         DrawLineOnCVMat(matchImg, posPair.first, p2, cv::Scalar(0, 255, 0));
+                //     }
+                // }
+                // cv::imshow("match", matchImg);
+                // cv::waitKey(0);
+            }
 
             time += REL_ROT_TIME_INTERVAL;
+        }
+
+        // todo: using 'relRotations'
+        std::vector<std::pair<double, Sophus::SO3d>> rotations;
+        auto rotEstimator = RotationEstimator::Create();
+        for (const auto &[t1, t2, relRotT2ToT1] : relRotations) {
+            if (rotations.empty()) {
+                // the first time
+                rotations.emplace_back(t1, Sophus::SO3d());
+                rotations.emplace_back(t2, relRotT2ToT1);
+                continue;
+            }
+            if (rotations.size() > 50) {
+                rotEstimator->Estimate(so3Spline, rotations);
+            }
+            if (rotEstimator->SolveStatus()) {
+                // assign the estimated extrinsic rotation
+                _parMagr->EXTRI.SO3_EsToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
+                _viewer->UpdateSensorViewer();
+                break;
+            }
+
+            if (std::abs(rotations.back().first - t1) < 1E-5) {
+                // continuous
+                rotations.emplace_back(t2, rotations.back().second * relRotT2ToT1);
+            } else {
+                rotations.clear();
+                rotations.emplace_back(t1, Sophus::SO3d());
+                rotations.emplace_back(t2, relRotT2ToT1);
+            }
+        }
+        /**
+         * after all tracked are grabbed, if the extrinsic rotation is not recovered (use min
+         * eigen value to check solve results), stop this program
+         */
+        if (!rotEstimator->SolveStatus()) {
+            throw Status(Status::ERROR,
+                         "initialize rotation 'SO3_EsToBr' failed, this may be related to "
+                         "insufficiently excited motion or bad event data streams.");
         }
     }
 

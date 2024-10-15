@@ -91,6 +91,12 @@ public:
 
     void ResetWorkspace();
 
+    static std::pair<opengv::rotation_t, std::vector<int>> RelRotationRecovery(
+        const std::vector<Eigen::Vector2d> &featUndisto1,
+        const std::vector<Eigen::Vector2d> &featUndisto2,
+        const ns_veta::PinholeIntrinsic::Ptr &intri,
+        double thd);
+
 protected:
     static std::pair<std::vector<int>, std::vector<cv::Point2f>> ExtractFeatMapAsRawFeatVec(
         const FeatureMap &featMap, const std::vector<int> &desiredIds = {});
@@ -130,12 +136,14 @@ protected:
     static std::vector<uchar> RejectUsingFMat(const std::vector<cv::Point2f> &undistPtsInLast,
                                               const std::vector<cv::Point2f> &undistPtsInCur);
 
-    [[nodiscard]] std::pair<opengv::rotation_t, std::vector<int>> RelRotationRecovery(
+    [[nodiscard]] static std::pair<opengv::rotation_t, std::vector<int>> RelRotationRecovery(
         const std::vector<cv::Point2f> &ptsUndisto1,
-        const std::vector<cv::Point2f> &ptsUndisto2) const;
+        const std::vector<cv::Point2f> &ptsUndisto2,
+        const ns_veta::PinholeIntrinsic::Ptr &intri,
+        double thd);
 
-    [[nodiscard]] opengv::bearingVectors_t ComputeBeringVec(
-        const std::vector<cv::Point2f> &ptsUndist) const;
+    [[nodiscard]] static opengv::bearingVectors_t ComputeBeringVec(
+        const std::vector<cv::Point2f> &ptsUndist, const ns_veta::PinholeIntrinsic::Ptr &intri);
 };
 }  // namespace ns_ikalibr
 
