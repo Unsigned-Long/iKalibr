@@ -217,9 +217,9 @@ std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotati
     }
     const auto size = featUndisto1.size();
     if (size < 2) {
-        // todo: warning
-        spdlog::warn("at least two features are required while current input has {} element(s)!!!",
-                     size);
+        // warning
+        // spdlog::warn("at least two features are required while current input has {}
+        // element(s)!!!", size);
         return {};
     }
     std::vector<cv::Point2f> ptsUndisto1(size), ptsUndisto2(size);

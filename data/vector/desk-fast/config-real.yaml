@@ -99,8 +99,8 @@ Configor:
     # if you want to use all time data for calibration, please set them to negative numbers
     # Note that the 'BegTime' here is measured from the start time of bag
     # and is not related to the timestamp of the data recorded in the package.
-    BeginTime: 5
-    Duration: 2
+    BeginTime: -1
+    Duration: -1
     OutputPath: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/desk-fast"
   Prior:
     GravityNorm: 9.79

@@ -90,7 +90,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             auto tracking =
                 HASTEDataIO::TryLoadHASTEResults(*eventsInfo, _dataMagr->GetRawStartTimestamp());
             if (tracking != std::nullopt) {
-                for (auto &[index, batch] : *tracking) {
+                auto bar = std::make_shared<tqdm>();
+                int barIndex = 0;
+                spdlog::info("rep-process loaded event tracking by haste for '{}'...", topic);
+                for (auto iter = tracking->begin(); iter != tracking->end(); ++iter) {
+                    bar->progress(barIndex++, static_cast<int>(tracking->size()));
+                    auto &[index, batch] = *iter;
                     // aligned time (start and end)
                     const auto &batchInfo = eventsInfo->batches.at(index);
                     const auto &batchSTime = batchInfo.start_time + eventsInfo->raw_start_time -
@@ -98,23 +103,31 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                     const auto &batchETime = batchInfo.end_time + eventsInfo->raw_start_time -
                                              _dataMagr->GetRawStartTimestamp();
 
+                    if ((batchSTime < st && batchETime < st) ||
+                        (batchSTime > et && batchETime > et)) {
+                        iter = tracking->erase(iter);
+                        continue;
+                    }
+
                     // const auto oldSize = batch.size();
-                    EventTrackingFilter::FilterByTrackingLength(batch, 0.1 /*percent*/);
-                    EventTrackingFilter::FilterByTraceFittingSAC(batch, 5.0 /*pixel*/);
-                    EventTrackingFilter::FilterByTrackingAge(batch, 0.1 /*percent*/);
-                    EventTrackingFilter::FilterByTrackingFreq(batch, 0.1 /*percent*/);
+                    EventTrackingFilter::FilterByTrackingLength(batch, 0.2 /*percent*/);
+                    EventTrackingFilter::FilterByTraceFittingSAC(batch, 3.0 /*pixel*/);
+                    EventTrackingFilter::FilterByTrackingAge(batch, 0.2 /*percent*/);
+                    EventTrackingFilter::FilterByTrackingFreq(batch, 0.2 /*percent*/);
                     // spdlog::info(
                     //     "size before filtering: {}, size after filtering: {}, filtered: {}",
                     //     oldSize, batch.size(), oldSize - batch.size());
 
                     // draw
                     _viewer->ClearViewer(Viewer::VIEW_MAP);
-                    _viewer->AddEventFeatTracking(batch, intri, batchSTime, batchETime,
-                                                  Viewer::VIEW_MAP, 0.01, 20);
+                    _viewer->AddEventFeatTracking(batch, intri, static_cast<float>(batchSTime),
+                                                  static_cast<float>(batchETime), Viewer::VIEW_MAP,
+                                                  0.01, 20);
                     // auto iters = _dataMagr->ExtractEventDataPiece(topic, batchSTime, batchETime);
                     // _viewer->AddEventData(iters.first, iters.second, batchSTime,
                     // Viewer::VIEW_MAP, 0.01, 20);
                 }
+                bar->finish();
                 // save tracking results
                 eventFeatTrackingRes[topic] = *tracking;
                 continue;
@@ -135,6 +148,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         SaveEventDataForFeatureTracking(topic, hasteWorkspace, 0.2, EVENT_FRAME_NUM_THD, 200);
     }
     cv::destroyAllWindows();
+    _viewer->ClearViewer(Viewer::VIEW_MAP);
     if (eventFeatTrackingRes.size() != Configor::DataStream::EventTopics.size()) {
         throw Status(Status::FINE,
                      "files for haste-based feature tracking have been output to '{}', run "
@@ -170,7 +184,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
         // time from {t1} to {t2}, relative rotation from {t2} to {t1}
         std::vector<std::tuple<double, double, Sophus::SO3d>> relRotations;
+        spdlog::info("perform rotation-only relative rotation estimation for '{}'...", topic);
+        auto bar = std::make_shared<tqdm>();
+        const int totalSize = static_cast<int>((et - st) / REL_ROT_TIME_INTERVAL) - 1;
+        int barIndex = 0;
         for (double time = st; time < et;) {
+            bar->progress(barIndex++, totalSize);
             const double t1 = time, t2 = time + REL_ROT_TIME_INTERVAL;
             const auto traceVec1 = FindInRangeTrace(t1), traceVec2 = FindInRangeTrace(t2);
 
@@ -202,13 +221,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 featUndisto2,  // corresponding features at t2
                 intri,         // the camera intrinsics
                 1.0);          // the threshold
-            if (res.second.empty()) {
-                // solving failed
-                spdlog::warn(
-                    "failed to recover rotation recovery from rotation recovery from '{:.3f}' to "
-                    "'{:.3f}'!!!",
-                    t1, t2);
-            } else {
+            if (!res.second.empty()) {
                 // solving successful
                 relRotations.emplace_back(t1, t2,
                                           Sophus::SO3d(Sophus::makeRotationMatrix(res.first)));
@@ -225,8 +238,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                         traceVec.erase(trace);
                     }
                 }
-                spdlog::info("inliers count: {}, outliers count: {}, total: {}", inlierTrace.size(),
-                             outlierTrace.size(), matchedTraceVec.size());
+                // spdlog::info("inliers count: {}, outliers count: {}, total: {}",
+                // inlierTrace.size(), outlierTrace.size(), matchedTraceVec.size());
 
                 // draw match figure
                 // cv::Mat matchImg(static_cast<int>(intri->imgHeight),
@@ -253,8 +266,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
 
             time += REL_ROT_TIME_INTERVAL;
         }
+        bar->finish();
 
-        // todo: using 'relRotations'
         std::vector<std::pair<double, Sophus::SO3d>> rotations;
         auto rotEstimator = RotationEstimator::Create();
         for (const auto &[t1, t2, relRotT2ToT1] : relRotations) {

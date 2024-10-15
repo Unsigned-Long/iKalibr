@@ -58,6 +58,10 @@ void EventTrackingFilter::FilterByTrackingLength(EventFeatTrackingBatch &trackin
 void EventTrackingFilter::FilterByTraceFittingSAC(EventFeatTrackingBatch &tracking, double thd) {
     for (auto it = tracking.begin(); it != tracking.end();) {
         auto &trackingList = it->second;
+        if (trackingList.size() < 3) {
+            it = tracking.erase(it);
+            continue;
+        }
         auto res = EventTrackingTraceSacProblem::EventTrackingTraceSac(trackingList, thd);
         if (res.first != nullptr) {
             trackingList = res.second;
