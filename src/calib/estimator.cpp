@@ -1113,6 +1113,97 @@ void Estimator::AddHandEyeRotationAlignmentForRGBD(const std::string &rgbdTopic,
     }
 }
 
+void Estimator::AddHandEyeRotationAlignmentForEvent(const std::string &eventTopic,
+                                                    double tLastByEs,
+                                                    double tCurByEs,
+                                                    const Sophus::SO3d &so3LastEsToW,
+                                                    const Sophus::SO3d &so3CurEsToW,
+                                                    Estimator::Opt option,
+                                                    double weight) {  // prepare metas for splines
+    SplineMetaType so3Meta;
+
+    // different relative control points finding [single vs. range]
+    if (IsOptionWith(Opt::OPT_TO_EsToBr, option)) {
+        double lastMinTime = tLastByEs - Configor::Prior::TimeOffsetPadding;
+        double lastMaxTime = tLastByEs + Configor::Prior::TimeOffsetPadding;
+        // invalid time stamp
+        if (!splines->TimeInRangeForSo3(lastMinTime, Configor::Preference::SO3_SPLINE) ||
+            !splines->TimeInRangeForSo3(lastMaxTime, Configor::Preference::SO3_SPLINE)) {
+            return;
+        }
+
+        double curMinTime = tCurByEs - Configor::Prior::TimeOffsetPadding;
+        double curMaxTime = tCurByEs + Configor::Prior::TimeOffsetPadding;
+        // invalid time stamp
+        if (!splines->TimeInRangeForSo3(curMinTime, Configor::Preference::SO3_SPLINE) ||
+            !splines->TimeInRangeForSo3(curMaxTime, Configor::Preference::SO3_SPLINE)) {
+            return;
+        }
+
+        splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE,
+                                        {{lastMinTime, lastMaxTime}, {curMinTime, curMaxTime}},
+                                        so3Meta);
+    } else {
+        double lastTime = tLastByEs + parMagr->TEMPORAL.TO_EsToBr.at(eventTopic);
+        double curTime = tCurByEs + parMagr->TEMPORAL.TO_EsToBr.at(eventTopic);
+
+        // check point time stamp
+        if (!splines->TimeInRangeForSo3(lastTime, Configor::Preference::SO3_SPLINE) ||
+            !splines->TimeInRangeForSo3(curTime, Configor::Preference::SO3_SPLINE)) {
+            return;
+        }
+        splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE,
+                                        {{lastTime, lastTime}, {curTime, curTime}}, so3Meta);
+    }
+
+    // create a cost function
+    auto costFunc = HandEyeRotationAlignFactor<Configor::Prior::SplineOrder>::Create(
+        so3Meta, tLastByEs, tCurByEs, so3LastEsToW.inverse() * so3CurEsToW, weight);
+
+    // so3 knots param block [each has four sub params]
+    for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
+        costFunc->AddParameterBlock(4);
+    }
+
+    // SO3_EsToBr
+    costFunc->AddParameterBlock(4);
+    // TO_EsToBr
+    costFunc->AddParameterBlock(1);
+
+    // set Residuals
+    costFunc->SetNumResiduals(3);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // so3 knots param block
+    AddSo3KnotsData(paramBlockVec, splines->GetSo3Spline(Configor::Preference::SO3_SPLINE), so3Meta,
+                    !IsOptionWith(Opt::OPT_SO3_SPLINE, option));
+
+    auto SO3_EsToBr = parMagr->EXTRI.SO3_EsToBr.at(eventTopic).data();
+    paramBlockVec.push_back(SO3_EsToBr);
+
+    auto TO_EsToBr = &parMagr->TEMPORAL.TO_EsToBr.at(eventTopic);
+    paramBlockVec.push_back(TO_EsToBr);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+
+    this->SetManifold(SO3_EsToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_SO3_EsToBr, option)) {
+        this->SetParameterBlockConstant(SO3_EsToBr);
+    }
+
+    if (!IsOptionWith(Opt::OPT_TO_EsToBr, option)) {
+        this->SetParameterBlockConstant(TO_EsToBr);
+    } else {
+        // set bound
+        this->SetParameterLowerBound(TO_EsToBr, 0, -Configor::Prior::TimeOffsetPadding);
+        this->SetParameterUpperBound(TO_EsToBr, 0, Configor::Prior::TimeOffsetPadding);
+    }
+}
+
 /**
  * param blocks:
  * [ SO3 | ... | SO3 ]

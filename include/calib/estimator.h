@@ -62,61 +62,65 @@ using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
 // OPT_TO_DnToBr OPT_GYRO_BIAS OPT_GYRO_MAP_COEFF OPT_ACCE_BIAS OPT_ACCE_MAP_COEFF OPT_SO3_AtoG
 // OPT_GRAVITY OPT_VISUAL_GLOBAL_SCALE OPT_VISUAL_DEPTH OPT_RGBD_ALPHA
 // OPT_RGBD_BETA OPT_CAM_FOCAL_LEN OPT_CAM_PRINCIPAL_POINT OPT_RS_CAM_READOUT_TIME
-enum class OptOption : std::uint32_t {
+enum class OptOption : std::uint64_t {
     /**
      * @brief options
      */
-    NONE = std::uint32_t(1) << 0,
-    OPT_SO3_SPLINE = std::uint32_t(1) << 1,
-    OPT_SCALE_SPLINE = std::uint32_t(1) << 2,
+    NONE = std::uint64_t(1) << 0,
+    OPT_SO3_SPLINE = std::uint64_t(1) << 1,
+    OPT_SCALE_SPLINE = std::uint64_t(1) << 2,
 
-    OPT_SO3_BiToBr = std::uint32_t(1) << 3,
-    OPT_POS_BiInBr = std::uint32_t(1) << 4,
+    OPT_SO3_BiToBr = std::uint64_t(1) << 3,
+    OPT_POS_BiInBr = std::uint64_t(1) << 4,
 
-    OPT_SO3_RjToBr = std::uint32_t(1) << 5,
-    OPT_POS_RjInBr = std::uint32_t(1) << 6,
+    OPT_SO3_RjToBr = std::uint64_t(1) << 5,
+    OPT_POS_RjInBr = std::uint64_t(1) << 6,
 
-    OPT_SO3_LkToBr = std::uint32_t(1) << 7,
-    OPT_POS_LkInBr = std::uint32_t(1) << 8,
+    OPT_SO3_LkToBr = std::uint64_t(1) << 7,
+    OPT_POS_LkInBr = std::uint64_t(1) << 8,
 
-    OPT_SO3_CmToBr = std::uint32_t(1) << 9,
-    OPT_POS_CmInBr = std::uint32_t(1) << 10,
+    OPT_SO3_CmToBr = std::uint64_t(1) << 9,
+    OPT_POS_CmInBr = std::uint64_t(1) << 10,
 
-    OPT_SO3_DnToBr = std::uint32_t(1) << 11,
-    OPT_POS_DnInBr = std::uint32_t(1) << 12,
+    OPT_SO3_DnToBr = std::uint64_t(1) << 11,
+    OPT_POS_DnInBr = std::uint64_t(1) << 12,
 
-    OPT_TO_BiToBr = std::uint32_t(1) << 13,
-    OPT_TO_RjToBr = std::uint32_t(1) << 14,
-    OPT_TO_LkToBr = std::uint32_t(1) << 15,
-    OPT_TO_CmToBr = std::uint32_t(1) << 16,
-    OPT_TO_DnToBr = std::uint32_t(1) << 17,
+    OPT_SO3_EsToBr = std::uint64_t(1) << 13,
+    OPT_POS_EsInBr = std::uint64_t(1) << 14,
 
-    OPT_GYRO_BIAS = std::uint32_t(1) << 18,
-    OPT_GYRO_MAP_COEFF = std::uint32_t(1) << 19,
-    OPT_ACCE_BIAS = std::uint32_t(1) << 20,
-    OPT_ACCE_MAP_COEFF = std::uint32_t(1) << 21,
-    OPT_SO3_AtoG = std::uint32_t(1) << 22,
+    OPT_TO_BiToBr = std::uint64_t(1) << 15,
+    OPT_TO_RjToBr = std::uint64_t(1) << 16,
+    OPT_TO_LkToBr = std::uint64_t(1) << 17,
+    OPT_TO_CmToBr = std::uint64_t(1) << 18,
+    OPT_TO_DnToBr = std::uint64_t(1) << 19,
+    OPT_TO_EsToBr = std::uint64_t(1) << 20,
 
-    OPT_GRAVITY = std::uint32_t(1) << 23,
+    OPT_GYRO_BIAS = std::uint64_t(1) << 21,
+    OPT_GYRO_MAP_COEFF = std::uint64_t(1) << 22,
+    OPT_ACCE_BIAS = std::uint64_t(1) << 23,
+    OPT_ACCE_MAP_COEFF = std::uint64_t(1) << 24,
+    OPT_SO3_AtoG = std::uint64_t(1) << 25,
 
-    OPT_VISUAL_GLOBAL_SCALE = std::uint32_t(1) << 24,
-    OPT_VISUAL_DEPTH = std::uint32_t(1) << 25,
+    OPT_GRAVITY = std::uint64_t(1) << 26,
 
-    OPT_RGBD_ALPHA = std::uint32_t(1) << 26,
-    OPT_RGBD_BETA = std::uint32_t(1) << 27,
+    OPT_VISUAL_GLOBAL_SCALE = std::uint64_t(1) << 27,
+    OPT_VISUAL_DEPTH = std::uint64_t(1) << 28,
 
-    OPT_CAM_FOCAL_LEN = std::uint32_t(1) << 28,
-    OPT_CAM_PRINCIPAL_POINT = std::uint32_t(1) << 29,
+    OPT_RGBD_ALPHA = std::uint64_t(1) << 29,
+    OPT_RGBD_BETA = std::uint64_t(1) << 30,
 
-    OPT_RS_CAM_READOUT_TIME = std::uint32_t(1) << 30,
+    OPT_CAM_FOCAL_LEN = std::uint64_t(1) << 31,
+    OPT_CAM_PRINCIPAL_POINT = std::uint64_t(1) << 32,
+
+    OPT_RS_CAM_READOUT_TIME = std::uint64_t(1) << 33,
 
     ALL = OPT_SO3_SPLINE | OPT_SCALE_SPLINE | OPT_SO3_BiToBr | OPT_POS_BiInBr | OPT_SO3_RjToBr |
           OPT_POS_RjInBr | OPT_SO3_LkToBr | OPT_POS_LkInBr | OPT_SO3_CmToBr | OPT_POS_CmInBr |
-          OPT_SO3_DnToBr | OPT_POS_DnInBr | OPT_TO_BiToBr | OPT_TO_RjToBr | OPT_TO_LkToBr |
-          OPT_TO_CmToBr | OPT_TO_DnToBr | OPT_GYRO_BIAS | OPT_GYRO_MAP_COEFF | OPT_ACCE_BIAS |
-          OPT_ACCE_MAP_COEFF | OPT_SO3_AtoG | OPT_GRAVITY | OPT_VISUAL_GLOBAL_SCALE |
-          OPT_VISUAL_DEPTH | OPT_RGBD_ALPHA | OPT_RGBD_BETA | OPT_CAM_FOCAL_LEN |
-          OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME
+          OPT_SO3_DnToBr | OPT_POS_DnInBr | OPT_SO3_EsToBr | OPT_POS_EsInBr | OPT_TO_BiToBr |
+          OPT_TO_RjToBr | OPT_TO_LkToBr | OPT_TO_CmToBr | OPT_TO_DnToBr | OPT_GYRO_BIAS |
+          OPT_GYRO_MAP_COEFF | OPT_ACCE_BIAS | OPT_ACCE_MAP_COEFF | OPT_SO3_AtoG | OPT_GRAVITY |
+          OPT_VISUAL_GLOBAL_SCALE | OPT_VISUAL_DEPTH | OPT_RGBD_ALPHA | OPT_RGBD_BETA |
+          OPT_CAM_FOCAL_LEN | OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME
 };
 
 struct SpatialTemporalPriori;
@@ -262,6 +266,14 @@ public:
                                             const Sophus::SO3d &so3CurDnToW,
                                             Estimator::Opt option,
                                             double weight);
+
+    void AddHandEyeRotationAlignmentForEvent(const std::string &eventTopic,
+                                             double tLastByEs,
+                                             double tCurByEs,
+                                             const Sophus::SO3d &so3LastEsToW,
+                                             const Sophus::SO3d &so3CurEsToW,
+                                             Estimator::Opt option,
+                                             double weight);
 
     /**
      * param blocks:
@@ -484,7 +496,8 @@ protected:
                                                                        bool optTimeOffset);
 
     /**
-     * check whether time range (mainly from 'ConsideredTimeRangeForCameraStamp') is valid foe splines
+     * check whether time range (mainly from 'ConsideredTimeRangeForCameraStamp') is valid foe
+     * splines
      * @param timePair the time stamp pair
      * @return true: valid, false invalid
      */

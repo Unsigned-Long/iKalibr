@@ -41,6 +41,7 @@
 #include "util/status.hpp"
 #include "core/tracked_event_feature.h"
 #include "core/event_trace_sac.h"
+#include "calib/estimator.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -110,10 +111,10 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                     }
 
                     // const auto oldSize = batch.size();
-                    EventTrackingFilter::FilterByTrackingLength(batch, 0.2 /*percent*/);
+                    EventTrackingFilter::FilterByTrackingLength(batch, 0.3 /*percent*/);
                     EventTrackingFilter::FilterByTraceFittingSAC(batch, 3.0 /*pixel*/);
-                    EventTrackingFilter::FilterByTrackingAge(batch, 0.2 /*percent*/);
-                    EventTrackingFilter::FilterByTrackingFreq(batch, 0.2 /*percent*/);
+                    EventTrackingFilter::FilterByTrackingAge(batch, 0.3 /*percent*/);
+                    EventTrackingFilter::FilterByTrackingFreq(batch, 0.3 /*percent*/);
                     // spdlog::info(
                     //     "size before filtering: {}, size after filtering: {}, filtered: {}",
                     //     oldSize, batch.size(), oldSize - batch.size());
@@ -283,7 +284,6 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             if (rotEstimator->SolveStatus()) {
                 // assign the estimated extrinsic rotation
                 _parMagr->EXTRI.SO3_EsToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
-                _viewer->UpdateSensorViewer();
                 break;
             }
 
@@ -305,8 +305,49 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                          "initialize rotation 'SO3_EsToBr' failed, this may be related to "
                          "insufficiently excited motion or bad event data streams.");
         }
-    }
+        /**
+         * once the extrinsic rotation is recovered, if time offset is also required, we
+         * continue to recover it and refine extrineic rotation using
+         * continuous-time-based alignment
+         */
+        if (Configor::Prior::OptTemporalParams) {
+            auto estimator = Estimator::Create(_splines, _parMagr);
 
+            auto optOption = OptOption::OPT_SO3_EsToBr | OptOption::OPT_TO_EsToBr;
+            double TO_EsToBr = _parMagr->TEMPORAL.TO_EsToBr.at(topic);
+            double weight = Configor::DataStream::EventTopics.at(topic).Weight;
+
+            for (int j = 0; j < static_cast<int>(rotations.size()) - 1; ++j) {
+                const auto &sRot = rotations.at(j);
+                const auto &eRot = rotations.at(j + 1);
+                // we throw the head and tail data as the rotations from the fitted SO3
+                // Spline in that range are poor
+                if (sRot.first + TO_EsToBr < st || eRot.first + TO_EsToBr > et) {
+                    continue;
+                }
+
+                estimator->AddHandEyeRotationAlignmentForEvent(
+                    topic,        // the ros topic
+                    sRot.first,   // the time of start rotation stamped by the camera
+                    eRot.first,   // the time of end rotation stamped by the camera
+                    sRot.second,  // the start rotation
+                    eRot.second,  // the end rotation
+                    optOption,    // the optimization option
+                    weight        // the weight
+                );
+            }
+
+            // we don't want to output the solving information
+            auto optWithoutOutput =
+                Estimator::DefaultSolverOptions(Configor::Preference::AvailableThreads(),
+                                                false,  // do not output the solving information
+                                                Configor::Preference::UseCudaInSolving);
+
+            estimator->Solve(optWithoutOutput, _priori);
+        }
+        _viewer->UpdateSensorViewer();
+    }
+    _parMagr->ShowParamStatus();
     spdlog::warn("developing!!!");
     std::cin.get();
 }

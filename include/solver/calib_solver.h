@@ -90,7 +90,7 @@ class Viewer;
 using ViewerPtr = std::shared_ptr<Viewer>;
 class Estimator;
 using EstimatorPtr = std::shared_ptr<Estimator>;
-enum class OptOption : std::uint32_t;
+enum class OptOption : std::uint64_t;
 struct EventArray;
 using EventArrayPtr = std::shared_ptr<EventArray>;
 
