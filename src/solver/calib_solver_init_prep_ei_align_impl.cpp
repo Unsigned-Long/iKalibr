@@ -173,6 +173,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 }
             }
         }
+        auto traceVecOldSize = traceVec.size();
         auto FindInRangeTrace = [&traceVec](double time) {
             std::map<FeatureTrackingTrace::Ptr, Eigen::Vector2d> inRangeTraceVec;
             for (const auto &[trace, featVec] : traceVec) {
@@ -192,6 +193,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         for (double time = st; time < et;) {
             bar->progress(barIndex++, totalSize);
             const double t1 = time, t2 = time + REL_ROT_TIME_INTERVAL;
+            time += REL_ROT_TIME_INTERVAL;
+
             const auto traceVec1 = FindInRangeTrace(t1), traceVec2 = FindInRangeTrace(t2);
 
             // trace, pos at t1, pos at t2
@@ -217,30 +220,27 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 featUndisto2.push_back(posPair.second);
                 featIdxMap[index++] = trace;
             }
-            auto res = RotOnlyVisualOdometer::RelRotationRecovery(
-                featUndisto1,  // features at t1
-                featUndisto2,  // corresponding features at t2
-                intri,         // the camera intrinsics
-                1.0);          // the threshold
-            if (!res.second.empty()) {
+            auto resFMat = RotOnlyVisualOdometer::RejectUsingFMat(featUndisto1, featUndisto2, 2.0);
+            if (resFMat.first) {
                 // solving successful
-                relRotations.emplace_back(t1, t2,
-                                          Sophus::SO3d(Sophus::makeRotationMatrix(res.first)));
-                // find outliers
-                std::set<FeatureTrackingTrace::Ptr> inlierTrace, outlierTrace;
-                for (int idx : res.second) {
-                    inlierTrace.insert(featIdxMap.at(idx));
-                }
-                for (const auto &[trace, posPair] : matchedTraceVec) {
-                    if (inlierTrace.find(trace) == inlierTrace.end()) {
-                        // bad one
-                        outlierTrace.insert(trace);
-                        // we remove this trace as it's poor
-                        traceVec.erase(trace);
+                const auto &status = resFMat.second;
+                std::vector<Eigen::Vector2d> featUndisto1Temp, featUndisto2Temp;
+                std::map<int, FeatureTrackingTrace::Ptr> featIdxMapTemp;
+                int inlierIdx = 0;
+                for (int i = 0; i < static_cast<int>(status.size()); ++i) {
+                    if (status.at(i)) {
+                        // is an inlier
+                        featUndisto1Temp.push_back(featUndisto1.at(i));
+                        featUndisto2Temp.push_back(featUndisto2.at(i));
+                        featIdxMapTemp[inlierIdx++] = featIdxMap.at(i);
+                    } else {
+                        // is an outlier
+                        traceVec.erase(featIdxMap.at(i));
                     }
                 }
-                // spdlog::info("inliers count: {}, outliers count: {}, total: {}",
-                // inlierTrace.size(), outlierTrace.size(), matchedTraceVec.size());
+                // spdlog::info("'FMat Rejection': inliers count: {}, outliers count: {}, total:
+                // {}", featIdxMapTemp.size(), featIdxMap.size() - featIdxMapTemp.size(),
+                //              featIdxMap.size());
 
                 // draw match figure
                 // cv::Mat matchImg(static_cast<int>(intri->imgHeight),
@@ -248,26 +248,95 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 //                  cv::Scalar(255, 255, 255));
                 // matchImg.colRange(0.0, static_cast<int>(intri->imgWidth))
                 //     .setTo(cv::Scalar(200, 200, 200));
-                // for (const auto &[trace, posPair] : matchedTraceVec) {
-                //     Eigen::Vector2d p2 = posPair.second + Eigen::Vector2d(intri->imgWidth, 0.0);
+                // for (int i = 0; i < static_cast<int>(featUndisto1.size()); ++i) {
+                //     const Eigen::Vector2d &p1 = featUndisto1.at(i);
+                //     Eigen::Vector2d p2 = featUndisto2.at(i) + Eigen::Vector2d(intri->imgWidth,
+                //     0.0);
                 //     // feature pair
-                //     DrawKeypointOnCVMat(matchImg, posPair.first, true, cv::Scalar(0, 0, 255));
+                //     DrawKeypointOnCVMat(matchImg, p1, true, cv::Scalar(0, 0, 255));
                 //     DrawKeypointOnCVMat(matchImg, p2, true, cv::Scalar(0, 0, 255));
                 //     // line
-                //     DrawLineOnCVMat(matchImg, posPair.first, p2, cv::Scalar(0, 0, 255));
-                //     if (inlierTrace.find(trace) != inlierTrace.end()) {
-                //         DrawKeypointOnCVMat(matchImg, posPair.first, true, cv::Scalar(0, 255,
-                //         0)); DrawKeypointOnCVMat(matchImg, p2, true, cv::Scalar(0, 255, 0));
-                //         DrawLineOnCVMat(matchImg, posPair.first, p2, cv::Scalar(0, 255, 0));
-                //     }
+                //     DrawLineOnCVMat(matchImg, p1, p2, cv::Scalar(0, 0, 255));
                 // }
-                // cv::imshow("match", matchImg);
+                // for (int i = 0; i < static_cast<int>(featUndisto1Temp.size()); ++i) {
+                //     const Eigen::Vector2d &p1 = featUndisto1Temp.at(i);
+                //     Eigen::Vector2d p2 =
+                //         featUndisto2Temp.at(i) + Eigen::Vector2d(intri->imgWidth, 0.0);
+                //     // feature pair
+                //     DrawKeypointOnCVMat(matchImg, p1, true, cv::Scalar(0, 255, 0));
+                //     DrawKeypointOnCVMat(matchImg, p2, true, cv::Scalar(0, 255, 0));
+                //     // line
+                //     DrawLineOnCVMat(matchImg, p1, p2, cv::Scalar(0, 255, 0));
+                // }
+                // cv::imshow("FMat Rejection", matchImg);
+                // cv::waitKey(0);
+
+                // assign
+                featIdxMap = featIdxMapTemp;
+                featUndisto1 = featUndisto1Temp;
+                featUndisto2 = featUndisto2Temp;
+            } else {
+                continue;
+            }
+            auto resRotOnly = RotOnlyVisualOdometer::RelRotationRecovery(
+                featUndisto1,  // features at t1
+                featUndisto2,  // corresponding features at t2
+                intri,         // the camera intrinsics
+                1.0);          // the threshold
+            if (!resRotOnly.second.empty()) {
+                // solving successful
+                relRotations.emplace_back(
+                    t1, t2, Sophus::SO3d(Sophus::makeRotationMatrix(resRotOnly.first)));
+                // find outliers
+                std::set<int> inlierIdxSet;
+                for (int idx : resRotOnly.second) {
+                    inlierIdxSet.insert(idx);
+                }
+                for (const auto &[idx, trace] : featIdxMap) {
+                    if (inlierIdxSet.find(idx) == inlierIdxSet.cend()) {
+                        // is an outlier, we remove this trace as it's poor
+                        traceVec.erase(trace);
+                    }
+                }
+                // spdlog::info(
+                //     "'Rotation-Only RANSAC': inliers count: {}, outliers count: {}, total: {}",
+                //     inlierIdxSet.size(), featIdxMap.size() - inlierIdxSet.size(),
+                //     featIdxMap.size());
+
+                // draw match figure
+                // cv::Mat matchImg(static_cast<int>(intri->imgHeight),
+                //                  static_cast<int>(intri->imgWidth) * 2, CV_8UC3,
+                //                  cv::Scalar(255, 255, 255));
+                // matchImg.colRange(0.0, static_cast<int>(intri->imgWidth))
+                //     .setTo(cv::Scalar(200, 200, 200));
+                // for (int i = 0; i < static_cast<int>(featUndisto1.size()); ++i) {
+                //     const Eigen::Vector2d &p1 = featUndisto1.at(i);
+                //     Eigen::Vector2d p2 = featUndisto2.at(i) + Eigen::Vector2d(intri->imgWidth,
+                //     0.0);
+                //     // feature pair
+                //     DrawKeypointOnCVMat(matchImg, p1, true, cv::Scalar(0, 0, 255));
+                //     DrawKeypointOnCVMat(matchImg, p2, true, cv::Scalar(0, 0, 255));
+                //     // line
+                //     DrawLineOnCVMat(matchImg, p1, p2, cv::Scalar(0, 0, 255));
+                // }
+                // for (int idx : inlierIdxSet) {
+                //     const Eigen::Vector2d &p1 = featUndisto1.at(idx);
+                //     Eigen::Vector2d p2 =
+                //         featUndisto2.at(idx) + Eigen::Vector2d(intri->imgWidth, 0.0);
+                //     // feature pair
+                //     DrawKeypointOnCVMat(matchImg, p1, true, cv::Scalar(0, 255, 0));
+                //     DrawKeypointOnCVMat(matchImg, p2, true, cv::Scalar(0, 255, 0));
+                //     // line
+                //     DrawLineOnCVMat(matchImg, p1, p2, cv::Scalar(0, 255, 0));
+                // }
+                // cv::imshow("Rotation-Only RANSAC", matchImg);
                 // cv::waitKey(0);
             }
-
-            time += REL_ROT_TIME_INTERVAL;
         }
         bar->finish();
+        auto traceVecNewSize = traceVec.size();
+        spdlog::info("event trace count before rejection: {}, count after rejection: {}",
+                     traceVecOldSize, traceVecNewSize);
 
         std::vector<std::pair<double, Sophus::SO3d>> rotations;
         auto rotEstimator = RotationEstimator::Create();
@@ -280,6 +349,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             }
             if (rotations.size() > 50) {
                 rotEstimator->Estimate(so3Spline, rotations);
+                spdlog::info("try estimate extrinsic rotations: {}", rotations.size());
             }
             if (rotEstimator->SolveStatus()) {
                 // assign the estimated extrinsic rotation

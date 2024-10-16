@@ -101,7 +101,7 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
     auto undistFeatCur = ExtractFeatMapAsUndistoFeatVec(
         trackedFeats->featCur, ExtractValsAsVec(trackedFeats->featMatchLast2Cur));
 
-    auto status = RejectUsingFMat(undistFeatLast.second, undistFeatCur.second);
+    auto status = RejectUsingFMat(undistFeatLast.second, undistFeatCur.second, 1.0);
 
     for (int i = 0; i < static_cast<int>(status.size()); ++i) {
         // is an outlier, erase this match
@@ -211,7 +211,7 @@ std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotati
     if (featUndisto1.size() != featUndisto2.size()) {
         spdlog::warn(
             "the size of 'featUndisto1' (count: {}) and 'featUndisto2' (count: {}) is "
-            "different!!!",
+            "different in 'RotOnlyVisualOdometer::RelRotationRecovery'!!!",
             featUndisto1.size(), featUndisto2.size());
         return {};
     }
@@ -266,10 +266,37 @@ void RotOnlyVisualOdometer::ShowCurrentFrame() const {
 
 std::vector<uchar> RotOnlyVisualOdometer::RejectUsingFMat(
     const std::vector<cv::Point2f> &undistPtsInLast,
-    const std::vector<cv::Point2f> &undistPtsInCur) {
+    const std::vector<cv::Point2f> &undistPtsInCur,
+    double thd) {
     std::vector<uchar> status;
-    cv::findFundamentalMat(undistPtsInLast, undistPtsInCur, cv::FM_RANSAC, 1.0, 0.99, status);
+    cv::findFundamentalMat(undistPtsInLast, undistPtsInCur, cv::FM_RANSAC, thd, 0.99, status);
     return status;
+}
+
+std::pair<bool, std::vector<uchar>> RotOnlyVisualOdometer::RejectUsingFMat(
+    const std::vector<Eigen::Vector2d> &undistPtsInLast,
+    const std::vector<Eigen::Vector2d> &undistPtsInCur,
+    double thd) {
+    if (undistPtsInLast.size() != undistPtsInCur.size()) {
+        spdlog::warn(
+            "the size of 'undistPtsInLast' (count: {}) and 'undistPtsInCur' (count: {}) is "
+            "different in 'RotOnlyVisualOdometer::RejectUsingFMat'!!!",
+            undistPtsInLast.size(), undistPtsInCur.size());
+        return {false, {}};
+    }
+    const auto size = undistPtsInLast.size();
+    if (size < 8) {
+        // warning
+        // spdlog::warn("at least eight features are required while current input has {}
+        // element(s)!!!", size);
+        return {false, {}};
+    }
+    std::vector<cv::Point2f> cvUndistPtsInLast(size), cvUndistPtsInCur(size);
+    for (int i = 0; i < static_cast<int>(size); ++i) {
+        cvUndistPtsInLast.at(i) = cv::Point2d(undistPtsInLast.at(i)(0), undistPtsInLast.at(i)(1));
+        cvUndistPtsInCur.at(i) = cv::Point2d(undistPtsInCur.at(i)(0), undistPtsInCur.at(i)(1));
+    }
+    return {true, RejectUsingFMat(cvUndistPtsInLast, cvUndistPtsInCur, thd)};
 }
 
 std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotationRecovery(

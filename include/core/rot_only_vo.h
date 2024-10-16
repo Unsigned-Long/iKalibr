@@ -97,6 +97,11 @@ public:
         const ns_veta::PinholeIntrinsic::Ptr &intri,
         double thd);
 
+    static std::pair<bool, std::vector<uchar>> RejectUsingFMat(
+        const std::vector<Eigen::Vector2d> &undistPtsInLast,
+        const std::vector<Eigen::Vector2d> &undistPtsInCur,
+        double thd);
+
 protected:
     static std::pair<std::vector<int>, std::vector<cv::Point2f>> ExtractFeatMapAsRawFeatVec(
         const FeatureMap &featMap, const std::vector<int> &desiredIds = {});
@@ -134,7 +139,8 @@ protected:
     void ShowCurrentFrame() const;
 
     static std::vector<uchar> RejectUsingFMat(const std::vector<cv::Point2f> &undistPtsInLast,
-                                              const std::vector<cv::Point2f> &undistPtsInCur);
+                                              const std::vector<cv::Point2f> &undistPtsInCur,
+                                              double thd);
 
     [[nodiscard]] static std::pair<opengv::rotation_t, std::vector<int>> RelRotationRecovery(
         const std::vector<cv::Point2f> &ptsUndisto1,
