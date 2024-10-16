@@ -48,9 +48,24 @@ RotationEstimator::RotationEstimator()
 RotationEstimator::Ptr RotationEstimator::Create() { return std::make_shared<RotationEstimator>(); }
 
 void RotationEstimator::Estimate(const So3SplineType &spline, const RotationSequence &rotSeq) {
+    RelRotationSequence relRotSeq(rotSeq.size() - 1);
+    for (int i = 1; i < static_cast<int>(rotSeq.size()); ++i) {
+        int curIdx = i, lastIdx = i - 1;
+        auto curTime = rotSeq[curIdx].first, lastTime = rotSeq[lastIdx].first;
+
+        const auto &curRot = rotSeq[curIdx].second, lastRot = rotSeq[lastIdx].second;
+        Sophus::SO3d curToLast = lastRot.inverse() * curRot;
+
+        relRotSeq.at(i - 1) = {lastTime, curTime, curToLast};
+    }
+    Estimate(spline, relRotSeq);
+}
+
+void RotationEstimator::Estimate(const So3SplineType &spline,
+                                 const RelRotationSequence &relRotSeq) {
     _solveFlag = false;
 
-    std::vector<Eigen::Matrix4d> AMatSeq = OrganizeCoeffMatSeq(spline, rotSeq);
+    std::vector<Eigen::Matrix4d> AMatSeq = OrganizeCoeffMatSeq(spline, relRotSeq);
 
     if (AMatSeq.size() < 15) {
         return;
@@ -61,7 +76,7 @@ void RotationEstimator::Estimate(const So3SplineType &spline, const RotationSequ
         AMat.block<4, 4>(i * 4, 0) = AMatSeq.at(i);
     }
 
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(AMat, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::JacobiSVD svd(AMat, Eigen::ComputeFullU | Eigen::ComputeFullV);
     Eigen::Vector4d cov = svd.singularValues();
 
     if (cov(2) > 0.25) {
@@ -90,28 +105,20 @@ bool RotationEstimator::SolveStatus() const { return _solveFlag; }
 const Sophus::SO3d &RotationEstimator::GetSO3SensorToSpline() const { return _sensorToSpline; }
 
 std::vector<Eigen::Matrix4d> RotationEstimator::OrganizeCoeffMatSeq(
-    const So3SplineType &spline, const RotationSequence &rotSeq) {
+    const So3SplineType &spline, const RelRotationSequence &relRotSeq) {
     std::vector<Eigen::Matrix4d> AMatSeq;
-
-    for (int i = 1; i < static_cast<int>(rotSeq.size()); ++i) {
-        int curIdx = i, lastIdx = i - 1;
-        auto curTime = rotSeq[curIdx].first, lastTime = rotSeq[lastIdx].first;
-
+    for (const auto &[lastTime, curTime, SO3_CurToLast] : relRotSeq) {
         // check time stamp
         if (!spline.TimeStampInRange(curTime) || !spline.TimeStampInRange(lastTime)) {
             continue;
         }
-
-        Eigen::Quaterniond curToLast, trajCurToLast;
-        double factor;
-
         // sensor
-        const auto &curRot = rotSeq[curIdx].second, lastRot = rotSeq[lastIdx].second;
-        curToLast = (lastRot.inverse() * curRot).unit_quaternion();
+        Eigen::Quaterniond curToLast = SO3_CurToLast.unit_quaternion();
+        double factor;
 
         // spline
         auto curToRef = spline.Evaluate(curTime), lastToRef = spline.Evaluate(lastTime);
-        trajCurToLast = (lastToRef.inverse() * curToRef).unit_quaternion();
+        Eigen::Quaterniond trajCurToLast = (lastToRef.inverse() * curToRef).unit_quaternion();
 
         {
             Eigen::AngleAxisd sensorAngleAxis(curToLast.toRotationMatrix());

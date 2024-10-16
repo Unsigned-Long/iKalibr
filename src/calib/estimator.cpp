@@ -1116,8 +1116,7 @@ void Estimator::AddHandEyeRotationAlignmentForRGBD(const std::string &rgbdTopic,
 void Estimator::AddHandEyeRotationAlignmentForEvent(const std::string &eventTopic,
                                                     double tLastByEs,
                                                     double tCurByEs,
-                                                    const Sophus::SO3d &so3LastEsToW,
-                                                    const Sophus::SO3d &so3CurEsToW,
+                                                    const Sophus::SO3d &so3CurToLast,
                                                     Estimator::Opt option,
                                                     double weight) {  // prepare metas for splines
     SplineMetaType so3Meta;
@@ -1158,7 +1157,7 @@ void Estimator::AddHandEyeRotationAlignmentForEvent(const std::string &eventTopi
 
     // create a cost function
     auto costFunc = HandEyeRotationAlignFactor<Configor::Prior::SplineOrder>::Create(
-        so3Meta, tLastByEs, tCurByEs, so3LastEsToW.inverse() * so3CurEsToW, weight);
+        so3Meta, tLastByEs, tCurByEs, so3CurToLast, weight);
 
     // so3 knots param block [each has four sub params]
     for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {

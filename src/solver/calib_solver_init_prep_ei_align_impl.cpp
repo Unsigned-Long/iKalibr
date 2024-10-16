@@ -68,6 +68,10 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * We first dedistort the events, then export them to files and use third-party software for
      * feature tracking.
      */
+    constexpr double TRACKING_LEN_PERCENT_THD = 0.3;
+    constexpr double TRACKING_FIT_SAC_THD = 5.0;
+    constexpr double TRACKING_AGE_PERCENT_THD = 0.3;
+    constexpr double TRACKING_FREQ_PERCENT_THD = 0.3;
     // topic, batch index, tracked features
     std::map<std::string, std::map<int, EventFeatTrackingBatch>> eventFeatTrackingRes;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
@@ -111,10 +115,10 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                     }
 
                     // const auto oldSize = batch.size();
-                    EventTrackingFilter::FilterByTrackingLength(batch, 0.3 /*percent*/);
-                    EventTrackingFilter::FilterByTraceFittingSAC(batch, 3.0 /*pixel*/);
-                    EventTrackingFilter::FilterByTrackingAge(batch, 0.3 /*percent*/);
-                    EventTrackingFilter::FilterByTrackingFreq(batch, 0.3 /*percent*/);
+                    EventTrackingFilter::FilterByTrackingLength(batch, TRACKING_LEN_PERCENT_THD);
+                    EventTrackingFilter::FilterByTraceFittingSAC(batch, TRACKING_FIT_SAC_THD);
+                    EventTrackingFilter::FilterByTrackingAge(batch, TRACKING_AGE_PERCENT_THD);
+                    EventTrackingFilter::FilterByTrackingFreq(batch, TRACKING_FREQ_PERCENT_THD);
                     // spdlog::info(
                     //     "size before filtering: {}, size after filtering: {}, filtered: {}",
                     //     oldSize, batch.size(), oldSize - batch.size());
@@ -162,6 +166,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * model to estimate the camera rotation and remove bad tracking.
      */
     constexpr double REL_ROT_TIME_INTERVAL = 0.03 /* about 30 Hz */;
+    constexpr double FMAT_THRESHOLD = 1.0;
+    constexpr double ROT_ONLY_RANSAC_THRESHOLD = 1.0;
     for (const auto &[topic, tracking] : eventFeatTrackingRes) {
         // traces of all features
         std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec> traceVec;
@@ -185,7 +191,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         };
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
         // time from {t1} to {t2}, relative rotation from {t2} to {t1}
-        std::vector<std::tuple<double, double, Sophus::SO3d>> relRotations;
+        RotationEstimator::RelRotationSequence relRotations;
         spdlog::info("perform rotation-only relative rotation estimation for '{}'...", topic);
         auto bar = std::make_shared<tqdm>();
         const int totalSize = static_cast<int>((et - st) / REL_ROT_TIME_INTERVAL) - 1;
@@ -220,7 +226,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 featUndisto2.push_back(posPair.second);
                 featIdxMap[index++] = trace;
             }
-            auto resFMat = RotOnlyVisualOdometer::RejectUsingFMat(featUndisto1, featUndisto2, 2.0);
+            auto resFMat =
+                RotOnlyVisualOdometer::RejectUsingFMat(featUndisto1, featUndisto2, FMAT_THRESHOLD);
             if (resFMat.first) {
                 // solving successful
                 const auto &status = resFMat.second;
@@ -279,10 +286,10 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 continue;
             }
             auto resRotOnly = RotOnlyVisualOdometer::RelRotationRecovery(
-                featUndisto1,  // features at t1
-                featUndisto2,  // corresponding features at t2
-                intri,         // the camera intrinsics
-                1.0);          // the threshold
+                featUndisto1,                // features at t1
+                featUndisto2,                // corresponding features at t2
+                intri,                       // the camera intrinsics
+                ROT_ONLY_RANSAC_THRESHOLD);  // the threshold
             if (!resRotOnly.second.empty()) {
                 // solving successful
                 relRotations.emplace_back(
@@ -338,39 +345,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         spdlog::info("event trace count before rejection: {}, count after rejection: {}",
                      traceVecOldSize, traceVecNewSize);
 
-        std::vector<std::pair<double, Sophus::SO3d>> rotations;
         auto rotEstimator = RotationEstimator::Create();
-        for (const auto &[t1, t2, relRotT2ToT1] : relRotations) {
-            if (rotations.empty()) {
-                // the first time
-                rotations.emplace_back(t1, Sophus::SO3d());
-                rotations.emplace_back(t2, relRotT2ToT1);
-                continue;
-            }
-            if (rotations.size() > 50) {
-                rotEstimator->Estimate(so3Spline, rotations);
-                spdlog::info("try estimate extrinsic rotations: {}", rotations.size());
-            }
-            if (rotEstimator->SolveStatus()) {
-                // assign the estimated extrinsic rotation
-                _parMagr->EXTRI.SO3_EsToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
-                break;
-            }
-
-            if (std::abs(rotations.back().first - t1) < 1E-5) {
-                // continuous
-                rotations.emplace_back(t2, rotations.back().second * relRotT2ToT1);
-            } else {
-                rotations.clear();
-                rotations.emplace_back(t1, Sophus::SO3d());
-                rotations.emplace_back(t2, relRotT2ToT1);
-            }
-        }
-        /**
-         * after all tracked are grabbed, if the extrinsic rotation is not recovered (use min
-         * eigen value to check solve results), stop this program
-         */
-        if (!rotEstimator->SolveStatus()) {
+        rotEstimator->Estimate(so3Spline, relRotations);
+        if (rotEstimator->SolveStatus()) {
+            // assign the estimated extrinsic rotation
+            _parMagr->EXTRI.SO3_EsToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
+        } else {
             throw Status(Status::ERROR,
                          "initialize rotation 'SO3_EsToBr' failed, this may be related to "
                          "insufficiently excited motion or bad event data streams.");
@@ -387,23 +367,19 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             double TO_EsToBr = _parMagr->TEMPORAL.TO_EsToBr.at(topic);
             double weight = Configor::DataStream::EventTopics.at(topic).Weight;
 
-            for (int j = 0; j < static_cast<int>(rotations.size()) - 1; ++j) {
-                const auto &sRot = rotations.at(j);
-                const auto &eRot = rotations.at(j + 1);
+            for (const auto &[lastTime, curTime, SO3_CurToLast] : relRotations) {
                 // we throw the head and tail data as the rotations from the fitted SO3
                 // Spline in that range are poor
-                if (sRot.first + TO_EsToBr < st || eRot.first + TO_EsToBr > et) {
+                if (lastTime + TO_EsToBr < st || curTime + TO_EsToBr > et) {
                     continue;
                 }
-
                 estimator->AddHandEyeRotationAlignmentForEvent(
-                    topic,        // the ros topic
-                    sRot.first,   // the time of start rotation stamped by the camera
-                    eRot.first,   // the time of end rotation stamped by the camera
-                    sRot.second,  // the start rotation
-                    eRot.second,  // the end rotation
-                    optOption,    // the optimization option
-                    weight        // the weight
+                    topic,          // the ros topic
+                    lastTime,       // the time of start rotation stamped by the camera
+                    curTime,        // the time of end rotation stamped by the camera
+                    SO3_CurToLast,  // the relative rotation
+                    optOption,      // the optimization option
+                    weight          // the weight
                 );
             }
 

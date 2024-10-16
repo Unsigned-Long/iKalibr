@@ -270,8 +270,7 @@ public:
     void AddHandEyeRotationAlignmentForEvent(const std::string &eventTopic,
                                              double tLastByEs,
                                              double tCurByEs,
-                                             const Sophus::SO3d &so3LastEsToW,
-                                             const Sophus::SO3d &so3CurEsToW,
+                                             const Sophus::SO3d &so3CurToLast,
                                              Estimator::Opt option,
                                              double weight);
 
