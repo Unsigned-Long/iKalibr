@@ -168,9 +168,10 @@ void CalibSolver::InitPrepEventInertialAlign() const {
     constexpr double REL_ROT_TIME_INTERVAL = 0.03 /* about 30 Hz */;
     constexpr double FMAT_THRESHOLD = 1.0;
     constexpr double ROT_ONLY_RANSAC_THD = 1.0;
+    std::map<std::string, std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec>> eventTraceMap;
     for (const auto &[topic, tracking] : eventFeatTrackingRes) {
         // traces of all features
-        std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec> traceVec;
+        auto &traceVec = eventTraceMap[topic];
         for (const auto &[id, batch] : tracking) {
             for (const auto &[fId, featVec] : batch) {
                 auto trace = FeatureTrackingTrace::CreateFrom(featVec);
@@ -401,6 +402,55 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                          "insufficiently excited motion or bad event data streams.");
         }
     }
+
+    /**
+     * create discrete optical flow trace using fitted event trace
+     */
+    constexpr double TRACKING_FINAL_FIT_SAC_THD = 2.0;
+    constexpr double DISCRETE_TIME_INTERVAL = 0.03 /* about 30 Hz */;
+    constexpr double TRACKING_FINAL_AGE_THD = DISCRETE_TIME_INTERVAL * 3 /*sed*/;
+    for (const auto &[topic, eventTrace] : eventTraceMap) {
+        std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec> eventTraceFiltered;
+        for (const auto &[trace, trackList] : eventTrace) {
+            auto res = EventTrackingTraceSacProblem::EventTrackingTraceSac(
+                trackList, TRACKING_FINAL_FIT_SAC_THD);
+            if (res.first != nullptr) {
+                double age = res.first->eTime - res.first->sTime;
+                if (age > TRACKING_FINAL_AGE_THD) {
+                    eventTraceFiltered[res.first] = res.second;
+                }
+            }
+        }
+        spdlog::info("event trace count before filtered for '{}': {}, count after filtered: {}",
+                     topic, eventTrace.size(), eventTraceFiltered.size());
+
+        RotOnlyVisualOdometer::FeatTrackingInfo trackInfoList;
+        ns_veta::IndexT index = 0;
+        const auto &intri = _parMagr->INTRI.Camera.at(topic);
+        for (const auto &[trace, trackList] : eventTraceFiltered) {
+            std::list<std::pair<CameraFramePtr, Feature>> featList;
+            for (auto t = trace->sTime; t < trace->eTime;) {
+                std::optional<Eigen::Vector2d> up = trace->PositionAt(t);
+                if (up == std::nullopt) {
+                    continue;
+                }
+                Eigen::Vector2d rp = intri->GetDistoPixel(*up);
+                Feature feat(cv::Point2d(rp(0), rp(1)), cv::Point2d((*up)(0), (*up)(1)));
+                featList.emplace_back(nullptr, feat);
+                t += DISCRETE_TIME_INTERVAL;
+            }
+            trackInfoList[index++] = featList;
+        }
+        // store
+        _dataMagr->SetVisualOpticalFlowTrace(
+            // ros topic of this camera
+            topic,
+            // create the optical flow trace
+            CreateOpticalFlowTrace({trackInfoList}, 3));
+        spdlog::info("create 'OpticalFlowTripleTrace' count for event camera '{}': {}", topic,
+                     _dataMagr->GetVisualOpticalFlowTrace(topic).size());
+    }
+
     _parMagr->ShowParamStatus();
     spdlog::warn("developing!!!");
     std::cin.get();
