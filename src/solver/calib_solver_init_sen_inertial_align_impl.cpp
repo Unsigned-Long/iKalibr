@@ -538,7 +538,5 @@ void CalibSolver::InitSensorInertialAlign() const {
     }
 
     // linVelSeqLk.clear(), linVelSeqBr.clear(), linVelSeqCm.clear(), visualScaleSeq.clear();
-    spdlog::warn("developing!!!");
-    std::cin.get();
 }
 }  // namespace ns_ikalibr

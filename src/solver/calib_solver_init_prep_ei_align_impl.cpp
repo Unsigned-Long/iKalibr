@@ -409,25 +409,29 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * |[---][---]-   [---][---]--   [---][---][---][---]  [---][---][---][---]- |
      * |  [---][---][---]       [---][---][---]  [---][---][---][---][---]--     |
      */
-    constexpr double TRACKING_FINAL_FIT_SAC_THD = 2.0;
+    // constexpr double TRACKING_FINAL_FIT_SAC_THD = 2.0;
+    // constexpr double TRACKING_FINAL_AGE_THD = DISCRETE_TIME_INTERVAL * 3 /*sed*/;
     constexpr double DISCRETE_TIME_INTERVAL = 0.03 /* about 30 Hz */;
-    constexpr double TRACKING_FINAL_AGE_THD = DISCRETE_TIME_INTERVAL * 3 /*sed*/;
     std::map<std::string, std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec>>
         eventTraceMapFiltered;
     for (const auto &[topic, eventTrace] : eventTraceMap) {
         auto &eventTraceFiltered = eventTraceMapFiltered[topic];
-        for (const auto &[trace, trackList] : eventTrace) {
-            auto res = EventTrackingTraceSacProblem::EventTrackingTraceSac(
-                trackList, TRACKING_FINAL_FIT_SAC_THD);
-            if (res.first != nullptr) {
-                double age = res.first->eTime - res.first->sTime;
-                if (age > TRACKING_FINAL_AGE_THD) {
-                    eventTraceFiltered[res.first] = res.second;
-                }
-            }
-        }
-        spdlog::info("event trace count before filtered for '{}': {}, count after filtered: {}",
-                     topic, eventTrace.size(), eventTraceFiltered.size());
+        /**
+         * At first we wanted to filter the obtained event trace again, but it is not necessary.
+         */
+        eventTraceFiltered = eventTrace;
+        // for (const auto &[trace, trackList] : eventTrace) {
+        //     auto res = EventTrackingTraceSacProblem::EventTrackingTraceSac(
+        //         trackList, TRACKING_FINAL_FIT_SAC_THD);
+        //     if (res.first != nullptr) {
+        //         double age = res.first->eTime - res.first->sTime;
+        //         if (age > TRACKING_FINAL_AGE_THD) {
+        //             eventTraceFiltered[res.first] = res.second;
+        //         }
+        //     }
+        // }
+        // spdlog::info("event trace count before filtered for '{}': {}, count after filtered: {}",
+        //              topic, eventTrace.size(), eventTraceFiltered.size());
 
         RotOnlyVisualOdometer::FeatTrackingInfo trackInfoList;
         ns_veta::IndexT index = 0;

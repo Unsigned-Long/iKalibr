@@ -236,7 +236,7 @@ TimeDeriv::ScaleSplineType CalibSolver::GetScaleType() {
     if (Configor::IsLiDARIntegrated() || Configor::IsPosCameraIntegrated()) {
         return TimeDeriv::ScaleSplineType::LIN_POS_SPLINE;
     } else if (Configor::IsRadarIntegrated() || Configor::IsRGBDIntegrated() ||
-               Configor::IsVelCameraIntegrated()) {
+               Configor::IsVelCameraIntegrated() || Configor::IsEventIntegrated()) {
         return TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE;
     } else {
         return TimeDeriv::ScaleSplineType::LIN_ACCE_SPLINE;
