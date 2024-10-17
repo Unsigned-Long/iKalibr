@@ -82,6 +82,8 @@ void CalibSolver::InitSensorInertialAlign() const {
         OptOption::OPT_POS_LkInBr |
         // camera extrinsic translations and visual scale
         OptOption::OPT_POS_CmInBr | OptOption::OPT_VISUAL_GLOBAL_SCALE |
+        // event camera extrinsic translation
+        OptOption::OPT_POS_EsInBr |
         // radar extrinsics
         OptOption::OPT_SO3_RjToBr | OptOption::OPT_POS_RjInBr |
         // rgbd extrinsics
@@ -394,6 +396,51 @@ void CalibSolver::InitSensorInertialAlign() const {
         }
     }
 
+    // event camera-inertial alignment
+    std::map<std::string, std::vector<double>> eventLinVelScales;
+    for (const auto &[topic, velDirs] : _initAsset->velEventBodyFrameVelDirs) {
+        double weight = Configor::DataStream::EventTopics.at(topic).Weight;
+        double TO_EsToBr = _parMagr->TEMPORAL.TO_EsToBr.at(topic);
+        const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+
+        double freq =
+            static_cast<double>(velDirs.size()) / (velDirs.back().first - velDirs.front().first);
+        const int ALIGN_STEP = std::max(1, int(DESIRED_TIME_INTERVAL * freq));
+
+        spdlog::info(
+            "add event-inertial velocity alignment factors for '{}' and '{}', align step: {}",
+            topic, Configor::DataStream::ReferIMU, ALIGN_STEP);
+
+        auto &curVelScales = eventLinVelScales[topic];
+        curVelScales = std::vector<double>(velDirs.size(), -1.0);
+        for (int i = 0; i < static_cast<int>(velDirs.size()) - ALIGN_STEP; ++i) {
+            const auto &[sTime, sVel] = velDirs.at(i);
+            const auto &[eTime, eVel] = velDirs.at(i + ALIGN_STEP);
+
+            if (sTime + TO_EsToBr < st || eTime + TO_EsToBr > et) {
+                continue;
+            }
+
+            if (eTime - sTime < MIN_ALIGN_TIME || eTime - sTime > MAX_ALIGN_TIME) {
+                continue;
+            }
+
+            // create scales for valid range
+            curVelScales.at(i) = 1.0;
+            curVelScales.at(i + ALIGN_STEP) = 1.0;
+            estimator->AddEventInertialAlignment(
+                frames,                            // imu frames
+                Configor::DataStream::ReferIMU,    // ros topic of the imu
+                topic,                             // ros topic of the camera
+                velDirs.at(i),                     // the direction of the start velocity
+                &curVelScales.at(i),               // the scale of start velocity to be estimated
+                velDirs.at(i + ALIGN_STEP),        // the direction of the end velocity
+                &curVelScales.at(i + ALIGN_STEP),  // the scale of end velocity to be estimated
+                optOption,                         // the optimization option
+                weight);                           // the weight
+        }
+    }
+
     // fix spatiotemporal parameters of reference sensor
     // make this problem full rank
     estimator->SetRefIMUParamsConstant();
@@ -456,6 +503,19 @@ void CalibSolver::InitSensorInertialAlign() const {
         }
     }
 
+    if (Configor::IsEventIntegrated()) {
+        for (const auto &[topic, velDirs] : _initAsset->velEventBodyFrameVelDirs) {
+            const auto &curEventCamLinVelScales = eventLinVelScales.at(topic);
+            auto &curVels = _initAsset->velEventBodyFrameVel[topic];
+            for (int i = 0; i < static_cast<int>(curEventCamLinVelScales.size()); ++i) {
+                if (const double velScale = curEventCamLinVelScales.at(i); velScale > 1E-3) {
+                    const auto &[time, velDir] = velDirs.at(i);
+                    curVels.emplace_back(time, velScale * velDir);
+                }
+            }
+        }
+    }
+
     for (const auto &[topic, lidarOdom] : _initAsset->lidarOdometers) {
         _viewer->AddCloud(lidarOdom->GetMap(), Viewer::VIEW_MAP,
                           ns_viewer::Entity::GetUniqueColour(), 2.0f);
@@ -478,5 +538,7 @@ void CalibSolver::InitSensorInertialAlign() const {
     }
 
     // linVelSeqLk.clear(), linVelSeqBr.clear(), linVelSeqCm.clear(), visualScaleSeq.clear();
+    spdlog::warn("developing!!!");
+    std::cin.get();
 }
 }  // namespace ns_ikalibr

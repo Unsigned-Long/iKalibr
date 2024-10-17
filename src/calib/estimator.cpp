@@ -696,7 +696,8 @@ void Estimator::AddRGBDInertialAlignment(
     }
     // create a cost function
     auto helper = RGBDInertialAlignHelper<Configor::Prior::SplineOrder>(
-        so3Spline, sRGBDAry, eRGBDAry, TO_DnToBr, *velVecMat);
+        so3Spline, {sRGBDAry.first->GetTimestamp(), sRGBDAry.second},
+        {eRGBDAry.first->GetTimestamp(), eRGBDAry.second}, TO_DnToBr, *velVecMat);
     auto costFunc = RGBDInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
 
     costFunc->AddParameterBlock(3);
@@ -743,6 +744,89 @@ void Estimator::AddRGBDInertialAlignment(
 
 /**
  * param blocks:
+ * [ POS_BiInBr | SO3_EsToBr | POS_EsInBr | GRAVITY | VEL_SCALE_S | VEL_SCALE_E ]
+ */
+void Estimator::AddEventInertialAlignment(const std::vector<IMUFrame::Ptr> &data,
+                                          const std::string &imuTopic,
+                                          const std::string &eventTopic,
+                                          const std::pair<double, Eigen::Vector3d> &sVelAry,
+                                          double *sVelScale,
+                                          const std::pair<double, Eigen::Vector3d> &eVelAry,
+                                          double *eVelScale,
+                                          Estimator::Opt option,
+                                          double weight) {
+    const auto &so3Spline = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    double st = sVelAry.first, et = eVelAry.first;
+    double TO_EsToBr = parMagr->TEMPORAL.TO_EsToBr.at(eventTopic);
+
+    if (!so3Spline.TimeStampInRange(st + TO_EsToBr) ||
+        !so3Spline.TimeStampInRange(et + TO_EsToBr)) {
+        return;
+    }
+
+    double TO_EsToBi = TO_EsToBr - parMagr->TEMPORAL.TO_BiToBr.at(imuTopic);
+    auto velVecMat = InertialVelIntegration(data, imuTopic, st + TO_EsToBi, et + TO_EsToBi);
+    if (velVecMat == std::nullopt) {
+        return;
+    }
+    // create a cost function
+    auto helper = VelVisualInertialAlignHelper<Configor::Prior::SplineOrder>(
+        so3Spline, sVelAry, eVelAry, TO_EsToBr, *velVecMat);
+    auto costFunc =
+        VelVisualInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
+
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(4);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+
+    costFunc->SetNumResiduals(3);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // POS_BiInBc
+    auto POS_BiInBr = parMagr->EXTRI.POS_BiInBr.at(imuTopic).data();
+    paramBlockVec.push_back(POS_BiInBr);
+    // SO3_EsToBr
+    auto SO3_EsToBr = parMagr->EXTRI.SO3_EsToBr.at(eventTopic).data();
+    paramBlockVec.push_back(SO3_EsToBr);
+    // POS_EsInBr
+    auto POS_EsInBr = parMagr->EXTRI.POS_EsInBr.at(eventTopic).data();
+    paramBlockVec.push_back(POS_EsInBr);
+    // GRAVITY
+    auto gravity = parMagr->GRAVITY.data();
+    paramBlockVec.push_back(gravity);
+    // start velocity scale
+    paramBlockVec.push_back(sVelScale);
+    // end velocity scale
+    paramBlockVec.push_back(eVelScale);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+    this->SetManifold(gravity, GRAVITY_MANIFOLD.get());
+    this->SetManifold(SO3_EsToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_GRAVITY, option)) {
+        this->SetParameterBlockConstant(gravity);
+    }
+    if (!IsOptionWith(Opt::OPT_POS_BiInBr, option)) {
+        this->SetParameterBlockConstant(POS_BiInBr);
+    }
+    if (!IsOptionWith(Opt::OPT_SO3_EsToBr, option)) {
+        this->SetParameterBlockConstant(SO3_EsToBr);
+    }
+    if (!IsOptionWith(Opt::OPT_POS_EsInBr, option)) {
+        this->SetParameterBlockConstant(POS_EsInBr);
+    }
+    this->SetParameterLowerBound(sVelScale, 0, 1E-3);
+    this->SetParameterLowerBound(eVelScale, 0, 1E-3);
+}
+
+/**
+ * param blocks:
  * [ POS_BiInBr | SO3_CmToBr | POS_CmInBr | GRAVITY | VEL_SCALE_S | VEL_SCALE_E ]
  */
 void Estimator::AddVelVisualInertialAlignment(
@@ -771,7 +855,8 @@ void Estimator::AddVelVisualInertialAlignment(
     }
     // create a cost function
     auto helper = VelVisualInertialAlignHelper<Configor::Prior::SplineOrder>(
-        so3Spline, sVelAry, eVelAry, TO_CmToBr, *velVecMat);
+        so3Spline, {sVelAry.first->GetTimestamp(), sVelAry.second},
+        {eVelAry.first->GetTimestamp(), eVelAry.second}, TO_CmToBr, *velVecMat);
     auto costFunc =
         VelVisualInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
 

@@ -71,11 +71,11 @@ public:
 
 public:
     RGBDInertialAlignHelper(const So3SplineType &so3Spline,
-                            const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &sRGBDVel,
-                            const std::pair<CameraFrame::Ptr, Eigen::Vector3d> &eRGBDVel,
+                            const std::pair<double, Eigen::Vector3d> &sRGBDVel,
+                            const std::pair<double, Eigen::Vector3d> &eRGBDVel,
                             double TO_RjToBr,
                             const std::pair<Eigen::Vector3d, Eigen::Matrix3d> &velVecMat) {
-        double st = sRGBDVel.first->GetTimestamp(), et = eRGBDVel.first->GetTimestamp();
+        double st = sRGBDVel.first, et = eRGBDVel.first;
         dt = et - st;
 
         velVec = velVecMat.first;
