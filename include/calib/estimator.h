@@ -417,6 +417,29 @@ public:
     void PrintUninvolvedKnots() const;
 
     void AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                      double timeByCam,
+                                      const Eigen::Vector2d &pos,
+                                      const Eigen::Vector2d &vel,
+                                      double *depth,
+                                      double TO_CamToBr,
+                                      double readout,
+                                      const Sophus::SO3d &SO3_CamToBr,
+                                      const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                      double weight,
+                                      bool estDepth,
+                                      bool estVelDirOnly);
+
+    void AddVisualVelocityDepthFactorForEvent(const std::string &eventTopic,
+                                              Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                              double timeByCam,
+                                              const Eigen::Vector2d &pos,
+                                              const Eigen::Vector2d &vel,
+                                              double *depth,
+                                              double weight,
+                                              bool estDepth,
+                                              bool estVelDirOnly);
+
+    void AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
                                       const OpticalFlowCorrPtr &corr,
                                       double TO_CamToBr,
                                       double readout,

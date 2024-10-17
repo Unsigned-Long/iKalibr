@@ -67,10 +67,14 @@ public:
 
     [[nodiscard]] std::optional<Eigen::Vector2d> PositionAt(double t) const;
 
+    [[nodiscard]] std::optional<Eigen::Vector2d> VelocityAt(double t) const;
+
     [[nodiscard]] std::vector<Eigen::Vector3d> DiscretePositions(double dt = 0.005) const;
 
 protected:
     static double QuadraticCurveValueAt(double x, const Eigen::Vector3d &params);
+
+    static double QuadraticCurveVelocityAt(double x, const Eigen::Vector3d &params);
 
     static Eigen::Vector3d FitQuadraticCurve(const std::vector<double> &x,
                                              const std::vector<double> &y);

@@ -90,6 +90,15 @@ std::optional<Eigen::Vector2d> FeatureTrackingTrace::PositionAt(double t) const 
     return Eigen::Vector2d{x, y};
 }
 
+std::optional<Eigen::Vector2d> FeatureTrackingTrace::VelocityAt(double t) const {
+    if (t < sTime || t > eTime) {
+        return std::nullopt;
+    }
+    double vx = QuadraticCurveVelocityAt(t, xParm);
+    double vy = QuadraticCurveVelocityAt(t, yParm);
+    return Eigen::Vector2d{vx, vy};
+}
+
 std::vector<Eigen::Vector3d> FeatureTrackingTrace::DiscretePositions(double dt) const {
     std::vector<Eigen::Vector3d> positions;
     for (double t = this->sTime; t < this->eTime;) {
@@ -108,6 +117,12 @@ double FeatureTrackingTrace::QuadraticCurveValueAt(double x, const Eigen::Vector
     double b = params[1];
     double c = params[2];
     return a * x * x + b * x + c;
+}
+
+double FeatureTrackingTrace::QuadraticCurveVelocityAt(double x, const Eigen::Vector3d& params) {
+    double a = params[0];
+    double b = params[1];
+    return 2.0 * a * x + b;
 }
 
 Eigen::Vector3d FeatureTrackingTrace::FitQuadraticCurve(const std::vector<double>& x,

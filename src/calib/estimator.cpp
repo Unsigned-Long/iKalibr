@@ -1649,7 +1649,10 @@ void Estimator::PrintUninvolvedKnots() const {
  * [ LIN_VEL_CmToWInCm | DEPTH ]
  */
 void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
-                                             const OpticalFlowCorr::Ptr &corr,
+                                             double timeByCam,
+                                             const Eigen::Vector2d &pos,
+                                             const Eigen::Vector2d &vel,
+                                             double *depth,
                                              double TO_CamToBr,
                                              double readout,
                                              const Sophus::SO3d &SO3_CamToBr,
@@ -1658,17 +1661,15 @@ void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
                                              bool estDepth,
                                              bool estVelDirOnly) {
     const auto &so3Spline = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
-    const double midTime = corr->MidPointTime(readout);
 
-    if (!so3Spline.TimeStampInRange(midTime + TO_CamToBr)) {
+    if (!so3Spline.TimeStampInRange(timeByCam + TO_CamToBr)) {
         return;
     }
 
-    Eigen::Vector3d ANG_VEL_BrToWInBr = so3Spline.VelocityBody(midTime + TO_CamToBr);
+    Eigen::Vector3d ANG_VEL_BrToWInBr = so3Spline.VelocityBody(timeByCam + TO_CamToBr);
     Eigen::Vector3d ANG_VEL_CamToWInCam = SO3_CamToBr.inverse() * ANG_VEL_BrToWInBr;
 
-    auto costFunc = VisualVelocityDepthFactor::Create(corr->MidPoint(), corr->MidPointVel(readout),
-                                                      ANG_VEL_CamToWInCam, intri, weight);
+    auto costFunc = VisualVelocityDepthFactor::Create(pos, vel, ANG_VEL_CamToWInCam, intri, weight);
 
     costFunc->AddParameterBlock(3);
     costFunc->AddParameterBlock(1);
@@ -1681,7 +1682,7 @@ void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
     // LIN_VEL_CmToWInCm
     paramBlockVec.push_back(LIN_VEL_CmToWInCm->data());
     // DEPTH
-    paramBlockVec.push_back(&corr->depth);
+    paramBlockVec.push_back(depth);
 
     // pass to problem, the loss function factor is the same as
     // 'Configor::Prior::LossForRGBDFactor', as this model is the same as rgbd velocity model
@@ -1694,10 +1695,43 @@ void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
         this->SetManifold(LIN_VEL_CmToWInCm->data(), GRAVITY_MANIFOLD.get());
     }
     if (!estDepth) {
-        this->SetParameterBlockConstant(&corr->depth);
+        this->SetParameterBlockConstant(depth);
     } else {
-        this->SetParameterLowerBound(&corr->depth, 0, 1E-3);
+        this->SetParameterLowerBound(depth, 0, 1E-3);
     }
+}
+
+void Estimator::AddVisualVelocityDepthFactorForEvent(const std::string &eventTopic,
+                                                     Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                                     double timeByCam,
+                                                     const Eigen::Vector2d &pos,
+                                                     const Eigen::Vector2d &vel,
+                                                     double *depth,
+                                                     double weight,
+                                                     bool estDepth,
+                                                     bool estVelDirOnly) {
+    AddVisualVelocityDepthFactor(
+        LIN_VEL_CmToWInCm, timeByCam, pos, vel, depth, parMagr->TEMPORAL.TO_EsToBr.at(eventTopic),
+        parMagr->TEMPORAL.RS_READOUT.at(eventTopic), parMagr->EXTRI.SO3_EsToBr.at(eventTopic),
+        parMagr->INTRI.Camera.at(eventTopic), weight, estDepth, estVelDirOnly);
+}
+
+/**
+ * param blocks:
+ * [ LIN_VEL_CmToWInCm | DEPTH ]
+ */
+void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                             const OpticalFlowCorr::Ptr &corr,
+                                             double TO_CamToBr,
+                                             double readout,
+                                             const Sophus::SO3d &SO3_CamToBr,
+                                             const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                             double weight,
+                                             bool estDepth,
+                                             bool estVelDirOnly) {
+    AddVisualVelocityDepthFactor(LIN_VEL_CmToWInCm, corr->MidPointTime(readout), corr->MidPoint(),
+                                 corr->MidPointVel(readout), &corr->depth, TO_CamToBr, readout,
+                                 SO3_CamToBr, intri, weight, estDepth, estVelDirOnly);
 }
 
 void Estimator::AddVisualVelocityDepthFactorForRGBD(Eigen::Vector3d *LIN_VEL_CmToWInCm,

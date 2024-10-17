@@ -198,7 +198,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         auto bar = std::make_shared<tqdm>();
         const int totalSize = static_cast<int>((et - st) / REL_ROT_TIME_INTERVAL) - 1;
         int barIndex = 0;
-        for (double time = st; time < et;) {
+        for (double time = st; time < et - REL_ROT_TIME_INTERVAL;) {
             bar->progress(barIndex++, totalSize);
             const double t1 = time, t2 = time + REL_ROT_TIME_INTERVAL;
             time += REL_ROT_TIME_INTERVAL;
@@ -405,12 +405,17 @@ void CalibSolver::InitPrepEventInertialAlign() const {
 
     /**
      * create discrete optical flow trace using fitted event trace
+     * |    [---][---][---][---][---]   [---][---]-  [---][---][---][---][---]-  |
+     * |[---][---]-   [---][---]--   [---][---][---][---]  [---][---][---][---]- |
+     * |  [---][---][---]       [---][---][---]  [---][---][---][---][---]--     |
      */
     constexpr double TRACKING_FINAL_FIT_SAC_THD = 2.0;
     constexpr double DISCRETE_TIME_INTERVAL = 0.03 /* about 30 Hz */;
     constexpr double TRACKING_FINAL_AGE_THD = DISCRETE_TIME_INTERVAL * 3 /*sed*/;
+    std::map<std::string, std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec>>
+        eventTraceMapFiltered;
     for (const auto &[topic, eventTrace] : eventTraceMap) {
-        std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec> eventTraceFiltered;
+        auto &eventTraceFiltered = eventTraceMapFiltered[topic];
         for (const auto &[trace, trackList] : eventTrace) {
             auto res = EventTrackingTraceSacProblem::EventTrackingTraceSac(
                 trackList, TRACKING_FINAL_FIT_SAC_THD);
@@ -451,8 +456,81 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                      _dataMagr->GetVisualOpticalFlowTrace(topic).size());
     }
 
-    _parMagr->ShowParamStatus();
-    spdlog::warn("developing!!!");
-    std::cin.get();
+    /**
+     * create discrete 'OpticalFlowTripleTrace' to estimate discrete camera veloicty
+     * |   -|----|----|    |----|----|----|-   | ---|----|--- |    | ---|----|----|    |
+     * |----|--- |  --|----|----|----|-   |----|----|----|-   |----|----|----|   -|--- |
+     * |  --|----|--- |   -|----|----|----|-   |----|----|----|----|  --|----|----|    |
+     */
+    auto &velEventBodyFrameVelDirs = _initAsset->velEventBodyFrameVelDirs;
+    for (const auto &[topic, trackList] : eventTraceMapFiltered) {
+        // depth, position, velocity
+        using DepthPosVelTuple = std::tuple<double, Eigen::Vector2d, Eigen::Vector2d>;
+        auto FindInRangeTracePosVel = [&trackList](double time) {
+            std::vector<DepthPosVelTuple> inRangePosVelVec;
+            for (const auto &[trace, featVec] : trackList) {
+                auto pos = trace->PositionAt(time);
+                auto vel = trace->VelocityAt(time);
+                if (pos != std::nullopt && vel != std::nullopt) {
+                    inRangePosVelVec.emplace_back(-1.0, *pos, *vel);
+                }
+            }
+            return inRangePosVelVec;
+        };
+        std::list<std::pair<double, std::vector<DepthPosVelTuple>>> ofsPerStampList;
+        for (double time = st; time < et;) {
+            ofsPerStampList.emplace_back(time, FindInRangeTracePosVel(time));
+            time += DISCRETE_TIME_INTERVAL;
+        }
+
+        spdlog::info("estimate event-derived linear velocities for '{}'...", topic);
+        auto bar = std::make_shared<tqdm>();
+        auto totalSize = static_cast<int>(ofsPerStampList.size());
+        int curIdx = 0;
+        const double TO_EsToBr = _parMagr->TEMPORAL.TO_EsToBr.at(topic);
+        for (auto &[timeByCam, dpvTupleVec] : ofsPerStampList) {
+            bar->progress(curIdx++, totalSize);
+            const double timeByBr = timeByCam + TO_EsToBr;
+            // at least two measurements are required, here we up the ante
+            if (timeByBr < st || timeByBr > et || dpvTupleVec.size() < 5) {
+                continue;
+            }
+            // if the camera is moving too slow, we do not estimate its velocity direction
+            double avgPixelVel = 0.0;
+            for (const auto &val : dpvTupleVec) {
+                avgPixelVel += std::get<2>(val).norm();
+            }
+            avgPixelVel /= static_cast<double>(dpvTupleVec.size());
+            if (avgPixelVel < Configor::Prior::LossForOpticalFlowFactor) {
+                continue;
+            }
+            auto estimator = Estimator::Create(_splines, _parMagr);
+            Eigen::Vector3d velDir(0.0, 0.0, 1.0f);
+
+            for (auto &[depth, position, velocity] : dpvTupleVec) {
+                // we initialize the depth as 1.0, this value would be optimized in estimator
+                depth = 1.0;
+                estimator->AddVisualVelocityDepthFactorForEvent(
+                    topic,      // ros topic for event camera
+                    &velDir,    // the direction of linear velocity to be estimated
+                    timeByCam,  // time stamped by event camera, we don't consider readout time here
+                    position,   // the 2d pixel position of this feature
+                    velocity,   // the 2d pixel velocity of this feature
+                    &depth,     // the optical flow correspondence
+                    1.0,        // weight
+                    true,       // estimate the depth information
+                    true);      // only estimate the direction of the linear velocity
+            }
+            // we don't want to output the solving information
+            auto optWithoutOutput =
+                Estimator::DefaultSolverOptions(Configor::Preference::AvailableThreads(),
+                                                false,   // do not output the solving information
+                                                false);  // we do not use cuda solving here
+            auto sum = estimator->Solve(optWithoutOutput, this->_priori);
+
+            velEventBodyFrameVelDirs[topic].emplace_back(timeByCam, velDir);
+        }
+        bar->finish();
+    }
 }
 }  // namespace ns_ikalibr

@@ -169,6 +169,9 @@ public:
         // camera-derived rgbd-frame velocities for each vel-based camera
         std::map<std::string, std::vector<std::pair<CameraFramePtr, Eigen::Vector3d>>>
             velCamBodyFrameVels;
+        // camera-derived event-frame velocities for each event camera
+        std::map<std::string, std::vector<std::pair<double, Eigen::Vector3d>>>
+            velEventBodyFrameVelDirs;
         // SfM pose sequence for each camera
         std::map<std::string, std::vector<ns_ctraj::Posed>> sfmPoseSeq;
         // the global lidar map expressed in world frame
