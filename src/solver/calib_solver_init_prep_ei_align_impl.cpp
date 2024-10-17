@@ -167,7 +167,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      */
     constexpr double REL_ROT_TIME_INTERVAL = 0.03 /* about 30 Hz */;
     constexpr double FMAT_THRESHOLD = 1.0;
-    constexpr double ROT_ONLY_RANSAC_THRESHOLD = 1.0;
+    constexpr double ROT_ONLY_RANSAC_THD = 1.0;
     for (const auto &[topic, tracking] : eventFeatTrackingRes) {
         // traces of all features
         std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec> traceVec;
@@ -192,6 +192,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
         // time from {t1} to {t2}, relative rotation from {t2} to {t1}
         RotationEstimator::RelRotationSequence relRotations;
+        auto rotEstimator = RotationEstimator::Create();
         spdlog::info("perform rotation-only relative rotation estimation for '{}'...", topic);
         auto bar = std::make_shared<tqdm>();
         const int totalSize = static_cast<int>((et - st) / REL_ROT_TIME_INTERVAL) - 1;
@@ -286,15 +287,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 continue;
             }
             auto resRotOnly = RotOnlyVisualOdometer::RelRotationRecovery(
-                featUndisto1,                // features at t1
-                featUndisto2,                // corresponding features at t2
-                intri,                       // the camera intrinsics
-                ROT_ONLY_RANSAC_THRESHOLD);  // the threshold
+                featUndisto1,          // features at t1
+                featUndisto2,          // corresponding features at t2
+                intri,                 // the camera intrinsics
+                ROT_ONLY_RANSAC_THD);  // the threshold
             if (!resRotOnly.second.empty()) {
-                // solving successful
-                relRotations.emplace_back(
-                    t1, t2, Sophus::SO3d(Sophus::makeRotationMatrix(resRotOnly.first)));
-                // find outliers
+                // solving successful, find outliers
                 std::set<int> inlierIdxSet;
                 for (int idx : resRotOnly.second) {
                     inlierIdxSet.insert(idx);
@@ -305,6 +303,58 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                         traceVec.erase(trace);
                     }
                 }
+
+                relRotations.emplace_back(
+                    t1, t2, Sophus::SO3d(Sophus::makeRotationMatrix(resRotOnly.first)));
+                if (rotEstimator->SolveStatus() || (relRotations.size() < 50) ||
+                    (relRotations.size() % 5 != 0)) {
+                    continue;
+                }
+                rotEstimator->Estimate(so3Spline, relRotations);
+                if (!rotEstimator->SolveStatus()) {
+                    continue;
+                }
+                // assign the estimated extrinsic rotation
+                _parMagr->EXTRI.SO3_EsToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
+
+                /**
+                 * once the extrinsic rotation is recovered, if time offset is also
+                 * required, we continue to recover it and refine extrineic rotation using
+                 * continuous-time-based alignment
+                 */
+                if (Configor::Prior::OptTemporalParams) {
+                    auto estimator = Estimator::Create(_splines, _parMagr);
+
+                    auto optOption = OptOption::OPT_SO3_EsToBr | OptOption::OPT_TO_EsToBr;
+                    double TO_EsToBr = _parMagr->TEMPORAL.TO_EsToBr.at(topic);
+                    double weight = Configor::DataStream::EventTopics.at(topic).Weight;
+
+                    for (const auto &[lastTime, curTime, SO3_CurToLast] : relRotations) {
+                        // we throw the head and tail data as the rotations from the fitted
+                        // SO3 Spline in that range are poor
+                        if (lastTime + TO_EsToBr < st || curTime + TO_EsToBr > et) {
+                            continue;
+                        }
+                        estimator->AddHandEyeRotationAlignmentForEvent(
+                            topic,          // the ros topic
+                            lastTime,       // the time of start rotation stamped by the camera
+                            curTime,        // the time of end rotation stamped by the camera
+                            SO3_CurToLast,  // the relative rotation
+                            optOption,      // the optimization option
+                            weight          // the weight
+                        );
+                    }
+
+                    // we don't want to output the solving information
+                    auto optWithoutOutput = Estimator::DefaultSolverOptions(
+                        Configor::Preference::AvailableThreads(),
+                        false,  // do not output the solving information
+                        Configor::Preference::UseCudaInSolving);
+
+                    estimator->Solve(optWithoutOutput, _priori);
+                }
+                _viewer->UpdateSensorViewer();
+
                 // spdlog::info(
                 //     "'Rotation-Only RANSAC': inliers count: {}, outliers count: {}, total: {}",
                 //     inlierIdxSet.size(), featIdxMap.size() - inlierIdxSet.size(),
@@ -345,53 +395,11 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         spdlog::info("event trace count before rejection: {}, count after rejection: {}",
                      traceVecOldSize, traceVecNewSize);
 
-        auto rotEstimator = RotationEstimator::Create();
-        rotEstimator->Estimate(so3Spline, relRotations);
-        if (rotEstimator->SolveStatus()) {
-            // assign the estimated extrinsic rotation
-            _parMagr->EXTRI.SO3_EsToBr.at(topic) = rotEstimator->GetSO3SensorToSpline();
-        } else {
+        if (!rotEstimator->SolveStatus()) {
             throw Status(Status::ERROR,
                          "initialize rotation 'SO3_EsToBr' failed, this may be related to "
                          "insufficiently excited motion or bad event data streams.");
         }
-        /**
-         * once the extrinsic rotation is recovered, if time offset is also required, we
-         * continue to recover it and refine extrineic rotation using
-         * continuous-time-based alignment
-         */
-        if (Configor::Prior::OptTemporalParams) {
-            auto estimator = Estimator::Create(_splines, _parMagr);
-
-            auto optOption = OptOption::OPT_SO3_EsToBr | OptOption::OPT_TO_EsToBr;
-            double TO_EsToBr = _parMagr->TEMPORAL.TO_EsToBr.at(topic);
-            double weight = Configor::DataStream::EventTopics.at(topic).Weight;
-
-            for (const auto &[lastTime, curTime, SO3_CurToLast] : relRotations) {
-                // we throw the head and tail data as the rotations from the fitted SO3
-                // Spline in that range are poor
-                if (lastTime + TO_EsToBr < st || curTime + TO_EsToBr > et) {
-                    continue;
-                }
-                estimator->AddHandEyeRotationAlignmentForEvent(
-                    topic,          // the ros topic
-                    lastTime,       // the time of start rotation stamped by the camera
-                    curTime,        // the time of end rotation stamped by the camera
-                    SO3_CurToLast,  // the relative rotation
-                    optOption,      // the optimization option
-                    weight          // the weight
-                );
-            }
-
-            // we don't want to output the solving information
-            auto optWithoutOutput =
-                Estimator::DefaultSolverOptions(Configor::Preference::AvailableThreads(),
-                                                false,  // do not output the solving information
-                                                Configor::Preference::UseCudaInSolving);
-
-            estimator->Solve(optWithoutOutput, _priori);
-        }
-        _viewer->UpdateSensorViewer();
     }
     _parMagr->ShowParamStatus();
     spdlog::warn("developing!!!");
