@@ -388,6 +388,12 @@ protected:
     std::map<std::string, std::vector<OpticalFlowCorrPtr>> DataAssociationForVelCameras() const;
 
     /**
+     * perform data association for event cameras
+     * @return the optical flow correspondences for each optical camera
+     */
+    std::map<std::string, std::vector<OpticalFlowCorrPtr>> DataAssociationForEventCameras() const;
+
+    /**
      * perform data association for RGBD cameras
      * @param estDepth whether estimate depth of the constructed correspondences
      * @return the RGBD optical flow correspondence
@@ -427,6 +433,7 @@ protected:
         const std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> &visualReprojCorrs,
         const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &rgbdCorrs,
         const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &visualVelCorrs,
+        const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &eventCorrs,
         const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>>
             &rgbdPtsCorrs = std::nullopt) const;
 
@@ -452,6 +459,14 @@ protected:
      * @return the camera pose, if the timestamp is out of range, return 'std::nullopt'
      */
     std::optional<Sophus::SE3d> CurCmToW(double timeByCm, const std::string &topic) const;
+
+    /**
+     * compute the pose of camera in the global (world) coordinate frame
+     * @param timeByEs the time stamped by the camera, i.e., the raw timestamp
+     * @param topic the ros topic of this camera
+     * @return the camera pose, if the timestamp is out of range, return 'std::nullopt'
+     */
+    std::optional<Sophus::SE3d> CurEsToW(double timeByEs, const std::string &topic) const;
 
     /**
      * compute the pose of RGBD camera in the global (world) coordinate frame
@@ -596,6 +611,21 @@ protected:
                                            const std::string &camTopic,
                                            const std::vector<OpticalFlowCorrPtr> &corrs,
                                            OptOption option);
+
+    /**
+     * add optical flow factors for the optical camera to the estimator
+     * @tparam type the linear scale spline type
+     * @tparam IsInvDepth estimate the depth or the inverse depth
+     * @param estimator the estimator
+     * @param eventTopic the ros topic of this camera
+     * @param corrs the optical flow correspondences
+     * @param option the option for the optimization
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    static void AddEventOpticalFlowFactor(EstimatorPtr &estimator,
+                                          const std::string &eventTopic,
+                                          const std::vector<OpticalFlowCorrPtr> &corrs,
+                                          OptOption option);
 
     /**
      * add optical flow factors for the optical camera to the estimator

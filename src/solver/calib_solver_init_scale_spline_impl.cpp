@@ -368,8 +368,5 @@ void CalibSolver::InitScaleSpline() const {
         sum = estimator->Solve(_ceresOption, this->_priori);
         spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
     }
-
-    spdlog::warn("developing!!!");
-    std::cin.get();
 }
 }  // namespace ns_ikalibr

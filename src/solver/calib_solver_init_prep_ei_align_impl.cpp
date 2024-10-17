@@ -445,7 +445,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 }
                 Eigen::Vector2d rp = intri->GetDistoPixel(*up);
                 Feature feat(cv::Point2d(rp(0), rp(1)), cv::Point2d((*up)(0), (*up)(1)));
-                featList.emplace_back(nullptr, feat);
+                // we create a fake camera frame here to store the timestamp
+                featList.emplace_back(CameraFrame::Create(t), feat);
                 t += DISCRETE_TIME_INTERVAL;
             }
             trackInfoList[index++] = featList;

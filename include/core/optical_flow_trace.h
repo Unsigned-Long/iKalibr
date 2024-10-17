@@ -44,6 +44,11 @@ namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
+namespace ns_veta {
+struct PinholeIntrinsic;
+using PinholeIntrinsicPtr = std::shared_ptr<PinholeIntrinsic>;
+}  // namespace ns_veta
+
 namespace ns_ikalibr {
 struct OpticalFlowCorr;
 using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
@@ -74,6 +79,9 @@ public:
      * @return the optical flow correspondence
      */
     [[nodiscard]] OpticalFlowCorrPtr CreateOpticalFlowCorr(double rsExposureFactor) const;
+
+    // this works for event camera, for event cameras, there is no 'rsExposureFactor'
+    [[nodiscard]] OpticalFlowCorrPtr CreateEventOpticalFlowCorr() const;
 
     /**
      * create the optical flow correspondence based on current optical flow trace

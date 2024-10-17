@@ -105,6 +105,23 @@ OpticalFlowCorr::OpticalFlowCorr(const std::array<double, 3>& timeAry,
     }
 }
 
+OpticalFlowCorr::OpticalFlowCorr(const std::array<double, 3>& timeAry,
+                                 const std::array<double, 3>& xTraceAry,
+                                 const std::array<double, 3>& yTraceAry,
+                                 double depth)
+    : timeAry(timeAry),
+      xTraceAry(xTraceAry),
+      yTraceAry(yTraceAry),
+      rdFactorAry(),
+      depth(depth),
+      invDepth(depth > 1E-3 ? 1.0 / depth : -1.0),
+      frame(nullptr),
+      withDepthObservability(false) {
+    for (int i = 0; i < 3; ++i) {
+        rdFactorAry[i] = 0.0;
+    }
+}
+
 OpticalFlowCorr::Ptr OpticalFlowCorr::Create(const std::array<double, 3>& timeAry,
                                              const std::array<double, 3>& xDynamicAry,
                                              const std::array<double, 3>& yDynamicAry,
@@ -113,6 +130,13 @@ OpticalFlowCorr::Ptr OpticalFlowCorr::Create(const std::array<double, 3>& timeAr
                                              double rsExpFactor) {
     return std::make_shared<OpticalFlowCorr>(timeAry, xDynamicAry, yDynamicAry, depth, frame,
                                              rsExpFactor);
+}
+
+OpticalFlowCorr::Ptr OpticalFlowCorr::Create(const std::array<double, 3>& timeAry,
+                                             const std::array<double, 3>& xDynamicAry,
+                                             const std::array<double, 3>& yDynamicAry,
+                                             double depth) {
+    return std::make_shared<OpticalFlowCorr>(timeAry, xDynamicAry, yDynamicAry, depth);
 }
 
 Eigen::Vector2d OpticalFlowCorr::FirPoint() const { return {xTraceAry.at(FIR), yTraceAry.at(FIR)}; }

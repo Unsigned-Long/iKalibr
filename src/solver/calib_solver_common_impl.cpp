@@ -198,6 +198,23 @@ std::optional<Sophus::SE3d> CalibSolver::CurCmToW(double timeByCm, const std::st
     }
 }
 
+std::optional<Sophus::SE3d> CalibSolver::CurEsToW(double timeByEs, const std::string &topic) const {
+    if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
+        throw Status(Status::CRITICAL,
+                     "'CurEsToW' error, scale spline is not translation spline!!!");
+    }
+    double timeByBr = timeByEs + _parMagr->TEMPORAL.TO_EsToBr.at(topic);
+    const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    const auto &posSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+
+    if (!so3Spline.TimeStampInRange(timeByBr) || !posSpline.TimeStampInRange(timeByBr)) {
+        return {};
+    } else {
+        Sophus::SE3d curBrToW(so3Spline.Evaluate(timeByBr), posSpline.Evaluate(timeByBr));
+        return curBrToW * _parMagr->EXTRI.SE3_EsToBr(topic);
+    }
+}
+
 std::optional<Sophus::SE3d> CalibSolver::CurDnToW(double timeByDn, const std::string &topic) const {
     if (GetScaleType() != TimeDeriv::LIN_POS_SPLINE) {
         throw Status(Status::CRITICAL,
@@ -580,6 +597,9 @@ bool CalibSolver::IsRSCamera(const std::string &topic) {
     } else if (auto iterRGBD = Configor::DataStream::RGBDTopics.find(topic);
                iterRGBD != Configor::DataStream::RGBDTopics.cend()) {
         type = EnumCast::stringToEnum<CameraModelType>(iterRGBD->second.Type);
+    } else if (auto iterEvent = Configor::DataStream::EventTopics.find(topic);
+               iterEvent != Configor::DataStream::EventTopics.cend()) {
+        type = EnumCast::stringToEnum<CameraModelType>(iterEvent->second.Type);
     }
     return IsOptionWith(CameraModelType::RS, type);
 }

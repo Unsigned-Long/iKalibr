@@ -48,6 +48,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualReprojCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &rgbdCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &visualVelCorrs,
+    const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &eventCorrs,
     const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>> &rgbdPtsCorrs)
     const {
     // a lambda function to obtain the string of current optimization option
@@ -123,6 +124,11 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                                                  OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
+            for (const auto &[topic, corrs] : eventCorrs) {
+                this->AddEventOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
+                                                OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+            }
         } break;
         case TimeDeriv::LIN_POS_SPLINE: {
             /*
@@ -168,6 +174,15 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddVisualOpticalFlowReprojFactor<TimeDeriv::LIN_POS_SPLINE,
                                                        OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+            }
+            for (const auto &[topic, corrs] : eventCorrs) {
+                this->AddEventOpticalFlowFactor<TimeDeriv::LIN_POS_SPLINE,
+                                                OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+                /**
+                 * todo: when pos spline is maintained, we add additional reprojection constraints
+                 * todo: for optical flow tracking correspondence
+                 */
             }
             if (rgbdPtsCorrs != std::nullopt) {
                 /**

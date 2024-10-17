@@ -177,12 +177,24 @@ public:
                     const CameraFramePtr &frame,
                     double rsExpFactor);
 
+    // this is for event camera, which does not have associated camera frame pointer
+    OpticalFlowCorr(const std::array<double, 3> &timeAry,
+                    const std::array<double, 3> &xTraceAry,
+                    const std::array<double, 3> &yTraceAry,
+                    double depth);
+
     static Ptr Create(const std::array<double, 3> &timeAry,
                       const std::array<double, 3> &xDynamicAry,
                       const std::array<double, 3> &yDynamicAry,
                       double depth,
                       const CameraFramePtr &frame,
                       double rsExpFactor);
+
+    // this is for event camera, which does not have associated camera frame pointer
+    static Ptr Create(const std::array<double, 3> &timeAry,
+                      const std::array<double, 3> &xDynamicAry,
+                      const std::array<double, 3> &yDynamicAry,
+                      double depth);
 
     [[nodiscard]] Eigen::Vector2d FirPoint() const;
 

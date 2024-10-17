@@ -159,7 +159,9 @@ void CalibSolver::Process() {
             // visual velocity creation for rgbd cameras
             DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_VISUAL_DEPTH, options.at(i))),
             // visual velocity creation for optical cameras
-            DataAssociationForVelCameras());
+            DataAssociationForVelCameras(),
+            // visual velocity creation for event cameras
+            DataAssociationForEventCameras());
 
         /**
          * update the viewer and output the spatiotemporal parameters after this batch optimization

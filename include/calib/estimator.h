@@ -367,6 +367,17 @@ public:
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+     *   READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddEventOpticalFlowConstraint(const OpticalFlowCorrPtr &ofCorr,
+                                       const std::string &topic,
+                                       Opt option,
+                                       double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
      * READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>

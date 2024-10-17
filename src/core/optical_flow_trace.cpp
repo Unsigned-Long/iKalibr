@@ -69,6 +69,17 @@ OpticalFlowCorr::Ptr OpticalFlowTripleTrace::CreateOpticalFlowCorr(double rsExpo
                                    rsExposureFactor);
 }
 
+OpticalFlowCorrPtr OpticalFlowTripleTrace::CreateEventOpticalFlowCorr() const {
+    std::array<double, 3> timeAry{}, xAry{}, yAry{};
+    for (int i = 0; i < 3; ++i) {
+        timeAry[i] = _trace[i].first->GetTimestamp();
+        xAry[i] = _trace[i].second(0);
+        yAry[i] = _trace[i].second(1);
+    }
+    // works for event camera
+    return OpticalFlowCorr::Create(timeAry, xAry, yAry, -1.0);
+}
+
 OpticalFlowCorr::Ptr OpticalFlowTripleTrace::CreateOpticalFlowCorr(
     double rsExposureFactor, const RGBDIntrinsicsPtr& intri) const {
     auto corr = CreateOpticalFlowCorr(rsExposureFactor);
