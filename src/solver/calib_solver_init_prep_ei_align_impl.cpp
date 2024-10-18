@@ -438,14 +438,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         for (const auto &[trace, trackList] : eventTrace) {
             std::list<std::pair<CameraFramePtr, Feature>> featList;
             for (auto t = trace->sTime; t < trace->eTime;) {
-                std::optional<Eigen::Vector2d> up = trace->PositionAt(t);
-                if (up == std::nullopt) {
-                    continue;
+                if (auto up = trace->PositionAt(t); up != std::nullopt) {
+                    Eigen::Vector2d rp = intri->GetDistoPixel(*up);
+                    Feature feat(cv::Point2d(rp(0), rp(1)), cv::Point2d((*up)(0), (*up)(1)));
+                    // we create a fake camera frame here to store the timestamp
+                    featList.emplace_back(CameraFrame::Create(t), feat);
                 }
-                Eigen::Vector2d rp = intri->GetDistoPixel(*up);
-                Feature feat(cv::Point2d(rp(0), rp(1)), cv::Point2d((*up)(0), (*up)(1)));
-                // we create a fake camera frame here to store the timestamp
-                featList.emplace_back(CameraFrame::Create(t), feat);
                 t += DISCRETE_TIME_INTERVAL;
             }
             trackInfoList[index++] = featList;
@@ -466,11 +464,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * |----|--- |  --|----|----|----|-   |----|----|----|-   |----|----|----|   -|--- |
      * |  --|----|--- |   -|----|----|----|-   |----|----|----|----|  --|----|----|    |
      */
-    auto &velEventBodyFrameVelDirs = _initAsset->velEventBodyFrameVelDirs;
+    auto &eventBodyFrameVelDirs = _initAsset->eventBodyFrameVelDirs;
     for (const auto &[topic, trackList] : eventTraceMap) {
         // depth, position, velocity
         using DepthPosVelTuple = std::tuple<double, Eigen::Vector2d, Eigen::Vector2d>;
-        auto FindInRangeTracePosVel = [&trackList](double time) {
+        std::list<std::pair<double, std::vector<DepthPosVelTuple>>> ofsPerStampList;
+        for (double time = st; time < et;) {
             std::vector<DepthPosVelTuple> inRangePosVelVec;
             for (const auto &[trace, featVec] : trackList) {
                 auto pos = trace->PositionAt(time);
@@ -479,11 +478,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                     inRangePosVelVec.emplace_back(-1.0, *pos, *vel);
                 }
             }
-            return inRangePosVelVec;
-        };
-        std::list<std::pair<double, std::vector<DepthPosVelTuple>>> ofsPerStampList;
-        for (double time = st; time < et;) {
-            ofsPerStampList.emplace_back(time, FindInRangeTracePosVel(time));
+            ofsPerStampList.emplace_back(time, inRangePosVelVec);
             time += DISCRETE_TIME_INTERVAL;
         }
 
@@ -532,7 +527,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                                                 false);  // we do not use cuda solving here
             auto sum = estimator->Solve(optWithoutOutput, this->_priori);
 
-            velEventBodyFrameVelDirs[topic].emplace_back(timeByCam, velDir);
+            eventBodyFrameVelDirs[topic].emplace_back(timeByCam, velDir);
         }
         bar->finish();
     }

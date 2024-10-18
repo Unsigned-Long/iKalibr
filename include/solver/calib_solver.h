@@ -171,7 +171,7 @@ public:
             velCamBodyFrameVels;
         // camera-derived event-frame velocity directions for each event camera
         std::map<std::string, std::vector<std::pair<double, Eigen::Vector3d>>>
-            velEventBodyFrameVelDirs;
+            eventBodyFrameVelDirs;
         // camera-derived event-frame velocities for each event camera
         std::map<std::string, std::vector<std::pair<double, Eigen::Vector3d>>> velEventBodyFrameVel;
         // SfM pose sequence for each camera

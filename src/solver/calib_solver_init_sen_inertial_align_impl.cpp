@@ -398,7 +398,7 @@ void CalibSolver::InitSensorInertialAlign() const {
 
     // event camera-inertial alignment
     std::map<std::string, std::vector<double>> eventLinVelScales;
-    for (const auto &[topic, velDirs] : _initAsset->velEventBodyFrameVelDirs) {
+    for (const auto &[topic, velDirs] : _initAsset->eventBodyFrameVelDirs) {
         double weight = Configor::DataStream::EventTopics.at(topic).Weight;
         double TO_EsToBr = _parMagr->TEMPORAL.TO_EsToBr.at(topic);
         const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
@@ -504,7 +504,7 @@ void CalibSolver::InitSensorInertialAlign() const {
     }
 
     if (Configor::IsEventIntegrated()) {
-        for (const auto &[topic, velDirs] : _initAsset->velEventBodyFrameVelDirs) {
+        for (const auto &[topic, velDirs] : _initAsset->eventBodyFrameVelDirs) {
             const auto &curEventCamLinVelScales = eventLinVelScales.at(topic);
             auto &curVels = _initAsset->velEventBodyFrameVel[topic];
             for (int i = 0; i < static_cast<int>(curEventCamLinVelScales.size()); ++i) {
