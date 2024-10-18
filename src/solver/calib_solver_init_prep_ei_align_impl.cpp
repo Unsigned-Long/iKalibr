@@ -69,7 +69,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * feature tracking.
      */
     constexpr double TRACKING_LEN_PERCENT_THD = 0.3;
-    constexpr double TRACKING_FIT_SAC_THD = 5.0;
+    constexpr double TRACKING_FIT_SAC_THD = 3.0;
     constexpr double TRACKING_AGE_PERCENT_THD = 0.3;
     constexpr double TRACKING_FREQ_PERCENT_THD = 0.3;
     // topic, batch index, tracked features
@@ -412,14 +412,13 @@ void CalibSolver::InitPrepEventInertialAlign() const {
     // constexpr double TRACKING_FINAL_FIT_SAC_THD = 2.0;
     // constexpr double TRACKING_FINAL_AGE_THD = DISCRETE_TIME_INTERVAL * 3 /*sed*/;
     constexpr double DISCRETE_TIME_INTERVAL = 0.03 /* about 30 Hz */;
-    std::map<std::string, std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec>>
-        eventTraceMapFiltered;
+    // std::map<std::string, std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec>>
+    //     eventTraceMapFiltered;
     for (const auto &[topic, eventTrace] : eventTraceMap) {
-        auto &eventTraceFiltered = eventTraceMapFiltered[topic];
         /**
          * At first we wanted to filter the obtained event trace again, but it is not necessary.
          */
-        eventTraceFiltered = eventTrace;
+        // auto &eventTraceFiltered = eventTraceMapFiltered[topic];
         // for (const auto &[trace, trackList] : eventTrace) {
         //     auto res = EventTrackingTraceSacProblem::EventTrackingTraceSac(
         //         trackList, TRACKING_FINAL_FIT_SAC_THD);
@@ -436,7 +435,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         RotOnlyVisualOdometer::FeatTrackingInfo trackInfoList;
         ns_veta::IndexT index = 0;
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
-        for (const auto &[trace, trackList] : eventTraceFiltered) {
+        for (const auto &[trace, trackList] : eventTrace) {
             std::list<std::pair<CameraFramePtr, Feature>> featList;
             for (auto t = trace->sTime; t < trace->eTime;) {
                 std::optional<Eigen::Vector2d> up = trace->PositionAt(t);
@@ -468,7 +467,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * |  --|----|--- |   -|----|----|----|-   |----|----|----|----|  --|----|----|    |
      */
     auto &velEventBodyFrameVelDirs = _initAsset->velEventBodyFrameVelDirs;
-    for (const auto &[topic, trackList] : eventTraceMapFiltered) {
+    for (const auto &[topic, trackList] : eventTraceMap) {
         // depth, position, velocity
         using DepthPosVelTuple = std::tuple<double, Eigen::Vector2d, Eigen::Vector2d>;
         auto FindInRangeTracePosVel = [&trackList](double time) {
