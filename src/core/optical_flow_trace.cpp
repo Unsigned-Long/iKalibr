@@ -137,6 +137,11 @@ cv::Mat OpticalFlowTripleTrace::CreateOpticalFlowMat(const ns_veta::PinholeIntri
     return img;
 }
 
+std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3> OpticalFlowTripleTrace::GetTrace()
+    const {
+    return _trace;
+}
+
 cv::Mat OpticalFlowTripleTrace::GetInRangeSubMat(const cv::Mat& image,
                                                  const Eigen::Vector2d& p,
                                                  int padding) {

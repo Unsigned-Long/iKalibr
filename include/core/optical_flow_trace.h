@@ -97,6 +97,8 @@ public:
     [[nodiscard]] cv::Mat CreateOpticalFlowMat(const ns_veta::PinholeIntrinsic::Ptr& intri,
                                                const Eigen::Vector2d& midVel) const;
 
+    [[nodiscard]] std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3> GetTrace() const;
+
 protected:
     static cv::Mat GetInRangeSubMat(const cv::Mat& img, const Eigen::Vector2d& p, int padding);
 

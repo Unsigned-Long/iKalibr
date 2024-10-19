@@ -484,6 +484,13 @@ public:
                                                bool estDepth,
                                                bool estVelDirOnly);
 
+    void AddVisualVelocityDepthFactorForEvent(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                              const OpticalFlowCorrPtr &corr,
+                                              const std::string &topic,
+                                              double weight,
+                                              bool estDepth,
+                                              bool estVelDirOnly);
+
 protected:
     void AddSo3KnotsData(std::vector<double *> &paramBlockVec,
                          const SplineBundleType::So3SplineType &spline,

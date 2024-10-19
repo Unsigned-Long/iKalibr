@@ -403,6 +403,181 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         }
     }
 
+#define USE_NEW_CAM_VEL_ESTIMATE 1
+#if USE_NEW_CAM_VEL_ESTIMATE
+    constexpr double DISCRETE_TIME_INTERVAL = 0.03 /* about 30 Hz */;
+
+    for (const auto &[topic, eventTrace] : eventTraceMap) {
+        auto FindInRangeTrackedTripleFeatures = [&eventTrace](double time, double interval) {
+            std::vector<std::array<Eigen::Vector2d, 3>> triplePosVec;
+            const double t1 = time - interval;
+            const double t2 = time;
+            const double t3 = time + interval;
+
+            for (const auto &[trace, featVec] : eventTrace) {
+                auto pos1 = trace->PositionAt(t1);
+                if (pos1 == std::nullopt) {
+                    continue;
+                }
+                auto pos2 = trace->PositionAt(t2);
+                if (pos2 == std::nullopt) {
+                    continue;
+                }
+                auto pos3 = trace->PositionAt(t3);
+                if (pos3 == std::nullopt) {
+                    continue;
+                }
+                triplePosVec.emplace_back(std::array<Eigen::Vector2d, 3>{*pos1, *pos2, *pos3});
+            }
+            return triplePosVec;
+        };
+        std::vector<OpticalFlowTripleTrace::Ptr> traceVec;
+        std::list<CameraFrame::Ptr> frameTripleList;
+        for (double time = st + DISCRETE_TIME_INTERVAL; time < et - DISCRETE_TIME_INTERVAL;) {
+            const double t0 = time - DISCRETE_TIME_INTERVAL;
+            const double t1 = time;
+            const double t2 = time + DISCRETE_TIME_INTERVAL;
+            time += DISCRETE_TIME_INTERVAL;
+
+            if (t0 < st || t2 > et) {
+                continue;
+            }
+
+            auto triplePosVec = FindInRangeTrackedTripleFeatures(t1, DISCRETE_TIME_INTERVAL);
+
+            if (frameTripleList.empty()) {
+                frameTripleList.push_back(CameraFrame::Create(t0, cv::Mat(), cv::Mat(), 0));
+                frameTripleList.push_back(CameraFrame::Create(t1, cv::Mat(), cv::Mat(), 1));
+                frameTripleList.push_back(CameraFrame::Create(t2, cv::Mat(), cv::Mat(), 2));
+            } else {
+                frameTripleList.pop_front();
+                auto id = frameTripleList.back()->GetId() + 1;
+                frameTripleList.push_back(CameraFrame::Create(t2, cv::Mat(), cv::Mat(), id));
+            }
+            auto f0 = frameTripleList.front();
+            auto f1 = *std::next(frameTripleList.cbegin());
+            auto f2 = frameTripleList.back();
+            for (const auto &ary : triplePosVec) {
+                traceVec.push_back(OpticalFlowTripleTrace::Create({std::pair{f0, ary.at(0)},
+                                                                   std::pair{f1, ary.at(1)},
+                                                                   std::pair{f2, ary.at(2)}}));
+            }
+        }
+        _dataMagr->SetVisualOpticalFlowTrace(topic, traceVec);
+        spdlog::info("create optical flow triple trace count for '{}': {}", topic, traceVec.size());
+    }
+
+    /**
+     * resort the optical flow correspondences based on the camera frame index
+     */
+    std::map<std::string, std::map<CameraFrame::Ptr, std::vector<OpticalFlowCorr::Ptr>>>
+        opticalFlowInFrame;
+    for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
+        const auto &traceVec = _dataMagr->GetVisualOpticalFlowTrace(topic);
+        auto &curOpticalFlowInFrame = opticalFlowInFrame[topic];
+
+        for (const auto &trace : traceVec) {
+            auto midCamFrame = trace->GetMidCameraFrame();
+            // the depth information stored in 'OpticalFlowCorr' is invalid currently
+            const auto &corr = trace->CreateEventOpticalFlowCorr();
+            curOpticalFlowInFrame[midCamFrame].emplace_back(corr);
+
+    #define VISUALIZE_OPTICAL_FLOW_TRACE 0
+    #if VISUALIZE_OPTICAL_FLOW_TRACE
+            const double readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
+            Eigen::Vector2d vel = corr->MidPointVel(readout);  // the pixel velocity
+            if (vel.norm() > 5.0 * Configor::Prior::LossForOpticalFlowFactor) {
+                // just for visualization
+                const auto &intri = _parMagr->INTRI.Camera.at(topic);
+                auto h = static_cast<int>(intri->imgHeight), w = static_cast<int>(intri->imgWidth);
+                auto movement = trace->GetTrace();
+                std::array<cv::Scalar, 3> color = {
+                    cv::Scalar{200, 200, 200}, {255, 255, 255}, {200, 200, 200}};
+                for (int i = 0; i != movement.size(); ++i) {
+                    auto &mv = movement.at(i);
+                    auto cImg = cv::Mat(h, w, CV_8UC3, color.at(i));
+                    mv.first = CameraFrame::Create(mv.first->GetTimestamp(), cv::Mat(), cImg,
+                                                   mv.first->GetId());
+                }
+                // show the visual pixel trace image (features, mid-point pixel velocity)
+                auto img = OpticalFlowTripleTrace::Create(movement)->CreateOpticalFlowMat(
+                    _parMagr->INTRI.Camera.at(topic), corr->MidPointVel(readout));
+                Eigen::Vector2d mp = corr->MidPoint();
+                const auto filename = fmt::format(
+                    "{}/{}-{}-{}.png", Configor::DataStream::DebugPath, midCamFrame->GetId(),
+                    static_cast<int>(mp(0)), static_cast<int>(mp(1)));
+                // save this image to disk
+                // cv::imwrite(filename, img);
+                cv::imshow("img", img);
+                cv::waitKey(0);
+            }
+    #endif
+    #undef VISUALIZE_OPTICAL_FLOW_TRACE
+        }
+    }
+
+    /**
+     * for each event camera (virtual) frame of each topic, we estimate the linear velocity, and
+     * store them in 'eventBodyFrameVelDirs' [topic, camera frame, body-frame velocity]
+     */
+    auto &eventBodyFrameVelDirs = _initAsset->eventBodyFrameVelDirs;
+    for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
+        spdlog::info("estimate event-derived linear velocities for '{}'...", topic);
+        const auto &readout = _parMagr->TEMPORAL.RS_READOUT.at(topic);
+        const double TO_EsToBr = _parMagr->TEMPORAL.TO_EsToBr.at(topic);
+
+        auto bar = std::make_shared<tqdm>();
+        const auto &curOpticalFlowInFrame = opticalFlowInFrame.at(topic);
+        auto totalSize = static_cast<int>(curOpticalFlowInFrame.size());
+        int curIdx = 0;
+        for (const auto &[frame, ofVec] : curOpticalFlowInFrame) {
+            bar->progress(curIdx++, totalSize);
+            const double timeByBr = frame->GetTimestamp() + TO_EsToBr;
+            // at least two measurements are required, here we up the ante
+            if (timeByBr < st || timeByBr > et || ofVec.size() < 5) {
+                continue;
+            }
+            // if the camera is moving too slow, we do not estimate its velocity direction
+            double avgPixelVel = 0.0;
+            for (const auto &corr : ofVec) {
+                avgPixelVel += corr->MidPointVel(readout).norm();
+            }
+            avgPixelVel /= static_cast<double>(ofVec.size());
+            if (avgPixelVel < Configor::Prior::LossForOpticalFlowFactor) {
+                continue;
+            }
+            auto estimator = Estimator::Create(_splines, _parMagr);
+            Eigen::Vector3d velDir(0.0, 0.0, 1.0f);
+            for (auto &corr : ofVec) {
+                // we initialize the depth as 1.0, this value would be optimized in estimator
+                corr->depth = 1.0;
+                estimator->AddVisualVelocityDepthFactorForEvent(
+                    &velDir,  // the direction of linear velocity to be estimated
+                    corr,     // the optical flow correspondence
+                    topic,    // rostopic
+                    1.0,      // weight
+                    true,     // estimate the depth information
+                    true);    // only estimate the direction of the linear velocity
+            }
+            // we don't want to output the solving information
+            auto optWithoutOutput =
+                Estimator::DefaultSolverOptions(Configor::Preference::AvailableThreads(),
+                                                false,   // do not output the solving information
+                                                false);  // we do not use cuda solving here
+            auto sum = estimator->Solve(optWithoutOutput, this->_priori);
+
+            eventBodyFrameVelDirs[topic].emplace_back(frame->GetTimestamp(), velDir);
+        }
+        bar->finish();
+        /**
+         * the obtained camera-frame velocities may not time-ordered, thus we sort these quantities
+         * based on their timestamps
+         */
+        auto &curVelDirs = eventBodyFrameVelDirs.at(topic);
+        std::sort(curVelDirs.begin(), curVelDirs.end(),
+                  [](const auto &p1, const auto &p2) { return p1.first < p2.first; });
+    }
+#else
     /**
      * create discrete optical flow trace using fitted event trace
      * |    [---][---][---][---][---]   [---][---]-  [---][---][---][---][---]-  |
@@ -477,8 +652,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 if (pos != std::nullopt && vel != std::nullopt) {
                     inRangePosVelVec.emplace_back(-1.0, *pos, *vel);
                 }
-#define VISUALIZE_OPTICAL_FLOW_TRACE 0
-#if VISUALIZE_OPTICAL_FLOW_TRACE
+    #define VISUALIZE_OPTICAL_FLOW_TRACE 0
+    #if VISUALIZE_OPTICAL_FLOW_TRACE
                 auto timeBefore = time - DISCRETE_TIME_INTERVAL;
                 auto posBefore = trace->PositionAt(timeBefore);
                 auto timeAfter = time + DISCRETE_TIME_INTERVAL;
@@ -502,7 +677,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                     cv::imshow("mat", mat);
                     cv::waitKey(0);
                 }
-#endif
+    #endif
+    #undef VISUALIZE_OPTICAL_FLOW_TRACE
             }
             ofsPerStampList.emplace_back(time, inRangePosVelVec);
             time += DISCRETE_TIME_INTERVAL;
@@ -557,5 +733,6 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         }
         bar->finish();
     }
+#endif
 }
 }  // namespace ns_ikalibr

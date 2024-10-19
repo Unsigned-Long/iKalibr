@@ -1843,6 +1843,18 @@ void Estimator::AddVisualVelocityDepthFactorForVelCam(Eigen::Vector3d *LIN_VEL_C
         parMagr->INTRI.Camera.at(topic), weight, estDepth, estVelDirOnly);
 }
 
+void Estimator::AddVisualVelocityDepthFactorForEvent(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                                     const OpticalFlowCorrPtr &corr,
+                                                     const std::string &topic,
+                                                     double weight,
+                                                     bool estDepth,
+                                                     bool estVelDirOnly) {
+    this->AddVisualVelocityDepthFactor(
+    LIN_VEL_CmToWInCm, corr, parMagr->TEMPORAL.TO_EsToBr.at(topic),
+    parMagr->TEMPORAL.RS_READOUT.at(topic), parMagr->EXTRI.SO3_EsToBr.at(topic),
+    parMagr->INTRI.Camera.at(topic), weight, estDepth, estVelDirOnly);
+}
+
 std::pair<double, double> Estimator::ConsideredTimeRangeForCameraStamp(double timeByCam,
                                                                        double RS_READOUT,
                                                                        double RT_PADDING,
