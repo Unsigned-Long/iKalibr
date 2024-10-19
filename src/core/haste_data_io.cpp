@@ -82,7 +82,7 @@ EventsInfo EventsInfo::LoadFromDisk(const std::string &filename,
     return info;
 }
 
-std::pair<std::string, EventsInfo::SubBatch> HASTEDataIO::SaveRawEventData(
+std::pair<std::string, EventsInfo::SubBatch> HASTEDataIO::SaveRawEventDataAsText(
     const std::vector<EventArray::Ptr>::const_iterator &fromIter,
     const std::vector<EventArray::Ptr>::const_iterator &toIter,
     const ns_veta::PinholeIntrinsic::Ptr &intri,
@@ -92,7 +92,7 @@ std::pair<std::string, EventsInfo::SubBatch> HASTEDataIO::SaveRawEventData(
     int batchIdx) {
     // event.txt
     const std::string &eventsPath = subWS + "/events.txt";
-    std::ofstream ofUndistortedEvents(eventsPath, std::ios::out);
+    std::ofstream ofEvents(eventsPath, std::ios::out);
     std::stringstream buffer;
     std::size_t eventCount = 0;
     for (auto iter = fromIter; iter != toIter; ++iter) {
@@ -108,8 +108,8 @@ std::pair<std::string, EventsInfo::SubBatch> HASTEDataIO::SaveRawEventData(
             ++eventCount;
         }
     }
-    ofUndistortedEvents << buffer.str();
-    ofUndistortedEvents.close();
+    ofEvents << buffer.str();
+    ofEvents.close();
 
     // calib.txt
     const std::string &calibPath = subWS + "/calib.txt";
@@ -171,7 +171,112 @@ std::pair<std::string, EventsInfo::SubBatch> HASTEDataIO::SaveRawEventData(
     return {command, batchInfo};
 }
 
-std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResults(
+std::pair<std::string, EventsInfo::SubBatch> HASTEDataIO::SaveRawEventDataAsBinary(
+    const std::vector<EventArrayPtr>::const_iterator &fromIter,
+    const std::vector<EventArrayPtr>::const_iterator &toIter,
+    const ns_veta::PinholeIntrinsicPtr &intri,
+    const std::vector<Eigen::Vector2d> &seeds,
+    double seedsTime,
+    const std::string &subWS,
+    int batchIdx) {
+    // event.bin
+    const std::string &eventsPath = subWS + "/events.bin";
+    std::ofstream ofEvents(eventsPath, std::ios::binary);
+    std::size_t eventCount = 0;
+    for (auto iter = fromIter; iter != toIter; ++iter) {
+        const auto &events = (*iter)->GetEvents();
+        for (const auto &event : events) {
+            // time (float), x (uint16_t), y (uint16_t), polarity (boolean)
+            auto time = static_cast<float>(event->GetTimestamp());
+            std::uint16_t x = event->GetPos()(0);
+            std::uint16_t y = event->GetPos()(1);
+            bool polarity = event->GetPolarity();
+
+            ofEvents.write(reinterpret_cast<const char *>(&time), sizeof(time));
+            ofEvents.write(reinterpret_cast<const char *>(&x), sizeof(x));
+            ofEvents.write(reinterpret_cast<const char *>(&y), sizeof(y));
+            ofEvents.write(reinterpret_cast<const char *>(&polarity), sizeof(polarity));
+
+            ++eventCount;
+        }
+    }
+    ofEvents.close();
+
+    // calib.bin
+    const std::string &calibPath = subWS + "/calib.bin";
+    std::ofstream ofCalib(calibPath, std::ios::binary);
+    // since the events have been undistorted, the distortion parameters are all zeros
+    // fx, fy, cx, cy, k1, k2, p1, p2, k3
+    auto t2Intri = std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(intri);
+    if (t2Intri == nullptr) {
+        // the intrinsics of this camera is not 'ns_veta::PinholeIntrinsicBrownT2'
+        throw Status(Status::CRITICAL,
+                     "intrinsics of event camera is invalid, only the "
+                     "'PinholeIntrinsicBrownT2' is supported currently!!!");
+    }
+    float fx = static_cast<float>(t2Intri->GetParams().at(0)),
+          fy = static_cast<float>(t2Intri->GetParams().at(1));
+    float cx = static_cast<float>(t2Intri->GetParams().at(2)),
+          cy = static_cast<float>(t2Intri->GetParams().at(3));
+    float k1 = static_cast<float>(t2Intri->GetParams().at(4)),
+          k2 = static_cast<float>(t2Intri->GetParams().at(5));
+    float p1 = static_cast<float>(t2Intri->GetParams().at(7)),
+          p2 = static_cast<float>(t2Intri->GetParams().at(8));
+    float k3 = static_cast<float>(t2Intri->GetParams().at(6));
+    // fx, fy, cx, cy, k1, k2, p1, p2, k3 (all are float format)
+    ofCalib.write(reinterpret_cast<const char *>(&fx), sizeof(fx));
+    ofCalib.write(reinterpret_cast<const char *>(&fy), sizeof(fy));
+    ofCalib.write(reinterpret_cast<const char *>(&cx), sizeof(cx));
+    ofCalib.write(reinterpret_cast<const char *>(&cy), sizeof(cy));
+    ofCalib.write(reinterpret_cast<const char *>(&k1), sizeof(k1));
+    ofCalib.write(reinterpret_cast<const char *>(&k2), sizeof(k2));
+    ofCalib.write(reinterpret_cast<const char *>(&p1), sizeof(p1));
+    ofCalib.write(reinterpret_cast<const char *>(&p2), sizeof(p2));
+    ofCalib.write(reinterpret_cast<const char *>(&k3), sizeof(k3));
+    ofCalib.close();
+
+    // seeds.bin
+    const std::string &seedsPath = subWS + "/seeds.bin";
+    std::ofstream ofSeeds(seedsPath, std::ios::binary);
+    for (int i = 0; i != static_cast<int>(seeds.size()); ++i) {
+        const Eigen::Vector2d &seed = intri->GetUndistoPixel(seeds.at(i));
+        auto time = static_cast<float>(seedsTime);
+        auto x = static_cast<float>(seed(0));
+        auto y = static_cast<float>(seed(1));
+        float theta = 0.0f;
+        std::uint64_t id = i;
+
+        // t (float), x (float), y (float), theta (float), id (uint64_t)
+        ofSeeds.write(reinterpret_cast<const char *>(&time), sizeof(time));
+        ofSeeds.write(reinterpret_cast<const char *>(&x), sizeof(x));
+        ofSeeds.write(reinterpret_cast<const char *>(&y), sizeof(y));
+        ofSeeds.write(reinterpret_cast<const char *>(&theta), sizeof(theta));
+        ofSeeds.write(reinterpret_cast<const char *>(&id), sizeof(id));
+    }
+    ofSeeds.close();
+
+    // command
+    const std::string hasteProg = "/home/csl/Software/haste/build/tracking_app_binary";
+    auto command = fmt::format(
+        "{} "
+        "-events_file={} "  // Plain text file with events
+        "-seeds_file={} "   // Plain text file with several initial tracking seeds
+        "-tracker_type={} "  // correlation|haste_correlation|haste_correlation_star|haste_difference|haste_difference_star
+        "-centered_initialization={} "  // Force tracker to be centered/non-centered initialized
+        "-camera_params_file={} "       // Load pinhole camera calibration model
+        "-camera_size={}x{} "           // Set image sensor resolution
+        "-visualize={} "                // Visualize internal tracker state
+        "-output_file={}",              // Write tracking results to file
+        hasteProg, eventsPath, seedsPath, "haste_correlation_star", true, calibPath,
+        intri->imgWidth, intri->imgHeight, false, subWS + "/haste_results.bin");
+
+    auto batchInfo = EventsInfo::SubBatch(batchIdx, (*fromIter)->GetTimestamp(),
+                                          (*toIter)->GetTimestamp(), eventCount);
+
+    return {command, batchInfo};
+}
+
+std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResultsFromTXT(
     const EventsInfo &info, double newRawStartTime) {
     if (info.batches.empty()) {
         spdlog::warn("there is no any batch in '{}'!!!", info.root_path);
@@ -209,6 +314,68 @@ std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResults
             // feature.angle = std::stod(strVec.at(3)) * DEG_TO_RAD;
             int id = std::stoi(strVec.at(4));
             tracking[id].push_back(std::make_shared<EventFeature>(feature));
+
+            ++trackedFeatCount;
+            if (feature.timestamp < minTime) {
+                minTime = feature.timestamp;
+            }
+            if (feature.timestamp > maxTime) {
+                maxTime = feature.timestamp;
+            }
+        }
+        ifResults.close();
+    }
+    bar->finish();
+    spdlog::info(
+        "load tracking results finished, batch count: {}, total tracked feature count: {}, time "
+        "span from '{:.5f}' to '{:.5f}', time range: '{:.5f}'",
+        trackResults.size(), trackedFeatCount, minTime, maxTime, maxTime - minTime);
+    return trackResults;
+}
+
+std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResultsFromBinary(
+    const EventsInfo &info, double newRawStartTime) {
+    if (info.batches.empty()) {
+        spdlog::warn("there is no any batch in '{}'!!!", info.root_path);
+        return {};
+    }
+    std::shared_ptr<tqdm> bar = std::make_shared<tqdm>();
+    // batch index, feature id, tracking list
+    TrackingResultsType trackResults;
+    std::size_t trackedFeatCount = 0;
+    double minTime = std::numeric_limits<double>::max();
+    double maxTime = std::numeric_limits<double>::min();
+    for (const auto &batch : info.batches) {
+        bar->progress(batch.index, static_cast<int>(info.batches.size()));
+
+        const std::string resultsPath =
+            fmt::format("{}/{}/haste_results.bin", info.root_path, batch.index);
+        if (!std::filesystem::exists(resultsPath)) {
+            spdlog::warn("haste result file of batch indexed as {} is not found!!!", batch.index);
+            continue;
+        }
+
+        std::ifstream ifResults(resultsPath, std::ios::binary);
+
+        float time;
+        float x;
+        float y;
+        float theta;
+        std::uint64_t id;
+
+        auto &tracking = trackResults[batch.index];
+
+        while (ifResults.read(reinterpret_cast<char *>(&time), sizeof(time))) {
+            ifResults.read(reinterpret_cast<char *>(&x), sizeof(x));
+            ifResults.read(reinterpret_cast<char *>(&y), sizeof(y));
+            ifResults.read(reinterpret_cast<char *>(&theta), sizeof(theta));
+            ifResults.read(reinterpret_cast<char *>(&id), sizeof(id));
+
+            EventFeature feature;
+            feature.timestamp = time + info.raw_start_time - newRawStartTime;
+            feature.pos = Eigen::Vector2f{x, y}.cast<double>();
+
+            tracking[static_cast<int>(id)].push_back(std::make_shared<EventFeature>(feature));
 
             ++trackedFeatCount;
             if (feature.timestamp < minTime) {

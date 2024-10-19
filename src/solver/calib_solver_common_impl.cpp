@@ -904,13 +904,13 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                 const double seedsTime = (*seedIter)->GetTimestamp();
 
                 auto [command, batchInfo] =
-                    HASTEDataIO::SaveRawEventData(headIter,   // from
-                                                  curIter,    // to
-                                                  intri,      // intrinsics
-                                                  seeds,      // seed positions
-                                                  seedsTime,  // seed timestamps
-                                                  subWS,      // directory
-                                                  subEventDataIdx);
+                    HASTEDataIO::SaveRawEventDataAsBinary(headIter,   // from
+                                                          curIter,    // to
+                                                          intri,      // intrinsics
+                                                          seeds,      // seed positions
+                                                          seedsTime,  // seed timestamps
+                                                          subWS,      // directory
+                                                          subEventDataIdx);
 
                 // record information
                 commands << '\"' << command << "\"\n";

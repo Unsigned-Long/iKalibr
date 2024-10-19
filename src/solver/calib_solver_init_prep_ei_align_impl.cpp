@@ -92,8 +92,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             spdlog::info("try to load feature tracking results from haste for camera '{}'...",
                          topic);
             // the output tracking results from HASTE should be distortion-free?
-            auto tracking =
-                HASTEDataIO::TryLoadHASTEResults(*eventsInfo, _dataMagr->GetRawStartTimestamp());
+            auto tracking = HASTEDataIO::TryLoadHASTEResultsFromBinary(
+                *eventsInfo, _dataMagr->GetRawStartTimestamp());
             if (tracking != std::nullopt) {
                 auto bar = std::make_shared<tqdm>();
                 int barIndex = 0;

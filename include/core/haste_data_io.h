@@ -125,7 +125,7 @@ public:
      * @param batchIdx the index of this batch
      * @return the command to perform haste, and the information of this batch data
      */
-    static std::pair<std::string, EventsInfo::SubBatch> SaveRawEventData(
+    static std::pair<std::string, EventsInfo::SubBatch> SaveRawEventDataAsText(
         const std::vector<EventArrayPtr>::const_iterator &fromIter,
         const std::vector<EventArrayPtr>::const_iterator &toIter,
         const ns_veta::PinholeIntrinsicPtr &intri,
@@ -134,8 +134,20 @@ public:
         const std::string &subWS,
         int batchIdx = 0);
 
-    static std::optional<TrackingResultsType> TryLoadHASTEResults(const EventsInfo &info,
-                                                                  double newRawStartTime = 0);
+    static std::pair<std::string, EventsInfo::SubBatch> SaveRawEventDataAsBinary(
+        const std::vector<EventArrayPtr>::const_iterator &fromIter,
+        const std::vector<EventArrayPtr>::const_iterator &toIter,
+        const ns_veta::PinholeIntrinsicPtr &intri,
+        const std::vector<Eigen::Vector2d> &seeds,
+        double seedsTime,
+        const std::string &subWS,
+        int batchIdx = 0);
+
+    static std::optional<TrackingResultsType> TryLoadHASTEResultsFromTXT(
+        const EventsInfo &info, double newRawStartTime = 0);
+
+    static std::optional<TrackingResultsType> TryLoadHASTEResultsFromBinary(
+        const EventsInfo &info, double newRawStartTime = 0);
 
     static void SaveEventsInfo(const EventsInfo &info, const std::string &ws);
 
