@@ -477,6 +477,32 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 if (pos != std::nullopt && vel != std::nullopt) {
                     inRangePosVelVec.emplace_back(-1.0, *pos, *vel);
                 }
+#define VISUALIZE_OPTICAL_FLOW_TRACE 0
+#if VISUALIZE_OPTICAL_FLOW_TRACE
+                auto timeBefore = time - DISCRETE_TIME_INTERVAL;
+                auto posBefore = trace->PositionAt(timeBefore);
+                auto timeAfter = time + DISCRETE_TIME_INTERVAL;
+                auto posBack = trace->PositionAt(timeAfter);
+                if (posBefore != std::nullopt && pos != std::nullopt && vel != std::nullopt &&
+                    posBack != std::nullopt &&
+                    vel->norm() > 5.0 * Configor::Prior::LossForOpticalFlowFactor) {
+                    const auto &intri = _parMagr->INTRI.Camera.at(topic);
+                    auto h = static_cast<int>(intri->imgHeight);
+                    auto w = static_cast<int>(intri->imgWidth);
+                    cv::Mat img(h, w, CV_8UC3, cv::Scalar(255, 255, 255));
+                    auto frameBefore = CameraFrame::Create(timeBefore, cv::Mat(), img.clone(), 0);
+                    auto frame = CameraFrame::Create(time, cv::Mat(), img.clone(), 0);
+                    auto frameBack = CameraFrame::Create(timeAfter, cv::Mat(), img.clone(), 0);
+                    std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3> movement;
+                    movement.at(0) = std::pair{frameBefore, *posBefore};
+                    movement.at(1) = std::pair{frame, *pos};
+                    movement.at(2) = std::pair{frameBack, *posBack};
+                    auto of = OpticalFlowTripleTrace::Create(movement);
+                    auto mat = of->CreateOpticalFlowMat(intri, *vel);
+                    cv::imshow("mat", mat);
+                    cv::waitKey(0);
+                }
+#endif
             }
             ofsPerStampList.emplace_back(time, inRangePosVelVec);
             time += DISCRETE_TIME_INTERVAL;
