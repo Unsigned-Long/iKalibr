@@ -135,6 +135,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 bar->finish();
                 // save tracking results
                 eventFeatTrackingRes[topic] = *tracking;
+                _viewer->ClearViewer(Viewer::VIEW_MAP);
                 continue;
             }
         }
@@ -153,7 +154,6 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         SaveEventDataForFeatureTracking(topic, hasteWorkspace, 0.2, EVENT_FRAME_NUM_THD, 200);
     }
     cv::destroyAllWindows();
-    _viewer->ClearViewer(Viewer::VIEW_MAP);
     if (eventFeatTrackingRes.size() != Configor::DataStream::EventTopics.size()) {
         throw Status(Status::FINE,
                      "files for haste-based feature tracking have been output to '{}', run "

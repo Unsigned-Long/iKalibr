@@ -854,9 +854,9 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
              * texture positions for feature tracking (haste-based). Note that this even frame
              * is a distorted one
              */
-            eventFrameMat = EventArray::DrawRawEventFrame(matSIter, curIter, intri);
-            cv::imshow("Event Frame", eventFrameMat);
-            cv::waitKey(1);
+            // eventFrameMat = EventArray::DrawRawEventFrame(matSIter, curIter, intri);
+            // cv::imshow("Event Frame", eventFrameMat);
+            // cv::waitKey(1);
 
             matSIter = curIter;
             accumulatedEventCount = 0;
@@ -935,15 +935,30 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                   "commands=(\n"
                << commands.str()
                << ")\n"
-                  "max_parallel=8\n"
+                  "max_parallel=$(nproc --available)\n"
+                  "echo \"Maximum Parallel Tasks Set To: $max_parallel\"\n"
+                  "total_commands=${#commands[@]}\n"
+                  "completed_commands=0\n"
+                  "update_progress() {\n"
+                  "  ((completed_commands++))\n"
+                  "  percentage=$((completed_commands * 100 / total_commands))\n"
+                  "  echo \"Currently Completed HASTE-Based Event Feature Tracking Tasks: "
+                  "[$completed_commands / $total_commands]-[$percentage%]\"\n"
+                  "}\n"
                   "for cmd in \"${commands[@]}\"; do\n"
-                  "  $cmd &\n"
+                  "  current_cmd=\"$cmd\"\n"
+                  "  $cmd > /dev/null 2>&1 &\n"
                   "  running=$(jobs -r | wc -l)\n"
                   "  if [ \"$running\" -ge \"$max_parallel\" ]; then\n"
                   "    wait -n\n"
+                  "    update_progress\n"
                   "  fi\n"
                   "done\n"
-                  "wait";
+                  "while [ $(jobs -r | wc -l) -gt 0 ]; do\n"
+                  "  wait -n\n"
+                  "  update_progress\n"
+                  "done\n"
+                  "echo -e \"\\nAll Commands Completed!\"\n";
     ofCmdShell.close();
 
     EventsInfo info(topic, ws, _dataMagr->GetRawStartTimestamp(), subBatches);
