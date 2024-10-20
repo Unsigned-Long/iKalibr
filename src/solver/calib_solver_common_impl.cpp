@@ -935,7 +935,7 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                   "commands=(\n"
                << commands.str()
                << ")\n"
-                  "max_parallel=$(nproc --available)\n"
+                  "max_parallel=8\n"
                   "echo \"Maximum Parallel Tasks Set To: $max_parallel\"\n"
                   "total_commands=${#commands[@]}\n"
                   "completed_commands=0\n"
