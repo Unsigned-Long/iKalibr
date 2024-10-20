@@ -237,7 +237,7 @@ void CalibSolver::InitSensorInertialAlign() const {
     if (Configor::DataStream::IMUTopics.size() >= 2) {
         for (const auto &[topic, frames] : _dataMagr->GetIMUMeasurements()) {
             spdlog::info("add inertial alignment factors for '{}'...", topic);
-
+            int count = 0;
             for (int i = 0; i < static_cast<int>(linVelSeqBr.size()) - 1; ++i) {
                 int sIdx = i, eIdx = i + 1;
                 double sTimeByBr = sIdx * dt + st, eTimeByBr = eIdx * dt + st;
@@ -252,7 +252,10 @@ void CalibSolver::InitSensorInertialAlign() const {
                     eVel,       // the end velocity (to be estimated)
                     optOption,  // the optimize option
                     Configor::DataStream::IMUTopics.at(topic).AcceWeight);
+                ++count;
             }
+            spdlog::info("constraint count of inertial alignment for '{}': {}", topic,
+                         Configor::DataStream::ReferIMU, count);
         }
     }
 
@@ -268,7 +271,7 @@ void CalibSolver::InitSensorInertialAlign() const {
 
         spdlog::info("add radar-inertial alignment factors for '{}' and '{}', align step: {}",
                      radarTopic, Configor::DataStream::ReferIMU, ALIGN_STEP);
-
+        int count = 0;
         for (int i = 0; i < static_cast<int>(radarMes.size()) - ALIGN_STEP; ++i) {
             const auto &sArray = radarMes.at(i), eArray = radarMes.at(i + ALIGN_STEP);
 
@@ -307,7 +310,10 @@ void CalibSolver::InitSensorInertialAlign() const {
                 eArray,                          // the end target array
                 optOption,                       // the optimization option
                 weight);                         // the weight
+            ++count;
         }
+        spdlog::info("constraint count for '{}'-'{}' alignment: {}", radarTopic,
+                     Configor::DataStream::ReferIMU, count);
     }
 
     // rgbd-inertial alignment
@@ -322,7 +328,7 @@ void CalibSolver::InitSensorInertialAlign() const {
 
         spdlog::info("add rgbd-inertial alignment factors for '{}' and '{}', align step: {}",
                      rgbdTopic, Configor::DataStream::ReferIMU, ALIGN_STEP);
-
+        int count = 0;
         for (int i = 0; i < static_cast<int>(bodyFrameVels.size()) - ALIGN_STEP; ++i) {
             const auto &[sFrame, sVel] = bodyFrameVels.at(i);
             const auto &[eFrame, eVel] = bodyFrameVels.at(i + ALIGN_STEP);
@@ -347,7 +353,10 @@ void CalibSolver::InitSensorInertialAlign() const {
                 bodyFrameVels.at(i + ALIGN_STEP),  // the end velocity
                 optOption,                         // the optimization option
                 weight);                           // the weight
+            ++count;
         }
+        spdlog::info("constraint count for '{}'-'{}' alignment: {}", rgbdTopic,
+                     Configor::DataStream::ReferIMU, count);
     }
 
     // (vel) camera-inertial alignment
@@ -366,6 +375,7 @@ void CalibSolver::InitSensorInertialAlign() const {
 
         auto &curVelScales = velCamLinVelScales[topic];
         curVelScales = std::vector<double>(velDirs.size(), -1.0);
+        int count = 0;
         for (int i = 0; i < static_cast<int>(velDirs.size()) - ALIGN_STEP; ++i) {
             const auto &[sFrame, sVel] = velDirs.at(i);
             const auto &[eFrame, eVel] = velDirs.at(i + ALIGN_STEP);
@@ -393,7 +403,10 @@ void CalibSolver::InitSensorInertialAlign() const {
                 &curVelScales.at(i + ALIGN_STEP),  // the scale of end velocity to be estimated
                 optOption,                         // the optimization option
                 weight);                           // the weight
+            ++count;
         }
+        spdlog::info("constraint count for '{}'-'{}' alignment: {}", topic,
+                     Configor::DataStream::ReferIMU, count);
     }
 
     // event camera-inertial alignment
@@ -413,6 +426,7 @@ void CalibSolver::InitSensorInertialAlign() const {
 
         auto &curVelScales = eventLinVelScales[topic];
         curVelScales = std::vector<double>(velDirs.size(), -1.0);
+        int count = 0;
         for (int i = 0; i < static_cast<int>(velDirs.size()) - ALIGN_STEP; ++i) {
             const auto &[sTime, sVel] = velDirs.at(i);
             const auto &[eTime, eVel] = velDirs.at(i + ALIGN_STEP);
@@ -438,7 +452,10 @@ void CalibSolver::InitSensorInertialAlign() const {
                 &curVelScales.at(i + ALIGN_STEP),  // the scale of end velocity to be estimated
                 optOption,                         // the optimization option
                 weight);                           // the weight
+            ++count;
         }
+        spdlog::info("constraint count for '{}'-'{}' alignment: {}", topic,
+                     Configor::DataStream::ReferIMU, count);
     }
 
     // fix spatiotemporal parameters of reference sensor
