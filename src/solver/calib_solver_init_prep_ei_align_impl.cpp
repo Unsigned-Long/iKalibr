@@ -72,6 +72,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
     constexpr double TRACKING_FIT_SAC_THD = 3.0;
     constexpr double TRACKING_AGE_PERCENT_THD = 0.3;
     constexpr double TRACKING_FREQ_PERCENT_THD = 0.3;
+    constexpr double BATCH_TIME_WIN_THD = 0.2;
+    constexpr int HASTE_SEED_COUNT = 200;
     // topic, batch index, tracked features
     std::map<std::string, std::map<int, EventFeatTrackingBatch>> eventFeatTrackingRes;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
@@ -151,7 +153,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
          */
         spdlog::info("saving event data of camera '{}' for haste-based feature tracking...", topic);
         const std::size_t EVENT_FRAME_NUM_THD = intri->imgHeight * intri->imgWidth / 5;
-        SaveEventDataForFeatureTracking(topic, hasteWorkspace, 0.2, EVENT_FRAME_NUM_THD, 200);
+        SaveEventDataForFeatureTracking(topic, hasteWorkspace, BATCH_TIME_WIN_THD,
+                                        EVENT_FRAME_NUM_THD, HASTE_SEED_COUNT);
     }
     cv::destroyAllWindows();
     if (eventFeatTrackingRes.size() != Configor::DataStream::EventTopics.size()) {
@@ -165,7 +168,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * Based on the results given by HASTE, we perform consistency detection based on the visual
      * model to estimate the camera rotation and remove bad tracking.
      */
-    constexpr double REL_ROT_TIME_INTERVAL = 0.03 /* about 30 Hz */;
+    constexpr double DISCRETE_TIME_INTERVAL = 0.03 /* about 30 Hz */;
     constexpr double FMAT_THRESHOLD = 1.0;
     constexpr double ROT_ONLY_RANSAC_THD = 1.0;
     std::map<std::string, std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec>> eventTraceMap;
@@ -196,12 +199,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         auto rotEstimator = RotationEstimator::Create();
         spdlog::info("perform rotation-only relative rotation estimation for '{}'...", topic);
         auto bar = std::make_shared<tqdm>();
-        const int totalSize = static_cast<int>((et - st) / REL_ROT_TIME_INTERVAL) - 1;
+        const int totalSize = static_cast<int>((et - st) / DISCRETE_TIME_INTERVAL) - 1;
         int barIndex = 0;
-        for (double time = st; time < et - REL_ROT_TIME_INTERVAL;) {
+        for (double time = st; time < et - DISCRETE_TIME_INTERVAL;) {
             bar->progress(barIndex++, totalSize);
-            const double t1 = time, t2 = time + REL_ROT_TIME_INTERVAL;
-            time += REL_ROT_TIME_INTERVAL;
+            const double t1 = time, t2 = time + DISCRETE_TIME_INTERVAL;
+            time += DISCRETE_TIME_INTERVAL;
 
             const auto traceVec1 = FindInRangeTrace(t1), traceVec2 = FindInRangeTrace(t2);
 
@@ -405,8 +408,6 @@ void CalibSolver::InitPrepEventInertialAlign() const {
 
 #define USE_NEW_CAM_VEL_ESTIMATE 1
 #if USE_NEW_CAM_VEL_ESTIMATE
-    constexpr double DISCRETE_TIME_INTERVAL = 0.03 /* about 30 Hz */;
-
     for (const auto &[topic, eventTrace] : eventTraceMap) {
         auto FindInRangeTrackedTripleFeatures = [&eventTrace](double time, double interval) {
             std::vector<std::array<Eigen::Vector2d, 3>> triplePosVec;
