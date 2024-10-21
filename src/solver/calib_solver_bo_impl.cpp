@@ -118,10 +118,27 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddRGBDOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
                                                OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+                /**
+                 * when vel spline is maintained, we add additional reprojection constraints for
+                 * optical flow tracking correspondence, under the assumption of uniform velocity
+                 * variation
+                 */
+                this->AddRGBDOpticalFlowReprojFactor<TimeDeriv::LIN_VEL_SPLINE,
+                                                     OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
             for (const auto &[topic, corrs] : visualVelCorrs) {
                 this->AddVisualOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
                                                  OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+
+                /**
+                 * when vel spline is maintained, we add additional reprojection constraints for
+                 * optical flow tracking correspondence, under the assumption of uniform velocity
+                 * variation
+                 */
+                this->AddVisualOpticalFlowReprojFactor<TimeDeriv::LIN_VEL_SPLINE,
+                                                       OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
             for (const auto &[topic, corrs] : eventCorrs) {

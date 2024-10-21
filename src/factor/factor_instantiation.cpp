@@ -103,11 +103,17 @@ template struct VisualReProjFactor<Configor::Prior::SplineOrder, 2>;
 template struct VisualReProjFactor<Configor::Prior::SplineOrder, 1>;
 template struct VisualReProjFactor<Configor::Prior::SplineOrder, 0>;
 
-template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, true>;
-template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, true>;
-template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, true>;
-template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, false>;
-template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, false>;
-template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, false>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, true, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, true, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, true, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, true, false>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, true, false>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, true, false>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, false, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, false, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, false, true>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, false, false>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, false, false>;
+template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, false, false>;
 
 }  // namespace ns_ikalibr

@@ -42,43 +42,8 @@ struct EventFeature;
 using EventFeaturePtr = std::shared_ptr<EventFeature>;
 using EventFeatTrackingVec = std::vector<EventFeaturePtr>;
 
-struct FeatureTrackingTrace {
-public:
-    using Ptr = std::shared_ptr<FeatureTrackingTrace>;
-
-public:
-    double sTime{}, eTime{};
-    Eigen::Vector3d xParm, yParm;
-
-public:
-    FeatureTrackingTrace(double s_time,
-                         double e_time,
-                         Eigen::Vector3d x_parm,
-                         Eigen::Vector3d y_parm);
-
-    FeatureTrackingTrace() = default;
-
-    static Ptr Create(double s_time,
-                      double e_time,
-                      const Eigen::Vector3d &x_parm,
-                      const Eigen::Vector3d &y_parm);
-
-    static Ptr CreateFrom(const std::vector<EventFeaturePtr> &trackingAry);
-
-    [[nodiscard]] std::optional<Eigen::Vector2d> PositionAt(double t) const;
-
-    [[nodiscard]] std::optional<Eigen::Vector2d> VelocityAt(double t) const;
-
-    [[nodiscard]] std::vector<Eigen::Vector3d> DiscretePositions(double dt = 0.005) const;
-
-protected:
-    static double QuadraticCurveValueAt(double x, const Eigen::Vector3d &params);
-
-    static double QuadraticCurveVelocityAt(double x, const Eigen::Vector3d &params);
-
-    static Eigen::Vector3d FitQuadraticCurve(const std::vector<double> &x,
-                                             const std::vector<double> &y);
-};
+struct FeatureTrackingTrace;
+using FeatureTrackingTracePtr = std::shared_ptr<FeatureTrackingTrace>;
 
 class EventTrackingTraceSacProblem
     : public opengv::sac::SampleConsensusProblem<FeatureTrackingTrace> {
@@ -93,7 +58,7 @@ public:
     explicit EventTrackingTraceSacProblem(const EventFeatTrackingVec &trackingAry,
                                           bool randomSeed = true);
 
-    static std::pair<FeatureTrackingTrace::Ptr, EventFeatTrackingVec> EventTrackingTraceSac(
+    static std::pair<FeatureTrackingTracePtr, EventFeatTrackingVec> EventTrackingTraceSac(
         const EventFeatTrackingVec &trackingAry, double thd);
 
     /**

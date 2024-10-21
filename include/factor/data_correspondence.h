@@ -268,6 +268,56 @@ public:
     }
 };
 
+struct EventFeature;
+using EventFeaturePtr = std::shared_ptr<EventFeature>;
+
+struct FeatureTrackingTrace {
+public:
+    using Ptr = std::shared_ptr<FeatureTrackingTrace>;
+
+public:
+    double sTime{}, eTime{};
+    Eigen::Vector3d xParm, yParm;
+
+public:
+    FeatureTrackingTrace(double s_time,
+                         double e_time,
+                         Eigen::Vector3d x_parm,
+                         Eigen::Vector3d y_parm);
+
+    FeatureTrackingTrace() = default;
+
+    static Ptr Create(double s_time,
+                      double e_time,
+                      const Eigen::Vector3d &x_parm,
+                      const Eigen::Vector3d &y_parm);
+
+    static Ptr CreateFrom(const std::vector<EventFeaturePtr> &trackingAry);
+
+    [[nodiscard]] std::optional<Eigen::Vector2d> PositionAt(double t) const;
+
+    [[nodiscard]] std::optional<Eigen::Vector2d> VelocityAt(double t) const;
+
+    [[nodiscard]] std::vector<Eigen::Vector3d> DiscretePositions(double dt = 0.005) const;
+
+protected:
+    static double QuadraticCurveValueAt(double x, const Eigen::Vector3d &params);
+
+    static double QuadraticCurveVelocityAt(double x, const Eigen::Vector3d &params);
+
+    static Eigen::Vector3d FitQuadraticCurve(const std::vector<double> &x,
+                                             const std::vector<double> &y);
+};
+
+struct FeatureTrackingMoment {
+public:
+    using Ptr = std::shared_ptr<FeatureTrackingMoment>;
+
+public:
+    double time;
+    double depth;
+    FeatureTrackingTrace::Ptr trace;
+};
 }  // namespace ns_ikalibr
 
 #endif  // DATA_CORRESPONDENCE_H

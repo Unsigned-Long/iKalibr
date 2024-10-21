@@ -43,6 +43,7 @@
 #include "factor/visual_optical_flow_factor.hpp"
 #include "factor/visual_reproj_factor.hpp"
 #include "util/utils_tpl.hpp"
+#include "factor/event_optical_flow_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -1237,11 +1238,22 @@ void Estimator::AddVisualOpticalFlowReprojConstraint(const OpticalFlowCorrPtr &o
     splines->CalculateRdSplineMeta(Configor::Preference::SCALE_SPLINE,
                                    {timePairFir, timePairMid, timePairLast}, scaleMeta);
 
-    static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_POS>();
     // create a cost function
-    auto costFunc =
-        VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth>::Create(
-            so3Meta, scaleMeta, ofCorr, weight);
+    ceres::DynamicCostFunction *costFunc;
+
+    if (type == TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
+        static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_POS>();
+        costFunc = VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth,
+                                                 true>::Create(so3Meta, scaleMeta, ofCorr, weight);
+    } else if (type == TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE) {
+        static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_VEL>();
+        costFunc = VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth,
+                                                 false>::Create(so3Meta, scaleMeta, ofCorr, weight);
+    } else {
+        throw Status(Status::CRITICAL,
+                     "only 'LIN_POS_SPLINE' and 'LIN_VEL_SPLINE' is supported in "
+                     "'AddVisualOpticalFlowReprojConstraint'");
+    }
 
     // so3 knots param block [each has four sub params]
     for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
@@ -1263,7 +1275,7 @@ void Estimator::AddVisualOpticalFlowReprojConstraint(const OpticalFlowCorrPtr &o
     costFunc->AddParameterBlock(1);
     costFunc->AddParameterBlock(1);
 
-    // alpha, beta, depth
+    // depth
     costFunc->AddParameterBlock(1);
 
     costFunc->SetNumResiduals(4);
@@ -1406,12 +1418,22 @@ void Estimator::AddRGBDOpticalFlowReprojConstraint(const OpticalFlowCorrPtr &ofC
     splines->CalculateRdSplineMeta(Configor::Preference::SCALE_SPLINE,
                                    {timePairFir, timePairMid, timePairLast}, scaleMeta);
 
-    static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_POS>();
     // create a cost function
-    auto costFunc =
-        VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth>::Create(
-            so3Meta, scaleMeta, ofCorr, weight);
+    ceres::DynamicCostFunction *costFunc;
 
+    if (type == TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
+        static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_POS>();
+        costFunc = VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth,
+                                                 true>::Create(so3Meta, scaleMeta, ofCorr, weight);
+    } else if (type == TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE) {
+        static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_VEL>();
+        costFunc = VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth,
+                                                 false>::Create(so3Meta, scaleMeta, ofCorr, weight);
+    } else {
+        throw Status(Status::CRITICAL,
+                     "only 'LIN_POS_SPLINE' and 'LIN_VEL_SPLINE' is supported in "
+                     "'AddVisualOpticalFlowReprojConstraint'");
+    }
     // so3 knots param block [each has four sub params]
     for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
         costFunc->AddParameterBlock(4);

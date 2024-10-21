@@ -173,7 +173,7 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-template <int Order, int TimeDeriv, bool IsInvDepth>
+template <int Order, int TimeDeriv, bool IsInvDepth, bool TruePosFalseVel>
 struct VisualOpticalFlowReProjFactor {
 private:
     ns_ctraj::SplineMeta<Order> _so3Meta, _scaleMeta;
@@ -223,6 +223,31 @@ public:
             sKnots + LIN_SCALE_OFFSET, iuScale.second, _scaleDtInv, POS_BrInBr0);
     }
 
+    template <class T>
+    void ComputeSE3Br1ToBr2(T const *const *sKnots,
+                            T *t1ByBr,
+                            T *t2ByBr,
+                            Sophus::SO3<T> *SO3_Br1ToBr2,
+                            Eigen::Vector3<T> *POS_Br1InBr2) const {
+        // the linear scale spline is a velocity spline, under the assumption of uniform velocity
+        // variation
+        Sophus::SO3<T> SO3_Br1ToBr0;
+        Eigen::Vector3<T> VEL_Br1ToBr0InBr0;
+        ComputeSE3BrToBr0<T>(sKnots, t1ByBr, &SO3_Br1ToBr0, &VEL_Br1ToBr0InBr0);
+
+        Sophus::SO3<T> SO3_Br2ToBr0;
+        Eigen::Vector3<T> VEL_Br2ToBr0InBr0;
+        ComputeSE3BrToBr0<T>(sKnots, t2ByBr, &SO3_Br2ToBr0, &VEL_Br2ToBr0InBr0);
+
+        // equal to 'POS_Br2InBr0' - 'POS_Br1InBr0'
+        Eigen::Vector3<T> DELTA_POS_Br1ToBr2InBr0 =
+            0.5 * (VEL_Br1ToBr0InBr0 + VEL_Br2ToBr0InBr0) * (*t2ByBr - *t1ByBr);
+
+        Sophus::SO3<T> SO3_Br0ToBr2 = SO3_Br2ToBr0.inverse();
+        *SO3_Br1ToBr2 = SO3_Br0ToBr2 * SO3_Br1ToBr0;
+        *POS_Br1InBr2 = -(SO3_Br0ToBr2 * DELTA_POS_Br1ToBr2InBr0);
+    }
+
 public:
     /**
      * param blocks:
@@ -258,26 +283,39 @@ public:
 
         T DEPTH_INFO = sKnots[DEPTH_INFO_OFFSET][0];
 
-        // calculate the so3 and lin scale offset for first feat
+        Sophus::SE3<T> SE3_BrMidToBrFir, SE3_BrMidToBrLast;
+
         T timeByBrFir = _corr->timeAry.at(0) + TO_CmToBr + _corr->rdFactorAry.at(0) * READOUT_TIME;
-        Sophus::SE3<T> SE3_BrToBr0_Fir;
-        ComputeSE3BrToBr0<T>(sKnots, &timeByBrFir, &SE3_BrToBr0_Fir.so3(),
-                             &SE3_BrToBr0_Fir.translation());
-
-        // calculate the so3 and lin scale offset for middle feat
         T timeByBrMid = _corr->timeAry.at(1) + TO_CmToBr + _corr->rdFactorAry.at(1) * READOUT_TIME;
-        Sophus::SE3<T> SE3_BrToBr0_Mid;
-        ComputeSE3BrToBr0<T>(sKnots, &timeByBrMid, &SE3_BrToBr0_Mid.so3(),
-                             &SE3_BrToBr0_Mid.translation());
-
-        // calculate the so3 and lin scale offset for first feat
         T timeByBrLast = _corr->timeAry.at(2) + TO_CmToBr + _corr->rdFactorAry.at(2) * READOUT_TIME;
-        Sophus::SE3<T> SE3_BrToBr0_Last;
-        ComputeSE3BrToBr0<T>(sKnots, &timeByBrLast, &SE3_BrToBr0_Last.so3(),
-                             &SE3_BrToBr0_Last.translation());
 
-        Sophus::SE3<T> SE3_BrMidToBrFir = SE3_BrToBr0_Fir.inverse() * SE3_BrToBr0_Mid;
-        Sophus::SE3<T> SE3_BrMidToBrLast = SE3_BrToBr0_Last.inverse() * SE3_BrToBr0_Mid;
+        if constexpr (TruePosFalseVel) {
+            // calculate the so3 and lin scale offset for first feat
+            Sophus::SE3<T> SE3_BrToBr0_Fir;
+            ComputeSE3BrToBr0<T>(sKnots, &timeByBrFir, &SE3_BrToBr0_Fir.so3(),
+                                 &SE3_BrToBr0_Fir.translation());
+
+            // calculate the so3 and lin scale offset for middle feat
+            Sophus::SE3<T> SE3_BrToBr0_Mid;
+            ComputeSE3BrToBr0<T>(sKnots, &timeByBrMid, &SE3_BrToBr0_Mid.so3(),
+                                 &SE3_BrToBr0_Mid.translation());
+
+            // calculate the so3 and lin scale offset for first feat
+            Sophus::SE3<T> SE3_BrToBr0_Last;
+            ComputeSE3BrToBr0<T>(sKnots, &timeByBrLast, &SE3_BrToBr0_Last.so3(),
+                                 &SE3_BrToBr0_Last.translation());
+
+            SE3_BrMidToBrFir = SE3_BrToBr0_Fir.inverse() * SE3_BrToBr0_Mid;
+            SE3_BrMidToBrLast = SE3_BrToBr0_Last.inverse() * SE3_BrToBr0_Mid;
+        } else {
+            Sophus::SE3<T> SE3_BrFirToBrMid;
+            ComputeSE3Br1ToBr2<T>(sKnots, &timeByBrFir, &timeByBrMid, &SE3_BrFirToBrMid.so3(),
+                                  &SE3_BrFirToBrMid.translation());
+            SE3_BrMidToBrFir = SE3_BrFirToBrMid.inverse();
+
+            ComputeSE3Br1ToBr2<T>(sKnots, &timeByBrMid, &timeByBrLast, &SE3_BrMidToBrLast.so3(),
+                                  &SE3_BrMidToBrLast.translation());
+        }
 
         Sophus::SE3<T> SE3_CmMidToCmFir = SE3_CmToBr.inverse() * SE3_BrMidToBrFir * SE3_CmToBr;
         Sophus::SE3<T> SE3_CmMidToCmLast = SE3_CmToBr.inverse() * SE3_BrMidToBrLast * SE3_CmToBr;
@@ -320,12 +358,18 @@ extern template struct VisualReProjFactor<Configor::Prior::SplineOrder, 2>;
 extern template struct VisualReProjFactor<Configor::Prior::SplineOrder, 1>;
 extern template struct VisualReProjFactor<Configor::Prior::SplineOrder, 0>;
 
-extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, true>;
-extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, true>;
-extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, true>;
-extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, false>;
-extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, false>;
-extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, false>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, true, true>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, true, true>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, true, true>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, true, false>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, true, false>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, true, false>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, false, true>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, false, true>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, false, true>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, false, false>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, false, false>;
+extern template struct VisualOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, false, false>;
 }  // namespace ns_ikalibr
 
 #endif  // IKALIBR_VISUAL_REPROJ_FACTOR_HPP
