@@ -149,7 +149,7 @@ void CalibSolver::AddEventOpticalFlowFactor(EstimatorPtr &estimator,
 template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
 void CalibSolver::AddEventOpticalFlowFactor(EstimatorPtr &estimator,
                                             const std::string &eventTopic,
-                                            const std::vector<FeatureTrackingMoment::Ptr> &corrs,
+                                            const std::vector<OpticalFlowCurveCorr::Ptr> &corrs,
                                             OptOption option) {
     double weight = Configor::DataStream::EventTopics.at(eventTopic).Weight;
     for (const auto &corr : corrs) {

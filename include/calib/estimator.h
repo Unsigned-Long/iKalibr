@@ -35,13 +35,13 @@
 #ifndef IKALIBR_ESTIMATOR_H
 #define IKALIBR_ESTIMATOR_H
 
-#include "config/configor.h"
-#include "ctraj/core/spline_bundle.h"
-#include "ctraj/core/pose.hpp"
-#include "calib/calib_param_manager.h"
 #include "calib/calib_data_manager.h"
+#include "calib/calib_param_manager.h"
 #include "calib/time_deriv.hpp"
 #include "ceres/ceres.h"
+#include "config/configor.h"
+#include "ctraj/core/pose.hpp"
+#include "ctraj/core/spline_bundle.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -55,8 +55,8 @@ struct VisualReProjCorr;
 using VisualReProjCorrPtr = std::shared_ptr<VisualReProjCorr>;
 struct OpticalFlowCorr;
 using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
-struct FeatureTrackingMoment;
-using FeatureTrackingMomentPtr = std::shared_ptr<FeatureTrackingMoment>;
+struct OpticalFlowCurveCorr;
+using OpticalFlowCurveCorrPtr = std::shared_ptr<OpticalFlowCurveCorr>;
 
 // myenumGenor Option OPT_SO3_SPLINE OPT_SCALE_SPLINE OPT_SO3_BiToBr OPT_POS_BiInBr
 // OPT_SO3_RjToBr OPT_POS_RjInBr OPT_SO3_LkToBr OPT_POS_LkInBr OPT_SO3_CmToBr OPT_POS_CmInBr
@@ -388,7 +388,7 @@ public:
      *   | FX | FY | CX | CY | DEPTH_INFO | CURVE_X_PARAM | CURVE_Y_PARAM ]
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-    void AddEventOpticalFlowConstraint(const FeatureTrackingMomentPtr &ftm,
+    void AddEventOpticalFlowConstraint(const OpticalFlowCurveCorrPtr &ftm,
                                        const std::string &topic,
                                        Opt option,
                                        double weight);

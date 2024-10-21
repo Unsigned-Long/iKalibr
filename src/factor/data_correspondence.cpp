@@ -150,7 +150,7 @@ Eigen::Vector2d OpticalFlowCorr::LastPoint() const {
 
 double OpticalFlowCorr::MidReadoutFactor() const { return rdFactorAry[MID]; }
 
-FeatureTrackingTrace::FeatureTrackingTrace(double s_time,
+FeatureTrackingCurve::FeatureTrackingCurve(double s_time,
                                            double e_time,
                                            Eigen::Vector3d x_parm,
                                            Eigen::Vector3d y_parm)
@@ -159,14 +159,14 @@ FeatureTrackingTrace::FeatureTrackingTrace(double s_time,
       xParm(std::move(x_parm)),
       yParm(std::move(y_parm)) {}
 
-FeatureTrackingTrace::Ptr FeatureTrackingTrace::Create(double s_time,
+FeatureTrackingCurve::Ptr FeatureTrackingCurve::Create(double s_time,
                                                        double e_time,
                                                        const Eigen::Vector3d& x_parm,
                                                        const Eigen::Vector3d& y_parm) {
-    return std::make_shared<FeatureTrackingTrace>(s_time, e_time, x_parm, y_parm);
+    return std::make_shared<FeatureTrackingCurve>(s_time, e_time, x_parm, y_parm);
 }
 
-FeatureTrackingTrace::Ptr FeatureTrackingTrace::CreateFrom(
+FeatureTrackingCurve::Ptr FeatureTrackingCurve::CreateFrom(
     const std::vector<EventFeature::Ptr>& trackingAry) {
     if (trackingAry.size() < 3) {
         return nullptr;
@@ -193,7 +193,7 @@ FeatureTrackingTrace::Ptr FeatureTrackingTrace::CreateFrom(
     return Create(tMin, tMax, xParm, yParm);
 }
 
-std::optional<Eigen::Vector2d> FeatureTrackingTrace::PositionAt(double t) const {
+std::optional<Eigen::Vector2d> FeatureTrackingCurve::PositionAt(double t) const {
     if (t < sTime || t > eTime) {
         return std::nullopt;
     }
@@ -202,7 +202,7 @@ std::optional<Eigen::Vector2d> FeatureTrackingTrace::PositionAt(double t) const 
     return Eigen::Vector2d{x, y};
 }
 
-std::optional<Eigen::Vector2d> FeatureTrackingTrace::VelocityAt(double t) const {
+std::optional<Eigen::Vector2d> FeatureTrackingCurve::VelocityAt(double t) const {
     if (t < sTime || t > eTime) {
         return std::nullopt;
     }
@@ -211,7 +211,7 @@ std::optional<Eigen::Vector2d> FeatureTrackingTrace::VelocityAt(double t) const 
     return Eigen::Vector2d{vx, vy};
 }
 
-std::vector<Eigen::Vector3d> FeatureTrackingTrace::DiscretePositions(double dt) const {
+std::vector<Eigen::Vector3d> FeatureTrackingCurve::DiscretePositions(double dt) const {
     std::vector<Eigen::Vector3d> positions;
     for (double t = this->sTime; t < this->eTime;) {
         std::optional<Eigen::Vector2d> pos = this->PositionAt(t);
@@ -224,11 +224,11 @@ std::vector<Eigen::Vector3d> FeatureTrackingTrace::DiscretePositions(double dt) 
     return positions;
 }
 
-bool FeatureTrackingTrace::IsTimeInRange(double time) const {
+bool FeatureTrackingCurve::IsTimeInRange(double time) const {
     return time >= sTime && time <= eTime;
 }
 
-Eigen::Vector3d FeatureTrackingTrace::FitQuadraticCurve(const std::vector<double>& x,
+Eigen::Vector3d FeatureTrackingCurve::FitQuadraticCurve(const std::vector<double>& x,
                                                         const std::vector<double>& y) {
     int n = static_cast<int>(x.size());
     Eigen::MatrixXd A(n, 3);
@@ -246,10 +246,10 @@ Eigen::Vector3d FeatureTrackingTrace::FitQuadraticCurve(const std::vector<double
     return p;  // a, b, c
 }
 
-FeatureTrackingMoment::Ptr FeatureTrackingMoment::Create(double midTime,
+OpticalFlowCurveCorr::Ptr OpticalFlowCurveCorr::Create(double midTime,
                                                          double midDepth,
                                                          double reprojTimePadding,
-                                                         const FeatureTrackingTrace::Ptr& trace,
+                                                         const FeatureTrackingCurve::Ptr& trace,
                                                          double weight) {
     if (reprojTimePadding < 1E-3) {
         return nullptr;
@@ -259,16 +259,16 @@ FeatureTrackingMoment::Ptr FeatureTrackingMoment::Create(double midTime,
     if (!trace->IsTimeInRange(firTime) || !trace->IsTimeInRange(lastTime)) {
         return nullptr;
     }
-    return std::make_shared<FeatureTrackingMoment>(midTime, midDepth, 1.0 / midDepth, firTime,
+    return std::make_shared<OpticalFlowCurveCorr>(midTime, midDepth, 1.0 / midDepth, firTime,
                                                    lastTime, trace, weight);
 }
 
-FeatureTrackingMoment::FeatureTrackingMoment(double mid_time,
+OpticalFlowCurveCorr::OpticalFlowCurveCorr(double mid_time,
                                              double mid_depth,
                                              double mid_inv_depth,
                                              double fir_time,
                                              double last_time,
-                                             const FeatureTrackingTrace::Ptr& trace,
+                                             const FeatureTrackingCurve::Ptr& trace,
                                              double weight)
     : midTime(mid_time),
       midDepth(mid_depth),

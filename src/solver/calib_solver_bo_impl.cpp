@@ -48,7 +48,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualReprojCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &rgbdCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &visualVelCorrs,
-    const std::map<std::string, std::vector<FeatureTrackingMoment::Ptr>> &eventCorrs,
+    const std::map<std::string, std::vector<OpticalFlowCurveCorr::Ptr>> &eventCorrs,
     const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>> &rgbdPtsCorrs)
     const {
     // a lambda function to obtain the string of current optimization option

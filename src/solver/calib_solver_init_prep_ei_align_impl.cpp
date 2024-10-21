@@ -171,13 +171,13 @@ void CalibSolver::InitPrepEventInertialAlign() const {
     constexpr double DISCRETE_TIME_INTERVAL = 0.03 /* about 30 Hz */;
     constexpr double FMAT_THRESHOLD = 1.0;
     constexpr double ROT_ONLY_RANSAC_THD = 1.0;
-    std::map<std::string, std::set<FeatureTrackingTrace::Ptr>> eventTraceMap;
+    std::map<std::string, std::set<FeatureTrackingCurve::Ptr>> eventTraceMap;
     for (const auto &[topic, tracking] : eventFeatTrackingRes) {
         // traces of all features
         auto &traceVec = eventTraceMap[topic];
         for (const auto &[id, batch] : tracking) {
             for (const auto &[fId, featVec] : batch) {
-                auto trace = FeatureTrackingTrace::CreateFrom(featVec);
+                auto trace = FeatureTrackingCurve::CreateFrom(featVec);
                 if (trace != nullptr) {
                     traceVec.insert(trace);
                 }
@@ -185,7 +185,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         }
         auto traceVecOldSize = traceVec.size();
         auto FindInRangeTrace = [&traceVec](double time) {
-            std::map<FeatureTrackingTrace::Ptr, Eigen::Vector2d> inRangeTraceVec;
+            std::map<FeatureTrackingCurve::Ptr, Eigen::Vector2d> inRangeTraceVec;
             for (const auto &trace : traceVec) {
                 if (auto pos = trace->PositionAt(time); pos != std::nullopt) {
                     inRangeTraceVec[trace] = *pos;
@@ -209,7 +209,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             const auto traceVec1 = FindInRangeTrace(t1), traceVec2 = FindInRangeTrace(t2);
 
             // trace, pos at t1, pos at t2
-            std::map<FeatureTrackingTrace::Ptr, std::pair<Eigen::Vector2d, Eigen::Vector2d>>
+            std::map<FeatureTrackingCurve::Ptr, std::pair<Eigen::Vector2d, Eigen::Vector2d>>
                 matchedTraceVec;
             for (const auto &[trace, pos1] : traceVec1) {
                 auto iter = traceVec2.find(trace);
@@ -224,7 +224,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             auto size = matchedTraceVec.size();
             std::vector<Eigen::Vector2d> featUndisto1, featUndisto2;
             featUndisto1.reserve(size), featUndisto2.reserve(size);
-            std::map<int, FeatureTrackingTrace::Ptr> featIdxMap;
+            std::map<int, FeatureTrackingCurve::Ptr> featIdxMap;
             int index = 0;
             for (const auto &[trace, posPair] : matchedTraceVec) {
                 featUndisto1.push_back(posPair.first);
@@ -237,7 +237,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 // solving successful
                 const auto &status = resFMat.second;
                 std::vector<Eigen::Vector2d> featUndisto1Temp, featUndisto2Temp;
-                std::map<int, FeatureTrackingTrace::Ptr> featIdxMapTemp;
+                std::map<int, FeatureTrackingCurve::Ptr> featIdxMapTemp;
                 int inlierIdx = 0;
                 for (int i = 0; i < static_cast<int>(status.size()); ++i) {
                     if (status.at(i)) {
@@ -408,12 +408,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
 
     // save eventTraceMap to data manager
     for (const auto &[topic, traceSet] : eventTraceMap) {
-        std::vector<FeatureTrackingTrace::Ptr> traceVec;
+        std::vector<FeatureTrackingCurve::Ptr> traceVec;
         traceVec.reserve(traceSet.size());
         for (const auto &trace : traceSet) {
             traceVec.push_back(trace);
         }
-        _dataMagr->SetVisualFeatureTrackingTrace(topic, traceVec);
+        _dataMagr->SetVisualFeatureTrackingCurve(topic, traceVec);
     }
 
 #define USE_NEW_CAM_VEL_ESTIMATE 1

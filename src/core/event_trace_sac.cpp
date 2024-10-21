@@ -46,7 +46,7 @@ EventTrackingTraceSacProblem::EventTrackingTraceSacProblem(
     setUniformIndices(static_cast<int>(_trackingAry.size()));
 }
 
-std::pair<FeatureTrackingTrace::Ptr, std::vector<EventFeature::Ptr>>
+std::pair<FeatureTrackingCurve::Ptr, std::vector<EventFeature::Ptr>>
 EventTrackingTraceSacProblem::EventTrackingTraceSac(
     const std::vector<EventFeature::Ptr>& trackingAry, double thd) {
     opengv::sac::Ransac<EventTrackingTraceSacProblem> ransac;
@@ -56,7 +56,7 @@ EventTrackingTraceSacProblem::EventTrackingTraceSac(
     ransac.threshold_ = thd;
     ransac.max_iterations_ = 20;
     if (ransac.computeModel()) {
-        FeatureTrackingTrace trace;
+        FeatureTrackingCurve trace;
         probPtr->optimizeModelCoefficients(ransac.inliers_, ransac.model_coefficients_, trace);
         std::vector<EventFeature::Ptr> goods(ransac.inliers_.size());
         for (int i = 0; i != static_cast<int>(ransac.inliers_.size()); ++i) {
@@ -67,7 +67,7 @@ EventTrackingTraceSacProblem::EventTrackingTraceSac(
         //     "total: {}, inliner: {}, rate: {:.3f}", trackingAry.size(), ransac.inliers_.size(),
         //     static_cast<double>(ransac.inliers_.size()) /
         //     static_cast<double>(trackingAry.size()));
-        return {std::make_shared<FeatureTrackingTrace>(trace), goods};
+        return {std::make_shared<FeatureTrackingCurve>(trace), goods};
     } else {
         spdlog::warn("compute event trace using RANSAC failed!!!");
         return {nullptr, {}};
@@ -80,7 +80,7 @@ bool EventTrackingTraceSacProblem::computeModelCoefficients(const std::vector<in
     for (int i = 0; i < static_cast<int>(indices.size()); ++i) {
         selected.at(i) = _trackingAry.at(indices.at(i));
     }
-    FeatureTrackingTrace::Ptr trace = FeatureTrackingTrace::CreateFrom(selected);
+    FeatureTrackingCurve::Ptr trace = FeatureTrackingCurve::CreateFrom(selected);
 
     if (trace == nullptr) {
         return false;

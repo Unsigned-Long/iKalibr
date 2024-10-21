@@ -42,14 +42,14 @@ struct EventFeature;
 using EventFeaturePtr = std::shared_ptr<EventFeature>;
 using EventFeatTrackingVec = std::vector<EventFeaturePtr>;
 
-struct FeatureTrackingTrace;
-using FeatureTrackingTracePtr = std::shared_ptr<FeatureTrackingTrace>;
+struct FeatureTrackingCurve;
+using FeatureTrackingCurvePtr = std::shared_ptr<FeatureTrackingCurve>;
 
 class EventTrackingTraceSacProblem
-    : public opengv::sac::SampleConsensusProblem<FeatureTrackingTrace> {
+    : public opengv::sac::SampleConsensusProblem<FeatureTrackingCurve> {
 public:
     /** The model we are trying to fit */
-    typedef FeatureTrackingTrace model_t;
+    typedef FeatureTrackingCurve model_t;
 
 public:
     /**
@@ -58,7 +58,7 @@ public:
     explicit EventTrackingTraceSacProblem(const EventFeatTrackingVec &trackingAry,
                                           bool randomSeed = true);
 
-    static std::pair<FeatureTrackingTracePtr, EventFeatTrackingVec> EventTrackingTraceSac(
+    static std::pair<FeatureTrackingCurvePtr, EventFeatTrackingVec> EventTrackingTraceSac(
         const EventFeatTrackingVec &trackingAry, double thd);
 
     /**

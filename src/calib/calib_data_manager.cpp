@@ -37,10 +37,10 @@
 #include "rosbag/view.h"
 #include "sensor/camera_data_loader.h"
 #include "sensor/depth_data_loader.h"
+#include "sensor/event_data_loader.h"
 #include "sensor/imu_data_loader.h"
 #include "sensor/lidar_data_loader.h"
 #include "sensor/radar_data_loader.h"
-#include "sensor/event_data_loader.h"
 #include "spdlog/spdlog.h"
 #include "util/tqdm.h"
 
@@ -758,9 +758,9 @@ std::uint32_t CalibDataManager::MessageNumInTopic(const rosbag::Bag *bag,
 // time access
 // -----------
 
-void CalibDataManager::SetVisualFeatureTrackingTrace(
-    const std::string &visualTopic, const std::vector<FeatureTrackingTracePtr> &dynamics) {
-    _visualFeatTrackingTrace[visualTopic] = dynamics;
+void CalibDataManager::SetVisualFeatureTrackingCurve(
+    const std::string &visualTopic, const std::vector<FeatureTrackingCurvePtr> &dynamics) {
+    _visualFeatTrackingCurve[visualTopic] = dynamics;
 }
 
 double CalibDataManager::GetRawStartTimestamp() const { return _rawStartTimestamp; }
@@ -906,9 +906,9 @@ void CalibDataManager::SetVisualOpticalFlowTrace(
     _visualOpticalFlowTrace[visualTopic] = dynamics;
 }
 
-const std::vector<FeatureTrackingTracePtr> &CalibDataManager::GetVisualFeatureTrackingTrace(
+const std::vector<FeatureTrackingCurvePtr> &CalibDataManager::GetVisualFeatureTrackingCurve(
     const std::string &visualTopic) const {
-    return _visualFeatTrackingTrace.at(visualTopic);
+    return _visualFeatTrackingCurve.at(visualTopic);
 }
 
 // const std::map<std::string, std::vector<OpticalFlowTripleTrace::Ptr>> &

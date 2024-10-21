@@ -49,7 +49,7 @@ struct EventOpticalFlowFactor {
 private:
     ns_ctraj::SplineMeta<Order> _so3Meta, _scaleMeta;
 
-    FeatureTrackingMoment::Ptr _moment;
+    OpticalFlowCurveCorr::Ptr _moment;
 
     double _so3DtInv, _scaleDtInv;
     double _weight;
@@ -57,7 +57,7 @@ private:
 public:
     explicit EventOpticalFlowFactor(const ns_ctraj::SplineMeta<Order> &so3Meta,
                                     const ns_ctraj::SplineMeta<Order> &scaleMeta,
-                                    FeatureTrackingMoment::Ptr moment,
+                                    OpticalFlowCurveCorr::Ptr moment,
                                     double weight)
         : _so3Meta(so3Meta),
           _scaleMeta(scaleMeta),
@@ -68,7 +68,7 @@ public:
 
     static auto Create(const ns_ctraj::SplineMeta<Order> &so3Meta,
                        const ns_ctraj::SplineMeta<Order> &scaleMeta,
-                       const FeatureTrackingMoment::Ptr &moment,
+                       const OpticalFlowCurveCorr::Ptr &moment,
                        double weight) {
         return new ceres::DynamicAutoDiffCostFunction<EventOpticalFlowFactor>(
             new EventOpticalFlowFactor(so3Meta, scaleMeta, moment, weight));

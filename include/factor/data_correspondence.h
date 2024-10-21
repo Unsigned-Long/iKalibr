@@ -271,21 +271,21 @@ public:
 struct EventFeature;
 using EventFeaturePtr = std::shared_ptr<EventFeature>;
 
-struct FeatureTrackingTrace {
+struct FeatureTrackingCurve {
 public:
-    using Ptr = std::shared_ptr<FeatureTrackingTrace>;
+    using Ptr = std::shared_ptr<FeatureTrackingCurve>;
 
 public:
     double sTime{}, eTime{};
     Eigen::Vector3d xParm, yParm;
 
 public:
-    FeatureTrackingTrace(double s_time,
+    FeatureTrackingCurve(double s_time,
                          double e_time,
                          Eigen::Vector3d x_parm,
                          Eigen::Vector3d y_parm);
 
-    FeatureTrackingTrace() = default;
+    FeatureTrackingCurve() = default;
 
     static Ptr Create(double s_time,
                       double e_time,
@@ -323,22 +323,22 @@ protected:
                                              const std::vector<double> &y);
 };
 
-struct FeatureTrackingMoment {
+struct OpticalFlowCurveCorr {
 public:
-    using Ptr = std::shared_ptr<FeatureTrackingMoment>;
+    using Ptr = std::shared_ptr<OpticalFlowCurveCorr>;
 
 public:
     double midTime;
     double midDepth, midInvDepth;
     double firTime, lastTime;
-    FeatureTrackingTrace::Ptr trace;
+    FeatureTrackingCurve::Ptr trace;
     double weight;
 
 public:
     static Ptr Create(double midTime,
                       double midDepth,
                       double reprojTimePadding,
-                      const FeatureTrackingTrace::Ptr &trace,
+                      const FeatureTrackingCurve::Ptr &trace,
                       double weight = 1.0);
 
     /**
@@ -350,13 +350,13 @@ public:
      *                         v          |          v
      *                      [ fir        mid        last ] -> a optical flow tracking (triple)
      */
-    FeatureTrackingMoment(double mid_time,
-                          double mid_depth,
-                          double mid_inv_depth,
-                          double fir_time,
-                          double last_time,
-                          const FeatureTrackingTrace::Ptr &trace,
-                          double weight);
+    OpticalFlowCurveCorr(double mid_time,
+                         double mid_depth,
+                         double mid_inv_depth,
+                         double fir_time,
+                         double last_time,
+                         const FeatureTrackingCurve::Ptr &trace,
+                         double weight);
 };
 }  // namespace ns_ikalibr
 

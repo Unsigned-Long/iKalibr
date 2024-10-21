@@ -864,16 +864,16 @@ std::map<std::string, std::vector<OpticalFlowCorrPtr>> CalibSolver::DataAssociat
     return corrs;
 }
 
-std::map<std::string, std::vector<FeatureTrackingMoment::Ptr>>
+std::map<std::string, std::vector<OpticalFlowCurveCorr::Ptr>>
 CalibSolver::DataAssociationForEventCameras(bool) const {
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
 
-    std::map<std::string, std::vector<FeatureTrackingMoment::Ptr>> corrs;
+    std::map<std::string, std::vector<OpticalFlowCurveCorr::Ptr>> corrs;
     constexpr double TRACE_TRIPLE_POINTS_TIME_PADDING = 0.03;  // 30 Hz
 
     for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
-        const auto &traceVec = _dataMagr->GetVisualFeatureTrackingTrace(topic);
+        const auto &traceVec = _dataMagr->GetVisualFeatureTrackingCurve(topic);
 
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
         const double fx = intri->FocalX(), fy = intri->FocalY();
@@ -957,7 +957,7 @@ CalibSolver::DataAssociationForEventCameras(bool) const {
                 }
                 double weight =
                     midVelNorm / (midVelNorm + Configor::Prior::LossForOpticalFlowFactor);
-                auto moment = FeatureTrackingMoment::Create(
+                auto moment = OpticalFlowCurveCorr::Create(
                     midTime, estDepth, TRACE_TRIPLE_POINTS_TIME_PADDING, trace, weight);
 
                 if (moment != nullptr) {

@@ -54,8 +54,8 @@ namespace ns_ikalibr {
 
 struct OpticalFlowTripleTrace;
 using OpticalFlowTripleTracePtr = std::shared_ptr<OpticalFlowTripleTrace>;
-struct FeatureTrackingTrace;
-using FeatureTrackingTracePtr = std::shared_ptr<FeatureTrackingTrace>;
+struct FeatureTrackingCurve;
+using FeatureTrackingCurvePtr = std::shared_ptr<FeatureTrackingCurve>;
 
 class CalibDataManager {
 public:
@@ -72,7 +72,7 @@ private:
     std::map<std::string, ns_veta::Veta::Ptr> _sfmData;
 
     std::map<std::string, std::vector<OpticalFlowTripleTracePtr>> _visualOpticalFlowTrace;
-    std::map<std::string, std::vector<FeatureTrackingTracePtr>> _visualFeatTrackingTrace;
+    std::map<std::string, std::vector<FeatureTrackingCurvePtr>> _visualFeatTrackingCurve;
 
     double _rawStartTimestamp{};
     double _rawEndTimestamp{};
@@ -145,11 +145,11 @@ public:
     void SetVisualOpticalFlowTrace(const std::string &visualTopic,
                                    const std::vector<OpticalFlowTripleTracePtr> &dynamics);
 
-    [[nodiscard]] const std::vector<FeatureTrackingTracePtr> &GetVisualFeatureTrackingTrace(
+    [[nodiscard]] const std::vector<FeatureTrackingCurvePtr> &GetVisualFeatureTrackingCurve(
         const std::string &visualTopic) const;
 
-    void SetVisualFeatureTrackingTrace(const std::string &visualTopic,
-                                       const std::vector<FeatureTrackingTracePtr> &dynamics);
+    void SetVisualFeatureTrackingCurve(const std::string &visualTopic,
+                                       const std::vector<FeatureTrackingCurvePtr> &dynamics);
 
     [[nodiscard]] double GetRawStartTimestamp() const;
 

@@ -1182,7 +1182,7 @@ void Estimator::AddEventOpticalFlowConstraint(const OpticalFlowCorr::Ptr &ofCorr
 }
 
 template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
-void Estimator::AddEventOpticalFlowConstraint(const FeatureTrackingMoment::Ptr &ftm,
+void Estimator::AddEventOpticalFlowConstraint(const OpticalFlowCurveCorr::Ptr &ftm,
                                               const std::string &topic,
                                               Opt option,
                                               double weight) {

@@ -473,7 +473,7 @@ Viewer &Viewer::AddEventFeatTracking(const EventFeatTrackingVec &tracking,
     AddSpatioTemporalTrace(tracking, sTime, view, 1.0f, ns_viewer::Colour::Black(), posScaleFactor,
                            timeScaleFactor);
 
-    if (auto trace = FeatureTrackingTrace::CreateFrom(tracking); trace != nullptr) {
+    if (auto trace = FeatureTrackingCurve::CreateFrom(tracking); trace != nullptr) {
         std::vector<Eigen::Vector3d> posVec = trace->DiscretePositions();
         // curve
         AddSpatioTemporalTrace(posVec, sTime, view, 2.0f, ns_viewer::Colour::Green(),

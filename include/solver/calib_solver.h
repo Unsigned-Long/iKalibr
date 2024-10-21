@@ -93,8 +93,8 @@ using EstimatorPtr = std::shared_ptr<Estimator>;
 enum class OptOption : std::uint64_t;
 struct EventArray;
 using EventArrayPtr = std::shared_ptr<EventArray>;
-struct FeatureTrackingMoment;
-using FeatureTrackingMomentPtr = std::shared_ptr<FeatureTrackingMoment>;
+struct OpticalFlowCurveCorr;
+using OpticalFlowCurveCorrPtr = std::shared_ptr<OpticalFlowCurveCorr>;
 
 struct ImagesInfo {
 public:
@@ -395,7 +395,7 @@ protected:
      */
     std::map<std::string, std::vector<OpticalFlowCorrPtr>> DataAssociationForEventCameras() const;
 
-    std::map<std::string, std::vector<FeatureTrackingMomentPtr>> DataAssociationForEventCameras(
+    std::map<std::string, std::vector<OpticalFlowCurveCorrPtr>> DataAssociationForEventCameras(
         bool) const;
     /**
      * perform data association for RGBD cameras
@@ -437,7 +437,7 @@ protected:
         const std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> &visualReprojCorrs,
         const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &rgbdCorrs,
         const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &visualVelCorrs,
-        const std::map<std::string, std::vector<FeatureTrackingMomentPtr>> &eventCorrs,
+        const std::map<std::string, std::vector<OpticalFlowCurveCorrPtr>> &eventCorrs,
         const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>>
             &rgbdPtsCorrs = std::nullopt) const;
 
@@ -634,7 +634,7 @@ protected:
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
     static void AddEventOpticalFlowFactor(EstimatorPtr &estimator,
                                           const std::string &eventTopic,
-                                          const std::vector<FeatureTrackingMomentPtr> &corrs,
+                                          const std::vector<OpticalFlowCurveCorrPtr> &corrs,
                                           OptOption option);
 
     /**
