@@ -99,7 +99,7 @@ protected:
             Opt::OPT_RS_CAM_READOUT_TIME | Opt::OPT_CAM_FOCAL_LEN | Opt::OPT_CAM_PRINCIPAL_POINT |
             Opt::OPT_GYRO_BIAS | Opt::OPT_ACCE_BIAS};
 
-    constexpr static std::array<Opt, 3> MultiEventIMU = {
+    constexpr static std::array<Opt, 2> MultiEventIMU = {
         // first batch optimization
         Opt::OPT_SO3_SPLINE | Opt::OPT_SCALE_SPLINE | Opt::OPT_GRAVITY | Opt::OPT_SO3_EsToBr |
             Opt::OPT_POS_EsInBr | Opt::OPT_TO_EsToBr |
@@ -108,8 +108,7 @@ protected:
         Opt::OPT_SO3_BiToBr | Opt::OPT_POS_BiInBr | Opt::OPT_TO_BiToBr |
             // Opt::OPT_RS_CAM_READOUT_TIME | for event camera, there is no rs effect
             // Opt::OPT_CAM_FOCAL_LEN | Opt::OPT_CAM_PRINCIPAL_POINT |
-            Opt::OPT_ACCE_BIAS | Opt::OPT_GYRO_BIAS,
-        Opt::OPT_EVENT_TRACE_PARAM};
+            Opt::OPT_ACCE_BIAS | Opt::OPT_GYRO_BIAS /*, Opt::OPT_EVENT_TRACE_PARAM*/};
 
 public:
     static std::vector<Opt> GetOptions() {

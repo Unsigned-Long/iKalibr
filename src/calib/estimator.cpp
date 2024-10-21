@@ -1458,16 +1458,19 @@ Eigen::MatrixXd Estimator::GetHessianMatrix(const std::vector<double *> &conside
 void Estimator::PrintParameterInfo() const {
     std::vector<double *> parameterBlocks;
     this->GetParameterBlocks(&parameterBlocks);
-    int total_parameters = parameterBlocks.size();
+    int totalParamBlocks = parameterBlocks.size();
 
-    int numOptimizedParameters = 0;
-    for (const auto &param_block : parameterBlocks) {
-        if (!IsParameterBlockConstant(param_block)) {
-            ++numOptimizedParameters;
+    int numOptimizedParamBlock = 0;
+    int numOptimizedParameter = 0;
+    for (const auto &paramBlock : parameterBlocks) {
+        if (!IsParameterBlockConstant(paramBlock)) {
+            ++numOptimizedParamBlock;
+            numOptimizedParameter += this->ParameterBlockSize(paramBlock);
         }
     }
-    spdlog::info("Total number of parameter blocks: {}, with {} that are optimized",
-                 total_parameters, numOptimizedParameters);
+    spdlog::info(
+        "Total number of parameter blocks: {}, with {} blocks ({} params) that are optimized",
+        totalParamBlocks, numOptimizedParamBlock, numOptimizedParameter);
 }
 
 void Estimator::SetRefIMUParamsConstant() {
