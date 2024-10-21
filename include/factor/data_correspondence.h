@@ -300,11 +300,25 @@ public:
 
     [[nodiscard]] std::vector<Eigen::Vector3d> DiscretePositions(double dt = 0.005) const;
 
+    bool IsTimeInRange(double time) const;
+
+    template <typename ScaleType>
+    static ScaleType QuadraticCurveValueAt(ScaleType x, const Eigen::Vector3<ScaleType> &params) {
+        ScaleType a = params[0];
+        ScaleType b = params[1];
+        ScaleType c = params[2];
+        return a * x * x + b * x + c;
+    }
+
+    template <typename ScaleType>
+    static ScaleType QuadraticCurveVelocityAt(ScaleType x,
+                                              const Eigen::Vector3<ScaleType> &params) {
+        ScaleType a = params[0];
+        ScaleType b = params[1];
+        return 2.0 * a * x + b;
+    }
+
 protected:
-    static double QuadraticCurveValueAt(double x, const Eigen::Vector3d &params);
-
-    static double QuadraticCurveVelocityAt(double x, const Eigen::Vector3d &params);
-
     static Eigen::Vector3d FitQuadraticCurve(const std::vector<double> &x,
                                              const std::vector<double> &y);
 };
@@ -314,9 +328,32 @@ public:
     using Ptr = std::shared_ptr<FeatureTrackingMoment>;
 
 public:
-    double time;
-    double depth;
+    double midTime;
+    double midDepth, midInvDepth;
+    double firTime, lastTime;
     FeatureTrackingTrace::Ptr trace;
+
+public:
+    static Ptr Create(double midTime,
+                      double midDepth,
+                      double reprojTimePadding,
+                      const FeatureTrackingTrace::Ptr &trace);
+
+    /**
+     * given a optical flow tracking correspondence (triple tracking, three points), we throw
+     * the middle feature to the camera frame and reproject it to the first and last camera
+     * image plane, just like this:
+     *                         +-<---<---(*)--->--->-+
+     *                         |          ^          |
+     *                         v          |          v
+     *                      [ fir        mid        last ] -> a optical flow tracking (triple)
+     */
+    FeatureTrackingMoment(double mid_time,
+                          double mid_depth,
+                          double mid_inv_depth,
+                          double fir_time,
+                          double last_time,
+                          const FeatureTrackingTrace::Ptr &trace);
 };
 }  // namespace ns_ikalibr
 

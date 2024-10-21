@@ -171,7 +171,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
     constexpr double DISCRETE_TIME_INTERVAL = 0.03 /* about 30 Hz */;
     constexpr double FMAT_THRESHOLD = 1.0;
     constexpr double ROT_ONLY_RANSAC_THD = 1.0;
-    std::map<std::string, std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec>> eventTraceMap;
+    std::map<std::string, std::set<FeatureTrackingTrace::Ptr>> eventTraceMap;
     for (const auto &[topic, tracking] : eventFeatTrackingRes) {
         // traces of all features
         auto &traceVec = eventTraceMap[topic];
@@ -179,14 +179,14 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             for (const auto &[fId, featVec] : batch) {
                 auto trace = FeatureTrackingTrace::CreateFrom(featVec);
                 if (trace != nullptr) {
-                    traceVec[trace] = featVec;
+                    traceVec.insert(trace);
                 }
             }
         }
         auto traceVecOldSize = traceVec.size();
         auto FindInRangeTrace = [&traceVec](double time) {
             std::map<FeatureTrackingTrace::Ptr, Eigen::Vector2d> inRangeTraceVec;
-            for (const auto &[trace, featVec] : traceVec) {
+            for (const auto &trace : traceVec) {
                 if (auto pos = trace->PositionAt(time); pos != std::nullopt) {
                     inRangeTraceVec[trace] = *pos;
                 }
@@ -415,7 +415,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             const double t2 = time;
             const double t3 = time + interval;
 
-            for (const auto &[trace, featVec] : eventTrace) {
+            for (const auto &trace : eventTrace) {
                 auto pos1 = trace->PositionAt(t1);
                 if (pos1 == std::nullopt) {
                     continue;
@@ -587,7 +587,6 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      */
     // constexpr double TRACKING_FINAL_FIT_SAC_THD = 2.0;
     // constexpr double TRACKING_FINAL_AGE_THD = DISCRETE_TIME_INTERVAL * 3 /*sed*/;
-    constexpr double DISCRETE_TIME_INTERVAL = 0.03 /* about 30 Hz */;
     // std::map<std::string, std::map<FeatureTrackingTrace::Ptr, EventFeatTrackingVec>>
     //     eventTraceMapFiltered;
     for (const auto &[topic, eventTrace] : eventTraceMap) {
@@ -611,7 +610,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         RotOnlyVisualOdometer::FeatTrackingInfo trackInfoList;
         ns_veta::IndexT index = 0;
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
-        for (const auto &[trace, trackList] : eventTrace) {
+        for (const auto &trace : eventTrace) {
             std::list<std::pair<CameraFramePtr, Feature>> featList;
             for (auto t = trace->sTime; t < trace->eTime;) {
                 if (auto up = trace->PositionAt(t); up != std::nullopt) {
@@ -647,7 +646,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         std::list<std::pair<double, std::vector<DepthPosVelTuple>>> ofsPerStampList;
         for (double time = st; time < et;) {
             std::vector<DepthPosVelTuple> inRangePosVelVec;
-            for (const auto &[trace, featVec] : trackList) {
+            for (const auto &trace : trackList) {
                 auto pos = trace->PositionAt(time);
                 auto vel = trace->VelocityAt(time);
                 if (pos != std::nullopt && vel != std::nullopt) {

@@ -224,17 +224,8 @@ std::vector<Eigen::Vector3d> FeatureTrackingTrace::DiscretePositions(double dt) 
     return positions;
 }
 
-double FeatureTrackingTrace::QuadraticCurveValueAt(double x, const Eigen::Vector3d& params) {
-    double a = params[0];
-    double b = params[1];
-    double c = params[2];
-    return a * x * x + b * x + c;
-}
-
-double FeatureTrackingTrace::QuadraticCurveVelocityAt(double x, const Eigen::Vector3d& params) {
-    double a = params[0];
-    double b = params[1];
-    return 2.0 * a * x + b;
+bool FeatureTrackingTrace::IsTimeInRange(double time) const {
+    return time >= sTime && time <= eTime;
 }
 
 Eigen::Vector3d FeatureTrackingTrace::FitQuadraticCurve(const std::vector<double>& x,
@@ -254,4 +245,33 @@ Eigen::Vector3d FeatureTrackingTrace::FitQuadraticCurve(const std::vector<double
     Eigen::Vector3d p = A.colPivHouseholderQr().solve(B);
     return p;  // a, b, c
 }
+
+FeatureTrackingMoment::Ptr FeatureTrackingMoment::Create(double midTime,
+                                                         double midDepth,
+                                                         double reprojTimePadding,
+                                                         const FeatureTrackingTrace::Ptr& trace) {
+    if (reprojTimePadding < 1E-3) {
+        return nullptr;
+    }
+    double firTime = midTime - reprojTimePadding;
+    double lastTime = midTime + reprojTimePadding;
+    if (!trace->IsTimeInRange(firTime) || trace->IsTimeInRange(lastTime)) {
+        return nullptr;
+    }
+    return std::make_shared<FeatureTrackingMoment>(midTime, midDepth, 1.0 / midDepth, firTime,
+                                                   lastTime, trace);
+}
+
+FeatureTrackingMoment::FeatureTrackingMoment(double mid_time,
+                                             double mid_depth,
+                                             double mid_inv_depth,
+                                             double fir_time,
+                                             double last_time,
+                                             const FeatureTrackingTrace::Ptr& trace)
+    : midTime(mid_time),
+      midDepth(mid_depth),
+      midInvDepth(mid_inv_depth),
+      firTime(fir_time),
+      lastTime(last_time),
+      trace(trace) {}
 }  // namespace ns_ikalibr

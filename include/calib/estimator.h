@@ -55,6 +55,8 @@ struct VisualReProjCorr;
 using VisualReProjCorrPtr = std::shared_ptr<VisualReProjCorr>;
 struct OpticalFlowCorr;
 using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
+struct FeatureTrackingMoment;
+using FeatureTrackingMomentPtr = std::shared_ptr<FeatureTrackingMoment>;
 
 // myenumGenor Option OPT_SO3_SPLINE OPT_SCALE_SPLINE OPT_SO3_BiToBr OPT_POS_BiInBr
 // OPT_SO3_RjToBr OPT_POS_RjInBr OPT_SO3_LkToBr OPT_POS_LkInBr OPT_SO3_CmToBr OPT_POS_CmInBr
@@ -371,6 +373,17 @@ public:
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
     void AddEventOpticalFlowConstraint(const OpticalFlowCorrPtr &ofCorr,
+                                       const std::string &topic,
+                                       Opt option,
+                                       double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+     *   | FX | FY | CX | CY | DEPTH_INFO | CURVE_X_PARAM | CURVE_Y_PARAM ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddEventOpticalFlowConstraint(const FeatureTrackingMomentPtr &ftm,
                                        const std::string &topic,
                                        Opt option,
                                        double weight);
