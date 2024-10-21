@@ -249,17 +249,18 @@ Eigen::Vector3d FeatureTrackingTrace::FitQuadraticCurve(const std::vector<double
 FeatureTrackingMoment::Ptr FeatureTrackingMoment::Create(double midTime,
                                                          double midDepth,
                                                          double reprojTimePadding,
-                                                         const FeatureTrackingTrace::Ptr& trace) {
+                                                         const FeatureTrackingTrace::Ptr& trace,
+                                                         double weight) {
     if (reprojTimePadding < 1E-3) {
         return nullptr;
     }
     double firTime = midTime - reprojTimePadding;
     double lastTime = midTime + reprojTimePadding;
-    if (!trace->IsTimeInRange(firTime) || trace->IsTimeInRange(lastTime)) {
+    if (!trace->IsTimeInRange(firTime) || !trace->IsTimeInRange(lastTime)) {
         return nullptr;
     }
     return std::make_shared<FeatureTrackingMoment>(midTime, midDepth, 1.0 / midDepth, firTime,
-                                                   lastTime, trace);
+                                                   lastTime, trace, weight);
 }
 
 FeatureTrackingMoment::FeatureTrackingMoment(double mid_time,
@@ -267,11 +268,13 @@ FeatureTrackingMoment::FeatureTrackingMoment(double mid_time,
                                              double mid_inv_depth,
                                              double fir_time,
                                              double last_time,
-                                             const FeatureTrackingTrace::Ptr& trace)
+                                             const FeatureTrackingTrace::Ptr& trace,
+                                             double weight)
     : midTime(mid_time),
       midDepth(mid_depth),
       midInvDepth(mid_inv_depth),
       firTime(fir_time),
       lastTime(last_time),
-      trace(trace) {}
+      trace(trace),
+      weight(weight) {}
 }  // namespace ns_ikalibr

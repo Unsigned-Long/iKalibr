@@ -116,13 +116,16 @@ enum class OptOption : std::uint64_t {
 
     OPT_RS_CAM_READOUT_TIME = std::uint64_t(1) << 33,
 
+    OPT_EVENT_TRACE_PARAM = std::uint64_t(1) << 34,
+
     ALL = OPT_SO3_SPLINE | OPT_SCALE_SPLINE | OPT_SO3_BiToBr | OPT_POS_BiInBr | OPT_SO3_RjToBr |
           OPT_POS_RjInBr | OPT_SO3_LkToBr | OPT_POS_LkInBr | OPT_SO3_CmToBr | OPT_POS_CmInBr |
           OPT_SO3_DnToBr | OPT_POS_DnInBr | OPT_SO3_EsToBr | OPT_POS_EsInBr | OPT_TO_BiToBr |
           OPT_TO_RjToBr | OPT_TO_LkToBr | OPT_TO_CmToBr | OPT_TO_DnToBr | OPT_GYRO_BIAS |
           OPT_GYRO_MAP_COEFF | OPT_ACCE_BIAS | OPT_ACCE_MAP_COEFF | OPT_SO3_AtoG | OPT_GRAVITY |
           OPT_VISUAL_GLOBAL_SCALE | OPT_VISUAL_DEPTH | OPT_RGBD_ALPHA | OPT_RGBD_BETA |
-          OPT_CAM_FOCAL_LEN | OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME
+          OPT_CAM_FOCAL_LEN | OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME |
+          OPT_EVENT_TRACE_PARAM
 };
 
 struct SpatialTemporalPriori;
@@ -161,6 +164,8 @@ public:
 
     Eigen::MatrixXd GetHessianMatrix(const std::vector<double *> &consideredParBlocks,
                                      int numThread = 1);
+
+    void PrintParameterInfo() const;
 
 public:
     void AddIMUGyroMeasurement(const IMUFrame::Ptr &imuFrame,

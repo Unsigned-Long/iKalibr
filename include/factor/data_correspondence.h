@@ -332,12 +332,14 @@ public:
     double midDepth, midInvDepth;
     double firTime, lastTime;
     FeatureTrackingTrace::Ptr trace;
+    double weight;
 
 public:
     static Ptr Create(double midTime,
                       double midDepth,
                       double reprojTimePadding,
-                      const FeatureTrackingTrace::Ptr &trace);
+                      const FeatureTrackingTrace::Ptr &trace,
+                      double weight = 1.0);
 
     /**
      * given a optical flow tracking correspondence (triple tracking, three points), we throw
@@ -353,7 +355,8 @@ public:
                           double mid_inv_depth,
                           double fir_time,
                           double last_time,
-                          const FeatureTrackingTrace::Ptr &trace);
+                          const FeatureTrackingTrace::Ptr &trace,
+                          double weight);
 };
 }  // namespace ns_ikalibr
 

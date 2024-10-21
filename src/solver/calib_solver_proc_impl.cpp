@@ -161,7 +161,7 @@ void CalibSolver::Process() {
             // visual velocity creation for optical cameras
             DataAssociationForVelCameras(),
             // visual velocity creation for event cameras
-            DataAssociationForEventCameras());
+            DataAssociationForEventCameras(true));
 
         /**
          * update the viewer and output the spatiotemporal parameters after this batch optimization

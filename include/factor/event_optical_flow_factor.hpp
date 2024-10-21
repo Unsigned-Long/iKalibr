@@ -76,6 +76,23 @@ public:
 
     static std::size_t TypeHashCode() { return typeid(EventOpticalFlowFactor).hash_code(); }
 
+    template <typename ScaleType>
+    static ScaleType QuadraticCurveValueAt(
+        ScaleType x, const Eigen::Map<const Eigen::Vector3<ScaleType>> &params) {
+        ScaleType a = params[0];
+        ScaleType b = params[1];
+        ScaleType c = params[2];
+        return a * x * x + b * x + c;
+    }
+
+    template <typename ScaleType>
+    static ScaleType QuadraticCurveVelocityAt(
+        ScaleType x, const Eigen::Map<const Eigen::Vector3<ScaleType>> &params) {
+        ScaleType a = params[0];
+        ScaleType b = params[1];
+        return 2.0 * a * x + b;
+    }
+
 public:
     /**
      * param blocks:
@@ -144,11 +161,11 @@ public:
             SO3_BrToCm * SO3_BrToBr0.inverse() * LIN_VEL_CmToBr0InBr0;
 
         T midTime = static_cast<T>(_moment->midTime);
-        T x = FeatureTrackingTrace::QuadraticCurveValueAt<T>(midTime, CURVE_X_PARAM);
-        T y = FeatureTrackingTrace::QuadraticCurveValueAt<T>(midTime, CURVE_Y_PARAM);
+        T x = QuadraticCurveValueAt<T>(midTime, CURVE_X_PARAM);
+        T y = QuadraticCurveValueAt<T>(midTime, CURVE_Y_PARAM);
 
-        T vx = FeatureTrackingTrace::QuadraticCurveVelocityAt<T>(midTime, CURVE_X_PARAM);
-        T vy = FeatureTrackingTrace::QuadraticCurveVelocityAt<T>(midTime, CURVE_Y_PARAM);
+        T vx = QuadraticCurveVelocityAt<T>(midTime, CURVE_X_PARAM);
+        T vy = QuadraticCurveVelocityAt<T>(midTime, CURVE_Y_PARAM);
 
         Eigen::Matrix<T, 2, 3> subAMat, subBMat;
         OpticalFlowCorr::SubMats<T>(&FX, &FY, &CX, &CY, Eigen::Vector2<T>(x, y), &subAMat,

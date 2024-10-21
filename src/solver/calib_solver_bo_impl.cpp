@@ -48,7 +48,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualReprojCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &rgbdCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &visualVelCorrs,
-    const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &eventCorrs,
+    const std::map<std::string, std::vector<FeatureTrackingMoment::Ptr>> &eventCorrs,
     const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>> &rgbdPtsCorrs)
     const {
     // a lambda function to obtain the string of current optimization option
@@ -217,6 +217,8 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     // make this problem full rank
     estimator->SetRefIMUParamsConstant();
 
+    estimator->PrintParameterInfo();
+
     auto sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
 
@@ -273,6 +275,19 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
             } else {
                 // the depth is estimated, we update the inverse depth
                 corr->invDepth = corr->depth > 1E-3 ? 1.0 / corr->depth : -1.0;
+            }
+        }
+    }
+
+    // update depth information for event cameras
+    for (const auto &[topic, corrs] : eventCorrs) {
+        for (const auto &corr : corrs) {
+            if constexpr (OPTICAL_FLOW_EST_INV_DEPTH) {
+                // the inverse depth is estimated, we update the depth
+                corr->midDepth = corr->midInvDepth > 1E-3 ? 1.0 / corr->midInvDepth : -1.0;
+            } else {
+                // the depth is estimated, we update the inverse depth
+                corr->midInvDepth = corr->midDepth > 1E-3 ? 1.0 / corr->midDepth : -1.0;
             }
         }
     }

@@ -1455,6 +1455,21 @@ Eigen::MatrixXd Estimator::GetHessianMatrix(const std::vector<double *> &conside
     return HMat;
 }
 
+void Estimator::PrintParameterInfo() const {
+    std::vector<double *> parameterBlocks;
+    this->GetParameterBlocks(&parameterBlocks);
+    int total_parameters = parameterBlocks.size();
+
+    int numOptimizedParameters = 0;
+    for (const auto &param_block : parameterBlocks) {
+        if (!IsParameterBlockConstant(param_block)) {
+            ++numOptimizedParameters;
+        }
+    }
+    spdlog::info("Total number of parameter blocks: {}, with {} that are optimized",
+                 total_parameters, numOptimizedParameters);
+}
+
 void Estimator::SetRefIMUParamsConstant() {
     auto SO3_BiToBr = parMagr->EXTRI.SO3_BiToBr.at(Configor::DataStream::ReferIMU).data();
     if (this->HasParameterBlock(SO3_BiToBr)) {
@@ -1850,9 +1865,9 @@ void Estimator::AddVisualVelocityDepthFactorForEvent(Eigen::Vector3d *LIN_VEL_Cm
                                                      bool estDepth,
                                                      bool estVelDirOnly) {
     this->AddVisualVelocityDepthFactor(
-    LIN_VEL_CmToWInCm, corr, parMagr->TEMPORAL.TO_EsToBr.at(topic),
-    parMagr->TEMPORAL.RS_READOUT.at(topic), parMagr->EXTRI.SO3_EsToBr.at(topic),
-    parMagr->INTRI.Camera.at(topic), weight, estDepth, estVelDirOnly);
+        LIN_VEL_CmToWInCm, corr, parMagr->TEMPORAL.TO_EsToBr.at(topic),
+        parMagr->TEMPORAL.RS_READOUT.at(topic), parMagr->EXTRI.SO3_EsToBr.at(topic),
+        parMagr->INTRI.Camera.at(topic), weight, estDepth, estVelDirOnly);
 }
 
 std::pair<double, double> Estimator::ConsideredTimeRangeForCameraStamp(double timeByCam,

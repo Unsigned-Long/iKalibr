@@ -758,6 +758,11 @@ std::uint32_t CalibDataManager::MessageNumInTopic(const rosbag::Bag *bag,
 // time access
 // -----------
 
+void CalibDataManager::SetVisualFeatureTrackingTrace(
+    const std::string &visualTopic, const std::vector<FeatureTrackingTracePtr> &dynamics) {
+    _visualFeatTrackingTrace[visualTopic] = dynamics;
+}
+
 double CalibDataManager::GetRawStartTimestamp() const { return _rawStartTimestamp; }
 
 double CalibDataManager::GetRawEndTimestamp() const { return _rawEndTimestamp; }
@@ -899,6 +904,11 @@ void CalibDataManager::SetSfMData(const std::string &camTopic, const ns_veta::Ve
 void CalibDataManager::SetVisualOpticalFlowTrace(
     const std::string &visualTopic, const std::vector<OpticalFlowTripleTrace::Ptr> &dynamics) {
     _visualOpticalFlowTrace[visualTopic] = dynamics;
+}
+
+const std::vector<FeatureTrackingTracePtr> &CalibDataManager::GetVisualFeatureTrackingTrace(
+    const std::string &visualTopic) const {
+    return _visualFeatTrackingTrace.at(visualTopic);
 }
 
 // const std::map<std::string, std::vector<OpticalFlowTripleTrace::Ptr>> &

@@ -406,6 +406,16 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         }
     }
 
+    // save eventTraceMap to data manager
+    for (const auto &[topic, traceSet] : eventTraceMap) {
+        std::vector<FeatureTrackingTrace::Ptr> traceVec;
+        traceVec.reserve(traceSet.size());
+        for (const auto &trace : traceSet) {
+            traceVec.push_back(trace);
+        }
+        _dataMagr->SetVisualFeatureTrackingTrace(topic, traceVec);
+    }
+
 #define USE_NEW_CAM_VEL_ESTIMATE 1
 #if USE_NEW_CAM_VEL_ESTIMATE
     for (const auto &[topic, eventTrace] : eventTraceMap) {

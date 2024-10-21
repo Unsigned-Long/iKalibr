@@ -1326,9 +1326,11 @@ void Estimator::AddEventOpticalFlowConstraint(const FeatureTrackingMoment::Ptr &
         }
     }
 
-    // todo: whether to estimate the parameters of the curve
-    this->SetParameterBlockConstant(ftm->trace->xParm.data());
-    this->SetParameterBlockConstant(ftm->trace->yParm.data());
+    // whether to estimate the parameters of the curve
+    if (!IsOptionWith(Opt::OPT_EVENT_TRACE_PARAM, option)) {
+        this->SetParameterBlockConstant(ftm->trace->xParm.data());
+        this->SetParameterBlockConstant(ftm->trace->yParm.data());
+    }
 }
 
 /**
