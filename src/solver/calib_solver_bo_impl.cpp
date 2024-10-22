@@ -145,6 +145,15 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddEventOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
                                                 OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+                /**
+                 * when vel spline is maintained, we add additional reprojection constraints for
+                 * optical flow tracking correspondence, under the assumption of uniform velocity
+                 * variation
+                 */
+                // todo: poor performance due to poor event-based feature tracking
+                // this->AddEventOpticalFlowReprojFactor<TimeDeriv::LIN_VEL_SPLINE,
+                //                                       OPTICAL_FLOW_EST_INV_DEPTH>(
+                //     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
         } break;
         case TimeDeriv::LIN_POS_SPLINE: {
@@ -197,9 +206,12 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                                                 OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
                 /**
-                 * todo: when pos spline is maintained, we add additional reprojection constraints
-                 * todo: for optical flow tracking correspondence
+                 * when pos spline is maintained, we add additional reprojection constraints
+                 * for optical flow tracking correspondence
                  */
+                this->AddEventOpticalFlowReprojFactor<TimeDeriv::LIN_POS_SPLINE,
+                                                      OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
             if (rgbdPtsCorrs != std::nullopt) {
                 /**

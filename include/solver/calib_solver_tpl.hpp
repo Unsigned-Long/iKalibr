@@ -205,7 +205,7 @@ void CalibSolver::AddEventOpticalFlowReprojFactor(EstimatorPtr &estimator,
                                                   const std::string &eventTopic,
                                                   const std::vector<OpticalFlowCurveCorrPtr> &corrs,
                                                   OptOption option) {
-    double weight = 10.0 * Configor::DataStream::CameraTopics.at(eventTopic).Weight;
+    double weight = 10.0 * Configor::DataStream::EventTopics.at(eventTopic).Weight;
     for (const auto &corr : corrs) {
         /**
          * given a optical flow tracking correspondence (triple tracking, three points), we throw

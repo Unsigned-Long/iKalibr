@@ -1721,19 +1721,19 @@ void Estimator::AddEventOpticalFlowReprojConstraint(const OpticalFlowCurveCorrPt
         ftm->firTime,                                        // time stamped by the camera
         0.0, RT_PADDING, 0.0,                                // the readout factor
         IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
-        *TO_EsToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+        *TO_EsToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_EsToBr, option)  // if opt time offset
     );
     std::pair<double, double> timePairMid = ConsideredTimeRangeForCameraStamp(
         ftm->midTime,                                        // time stamped by the camera
         0.0, RT_PADDING, 0.0,                                // the readout factor
         IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
-        *TO_EsToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+        *TO_EsToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_EsToBr, option)  // if opt time offset
     );
     std::pair<double, double> timePairLast = ConsideredTimeRangeForCameraStamp(
         ftm->lastTime,                                       // time stamped by the camera
         0.0, RT_PADDING, 0.0,                                // the readout factor
         IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
-        *TO_EsToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+        *TO_EsToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_EsToBr, option)  // if opt time offset
     );
     if (!TimeInRangeForSplines(timePairFir) || !TimeInRangeForSplines(timePairMid) ||
         !TimeInRangeForSplines(timePairLast)) {
@@ -1821,6 +1821,9 @@ void Estimator::AddEventOpticalFlowReprojConstraint(const OpticalFlowCurveCorrPt
         paramBlockVec.push_back(&ftm->midDepth);
     }
 
+    paramBlockVec.push_back(ftm->trace->xParm.data());
+    paramBlockVec.push_back(ftm->trace->yParm.data());
+
     // pass to problem
     this->AddResidualBlock(costFunc,
                            new ceres::HuberLoss(Configor::Prior::LossForReprojFactor * weight),
@@ -1859,6 +1862,12 @@ void Estimator::AddEventOpticalFlowReprojConstraint(const OpticalFlowCurveCorrPt
         } else {
             this->SetParameterBlockConstant(&ftm->midDepth);
         }
+    }
+
+    // whether to estimate the parameters of the curve
+    if (!IsOptionWith(Opt::OPT_EVENT_TRACE_PARAM, option)) {
+        this->SetParameterBlockConstant(ftm->trace->xParm.data());
+        this->SetParameterBlockConstant(ftm->trace->yParm.data());
     }
 }
 }  // namespace ns_ikalibr
