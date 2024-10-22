@@ -124,4 +124,17 @@ template struct EventOpticalFlowFactor<Configor::Prior::SplineOrder, 1, false>;
 template struct EventOpticalFlowFactor<Configor::Prior::SplineOrder, 0, true>;
 template struct EventOpticalFlowFactor<Configor::Prior::SplineOrder, 0, false>;
 
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, true, true>;
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, true, true>;
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, true, true>;
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, true, false>;
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, true, false>;
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, true, false>;
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, false, true>;
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, false, true>;
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, false, true>;
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, false, false>;
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, false, false>;
+template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, false, false>;
+
 }  // namespace ns_ikalibr
