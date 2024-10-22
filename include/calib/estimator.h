@@ -415,6 +415,17 @@ public:
                                             Opt option,
                                             double weight);
 
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+     *   | FX | FY | CX | CY | DEPTH_INFO | CURVE_X_PARAM | CURVE_Y_PARAM ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddEventOpticalFlowReprojConstraint(const OpticalFlowCurveCorrPtr &ftm,
+                                             const std::string &topic,
+                                             Opt option,
+                                             double weight);
+
     void SetRefIMUParamsConstant();
 
     void FixFirSO3ControlPoint();

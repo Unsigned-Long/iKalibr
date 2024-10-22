@@ -667,6 +667,12 @@ protected:
                                                const std::vector<OpticalFlowCorrPtr> &corrs,
                                                OptOption option);
 
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    static void AddEventOpticalFlowReprojFactor(EstimatorPtr &estimator,
+                                                const std::string &eventTopic,
+                                                const std::vector<OpticalFlowCurveCorrPtr> &corrs,
+                                                OptOption option);
+
     /**
      * store images to the disk for structure from motion (SfM)
      * @param camTopic the ros topic of this camera

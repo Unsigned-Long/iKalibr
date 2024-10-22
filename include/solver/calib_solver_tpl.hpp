@@ -199,6 +199,27 @@ void CalibSolver::AddRGBDOpticalFlowReprojFactor(Estimator::Ptr &estimator,
                                                                         weight * corr->weight);
     }
 }
+
+template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+void CalibSolver::AddEventOpticalFlowReprojFactor(EstimatorPtr &estimator,
+                                                  const std::string &eventTopic,
+                                                  const std::vector<OpticalFlowCurveCorrPtr> &corrs,
+                                                  OptOption option) {
+    double weight = 10.0 * Configor::DataStream::CameraTopics.at(eventTopic).Weight;
+    for (const auto &corr : corrs) {
+        /**
+         * given a optical flow tracking correspondence (triple tracking, three points), we throw
+         * the middle feature to the camera frame and reproject it to the first and last camera
+         * image plane, just like this:
+         *                         +-<---<---(*)--->--->-+
+         *                         |          ^          |
+         *                         v          |          v
+         *                      [ fir        mid        last ] -> a optical flow tracking (triple)
+         */
+        estimator->AddEventOpticalFlowReprojConstraint<type, IsInvDepth>(corr, eventTopic, option,
+                                                                         weight * corr->weight);
+    }
+}
 }  // namespace ns_ikalibr
 
 #endif  // IKALIBR_CALIB_SOLVER_TPL_HPP

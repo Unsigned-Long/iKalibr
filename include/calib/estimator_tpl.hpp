@@ -1584,7 +1584,7 @@ void Estimator::AddRGBDOpticalFlowReprojConstraint(const OpticalFlowCorrPtr &ofC
     } else {
         throw Status(Status::CRITICAL,
                      "only 'LIN_POS_SPLINE' and 'LIN_VEL_SPLINE' is supported in "
-                     "'AddVisualOpticalFlowReprojConstraint'");
+                     "'AddRGBDOpticalFlowReprojConstraint'");
     }
     // so3 knots param block [each has four sub params]
     for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
@@ -1687,6 +1687,177 @@ void Estimator::AddRGBDOpticalFlowReprojConstraint(const OpticalFlowCorrPtr &ofC
             this->SetParameterBlockConstant(&ofCorr->invDepth);
         } else {
             this->SetParameterBlockConstant(&ofCorr->depth);
+        }
+    }
+}
+
+/**
+ * param blocks:
+ * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+ *   | FX | FY | CX | CY | DEPTH_INFO | CURVE_X_PARAM | CURVE_Y_PARAM ]
+ */
+template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+void Estimator::AddEventOpticalFlowReprojConstraint(const OpticalFlowCurveCorrPtr &ftm,
+                                                    const std::string &topic,
+                                                    Opt option,
+                                                    double weight) {
+    // invalid depth
+    if (ftm->midDepth < 1E-3) {
+        return;
+    }
+
+    auto &intri = parMagr->INTRI.Camera.at(topic);
+    const double TO_PADDING = Configor::Prior::TimeOffsetPadding;
+    const double RT_PADDING = Configor::Prior::ReadoutTimePadding;
+    double *TO_EsToBr = &parMagr->TEMPORAL.TO_EsToBr.at(topic);
+
+    if (auto vel = ftm->trace->VelocityAt(ftm->midTime);
+        vel != std::nullopt && vel->norm() < Configor::Prior::LossForOpticalFlowFactor) {
+        // small pixel velocity
+        return;
+    }
+
+    std::pair<double, double> timePairFir = ConsideredTimeRangeForCameraStamp(
+        ftm->firTime,                                        // time stamped by the camera
+        0.0, RT_PADDING, 0.0,                                // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_EsToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+    );
+    std::pair<double, double> timePairMid = ConsideredTimeRangeForCameraStamp(
+        ftm->midTime,                                        // time stamped by the camera
+        0.0, RT_PADDING, 0.0,                                // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_EsToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+    );
+    std::pair<double, double> timePairLast = ConsideredTimeRangeForCameraStamp(
+        ftm->lastTime,                                       // time stamped by the camera
+        0.0, RT_PADDING, 0.0,                                // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_EsToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_CmToBr, option)  // if opt time offset
+    );
+    if (!TimeInRangeForSplines(timePairFir) || !TimeInRangeForSplines(timePairMid) ||
+        !TimeInRangeForSplines(timePairLast)) {
+        return;
+    }
+
+    // prepare metas for splines
+    SplineMetaType so3Meta, scaleMeta;
+
+    splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE,
+                                    {timePairFir, timePairMid, timePairLast}, so3Meta);
+    splines->CalculateRdSplineMeta(Configor::Preference::SCALE_SPLINE,
+                                   {timePairFir, timePairMid, timePairLast}, scaleMeta);
+
+    // create a cost function
+    ceres::DynamicCostFunction *costFunc;
+
+    if (type == TimeDeriv::ScaleSplineType::LIN_POS_SPLINE) {
+        static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_POS>();
+        costFunc = EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth,
+                                                true>::Create(so3Meta, scaleMeta, ftm, weight);
+    } else if (type == TimeDeriv::ScaleSplineType::LIN_VEL_SPLINE) {
+        static constexpr int deriv = TimeDeriv::Deriv<type, TimeDeriv::LIN_VEL>();
+        costFunc = EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, deriv, IsInvDepth,
+                                                false>::Create(so3Meta, scaleMeta, ftm, weight);
+    } else {
+        throw Status(Status::CRITICAL,
+                     "only 'LIN_POS_SPLINE' and 'LIN_VEL_SPLINE' is supported in "
+                     "'AddEventOpticalFlowReprojConstraint'");
+    }
+
+    // so3 knots param block [each has four sub params]
+    for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
+        costFunc->AddParameterBlock(4);
+    }
+    // pos knots param block [each has three sub params]
+    for (int i = 0; i < static_cast<int>(scaleMeta.NumParameters()); ++i) {
+        costFunc->AddParameterBlock(3);
+    }
+
+    costFunc->AddParameterBlock(4);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(1);
+
+    // fx, fy, cx, cy
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+
+    // depth
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(3);
+
+    costFunc->SetNumResiduals(4);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // so3 knots param block
+    AddSo3KnotsData(paramBlockVec, splines->GetSo3Spline(Configor::Preference::SO3_SPLINE), so3Meta,
+                    !IsOptionWith(Opt::OPT_SO3_SPLINE, option));
+
+    // lin acce knots
+    AddRdKnotsData(paramBlockVec, splines->GetRdSpline(Configor::Preference::SCALE_SPLINE),
+                   scaleMeta, !IsOptionWith(Opt::OPT_SCALE_SPLINE, option));
+
+    auto SO3_EsToBr = parMagr->EXTRI.SO3_EsToBr.at(topic).data();
+    paramBlockVec.push_back(SO3_EsToBr);
+
+    auto POS_EsInBr = parMagr->EXTRI.POS_EsInBr.at(topic).data();
+    paramBlockVec.push_back(POS_EsInBr);
+
+    paramBlockVec.push_back(TO_EsToBr);
+
+    paramBlockVec.push_back(intri->FXAddress());
+    paramBlockVec.push_back(intri->FYAddress());
+    paramBlockVec.push_back(intri->CXAddress());
+    paramBlockVec.push_back(intri->CYAddress());
+
+    if constexpr (IsInvDepth) {
+        paramBlockVec.push_back(&ftm->midInvDepth);
+    } else {
+        paramBlockVec.push_back(&ftm->midDepth);
+    }
+
+    // pass to problem
+    this->AddResidualBlock(costFunc,
+                           new ceres::HuberLoss(Configor::Prior::LossForReprojFactor * weight),
+                           paramBlockVec);
+    this->SetManifold(SO3_EsToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_SO3_EsToBr, option)) {
+        this->SetParameterBlockConstant(SO3_EsToBr);
+    }
+
+    if (!IsOptionWith(Opt::OPT_POS_EsInBr, option)) {
+        this->SetParameterBlockConstant(POS_EsInBr);
+    }
+
+    if (!IsOptionWith(Opt::OPT_TO_EsToBr, option)) {
+        this->SetParameterBlockConstant(TO_EsToBr);
+    } else {
+        // set bound
+        this->SetParameterLowerBound(TO_EsToBr, 0, -TO_PADDING);
+        this->SetParameterUpperBound(TO_EsToBr, 0, TO_PADDING);
+    }
+
+    if (!IsOptionWith(Opt::OPT_CAM_FOCAL_LEN, option)) {
+        this->SetParameterBlockConstant(intri->FXAddress());
+        this->SetParameterBlockConstant(intri->FYAddress());
+    }
+
+    if (!IsOptionWith(Opt::OPT_CAM_PRINCIPAL_POINT, option)) {
+        this->SetParameterBlockConstant(intri->CXAddress());
+        this->SetParameterBlockConstant(intri->CYAddress());
+    }
+
+    if (!IsOptionWith(Opt::OPT_VISUAL_DEPTH, option)) {
+        if constexpr (IsInvDepth) {
+            this->SetParameterBlockConstant(&ftm->midInvDepth);
+        } else {
+            this->SetParameterBlockConstant(&ftm->midDepth);
         }
     }
 }
