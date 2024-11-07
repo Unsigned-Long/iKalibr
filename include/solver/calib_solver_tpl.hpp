@@ -76,7 +76,7 @@ void CalibSolver::AddLiDARPointToSurfelFactor(Estimator::Ptr &estimator,
     double weight = Configor::DataStream::LiDARTopics.at(lidarTopic).Weight;
 
     for (const auto &corr : corrs) {
-        estimator->AddLiDARPointTiSurfelConstraint<type>(corr, lidarTopic, option,
+        estimator->AddLiDARPointToSurfelConstraint<type>(corr, lidarTopic, option,
                                                          weight * corr->weight);
     }
 }

@@ -338,7 +338,7 @@ void Estimator::AddLinearScaleConstraint(double timeByBr,
  * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_LkToBr | POS_LkInBr | TO_LkToBr ]
  */
 template <TimeDeriv::ScaleSplineType type>
-void Estimator::AddLiDARPointTiSurfelConstraint(const PointToSurfelCorrPtr &ptsCorr,
+void Estimator::AddLiDARPointToSurfelConstraint(const PointToSurfelCorrPtr &ptsCorr,
                                                 const std::string &topic,
                                                 Opt option,
                                                 double weight) {
@@ -662,8 +662,7 @@ void Estimator::AddVisualReprojection(const VisualReProjCorr::Ptr &visualCorr,
     paramBlockVec.push_back(invDepth);
 
     // pass to problem
-    this->AddResidualBlock(costFunc,
-                           new ceres::HuberLoss(Configor::Prior::LossForReprojFactor * weight),
+    this->AddResidualBlock(costFunc, new ceres::CauchyLoss(Configor::Prior::LossForReprojFactor),
                            paramBlockVec);
     this->SetManifold(SO3_CmToBr, QUATER_MANIFOLD.get());
 

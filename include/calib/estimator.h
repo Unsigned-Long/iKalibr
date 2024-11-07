@@ -321,7 +321,7 @@ public:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_LkToBr | POS_LkInBr | TO_LkToBr ]
      */
     template <TimeDeriv::ScaleSplineType type>
-    void AddLiDARPointTiSurfelConstraint(const PointToSurfelCorrPtr &ptsCorr,
+    void AddLiDARPointToSurfelConstraint(const PointToSurfelCorrPtr &ptsCorr,
                                          const std::string &topic,
                                          Opt option,
                                          double weight);

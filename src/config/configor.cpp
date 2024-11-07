@@ -116,7 +116,7 @@ const double Configor::Prior::LossForRadarDopplerFactor = 0.1;
 // the loss function used for lidar factor (m)
 const double Configor::Prior::LossForPointToSurfelFactor = 0.02;
 // the loss function used for visual reprojection factor (pixel)
-const double Configor::Prior::LossForReprojFactor = 2.0;
+const double Configor::Prior::LossForReprojFactor = 1.0;
 // the loss function used for visual optical flow factor (pixel) (on the image pixel plane)
 const double Configor::Prior::LossForOpticalFlowFactor = 30.0;
 
