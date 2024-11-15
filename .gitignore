@@ -185,3 +185,11 @@ add_gitmodules.sh
 /docs/sensor_kit/iKalibr_kit.jpg
 /docs/sensor_kit/
 /docs/img/sensor_suites.drawio
+
+/docs/appendix/*
+!/docs/appendix/appendix.pdf
+!/docs/appendix/appendix.tex
+!/docs/appendix/orcidlink.sty
+!/docs/appendix/reference.bib
+!/docs/appendix/authors/
+
