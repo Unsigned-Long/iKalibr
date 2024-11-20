@@ -56,7 +56,7 @@ public:
 
     // landmark id, track lists [camera frame, feature point]
     using FeatTrackingInfo =
-        std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feature>>>;
+        std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feature::Ptr>>>;
 
 private:
     FeatureTracking::Ptr _featTracking;
@@ -64,7 +64,7 @@ private:
     FeatureTracking::TrackedFeaturePack::Ptr _trackFeatLast;
 
     // landmark id, track lists [camera frame, feature point]
-    std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feature>>> _lmTrackInfo;
+    FeatTrackingInfo _lmTrackInfo;
     // feature id, landmark id, only for the last image
     std::map<int, ns_veta::IndexT> _featId2lmIdInLast;
 
@@ -84,8 +84,7 @@ public:
 
     virtual ~RotOnlyVisualOdometer();
 
-    [[nodiscard]] const std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feature>>> &
-    GetLmTrackInfo() const;
+    [[nodiscard]] const FeatTrackingInfo &GetLmTrackInfo() const;
 
     void ShowLmTrackInfo() const;
 

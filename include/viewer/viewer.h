@@ -63,9 +63,9 @@ struct RGBDFrame;
 using RGBDFramePtr = std::shared_ptr<RGBDFrame>;
 struct RGBDIntrinsics;
 using RGBDIntrinsicsPtr = std::shared_ptr<RGBDIntrinsics>;
-struct EventFeature;
-using EventFeaturePtr = std::shared_ptr<EventFeature>;
-using EventFeatTrackingVec = std::vector<EventFeaturePtr>;
+struct Feature;
+using FeaturePtr = std::shared_ptr<Feature>;
+using FeatureVec = std::vector<FeaturePtr>;
 struct EventArray;
 using EventArrayPtr = std::shared_ptr<EventArray>;
 
@@ -143,7 +143,7 @@ public:
                          bool trueColor,
                          float size);
 
-    Viewer &AddEventFeatTracking(const std::map<int, EventFeatTrackingVec> &batchTracking,
+    Viewer &AddEventFeatTracking(const std::map<int, FeatureVec> &batchTracking,
                                  const ns_veta::PinholeIntrinsicPtr &intri,
                                  float sTime,
                                  float eTime,
@@ -151,7 +151,7 @@ public:
                                  float posScaleFactor = 0.01f,
                                  float timeScaleFactor = 2.0f);
 
-    Viewer &AddEventFeatTracking(const EventFeatTrackingVec &tracking,
+    Viewer &AddEventFeatTracking(const FeatureVec &tracking,
                                  float sTime,
                                  const std::string &view,
                                  float posScaleFactor = 0.01f,
@@ -165,7 +165,7 @@ public:
                                    float posScaleFactor = 0.01f,
                                    float timeScaleFactor = 2.0f);
 
-    Viewer &AddSpatioTemporalTrace(const EventFeatTrackingVec &tracking,
+    Viewer &AddSpatioTemporalTrace(const FeatureVec &tracking,
                                    float sTime,
                                    const std::string &view,
                                    float size = 0.5f,

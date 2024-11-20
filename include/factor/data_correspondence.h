@@ -268,8 +268,8 @@ public:
     }
 };
 
-struct EventFeature;
-using EventFeaturePtr = std::shared_ptr<EventFeature>;
+struct Feature;
+using FeaturePtr = std::shared_ptr<Feature>;
 
 struct FeatureTrackingCurve {
 public:
@@ -292,7 +292,7 @@ public:
                       const Eigen::Vector3d &x_parm,
                       const Eigen::Vector3d &y_parm);
 
-    static Ptr CreateFrom(const std::vector<EventFeaturePtr> &trackingAry);
+    static Ptr CreateFrom(const std::vector<FeaturePtr> &trackingAry, bool useUndistortedOnes);
 
     [[nodiscard]] std::optional<Eigen::Vector2d> PositionAt(double t) const;
 

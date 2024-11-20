@@ -37,6 +37,7 @@
 
 #include "util/utils.h"
 #include "util/cereal_archive_helper.hpp"
+#include "core/feature_tracking.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -48,13 +49,8 @@ using PinholeIntrinsicPtr = std::shared_ptr<PinholeIntrinsic>;
 }  // namespace ns_veta
 
 namespace ns_ikalibr {
-struct EventArray;
+class EventArray;
 using EventArrayPtr = std::shared_ptr<EventArray>;
-
-struct EventFeature;
-using EventFeaturePtr = std::shared_ptr<EventFeature>;
-using EventFeatTrackingVec = std::vector<EventFeaturePtr>;
-using EventFeatTrackingBatch = std::map<int, EventFeatTrackingVec>;
 
 struct EventsInfo {
 public:
@@ -110,7 +106,7 @@ public:
     constexpr static double DEG_TO_RAD = M_PI / 180.0;
 
     // batch index, tracking results in a batch
-    using TrackingResultsType = std::map<int, EventFeatTrackingBatch>;
+    using TrackingResultsType = std::map<int, FeatureVecMap>;
 
 public:
     /**
@@ -144,14 +140,28 @@ public:
         int batchIdx = 0);
 
     static std::optional<TrackingResultsType> TryLoadHASTEResultsFromTXT(
-        const EventsInfo &info, double newRawStartTime = 0);
+        const EventsInfo &info,
+        const ns_veta::PinholeIntrinsicPtr &intri,
+        double newRawStartTime = 0);
 
     static std::optional<TrackingResultsType> TryLoadHASTEResultsFromBinary(
-        const EventsInfo &info, double newRawStartTime = 0);
+        const EventsInfo &info,
+        const ns_veta::PinholeIntrinsicPtr &intri,
+        double newRawStartTime = 0);
 
     static void SaveEventsInfo(const EventsInfo &info, const std::string &ws);
 
     static std::optional<EventsInfo> TryLoadEventsInfo(const std::string &ws);
+};
+
+struct EventTrackingFilter {
+    static void FilterByTrackingLength(FeatureVecMap &tracking, double acceptedTrackedThdCompBest);
+
+    static void FilterByTraceFittingSAC(FeatureVecMap &tracking, double thd);
+
+    static void FilterByTrackingAge(FeatureVecMap &tracking, double acceptedTrackedThdCompBest);
+
+    static void FilterByTrackingFreq(FeatureVecMap &tracking, double acceptedTrackedThdCompBest);
 };
 }  // namespace ns_ikalibr
 

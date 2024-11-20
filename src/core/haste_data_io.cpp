@@ -40,7 +40,7 @@
 #include "filesystem"
 #include "util/tqdm.h"
 #include "core/event_trace_sac.h"
-#include "core/tracked_event_feature.h"
+#include "core/feature_tracking.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -277,7 +277,7 @@ std::pair<std::string, EventsInfo::SubBatch> HASTEDataIO::SaveRawEventDataAsBina
 }
 
 std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResultsFromTXT(
-    const EventsInfo &info, double newRawStartTime) {
+    const EventsInfo &info, const ns_veta::PinholeIntrinsicPtr &intri, double newRawStartTime) {
     if (info.batches.empty()) {
         spdlog::warn("there is no any batch in '{}'!!!", info.root_path);
         return {};
@@ -308,12 +308,15 @@ std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResults
                 spdlog::warn("the feature tracking result item '{}' may broken!!!", strLine);
                 continue;
             }
-            EventFeature feature;
+            Feature feature;
             feature.timestamp = std::stod(strVec.at(0)) + info.raw_start_time - newRawStartTime;
-            feature.pos = {std::stod(strVec.at(1)), std::stod(strVec.at(2))};
-            // feature.angle = std::stod(strVec.at(3)) * DEG_TO_RAD;
+            // results from haste are features that have been undistorted
+            feature.undistorted = cv::Point2f(std::stof(strVec.at(1)), std::stof(strVec.at(2)));
+            Eigen::Vector2d rawFeat = intri->GetDistoPixel(feature.Undistorted().cast<double>());
+            feature.raw = cv::Point2f(rawFeat(0), rawFeat(1));
+
             int id = std::stoi(strVec.at(4));
-            tracking[id].push_back(std::make_shared<EventFeature>(feature));
+            tracking[id].push_back(std::make_shared<Feature>(feature));
 
             ++trackedFeatCount;
             if (feature.timestamp < minTime) {
@@ -334,7 +337,7 @@ std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResults
 }
 
 std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResultsFromBinary(
-    const EventsInfo &info, double newRawStartTime) {
+    const EventsInfo &info, const ns_veta::PinholeIntrinsicPtr &intri, double newRawStartTime) {
     if (info.batches.empty()) {
         spdlog::warn("there is no any batch in '{}'!!!", info.root_path);
         return {};
@@ -371,11 +374,14 @@ std::optional<HASTEDataIO::TrackingResultsType> HASTEDataIO::TryLoadHASTEResults
             ifResults.read(reinterpret_cast<char *>(&theta), sizeof(theta));
             ifResults.read(reinterpret_cast<char *>(&id), sizeof(id));
 
-            EventFeature feature;
+            Feature feature;
             feature.timestamp = time + info.raw_start_time - newRawStartTime;
-            feature.pos = Eigen::Vector2f{x, y}.cast<double>();
+            // results from haste are features that have been undistorted
+            feature.undistorted = cv::Point2f{x, y};
+            Eigen::Vector2d rawFeat = intri->GetDistoPixel(feature.Undistorted().cast<double>());
+            feature.raw = cv::Point2f(rawFeat(0), rawFeat(1));
 
-            tracking[static_cast<int>(id)].push_back(std::make_shared<EventFeature>(feature));
+            tracking[static_cast<int>(id)].push_back(std::make_shared<Feature>(feature));
 
             ++trackedFeatCount;
             if (feature.timestamp < minTime) {
@@ -407,4 +413,90 @@ std::optional<EventsInfo> HASTEDataIO::TryLoadEventsInfo(const std::string &ws) 
     }
     return EventsInfo::LoadFromDisk(filepath, Configor::Preference::OutputDataFormat);
 }
+
+void EventTrackingFilter::FilterByTrackingLength(FeatureVecMap &tracking,
+                                                 double acceptedTrackedThdCompBest) {
+    std::size_t maxLength = 0;
+    for (const auto &[featId, trackingList] : tracking) {
+        if (trackingList.size() > maxLength) {
+            maxLength = trackingList.size();
+        }
+    }
+    // auto oldSize = tracking.size();
+    auto acceptedMinLength = static_cast<double>(maxLength) * acceptedTrackedThdCompBest;
+    for (auto it = tracking.begin(); it != tracking.end();) {
+        if (it->second.size() < static_cast<std::size_t>(acceptedMinLength)) {
+            it = tracking.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void EventTrackingFilter::FilterByTraceFittingSAC(FeatureVecMap &tracking, double thd) {
+    for (auto it = tracking.begin(); it != tracking.end();) {
+        auto &trackingList = it->second;
+        if (trackingList.size() < 3) {
+            it = tracking.erase(it);
+            continue;
+        }
+        auto res = EventTrackingTraceSacProblem::EventTrackingTraceSac(trackingList, thd);
+        if (res.first != nullptr) {
+            trackingList = res.second;
+            std::sort(trackingList.begin(), trackingList.end(),
+                      [](const std::shared_ptr<Feature> &f1, const std::shared_ptr<Feature> &f2) {
+                          return f1->timestamp < f2->timestamp;
+                      });
+            ++it;
+        } else {
+            it = tracking.erase(it);
+        }
+    }
+}
+
+void EventTrackingFilter::FilterByTrackingAge(FeatureVecMap &tracking,
+                                              double acceptedTrackedThdCompBest) {
+    double maxAge = 0.0;
+    for (const auto &[featId, trackingList] : tracking) {
+        const double age = trackingList.back()->timestamp - trackingList.front()->timestamp;
+        if (age > maxAge) {
+            maxAge = age;
+        }
+    }
+    auto acceptedMinAge = maxAge * acceptedTrackedThdCompBest;
+    for (auto it = tracking.begin(); it != tracking.end();) {
+        const auto &trackingList = it->second;
+        const double age = trackingList.back()->timestamp - trackingList.front()->timestamp;
+
+        if (age < acceptedMinAge) {
+            it = tracking.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+void EventTrackingFilter::FilterByTrackingFreq(FeatureVecMap &tracking,
+                                               double acceptedTrackedThdCompBest) {
+    double maxFreq = 0.0;
+    for (const auto &[featId, trackingList] : tracking) {
+        const double age = trackingList.back()->timestamp - trackingList.front()->timestamp;
+        const double freq = static_cast<double>(trackingList.size()) / age;
+        if (freq > maxFreq) {
+            maxFreq = freq;
+        }
+    }
+    auto acceptedMinFreq = maxFreq * acceptedTrackedThdCompBest;
+    for (auto it = tracking.begin(); it != tracking.end();) {
+        const auto &trackingList = it->second;
+        const double age = trackingList.back()->timestamp - trackingList.front()->timestamp;
+        const double freq = static_cast<double>(trackingList.size()) / age;
+
+        if (freq < acceptedMinFreq) {
+            it = tracking.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 }  // namespace ns_ikalibr

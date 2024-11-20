@@ -755,7 +755,6 @@ protected:
     void SaveEventDataForFeatureTracking(const std::string &topic,
                                          const std::string &ws,
                                          double BATCH_TIME_WIN_THD,
-                                         std::size_t EVENT_FRAME_NUM_THD,
                                          std::size_t seedNum) const;
 };
 

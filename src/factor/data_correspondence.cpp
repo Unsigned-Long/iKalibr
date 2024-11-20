@@ -34,7 +34,7 @@
 
 #include "factor/data_correspondence.h"
 #include "sensor/camera.h"
-#include "core/tracked_event_feature.h"
+#include "core/feature_tracking.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -166,8 +166,8 @@ FeatureTrackingCurve::Ptr FeatureTrackingCurve::Create(double s_time,
     return std::make_shared<FeatureTrackingCurve>(s_time, e_time, x_parm, y_parm);
 }
 
-FeatureTrackingCurve::Ptr FeatureTrackingCurve::CreateFrom(
-    const std::vector<EventFeature::Ptr>& trackingAry) {
+FeatureTrackingCurve::Ptr FeatureTrackingCurve::CreateFrom(const FeatureVec& trackingAry,
+                                                           bool useUndistortedOnes) {
     if (trackingAry.size() < 3) {
         return nullptr;
     }
@@ -178,8 +178,13 @@ FeatureTrackingCurve::Ptr FeatureTrackingCurve::CreateFrom(
     for (int i = 0; i != static_cast<int>(size); ++i) {
         const auto& track = trackingAry[i];
         t.at(i) = track->timestamp;
-        x.at(i) = track->pos(0);
-        y.at(i) = track->pos(1);
+        if (useUndistortedOnes) {
+            x.at(i) = track->undistorted.x;
+            y.at(i) = track->undistorted.y;
+        } else {
+            x.at(i) = track->raw.x;
+            y.at(i) = track->raw.y;
+        }
         if (tMin > track->timestamp) {
             tMin = track->timestamp;
         }
@@ -247,10 +252,10 @@ Eigen::Vector3d FeatureTrackingCurve::FitQuadraticCurve(const std::vector<double
 }
 
 OpticalFlowCurveCorr::Ptr OpticalFlowCurveCorr::Create(double midTime,
-                                                         double midDepth,
-                                                         double reprojTimePadding,
-                                                         const FeatureTrackingCurve::Ptr& trace,
-                                                         double weight) {
+                                                       double midDepth,
+                                                       double reprojTimePadding,
+                                                       const FeatureTrackingCurve::Ptr& trace,
+                                                       double weight) {
     if (reprojTimePadding < 1E-3) {
         return nullptr;
     }
@@ -260,16 +265,16 @@ OpticalFlowCurveCorr::Ptr OpticalFlowCurveCorr::Create(double midTime,
         return nullptr;
     }
     return std::make_shared<OpticalFlowCurveCorr>(midTime, midDepth, 1.0 / midDepth, firTime,
-                                                   lastTime, trace, weight);
+                                                  lastTime, trace, weight);
 }
 
 OpticalFlowCurveCorr::OpticalFlowCurveCorr(double mid_time,
-                                             double mid_depth,
-                                             double mid_inv_depth,
-                                             double fir_time,
-                                             double last_time,
-                                             const FeatureTrackingCurve::Ptr& trace,
-                                             double weight)
+                                           double mid_depth,
+                                           double mid_inv_depth,
+                                           double fir_time,
+                                           double last_time,
+                                           const FeatureTrackingCurve::Ptr& trace,
+                                           double weight)
     : midTime(mid_time),
       midDepth(mid_depth),
       midInvDepth(mid_inv_depth),

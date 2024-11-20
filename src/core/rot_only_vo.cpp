@@ -239,8 +239,8 @@ void RotOnlyVisualOdometer::ShowCurrentFrame() const {
         if (count < 2) {
             continue;
         }
-        const auto &pt = feat.raw;
-        const auto &upt = feat.undistorted;
+        const auto &pt = feat->raw;
+        const auto &upt = feat->undistorted;
 
         // connect between point and its undistorted one
         DrawLineOnCVMat(img, pt, upt, cv::Scalar(255, 255, 255));
@@ -358,7 +358,7 @@ ns_veta::IndexT RotOnlyVisualOdometer::GenNewLmId() {
 }
 
 std::pair<std::vector<int>, std::vector<cv::Point2f>>
-RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const std::map<int, Feature> &featMap,
+RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const FeatureMap &featMap,
                                                   const std::vector<int> &desiredIds) {
     std::vector<int> ids;
     std::vector<cv::Point2f> feats;
@@ -368,7 +368,7 @@ RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const std::map<int, Feature> &
         for (const auto &[id, pt] : featMap) {
             ids.push_back(id);
             // distorted point
-            feats.push_back(pt.raw);
+            feats.push_back(pt->raw);
         }
     } else {
         ids.reserve(desiredIds.size());
@@ -377,7 +377,7 @@ RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const std::map<int, Feature> &
             if (auto iter = featMap.find(id); iter != featMap.cend()) {
                 ids.push_back(id);
                 // distorted point
-                feats.push_back(iter->second.raw);
+                feats.push_back(iter->second->raw);
             }
         }
     }
@@ -385,7 +385,7 @@ RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const std::map<int, Feature> &
 }
 
 std::pair<std::vector<int>, std::vector<cv::Point2f>>
-RotOnlyVisualOdometer::ExtractFeatMapAsUndistoFeatVec(const std::map<int, Feature> &featMap,
+RotOnlyVisualOdometer::ExtractFeatMapAsUndistoFeatVec(const FeatureMap &featMap,
                                                       const std::vector<int> &desiredIds) {
     std::vector<int> ids;
     std::vector<cv::Point2f> feats;
@@ -395,7 +395,7 @@ RotOnlyVisualOdometer::ExtractFeatMapAsUndistoFeatVec(const std::map<int, Featur
         for (const auto &[id, pt] : featMap) {
             ids.push_back(id);
             // distorted point
-            feats.push_back(pt.undistorted);
+            feats.push_back(pt->undistorted);
         }
     } else {
         ids.reserve(desiredIds.size());
@@ -404,15 +404,14 @@ RotOnlyVisualOdometer::ExtractFeatMapAsUndistoFeatVec(const std::map<int, Featur
             if (auto iter = featMap.find(id); iter != featMap.cend()) {
                 ids.push_back(id);
                 // distorted point
-                feats.push_back(iter->second.undistorted);
+                feats.push_back(iter->second->undistorted);
             }
         }
     }
     return {ids, feats};
 }
 
-const std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feature>>> &
-RotOnlyVisualOdometer::GetLmTrackInfo() const {
+const RotOnlyVisualOdometer::FeatTrackingInfo &RotOnlyVisualOdometer::GetLmTrackInfo() const {
     return _lmTrackInfo;
 }
 
@@ -426,8 +425,8 @@ void RotOnlyVisualOdometer::ShowLmTrackInfo() const {
         for (const auto &[frame, feat] : trackList) {
             cv::Mat img = frame->GetColorImage().clone();
 
-            const auto &pt = feat.raw;
-            const auto &upt = feat.undistorted;
+            const auto &pt = feat->raw;
+            const auto &upt = feat->undistorted;
 
             // connect between point and its undistorted one
             DrawLineOnCVMat(img, pt, upt, cv::Scalar(255, 255, 255));

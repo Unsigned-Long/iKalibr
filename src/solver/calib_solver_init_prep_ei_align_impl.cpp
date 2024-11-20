@@ -39,7 +39,7 @@
 #include "calib/calib_param_manager.h"
 #include "viewer/viewer.h"
 #include "util/status.hpp"
-#include "core/tracked_event_feature.h"
+#include "core/feature_tracking.h"
 #include "core/event_trace_sac.h"
 #include "calib/estimator.h"
 
@@ -73,9 +73,9 @@ void CalibSolver::InitPrepEventInertialAlign() const {
     constexpr double TRACKING_AGE_PERCENT_THD = 0.3;
     constexpr double TRACKING_FREQ_PERCENT_THD = 0.3;
     constexpr double BATCH_TIME_WIN_THD = 0.2;
-    constexpr int HASTE_SEED_COUNT = 200;
+    constexpr int HASTE_SEED_COUNT = 100;
     // topic, batch index, tracked features
-    std::map<std::string, std::map<int, EventFeatTrackingBatch>> eventFeatTrackingRes;
+    std::map<std::string, std::map<int, FeatureVecMap>> eventFeatTrackingRes;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
         // create a workspace for event-based feature tracking
@@ -93,9 +93,9 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             eventsInfo != std::nullopt) {
             spdlog::info("try to load feature tracking results from haste for camera '{}'...",
                          topic);
-            // the output tracking results from HASTE should be distortion-free?
+            // todo: the output tracking results from HASTE should be distortion-free?
             auto tracking = HASTEDataIO::TryLoadHASTEResultsFromBinary(
-                *eventsInfo, _dataMagr->GetRawStartTimestamp());
+                *eventsInfo, intri, _dataMagr->GetRawStartTimestamp());
             if (tracking != std::nullopt) {
                 auto bar = std::make_shared<tqdm>();
                 int barIndex = 0;
@@ -152,9 +152,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
          * |--> 'outputSIter2'
          */
         spdlog::info("saving event data of camera '{}' for haste-based feature tracking...", topic);
-        const std::size_t EVENT_FRAME_NUM_THD = intri->imgHeight * intri->imgWidth / 5;
         SaveEventDataForFeatureTracking(topic, hasteWorkspace, BATCH_TIME_WIN_THD,
-                                        EVENT_FRAME_NUM_THD, HASTE_SEED_COUNT);
+                                        HASTE_SEED_COUNT);
     }
     cv::destroyAllWindows();
     if (eventFeatTrackingRes.size() != Configor::DataStream::EventTopics.size()) {
@@ -177,7 +176,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         auto &traceVec = eventTraceMap[topic];
         for (const auto &[id, batch] : tracking) {
             for (const auto &[fId, featVec] : batch) {
-                auto trace = FeatureTrackingCurve::CreateFrom(featVec);
+                auto trace = FeatureTrackingCurve::CreateFrom(featVec, true);
                 if (trace != nullptr) {
                     traceVec.insert(trace);
                 }

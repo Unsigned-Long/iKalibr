@@ -47,7 +47,7 @@
 #include "core/haste_data_io.h"
 #include "veta/camera/pinhole.h"
 #include "sensor/event.h"
-#include "core/tracked_event_feature.h"
+#include "core/feature_tracking.h"
 #include "core/event_trace_sac.h"
 
 namespace {
@@ -432,14 +432,13 @@ Viewer &Viewer::AddRGBDFrame(const RGBDFrame::Ptr &frame,
     return *this;
 }
 
-Viewer &Viewer::AddEventFeatTracking(
-    const std::map<int, std::vector<EventFeature::Ptr>> &batchTracking,
-    const ns_veta::PinholeIntrinsic::Ptr &intri,
-    float sTime,
-    float eTime,
-    const std::string &view,
-    float posScaleFactor,
-    float timeScaleFactor) {
+Viewer &Viewer::AddEventFeatTracking(const std::map<int, FeatureVec> &batchTracking,
+                                     const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                     float sTime,
+                                     float eTime,
+                                     const std::string &view,
+                                     float posScaleFactor,
+                                     float timeScaleFactor) {
     std::vector<ns_viewer::Entity::Ptr> entities;
 
     // tracking
@@ -464,7 +463,7 @@ Viewer &Viewer::AddEventFeatTracking(
     return *this;
 }
 
-Viewer &Viewer::AddEventFeatTracking(const EventFeatTrackingVec &tracking,
+Viewer &Viewer::AddEventFeatTracking(const FeatureVec &tracking,
                                      float sTime,
                                      const std::string &view,
                                      float posScaleFactor,
@@ -473,7 +472,7 @@ Viewer &Viewer::AddEventFeatTracking(const EventFeatTrackingVec &tracking,
     AddSpatioTemporalTrace(tracking, sTime, view, 1.0f, ns_viewer::Colour::Black(), posScaleFactor,
                            timeScaleFactor);
 
-    if (auto trace = FeatureTrackingCurve::CreateFrom(tracking); trace != nullptr) {
+    if (auto trace = FeatureTrackingCurve::CreateFrom(tracking, true); trace != nullptr) {
         std::vector<Eigen::Vector3d> posVec = trace->DiscretePositions();
         // curve
         AddSpatioTemporalTrace(posVec, sTime, view, 2.0f, ns_viewer::Colour::Green(),
@@ -521,7 +520,7 @@ Viewer &Viewer::AddSpatioTemporalTrace(const std::vector<Eigen::Vector3d> &trace
     return *this;
 }
 
-Viewer &Viewer::AddSpatioTemporalTrace(const EventFeatTrackingVec &tracking,
+Viewer &Viewer::AddSpatioTemporalTrace(const FeatureVec &tracking,
                                        float sTime,
                                        const std::string &view,
                                        float size,
@@ -531,7 +530,7 @@ Viewer &Viewer::AddSpatioTemporalTrace(const EventFeatTrackingVec &tracking,
     std::vector<Eigen::Vector3d> rawTrace(tracking.size());
     for (int i = 0; i != static_cast<int>(tracking.size()); ++i) {
         const auto &f = tracking.at(i);
-        rawTrace.at(i) = Eigen::Vector3d(f->timestamp, f->pos(0), f->pos(1));
+        rawTrace.at(i) = Eigen::Vector3d(f->timestamp, f->undistorted.x, f->undistorted.y);
     }
     return AddSpatioTemporalTrace(rawTrace, sTime, view, size, color, posScaleFactor,
                                   timeScaleFactor);

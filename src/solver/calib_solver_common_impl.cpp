@@ -52,6 +52,7 @@
 #include "util/utils_tpl.hpp"
 #include "viewer/viewer.h"
 #include "core/haste_data_io.h"
+#include "core/event_preprocessing.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -741,8 +742,8 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePoints(const cv::Mat &event
         // DrawKeypointOnCVMat(imgFiltered, corner, true, cv::Scalar(0, 0, 0));
     }
 
-    // cv::imshow("Edges", edges);
-    // cv::imshow("Filtered Event Frame", imgFiltered);
+    cv::imshow("Edges", edges);
+    cv::imshow("Filtered Event Frame", imgFiltered);
     // cv::waitKey(0);
 
     return vertex;
@@ -788,7 +789,7 @@ std::vector<Eigen::Vector2d> CalibSolver::FindTexturePointsAt(
         DrawKeypointOnCVMat(mat, v, true, cv::Scalar(0, 0, 0));
     }
     cv::imshow("Event-Based Feature Tracking Initial Points", mat);
-    cv::waitKey(1);
+    cv::waitKey(0);
     return vertex;
 }
 
@@ -810,123 +811,113 @@ std::vector<Eigen::Vector2d> CalibSolver::GenUniformSeeds(const ns_veta::Pinhole
 void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                                                   const std::string &ws,
                                                   double BATCH_TIME_WIN_THD,
-                                                  std::size_t EVENT_FRAME_NUM_THD,
                                                   std::size_t seedNum) const {
-    /**
-     * |--> 'outputSIter1'
-     * |            |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
-     * ------------------------------------------------------------------
-     * |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
-     * | data in this windown would be output for event-based feature tracking
-     * |--> 'outputSIter2'
-     */
-    const double BATCH_TIME_WIN_THD_HALF = BATCH_TIME_WIN_THD * 0.5;
     const auto &intri = _parMagr->INTRI.Camera.at(topic);
-
     const auto &eventMes = _dataMagr->GetEventMeasurements(topic);
-    // this queue maintain two iterators
-    std::queue<std::vector<EventArray::Ptr>::const_iterator> batchHeadIter;
-    batchHeadIter.push(eventMes.cbegin());
-    batchHeadIter.push(eventMes.cbegin());
+    auto saeCreator = ActiveEventSurface::Create(intri, 0.01);
 
-    // only for visualization
-    auto matSIter = eventMes.cbegin();
-    std::size_t accumulatedEventCount = 0;
-    cv::Mat eventFrameMat;
-
-    std::vector<EventsInfo::SubBatch> subBatches;
     std::stringstream commands;
-
     // the index of sub batch in event data
     int subEventDataIdx = 0;
+    std::vector<EventsInfo::SubBatch> subBatches;
 
-    // for visualization
-    std::shared_ptr<tqdm> bar = std::make_shared<tqdm>();
-    auto totalSubBatchCount = (eventMes.back()->GetTimestamp() - eventMes.front()->GetTimestamp()) /
-                              BATCH_TIME_WIN_THD * 2;
+    auto headIter = eventMes.cbegin();
+    for (auto tailIter = eventMes.cbegin(); tailIter != eventMes.cend(); ++tailIter) {
+        /**
+         *                          |<- BATCH_TIME_WIN_THD ->|
+         * ------------------------------------------------------------------
+         * |<- BATCH_TIME_WIN_THD ->|                        |<- BATCH_TIME_WIN_THD ->|
+         *  data in windown would be output for event-based feature tracking
+         */
+        if ((*tailIter)->GetTimestamp() - (*headIter)->GetTimestamp() < BATCH_TIME_WIN_THD) {
+            continue;
+        }
 
-    for (auto curIter = matSIter; curIter != eventMes.cend(); ++curIter) {
-        accumulatedEventCount += (*curIter)->GetEvents().size();
-        if (accumulatedEventCount > EVENT_FRAME_NUM_THD) {
+        // information for seed
+        decltype(tailIter) seedIter;
+        cv::Mat tsMatSeedTime;
+        // treated as reset of 'accumEventMat'
+        cv::Mat accumEventMat = saeCreator->GetEventImgMat(true, false);
+        bool findSeed = false;
+        std::size_t accumulatedEventNum = 0;
+        for (auto iter = headIter; iter != tailIter; ++iter) {
+            saeCreator->GrabEvent(*iter, true);
+            accumulatedEventNum += (*iter)->GetEvents().size();
             /**
-             * If the number of events accumulates to a certain number, we construct it into an
-             * event frame. The event frame is used for visualization, and for calculating rough
-             * texture positions for feature tracking (haste-based). Note that this even frame
-             * is a distorted one
+             *        |--> event data to be accumulated to locate seed positions
+             * ----|-------------------|----
+             *     |<--batch windown-->|
+             *        |--> the seed time
              */
-            // eventFrameMat = EventArray::DrawRawEventFrame(matSIter, curIter, intri);
-            // cv::imshow("Event Frame", eventFrameMat);
-            // cv::waitKey(1);
-
-            matSIter = curIter;
-            accumulatedEventCount = 0;
-        }
-
-        auto headIter = batchHeadIter.front(), tailIter = batchHeadIter.back();
-
-        if ((*curIter)->GetTimestamp() - (*tailIter)->GetTimestamp() > BATCH_TIME_WIN_THD_HALF) {
-            if ((*curIter)->GetTimestamp() - (*headIter)->GetTimestamp() > BATCH_TIME_WIN_THD) {
-                bar->progress(subEventDataIdx, static_cast<int>(totalSubBatchCount));
-
-                // the directory to save sub event data
-                const std::string subWS = ws + "/" + std::to_string(subEventDataIdx);
-                if (!std::filesystem::exists(subWS)) {
-                    if (!std::filesystem::create_directories(subWS)) {
-                        throw Status(Status::CRITICAL,
-                                     "can not create sub output directory '{}' for event "
-                                     "camera '{}' sub event data sequence '{}'!!!",
-                                     subWS, topic, subEventDataIdx);
-                    }
-                }
-
-                /**
-                 *        |--> event data to be accumulated to locate seed positions
-                 * ----|-------------------|----
-                 *     |<--batch windown-->|
-                 *     |--> the seed time
-                 */
-                // calculate rough texture positions for feature tracking (haste-based)
-                auto seedIter = headIter;
-                /**
-                 * feature points are extracted as seeds
-                 */
-                while ((*seedIter)->GetTimestamp() - (*headIter)->GetTimestamp() < 0.01) {
-                    ++seedIter;
-                }
-                auto seeds = FindTexturePointsAt(seedIter,  // the reference iterator
-                                                 eventMes, EVENT_FRAME_NUM_THD, intri, seedNum);
-
-                /**
-                 * another way to select seeds is direct uniform selection
-                 */
-                // auto seeds = GenUniformSeeds(intri, 200 /*generate about 200 seeds*/, 10);
-
-                const double seedsTime = (*seedIter)->GetTimestamp();
-
-                auto [command, batchInfo] =
-                    HASTEDataIO::SaveRawEventDataAsBinary(headIter,   // from
-                                                          curIter,    // to
-                                                          intri,      // intrinsics
-                                                          seeds,      // seed positions
-                                                          seedsTime,  // seed timestamps
-                                                          subWS,      // directory
-                                                          subEventDataIdx);
-
-                // record information
-                commands << '\"' << command << "\"\n";
-                subBatches.emplace_back(batchInfo);
-
-                // plus index of sub data batch
-                ++subEventDataIdx;
+            if (!findSeed && (*iter)->GetTimestamp() - (*headIter)->GetTimestamp() > 0.01) {
+                // assign
+                seedIter = iter;
+                double seedTime = (*iter)->GetEvents().back()->GetTimestamp();
+                findSeed = true;
+                // create time surface
+                tsMatSeedTime =
+                    saeCreator->ToTimeSurface(seedTime,  // timestamp to create time surface mat
+                                              true,      // ignore polarity
+                                              false,     // undisto event frame mat
+                                              0,         // perform medianBlur
+                                              0.02);     // the constant decay rate
+                accumEventMat = saeCreator->GetEventImgMat(true, false);
             }
-
-            batchHeadIter.push(curIter);
-            batchHeadIter.pop();
         }
-    }
 
-    bar->progress(subEventDataIdx, subEventDataIdx);
-    bar->finish();
+        if (!findSeed) {
+            // update
+            headIter = tailIter;
+            continue;
+        }
+
+        // find seeds (todo: refine)
+        std::vector<cv::Point2f> ptsCurVec;
+        cv::goodFeaturesToTrack(tsMatSeedTime, ptsCurVec, seedNum, 0.01, 10);
+
+        cv::cvtColor(tsMatSeedTime, tsMatSeedTime, cv::COLOR_GRAY2BGR);
+        std::vector<Eigen::Vector2d> seeds;
+        seeds.reserve(ptsCurVec.size());
+        for (const auto &pt : ptsCurVec) {
+            DrawKeypointOnCVMat(tsMatSeedTime, pt, true);
+            DrawKeypointOnCVMat(accumEventMat, pt, true);
+            seeds.push_back({pt.x, pt.y});
+        }
+
+        // the directory to save sub event data
+        const std::string subWS = ws + "/" + std::to_string(subEventDataIdx);
+        if (!std::filesystem::exists(subWS)) {
+            if (!std::filesystem::create_directories(subWS)) {
+                throw Status(Status::CRITICAL,
+                             "can not create sub output directory '{}' for event "
+                             "camera '{}' sub event data sequence '{}'!!!",
+                             subWS, topic, subEventDataIdx);
+            }
+        }
+        double seedTime = (*seedIter)->GetEvents().back()->GetTimestamp();
+        auto [c, i] = HASTEDataIO::SaveRawEventDataAsBinary(headIter,  // from
+                                                            tailIter,  // to
+                                                            intri,     // intrinsics
+                                                            seeds,     // seed positions
+                                                            seedTime,  // seed timestamps
+                                                            subWS,     // directory
+                                                            subEventDataIdx);
+
+        // record information
+        commands << '\"' << c << "\"\n";
+        subBatches.emplace_back(i);
+
+        // plus index of sub data batch
+        ++subEventDataIdx;
+
+        cv::Mat m;
+        cv::hconcat(tsMatSeedTime, accumEventMat, m);
+        cv::imshow("Normalized Time Surface & Accumulated Event Mat", m);
+        cv::waitKey(1);
+
+        // update
+        headIter = tailIter;
+    }
 
     // the command shell file
     const std::string cmdOutputPath = ws + "/run_haste.sh";
@@ -963,5 +954,161 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
 
     EventsInfo info(topic, ws, _dataMagr->GetRawStartTimestamp(), subBatches);
     HASTEDataIO::SaveEventsInfo(info, ws);
+#if 0
+
+        /**
+         * |--> 'outputSIter1'
+         * |            |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
+         * ------------------------------------------------------------------
+         * |<- BATCH_TIME_WIN_THD ->|<- BATCH_TIME_WIN_THD ->|
+         * | data in this windown would be output for event-based feature tracking
+         * |--> 'outputSIter2'
+         */
+        const double BATCH_TIME_WIN_THD_HALF = BATCH_TIME_WIN_THD * 0.5;
+        const auto &intri = _parMagr->INTRI.Camera.at(topic);
+
+        const auto &eventMes = _dataMagr->GetEventMeasurements(topic);
+        // this queue maintain two iterators
+        std::queue<std::vector<EventArray::Ptr>::const_iterator> batchHeadIter;
+        batchHeadIter.push(eventMes.cbegin());
+        batchHeadIter.push(eventMes.cbegin());
+
+        // only for visualization
+        auto matSIter = eventMes.cbegin();
+        std::size_t accumulatedEventCount = 0;
+        cv::Mat eventFrameMat;
+
+        std::vector<EventsInfo::SubBatch> subBatches;
+        std::stringstream commands;
+
+        // the index of sub batch in event data
+        int subEventDataIdx = 0;
+
+        // for visualization
+        std::shared_ptr<tqdm> bar = std::make_shared<tqdm>();
+        auto totalSubBatchCount =
+            (eventMes.back()->GetTimestamp() - eventMes.front()->GetTimestamp()) /
+            BATCH_TIME_WIN_THD * 2;
+
+        for (auto curIter = matSIter; curIter != eventMes.cend(); ++curIter) {
+            accumulatedEventCount += (*curIter)->GetEvents().size();
+            if (accumulatedEventCount > EVENT_FRAME_NUM_THD) {
+                /**
+                 * If the number of events accumulates to a certain number, we construct it into an
+                 * event frame. The event frame is used for visualization, and for calculating rough
+                 * texture positions for feature tracking (haste-based). Note that this even frame
+                 * is a distorted one
+                 */
+                // eventFrameMat = EventArray::DrawRawEventFrame(matSIter, curIter, intri);
+                // cv::imshow("Event Frame", eventFrameMat);
+                // cv::waitKey(1);
+
+                matSIter = curIter;
+                accumulatedEventCount = 0;
+            }
+
+            auto headIter = batchHeadIter.front(), tailIter = batchHeadIter.back();
+
+            if ((*curIter)->GetTimestamp() - (*tailIter)->GetTimestamp() >
+                BATCH_TIME_WIN_THD_HALF) {
+                if ((*curIter)->GetTimestamp() - (*headIter)->GetTimestamp() > BATCH_TIME_WIN_THD) {
+                    bar->progress(subEventDataIdx, static_cast<int>(totalSubBatchCount));
+
+                    // the directory to save sub event data
+                    const std::string subWS = ws + "/" + std::to_string(subEventDataIdx);
+                    if (!std::filesystem::exists(subWS)) {
+                        if (!std::filesystem::create_directories(subWS)) {
+                            throw Status(Status::CRITICAL,
+                                         "can not create sub output directory '{}' for event "
+                                         "camera '{}' sub event data sequence '{}'!!!",
+                                         subWS, topic, subEventDataIdx);
+                        }
+                    }
+
+                    /**
+                     *        |--> event data to be accumulated to locate seed positions
+                     * ----|-------------------|----
+                     *     |<--batch windown-->|
+                     *     |--> the seed time
+                     */
+                    // calculate rough texture positions for feature tracking (haste-based)
+                    auto seedIter = headIter;
+                    /**
+                     * feature points are extracted as seeds
+                     */
+                    while ((*seedIter)->GetTimestamp() - (*headIter)->GetTimestamp() < 0.01) {
+                        ++seedIter;
+                    }
+                    auto seeds = FindTexturePointsAt(seedIter,  // the reference iterator
+                                                     eventMes, EVENT_FRAME_NUM_THD, intri, seedNum);
+
+                    /**
+                     * another way to select seeds is direct uniform selection
+                     */
+                    // auto seeds = GenUniformSeeds(intri, 200 /*generate about 200 seeds*/, 10);
+
+                    const double seedsTime = (*seedIter)->GetTimestamp();
+
+                    auto [command, batchInfo] =
+                        HASTEDataIO::SaveRawEventDataAsBinary(headIter,   // from
+                                                              curIter,    // to
+                                                              intri,      // intrinsics
+                                                              seeds,      // seed positions
+                                                              seedsTime,  // seed timestamps
+                                                              subWS,      // directory
+                                                              subEventDataIdx);
+
+                    // record information
+                    commands << '\"' << command << "\"\n";
+                    subBatches.emplace_back(batchInfo);
+
+                    // plus index of sub data batch
+                    ++subEventDataIdx;
+                }
+
+                batchHeadIter.push(curIter);
+                batchHeadIter.pop();
+            }
+        }
+
+        bar->progress(subEventDataIdx, subEventDataIdx);
+        bar->finish();
+
+        // the command shell file
+        const std::string cmdOutputPath = ws + "/run_haste.sh";
+        std::ofstream ofCmdShell(cmdOutputPath, std::ios::out);
+        ofCmdShell << "#!/bin/bash\n"
+                      "commands=(\n"
+                   << commands.str()
+                   << ")\n"
+                      "max_parallel=8\n"
+                      "echo \"Maximum Parallel Tasks Set To: $max_parallel\"\n"
+                      "total_commands=${#commands[@]}\n"
+                      "completed_commands=0\n"
+                      "update_progress() {\n"
+                      "  ((completed_commands++))\n"
+                      "  percentage=$((completed_commands * 100 / total_commands))\n"
+                      "  echo \"Currently Completed HASTE-Based Event Feature Tracking Tasks: "
+                      "[$completed_commands / $total_commands]-[$percentage%]\"\n"
+                      "}\n"
+                      "for cmd in \"${commands[@]}\"; do\n"
+                      "  current_cmd=\"$cmd\"\n"
+                      "  $cmd > /dev/null 2>&1 &\n"
+                      "  running=$(jobs -r | wc -l)\n"
+                      "  if [ \"$running\" -ge \"$max_parallel\" ]; then\n"
+                      "    wait -n\n"
+                      "    update_progress\n"
+                      "  fi\n"
+                      "done\n"
+                      "while [ $(jobs -r | wc -l) -gt 0 ]; do\n"
+                      "  wait -n\n"
+                      "  update_progress\n"
+                      "done\n"
+                      "echo -e \"\\nAll Commands Completed!\"\n";
+        ofCmdShell.close();
+
+        EventsInfo info(topic, ws, _dataMagr->GetRawStartTimestamp(), subBatches);
+        HASTEDataIO::SaveEventsInfo(info, ws);
+#endif
 }
 }  // namespace ns_ikalibr

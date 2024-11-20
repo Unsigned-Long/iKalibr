@@ -476,15 +476,15 @@ std::vector<OpticalFlowTripleTrace::Ptr> CalibSolver::CreateOpticalFlowTrace(
                 std::array<std::pair<CameraFramePtr, Eigen::Vector2d>, 3> movement;
                 movement.at(0) = {
                     iter0->first,
-                    Eigen::Vector2d(iter0->second.undistorted.x, iter0->second.undistorted.y),
+                    Eigen::Vector2d(iter0->second->undistorted.x, iter0->second->undistorted.y),
                 };
                 movement.at(1) = {
                     iter1->first,
-                    Eigen::Vector2d(iter1->second.undistorted.x, iter1->second.undistorted.y),
+                    Eigen::Vector2d(iter1->second->undistorted.x, iter1->second->undistorted.y),
                 };
                 movement.at(2) = {
                     iter2->first,
-                    Eigen::Vector2d(iter2->second.undistorted.x, iter2->second.undistorted.y),
+                    Eigen::Vector2d(iter2->second->undistorted.x, iter2->second->undistorted.y),
                 };
                 dynamics.push_back(OpticalFlowTripleTrace::Create(movement));
             }

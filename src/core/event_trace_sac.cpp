@@ -30,7 +30,6 @@
 #include "core/event_trace_sac.h"
 #include "spdlog/spdlog.h"
 #include "opengv/sac/Ransac.hpp"
-#include "core/tracked_event_feature.h"
 #include "factor/data_correspondence.h"
 
 namespace {
@@ -39,16 +38,15 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-EventTrackingTraceSacProblem::EventTrackingTraceSacProblem(
-    const std::vector<EventFeature::Ptr>& trackingAry, bool randomSeed)
+EventTrackingTraceSacProblem::EventTrackingTraceSacProblem(const FeatureVec& trackingAry,
+                                                           bool randomSeed)
     : opengv::sac::SampleConsensusProblem<model_t>(randomSeed),
       _trackingAry(trackingAry) {
     setUniformIndices(static_cast<int>(_trackingAry.size()));
 }
 
-std::pair<FeatureTrackingCurve::Ptr, std::vector<EventFeature::Ptr>>
-EventTrackingTraceSacProblem::EventTrackingTraceSac(
-    const std::vector<EventFeature::Ptr>& trackingAry, double thd) {
+std::pair<FeatureTrackingCurve::Ptr, FeatureVec>
+EventTrackingTraceSacProblem::EventTrackingTraceSac(const FeatureVec& trackingAry, double thd) {
     opengv::sac::Ransac<EventTrackingTraceSacProblem> ransac;
     std::shared_ptr<EventTrackingTraceSacProblem> probPtr(
         new EventTrackingTraceSacProblem(trackingAry));
@@ -58,7 +56,7 @@ EventTrackingTraceSacProblem::EventTrackingTraceSac(
     if (ransac.computeModel()) {
         FeatureTrackingCurve trace;
         probPtr->optimizeModelCoefficients(ransac.inliers_, ransac.model_coefficients_, trace);
-        std::vector<EventFeature::Ptr> goods(ransac.inliers_.size());
+        FeatureVec goods(ransac.inliers_.size());
         for (int i = 0; i != static_cast<int>(ransac.inliers_.size()); ++i) {
             goods.at(i) = trackingAry.at(ransac.inliers_.at(i));
         }
@@ -76,11 +74,11 @@ EventTrackingTraceSacProblem::EventTrackingTraceSac(
 
 bool EventTrackingTraceSacProblem::computeModelCoefficients(const std::vector<int>& indices,
                                                             model_t& outModel) const {
-    std::vector<EventFeature::Ptr> selected(indices.size());
+    FeatureVec selected(indices.size());
     for (int i = 0; i < static_cast<int>(indices.size()); ++i) {
         selected.at(i) = _trackingAry.at(indices.at(i));
     }
-    FeatureTrackingCurve::Ptr trace = FeatureTrackingCurve::CreateFrom(selected);
+    FeatureTrackingCurve::Ptr trace = FeatureTrackingCurve::CreateFrom(selected, true);
 
     if (trace == nullptr) {
         return false;
@@ -99,7 +97,7 @@ void EventTrackingTraceSacProblem::getSelectedDistancesToModel(const model_t& mo
         std::optional<Eigen::Vector2d> pos = model.PositionAt(track->timestamp);
         double score = std::numeric_limits<double>::max();
         if (pos != std::nullopt) {
-            score = (*pos - track->pos).norm();
+            score = (*pos - track->Undistorted().cast<double>()).norm();
         }
         scores.at(i) = score;
     }

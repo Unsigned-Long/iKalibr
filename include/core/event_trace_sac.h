@@ -32,15 +32,13 @@
 
 #include "core/haste_data_io.h"
 #include "opengv/sac/SampleConsensusProblem.hpp"
+#include "core/feature_tracking.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-struct EventFeature;
-using EventFeaturePtr = std::shared_ptr<EventFeature>;
-using EventFeatTrackingVec = std::vector<EventFeaturePtr>;
 
 struct FeatureTrackingCurve;
 using FeatureTrackingCurvePtr = std::shared_ptr<FeatureTrackingCurve>;
@@ -55,11 +53,10 @@ public:
     /**
      * \brief Constructor.
      */
-    explicit EventTrackingTraceSacProblem(const EventFeatTrackingVec &trackingAry,
-                                          bool randomSeed = true);
+    explicit EventTrackingTraceSacProblem(const FeatureVec &trackingAry, bool randomSeed = true);
 
-    static std::pair<FeatureTrackingCurvePtr, EventFeatTrackingVec> EventTrackingTraceSac(
-        const EventFeatTrackingVec &trackingAry, double thd);
+    static std::pair<FeatureTrackingCurvePtr, FeatureVec> EventTrackingTraceSac(
+        const FeatureVec &trackingAry, double thd);
 
     /**
      * Destructor.
@@ -100,7 +97,7 @@ protected:
 
 protected:
     /** The adapter holding all input data */
-    EventFeatTrackingVec _trackingAry;
+    FeatureVec _trackingAry;
 };
 }  // namespace ns_ikalibr
 

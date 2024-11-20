@@ -27,45 +27,60 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef EVENT_FEATURE_TRACKING_H
-#define EVENT_FEATURE_TRACKING_H
+#ifndef EVENT_PREPROCESSING_H
+#define EVENT_PREPROCESSING_H
 
 #include "util/utils.h"
+#include "sensor/event.h"
+#include "opencv2/imgproc.hpp"
+#include "core/visual_distortion.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
+namespace ns_veta {
+struct PinholeIntrinsic;
+using PinholeIntrinsicPtr = std::shared_ptr<PinholeIntrinsic>;
+}  // namespace ns_veta
+
 namespace ns_ikalibr {
-struct EventFeature {
+
+struct VisualUndistortionMap;
+using VisualUndistortionMapPtr = std::shared_ptr<VisualUndistortionMap>;
+
+class ActiveEventSurface {
 public:
-    using Ptr = std::shared_ptr<EventFeature>;
+    using Ptr = std::shared_ptr<ActiveEventSurface>;
+
+private:
+    const double FILTER_THD;
+    ns_veta::PinholeIntrinsicPtr _intri;
+    VisualUndistortionMapPtr _undistoMap;
+
+    Eigen::MatrixXd _sae[2];        // save sae
+    Eigen::MatrixXd _saeLatest[2];  // save previous sae
+
+    cv::Mat _eventImgMat;
 
 public:
-    double timestamp{};
-    Eigen::Vector2d pos;
+    explicit ActiveEventSurface(const ns_veta::PinholeIntrinsicPtr& intri, double filterThd = 0.01);
 
-    explicit EventFeature(double timestamp, Eigen::Vector2d pos);
+    static Ptr Create(const ns_veta::PinholeIntrinsicPtr& intri, double filterThd = 0.01);
 
-    EventFeature() = default;
+    void GrabEvent(const Event::Ptr& event, bool drawEventMat = false);
+
+    void GrabEvent(const EventArray::Ptr& events, bool drawEventMat = false);
+
+    [[nodiscard]] cv::Mat GetEventImgMat(bool resetMat, bool undistoMat = false);
+
+    cv::Mat ToTimeSurface(double curTime,
+                          bool ignorePolarity = false,
+                          bool undistoMat = false,
+                          int medianBlurKernelSize = 0,
+                          double decaySec = 0.02);
 };
 
-using EventFeatTrackingVec = std::vector<EventFeature::Ptr>;
-// feature id, tracking list
-using EventFeatTrackingBatch = std::map<int, EventFeatTrackingVec>;
-
-struct EventTrackingFilter {
-    static void FilterByTrackingLength(EventFeatTrackingBatch &tracking,
-                                       double acceptedTrackedThdCompBest);
-
-    static void FilterByTraceFittingSAC(EventFeatTrackingBatch &tracking, double thd);
-
-    static void FilterByTrackingAge(EventFeatTrackingBatch &tracking,
-                                    double acceptedTrackedThdCompBest);
-
-    static void FilterByTrackingFreq(EventFeatTrackingBatch &tracking,
-                                     double acceptedTrackedThdCompBest);
-};
 }  // namespace ns_ikalibr
 
-#endif  // EVENT_FEATURE_TRACKING_H
+#endif  // EVENT_PREPROCESSING_H
