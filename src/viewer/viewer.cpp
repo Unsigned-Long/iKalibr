@@ -439,7 +439,6 @@ Viewer &Viewer::AddEventFeatTracking(const std::map<int, FeatureVec> &batchTrack
                                      const std::string &view,
                                      float posScaleFactor,
                                      float timeScaleFactor) {
-    std::vector<ns_viewer::Entity::Ptr> entities;
 
     // tracking
     for (const auto &[id, tracking] : batchTracking) {
@@ -449,17 +448,19 @@ Viewer &Viewer::AddEventFeatTracking(const std::map<int, FeatureVec> &batchTrack
     // image plane
     float width = static_cast<float>(intri->imgWidth) * posScaleFactor;
     float height = static_cast<float>(intri->imgHeight) * posScaleFactor;
-    float zMin = 0.0f, zMax = (eTime - sTime) * timeScaleFactor;
-    auto imgPlane1 = ns_viewer::Polygon::Create(
-        {{0.0f, 0.0f, zMin}, {width, 0.0f, zMin}, {width, height, zMin}, {0.0f, height, zMin}},
-        false, ns_viewer::Colour(1.0f, 0.7f, 0.0f, 1.0f));
-    auto imgPlane2 = ns_viewer::Polygon::Create(
-        {{0.0f, 0.0f, zMax}, {width, 0.0f, zMax}, {width, height, zMax}, {0.0f, height, zMax}},
-        true, ns_viewer::Colour::Black());
-    entities.push_back(imgPlane1);
-    entities.push_back(imgPlane2);
+    float zMin = 0.0f, zMax = (eTime - sTime) * timeScaleFactor, dz = zMax - zMin;
+    auto arrow = ns_viewer::Arrow::Create({width * 0.5f, height * 0.5f, zMax + 0.25f * dz},
+                                          {width * 0.5f, height * 0.5f, zMin - 0.25f * dz},
+                                          ns_viewer::Colour::Red());
+    auto boxPose = ns_viewer::Posef(ns_viewer::Posef::Rotation::Identity(),
+                                    {width * 0.5f, height * 0.5f, zMin + dz * 0.5f});
+    auto b = ns_viewer::Cube::Create(boxPose, true, width, height, dz, ns_viewer::Colour::Black());
 
+    std::vector<ns_viewer::Entity::Ptr> entities;
+    entities.push_back(arrow);
+    entities.push_back(b);
     AddEntityLocal(entities, view);
+
     return *this;
 }
 
@@ -556,7 +557,7 @@ Viewer &Viewer::AddEventData(const std::vector<EventArray::Ptr>::const_iterator 
                 cp.b = 255;
                 cp.r = cp.g = 0;
             }
-            cp.a = 255;
+            cp.a = 50;
             cloud->push_back(cp);
         }
     }
