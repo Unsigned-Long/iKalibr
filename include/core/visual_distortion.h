@@ -31,6 +31,7 @@
 #define VISUAL_DISTORTION_H
 
 #include "util/utils.h"
+#include "opencv2/imgproc.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -51,7 +52,8 @@ public:
 
 private:
     // operator on single pixel
-    Eigen::Array<Eigen::Vector2d, Eigen::Dynamic, Eigen::Dynamic> _dataRemoveDisto, _dataAddDisto;
+    Eigen::Array<Eigen::Vector2d, Eigen::Dynamic, Eigen::Dynamic> _eventRemoveDisto;
+
     // operate on entire image (remove disto)
     cv::Mat _map1, _map2;
 
@@ -60,13 +62,21 @@ public:
 
     static Ptr Create(const ns_veta::PinholeIntrinsicPtr& intri);
 
-    // for events
-    std::pair<double, double> RemoveDistortion(const int& x, const int& y) const;
-
-    // for events
-    std::pair<double, double> AddDistortion(const int& x, const int& y) const;
+    // only for events
+    template <typename T, typename U>
+    std::enable_if_t<std::is_integral_v<T> && std::is_integral_v<U>, std::pair<double, double>>
+    RemoveDistortion(const T& x, const U& y) const {
+        const Eigen::Vector2d& p = _eventRemoveDisto(x, y);
+        return {p[0], p[1]};
+    }
 
     cv::Mat RemoveDistortion(const cv::Mat& distoImg, int interpolation = cv::INTER_LINEAR) const;
+
+    static cv::Mat ObtainKMat(const ns_veta::PinholeIntrinsicPtr& intri);
+
+    static Eigen::Matrix3d ObtainKMatEigen(const ns_veta::PinholeIntrinsicPtr& intri);
+
+    static cv::Mat ObtainDMat(const ns_veta::PinholeIntrinsicPtr& intri);
 
 protected:
     static std::pair<cv::Mat, cv::Mat> ObtainKDMatForUndisto(

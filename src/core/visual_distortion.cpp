@@ -28,7 +28,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/visual_distortion.h"
-#include "opencv2/imgproc.hpp"
 #include "veta/camera/pinhole.h"
 
 namespace {
@@ -41,12 +40,10 @@ namespace ns_ikalibr {
  * EventUndistortionMap
  */
 VisualUndistortionMap::VisualUndistortionMap(const ns_veta::PinholeIntrinsic::Ptr &intri) {
-    _dataRemoveDisto.resize(intri->imgWidth, intri->imgHeight);
-    _dataAddDisto.resize(intri->imgWidth, intri->imgHeight);
+    _eventRemoveDisto.resize(intri->imgWidth, intri->imgHeight);
     for (size_t x = 0; x < intri->imgWidth; x++) {
         for (size_t y = 0; y < intri->imgHeight; y++) {
-            _dataRemoveDisto(x, y) = intri->GetUndistoPixel({x, y});
-            _dataAddDisto(x, y) = intri->GetDistoPixel({x, y});
+            _eventRemoveDisto(x, y) = intri->GetUndistoPixel({x, y});
         }
     }
     std::tie(_map1, _map2) = InitUndistortRectifyMap(intri);
@@ -57,21 +54,42 @@ VisualUndistortionMap::Ptr VisualUndistortionMap::Create(
     return std::make_shared<VisualUndistortionMap>(intri);
 }
 
-std::pair<double, double> VisualUndistortionMap::RemoveDistortion(const int &x,
-                                                                  const int &y) const {
-    const Eigen::Vector2d &p = _dataRemoveDisto(x, y);
-    return {p[0], p[1]};
-}
-
-std::pair<double, double> VisualUndistortionMap::AddDistortion(const int &x, const int &y) const {
-    const Eigen::Vector2d &p = _dataAddDisto(x, y);
-    return {p[0], p[1]};
-}
-
 cv::Mat VisualUndistortionMap::RemoveDistortion(const cv::Mat &distoImg, int interpolation) const {
     cv::Mat undistImg;
     cv::remap(distoImg, undistImg, _map1, _map2, interpolation, CV_HAL_BORDER_CONSTANT);
     return undistImg;
+}
+
+cv::Mat VisualUndistortionMap::ObtainKMat(const ns_veta::PinholeIntrinsicPtr &intri) {
+    const auto &par = intri->GetParams();
+    cv::Mat K = (cv::Mat_<double>(3, 3) << par[0], 0.0, par[2], 0.0, par[1], par[3], 0.0, 0.0, 1.0);
+    return K;
+}
+
+Eigen::Matrix3d VisualUndistortionMap::ObtainKMatEigen(const ns_veta::PinholeIntrinsicPtr &intri) {
+    const auto &par = intri->GetParams();
+    Eigen::Matrix3d K;
+    K << par[0], 0.0, par[2], 0.0, par[1], par[3], 0.0, 0.0, 1.0;
+    return K;
+}
+
+cv::Mat VisualUndistortionMap::ObtainDMat(const ns_veta::PinholeIntrinsicPtr &intri) {
+    const auto &par = intri->GetParams();
+    cv::Mat D;
+
+    if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(intri)) {
+        // k_1, k_2, p_1, p_2[, k_3[, k_4, k_5, k_6[, s_1, s_2, s_3, s_4[, t_x, t_y]]]]
+        D = (cv::Mat_<double>(5, 1) << par[4], par[5], par[7], par[8], par[6]);
+    } else if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicFisheye>(intri)) {
+        // k_1, k_2, k_3, k_4
+        D = (cv::Mat_<double>(4, 1) << par[4], par[5], par[6], par[7]);
+    } else {
+        throw Status(Status::CRITICAL,
+                     "unknown camera intrinsic model! supported models:\n"
+                     "(a) pinhole_brown_t2 (k1, k2, k3, p1, p2)\n"
+                     "(b)  pinhole_fisheye (k1, k2, k3, k4)");
+    }
+    return D;
 }
 
 std::pair<cv::Mat, cv::Mat> VisualUndistortionMap::InitUndistortRectifyMap(
@@ -98,24 +116,7 @@ std::pair<cv::Mat, cv::Mat> VisualUndistortionMap::InitUndistortRectifyMap(
 
 std::pair<cv::Mat, cv::Mat> VisualUndistortionMap::ObtainKDMatForUndisto(
     const ns_veta::PinholeIntrinsic::Ptr &intri) {
-    const auto &par = intri->GetParams();
-    cv::Mat D;
-    cv::Mat K = (cv::Mat_<double>(3, 3) << par[0], 0.0, par[2], 0.0, par[1], par[3], 0.0, 0.0, 1.0);
-
-    if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(intri)) {
-        // k_1, k_2, p_1, p_2[, k_3[, k_4, k_5, k_6[, s_1, s_2, s_3, s_4[, t_x, t_y]]]]
-        D = (cv::Mat_<double>(5, 1) << par[4], par[5], par[7], par[8], par[6]);
-    } else if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicFisheye>(intri)) {
-        // k_1, k_2, k_3, k_4
-        D = (cv::Mat_<double>(4, 1) << par[4], par[5], par[6], par[7]);
-    } else {
-        throw Status(Status::CRITICAL,
-                     "unknown camera intrinsic model! supported models:\n"
-                     "(a) pinhole_brown_t2 (k1, k2, k3, p1, p2)\n"
-                     "(b)  pinhole_fisheye (k1, k2, k3, k4)");
-    }
-
-    return {K, D};
+    return {ObtainKMat(intri), ObtainDMat(intri)};
 }
 
 }  // namespace ns_ikalibr

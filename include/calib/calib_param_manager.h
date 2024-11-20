@@ -231,13 +231,6 @@ public:
             const std::string &filename,
             CerealArchiveType::Enum archiveType = CerealArchiveType::Enum::YAML);
 
-        static cv::Mat UndistortImage(const ns_veta::PinholeIntrinsic::Ptr &intri,
-                                      const cv::Mat &src);
-
-    private:
-        [[nodiscard]] static std::pair<cv::Mat, cv::Mat> ObtainKDMatForUndisto(
-            const ns_veta::PinholeIntrinsic::Ptr &intri);
-
     public:
         // Serialization
         template <class Archive>

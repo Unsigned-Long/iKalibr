@@ -53,7 +53,7 @@ VisualLinVelDrawer::VisualLinVelDrawer(const std::string &topic,
     : _veta(std::move(veta)),
       _splines(std::move(splines)) {
     _intri = parMagr->INTRI.Camera.at(topic);
-
+    _undistoMapper = VisualUndistortionMap::Create(_intri);
     SE3_CmToBr = parMagr->EXTRI.SE3_CmToBr(topic);
     TO_CmToBr = parMagr->TEMPORAL.TO_CmToBr.at(topic);
 }
@@ -68,7 +68,7 @@ VisualLinVelDrawer::Ptr VisualLinVelDrawer::Create(const std::string &topic,
 cv::Mat VisualLinVelDrawer::CreateLinVelImg(const CameraFrame::Ptr &frame, float scale) {
     // undistorted gray image
     cv::Mat undistImgColor, res;
-    undistImgColor = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
+    undistImgColor = _undistoMapper->RemoveDistortion(frame->GetColorImage());
 
     // compute timestamp by reference IMU, we do not consider the readout time for RS cameras here
     double timeByBr = frame->GetTimestamp() + TO_CmToBr;
@@ -131,6 +131,7 @@ VisualOpticalFlowLinVelDrawer::VisualOpticalFlowLinVelDrawer(
     const double &RS_READOUT)
     : _splines(std::move(splines)),
       _intri(std::move(intri)),
+      _undistoMapper(VisualUndistortionMap::Create(_intri)),
       SE3_SenToBr(SE3_SenToBr),
       TO_SenToBr(TO_SenToBr),
       RS_READOUT(RS_READOUT) {
@@ -166,7 +167,7 @@ cv::Mat VisualOpticalFlowLinVelDrawer::CreateLinVelImg(
     const CameraFrame::Ptr &frame, const TimeDeriv::ScaleSplineType &scaleSplineType, float scale) {
     // undistorted gray image
     cv::Mat undistImgColor, res;
-    undistImgColor = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
+    undistImgColor = _undistoMapper->RemoveDistortion(frame->GetColorImage());
 
     // compute timestamp by reference IMU, we do not consider the readout time for RS cameras here
     double timeByBr = frame->GetTimestamp() + TO_SenToBr;

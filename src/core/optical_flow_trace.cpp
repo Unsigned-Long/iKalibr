@@ -104,8 +104,9 @@ cv::Mat OpticalFlowTripleTrace::CreateOpticalFlowMat(const ns_veta::PinholeIntri
     std::array<cv::Mat, 3> imgs;
     // obtain images
     for (int i = 0; i < static_cast<int>(_trace.size()); ++i) {
-        imgs[i] =
-            CalibParamManager::ParIntri::UndistortImage(intri, _trace.at(i).first->GetColorImage());
+        // this code does not matter, as it's only used for verifying
+        imgs[i] = VisualUndistortionMap::Create(intri)->RemoveDistortion(
+            _trace.at(i).first->GetColorImage());
     }
     // trace of point
     DrawTrace(imgs[MID], midVel, 2);

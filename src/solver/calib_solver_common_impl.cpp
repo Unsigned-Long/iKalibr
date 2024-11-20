@@ -309,6 +309,7 @@ void CalibSolver::StoreImagesForSfM(const std::string &topic,
 
     int size = static_cast<int>(frames.size());
     const auto &intri = _parMagr->INTRI.Camera.at(topic);
+    auto undistoMapper = VisualUndistortionMap::Create(intri);
 
     auto bar = std::make_shared<tqdm>();
     for (int i = 0; i != size; ++i) {
@@ -318,7 +319,7 @@ void CalibSolver::StoreImagesForSfM(const std::string &topic,
         std::string filename = std::to_string(frame->GetId()) + ".jpg";
         info.images[frame->GetId()] = filename;
 
-        cv::Mat undistImg = CalibParamManager::ParIntri::UndistortImage(intri, frame->GetImage());
+        cv::Mat undistImg = undistoMapper->RemoveDistortion(frame->GetImage());
 
         // save image
         cv::imwrite(*path + "/" + filename, undistImg);

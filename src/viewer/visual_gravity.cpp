@@ -33,7 +33,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "viewer/visual_gravity.h"
-
 #include <utility>
 #include "calib/calib_param_manager.h"
 #include "opencv2/imgproc.hpp"
@@ -58,6 +57,7 @@ VisualGravityDrawer::VisualGravityDrawer(std::string topic,
       _veta(std::move(veta)),
       _splines(std::move(splines)) {
     _intri = parMagr->INTRI.Camera.at(_topic);
+    _undistoMapper = VisualUndistortionMap::Create(_intri);
     SE3_CmToBr = parMagr->EXTRI.SE3_CmToBr(_topic);
     TO_CmToBr = parMagr->TEMPORAL.TO_CmToBr.at(_topic);
     GRAVITY = parMagr->GRAVITY;
@@ -73,7 +73,7 @@ VisualGravityDrawer::Ptr VisualGravityDrawer::Create(const std::string &topic,
 cv::Mat VisualGravityDrawer::CreateGravityImg(const CameraFrame::Ptr &frame, float scale) {
     // undistorted gray image
     cv::Mat undistImgColor, res;
-    undistImgColor = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
+    undistImgColor = _undistoMapper->RemoveDistortion(frame->GetColorImage());
 
     // compute timestamp by reference IMU, we do not consider the readout time for RS cameras here
     double timeByBr = frame->GetTimestamp() + TO_CmToBr;
@@ -127,6 +127,7 @@ VisualOpticalFlowGravityDrawer::VisualOpticalFlowGravityDrawer(
     Eigen::Vector3d GRAVITY)
     : _splines(std::move(splines)),
       _intri(std::move(intri)),
+      _undistoMapper(VisualUndistortionMap::Create(_intri)),
       SE3_SenToBr(SE3_SenToBr),
       TO_SenToBr(TO_SenToBr),
       GRAVITY(std::move(GRAVITY)) {
@@ -162,7 +163,7 @@ cv::Mat VisualOpticalFlowGravityDrawer::CreateGravityImg(const CameraFrame::Ptr 
                                                          float scale) {
     // undistorted gray image
     cv::Mat undistImgColor, res;
-    undistImgColor = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
+    undistImgColor = _undistoMapper->RemoveDistortion(frame->GetColorImage());
 
     // compute timestamp by reference IMU, we do not consider the readout time for RS cameras here
     double timeByBr = frame->GetTimestamp() + TO_SenToBr;
