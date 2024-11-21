@@ -104,11 +104,11 @@ cv::Mat ActiveEventSurface::GetEventImgMat(bool resetMat, bool undistoMat) {
     }
 }
 
-cv::Mat ActiveEventSurface::ToTimeSurface(double curTime,
-                                          bool ignorePolarity,
-                                          bool undistoMat,
-                                          int medianBlurKernelSize,
-                                          double decaySec) {
+cv::Mat ActiveEventSurface::TimeSurface(double curTime,
+                                        bool ignorePolarity,
+                                        bool undistoMat,
+                                        int medianBlurKernelSize,
+                                        double decaySec) {
     // create exponential-decayed Time Surface map
     const auto imgSize = cv::Size(_intri->imgWidth, _intri->imgHeight);
     cv::Mat timeSurfaceMap = cv::Mat::zeros(imgSize, CV_64F);
@@ -139,6 +139,28 @@ cv::Mat ActiveEventSurface::ToTimeSurface(double curTime,
         cv::medianBlur(timeSurfaceMap, timeSurfaceMap, 2 * medianBlurKernelSize + 1);
     }
 
+    if (undistoMat) {
+        return _undistoMap->RemoveDistortion(timeSurfaceMap);
+    } else {
+        return timeSurfaceMap;
+    }
+}
+
+cv::Mat ActiveEventSurface::RawTimeSurface(bool ignorePolarity, bool undistoMat) {
+    // create exponential-decayed Time Surface map
+    const auto imgSize = cv::Size(_intri->imgWidth, _intri->imgHeight);
+    cv::Mat timeSurfaceMap = cv::Mat::zeros(imgSize, CV_64F);
+
+    for (int y = 0; y < imgSize.height; ++y) {
+        for (int x = 0; x < imgSize.width; ++x) {
+            double mostRecentStampAtCoord = std::max(_sae[1](x, y), _sae[0](x, y));
+            if (!ignorePolarity) {
+                double polarity = _sae[1](x, y) > _sae[0](x, y) ? 1.0 : -1.0;
+                mostRecentStampAtCoord *= polarity;
+            }
+            timeSurfaceMap.at<double>(y, x) = mostRecentStampAtCoord;
+        }
+    }
     if (undistoMat) {
         return _undistoMap->RemoveDistortion(timeSurfaceMap);
     } else {

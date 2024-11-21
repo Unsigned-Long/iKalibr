@@ -143,42 +143,33 @@ public:
                          bool trueColor,
                          float size);
 
+    // for batch
     Viewer &AddEventFeatTracking(const std::map<int, FeatureVec> &batchTracking,
                                  const ns_veta::PinholeIntrinsicPtr &intri,
                                  float sTime,
                                  float eTime,
                                  const std::string &view,
-                                 float posScaleFactor = 0.01f,
-                                 float timeScaleFactor = 2.0f);
+                                 const std::pair<float, float> &ptScales = {0.01f, 2.0f});
 
+    // for each tracking in a batch
     Viewer &AddEventFeatTracking(const FeatureVec &tracking,
                                  float sTime,
                                  const std::string &view,
-                                 float posScaleFactor = 0.01f,
-                                 float timeScaleFactor = 2.0f);
+                                 const std::pair<float, float> &ptScales = {0.01f, 2.0f});
 
+    // add discrete pos
     Viewer &AddSpatioTemporalTrace(const std::vector<Eigen::Vector3d> &trace,
                                    float sTime,
                                    const std::string &view,
                                    float size = 0.5f,
                                    const ns_viewer::Colour &color = ns_viewer::Colour::Blue(),
-                                   float posScaleFactor = 0.01f,
-                                   float timeScaleFactor = 2.0f);
-
-    Viewer &AddSpatioTemporalTrace(const FeatureVec &tracking,
-                                   float sTime,
-                                   const std::string &view,
-                                   float size = 0.5f,
-                                   const ns_viewer::Colour &color = ns_viewer::Colour::Blue(),
-                                   float posScaleFactor = 0.01f,
-                                   float timeScaleFactor = 2.0f);
+                                   const std::pair<float, float> &ptScales = {0.01f, 2.0f});
 
     Viewer &AddEventData(const std::vector<EventArrayPtr>::const_iterator &sIter,
                          const std::vector<EventArrayPtr>::const_iterator &eIter,
                          float sTime,
                          const std::string &view,
-                         float posScaleFactor = 0.01f,
-                         float timeScaleFactor = 2.0f);
+                         const std::pair<float, float> &ptScales = {0.01f, 2.0f});
 
 protected:
     ns_viewer::MultiViewerConfigor GenViewerConfigor();

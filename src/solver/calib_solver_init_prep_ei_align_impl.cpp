@@ -73,7 +73,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
     constexpr double TRACKING_AGE_PERCENT_THD = 0.3;
     constexpr double TRACKING_FREQ_PERCENT_THD = 0.3;
     constexpr double BATCH_TIME_WIN_THD = 0.2;
-    constexpr int HASTE_SEED_COUNT = 500;
+    constexpr int HASTE_SEED_COUNT = 50;
     // topic, batch index, tracked features
     std::map<std::string, std::map<int, FeatureVecMap>> eventFeatTrackingRes;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
@@ -129,8 +129,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                     _viewer->ClearViewer(Viewer::VIEW_MAP);
                     _viewer->AddEventFeatTracking(batch, intri, static_cast<float>(batchSTime),
-                                                  static_cast<float>(batchETime), Viewer::VIEW_MAP,
-                                                  0.01, 20);
+                                                  static_cast<float>(batchETime), Viewer::VIEW_MAP);
                     // auto iters = _dataMagr->ExtractEventDataPiece(topic, batchSTime, batchETime);
                     // _viewer->AddEventData(iters.first, iters.second, batchSTime,
                     // Viewer::VIEW_MAP, 0.01, 20);

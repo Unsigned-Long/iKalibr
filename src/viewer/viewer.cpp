@@ -437,18 +437,16 @@ Viewer &Viewer::AddEventFeatTracking(const std::map<int, FeatureVec> &batchTrack
                                      float sTime,
                                      float eTime,
                                      const std::string &view,
-                                     float posScaleFactor,
-                                     float timeScaleFactor) {
-
+                                     const std::pair<float, float> &ptScales) {
     // tracking
     for (const auto &[id, tracking] : batchTracking) {
-        AddEventFeatTracking(tracking, sTime, view, posScaleFactor, timeScaleFactor);
+        AddEventFeatTracking(tracking, sTime, view, ptScales);
     }
 
     // image plane
-    float width = static_cast<float>(intri->imgWidth) * posScaleFactor;
-    float height = static_cast<float>(intri->imgHeight) * posScaleFactor;
-    float zMin = 0.0f, zMax = (eTime - sTime) * timeScaleFactor, dz = zMax - zMin;
+    float width = static_cast<float>(intri->imgWidth) * ptScales.first;
+    float height = static_cast<float>(intri->imgHeight) * ptScales.first;
+    float zMin = 0.0f, zMax = (eTime - sTime) * ptScales.second, dz = zMax - zMin;
     auto arrow = ns_viewer::Arrow::Create({width * 0.5f, height * 0.5f, zMax + 0.25f * dz},
                                           {width * 0.5f, height * 0.5f, zMin - 0.25f * dz},
                                           ns_viewer::Colour::Red());
@@ -467,31 +465,20 @@ Viewer &Viewer::AddEventFeatTracking(const std::map<int, FeatureVec> &batchTrack
 Viewer &Viewer::AddEventFeatTracking(const FeatureVec &tracking,
                                      float sTime,
                                      const std::string &view,
-                                     float posScaleFactor,
-                                     float timeScaleFactor) {
-    // samples (raw)
-    AddSpatioTemporalTrace(tracking, sTime, view, 1.0f, ns_viewer::Colour::Black(), posScaleFactor,
-                           timeScaleFactor);
+                                     const std::pair<float, float> &ptScales) {
+    // samples (raw tracked features)
+    std::vector<Eigen::Vector3d> rawTrace(tracking.size());
+    for (int i = 0; i != static_cast<int>(tracking.size()); ++i) {
+        const auto &f = tracking.at(i);
+        rawTrace.at(i) = Eigen::Vector3d(f->timestamp, f->undistorted.x, f->undistorted.y);
+    }
+    AddSpatioTemporalTrace(rawTrace, sTime, view, 1.0f, ns_viewer::Colour::Black(), ptScales);
 
     if (auto trace = FeatureTrackingCurve::CreateFrom(tracking, true); trace != nullptr) {
         std::vector<Eigen::Vector3d> posVec = trace->DiscretePositions();
-        // curve
-        AddSpatioTemporalTrace(posVec, sTime, view, 2.0f, ns_viewer::Colour::Green(),
-                               posScaleFactor, timeScaleFactor);
+        // fitted curve
+        AddSpatioTemporalTrace(posVec, sTime, view, 2.0f, ns_viewer::Colour::Green(), ptScales);
     }
-
-    // if (auto [trace, inliers] =
-    // EventTrackingTraceSacProblem::EventTrackingTraceSac(tracking, 4.0);
-    //     trace != nullptr) {
-    //     std::vector<Eigen::Vector3d> posVec = trace->DiscretePositions();
-    //     // curve
-    //     AddSpatioTemporalTrace(posVec, sTime, view, 2.0f, ns_viewer::Colour::Blue(),
-    //     posScaleFactor,
-    //                            timeScaleFactor);
-    //     // samples (inliers)
-    //     AddSpatioTemporalTrace(inliers, sTime, view, 1.5f, ns_viewer::Colour::Green(),
-    //                            posScaleFactor, timeScaleFactor);
-    // }
 
     return *this;
 }
@@ -501,18 +488,17 @@ Viewer &Viewer::AddSpatioTemporalTrace(const std::vector<Eigen::Vector3d> &trace
                                        const std::string &view,
                                        float size,
                                        const ns_viewer::Colour &color,
-                                       float posScaleFactor,
-                                       float timeScaleFactor) {
+                                       const std::pair<float, float> &ptScales) {
     std::vector<ns_viewer::Entity::Ptr> entities;
     for (int i = 0; i != static_cast<int>(trace.size()) - 1; ++i) {
         const Eigen::Vector3f &f1 = trace.at(i).cast<float>();
         const Eigen::Vector3f &f2 = trace.at(i + 1).cast<float>();
 
-        const Eigen::Vector2f &p1 = f1.tail<2>() * posScaleFactor;
-        const auto z1 = (f1(0) - sTime) * timeScaleFactor;
+        const Eigen::Vector2f &p1 = f1.tail<2>() * ptScales.first;
+        const auto z1 = (f1(0) - sTime) * ptScales.second;
 
-        const Eigen::Vector2f &p2 = f2.tail<2>() * posScaleFactor;
-        const auto z2 = (f2(0) - sTime) * timeScaleFactor;
+        const Eigen::Vector2f &p2 = f2.tail<2>() * ptScales.first;
+        const auto z2 = (f2(0) - sTime) * ptScales.second;
 
         auto line = ns_viewer::Line::Create({p1(0), p1(1), z1}, {p2(0), p2(1), z2}, color, size);
         entities.push_back(line);
@@ -521,33 +507,16 @@ Viewer &Viewer::AddSpatioTemporalTrace(const std::vector<Eigen::Vector3d> &trace
     return *this;
 }
 
-Viewer &Viewer::AddSpatioTemporalTrace(const FeatureVec &tracking,
-                                       float sTime,
-                                       const std::string &view,
-                                       float size,
-                                       const ns_viewer::Colour &color,
-                                       float posScaleFactor,
-                                       float timeScaleFactor) {
-    std::vector<Eigen::Vector3d> rawTrace(tracking.size());
-    for (int i = 0; i != static_cast<int>(tracking.size()); ++i) {
-        const auto &f = tracking.at(i);
-        rawTrace.at(i) = Eigen::Vector3d(f->timestamp, f->undistorted.x, f->undistorted.y);
-    }
-    return AddSpatioTemporalTrace(rawTrace, sTime, view, size, color, posScaleFactor,
-                                  timeScaleFactor);
-}
-
 Viewer &Viewer::AddEventData(const std::vector<EventArray::Ptr>::const_iterator &sIter,
                              const std::vector<EventArray::Ptr>::const_iterator &eIter,
                              float sTime,
                              const std::string &view,
-                             float posScaleFactor,
-                             float timeScaleFactor) {
+                             const std::pair<float, float> &ptScales) {
     pcl::PointCloud<ColorPoint>::Ptr cloud(new ColorPointCloud);
     for (auto iter = sIter; iter != eIter; ++iter) {
         for (const auto &event : (*iter)->GetEvents()) {
-            Eigen::Vector2f p = event->GetPos().cast<float>() * posScaleFactor;
-            float t = ((float)event->GetTimestamp() - sTime) * timeScaleFactor;
+            Eigen::Vector2f p = event->GetPos().cast<float>() * ptScales.first;
+            float t = ((float)event->GetTimestamp() - sTime) * ptScales.second;
             ColorPoint cp;
             cp.x = p(0), cp.y = p(1), cp.z = t;
             if (event->GetPolarity()) {

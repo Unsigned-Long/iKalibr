@@ -857,11 +857,11 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
                 findSeed = true;
                 // create time surface
                 tsMatSeedTime =
-                    saeCreator->ToTimeSurface(seedTime,  // timestamp to create time surface mat
-                                              true,      // ignore polarity
-                                              false,     // undisto event frame mat
-                                              0,         // perform medianBlur
-                                              0.02);     // the constant decay rate
+                    saeCreator->TimeSurface(seedTime,  // timestamp to create time surface mat
+                                            true,      // ignore polarity
+                                            false,     // undisto event frame mat
+                                            0,         // perform medianBlur
+                                            0.02);     // the constant decay rate
                 accumEventMat = saeCreator->GetEventImgMat(true, false);
             }
         }
@@ -914,7 +914,7 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
         cv::Mat m;
         cv::hconcat(tsMatSeedTime, accumEventMat, m);
         cv::imshow("Normalized Time Surface & Accumulated Event Mat", m);
-        cv::waitKey(1);
+        cv::waitKey(0);
 
         // update
         headIter = tailIter;

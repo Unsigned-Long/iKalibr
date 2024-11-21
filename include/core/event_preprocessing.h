@@ -74,11 +74,13 @@ public:
 
     [[nodiscard]] cv::Mat GetEventImgMat(bool resetMat, bool undistoMat = false);
 
-    cv::Mat ToTimeSurface(double curTime,
-                          bool ignorePolarity = false,
-                          bool undistoMat = false,
-                          int medianBlurKernelSize = 0,
-                          double decaySec = 0.02);
+    cv::Mat TimeSurface(double curTime,
+                        bool ignorePolarity = false,
+                        bool undistoMat = false,
+                        int medianBlurKernelSize = 0,
+                        double decaySec = 0.02);
+
+    cv::Mat RawTimeSurface(bool ignorePolarity = false, bool undistoMat = false);
 };
 
 }  // namespace ns_ikalibr
