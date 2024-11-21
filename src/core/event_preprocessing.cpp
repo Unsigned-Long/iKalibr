@@ -34,6 +34,10 @@
 #include "veta/camera/pinhole_fisheye.h"
 #include "util/status.hpp"
 #include "opencv2/calib3d.hpp"
+#include "opencv2/highgui.hpp"
+#include "opengv/sac/Ransac.hpp"
+
+#include <solver/batch_opt_option.hpp>
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -53,6 +57,7 @@ ActiveEventSurface::ActiveEventSurface(const ns_veta::PinholeIntrinsic::Ptr &int
     _sae[1] = Eigen::MatrixXd::Zero(_intri->imgWidth, _intri->imgHeight);
     _saeLatest[0] = Eigen::MatrixXd::Zero(_intri->imgWidth, _intri->imgHeight);
     _saeLatest[1] = Eigen::MatrixXd::Zero(_intri->imgWidth, _intri->imgHeight);
+    _timeLatest = 0.0;
 }
 
 ActiveEventSurface::Ptr ActiveEventSurface::Create(const ns_veta::PinholeIntrinsicPtr &intri,
@@ -77,6 +82,7 @@ void ActiveEventSurface::GrabEvent(const Event::Ptr &event, bool drawEventMat) {
     } else {
         tLast = et;
     }
+    _timeLatest = et;
 
     if (drawEventMat) {
         // draw image
@@ -104,8 +110,7 @@ cv::Mat ActiveEventSurface::GetEventImgMat(bool resetMat, bool undistoMat) {
     }
 }
 
-cv::Mat ActiveEventSurface::TimeSurface(double curTime,
-                                        bool ignorePolarity,
+cv::Mat ActiveEventSurface::TimeSurface(bool ignorePolarity,
                                         bool undistoMat,
                                         int medianBlurKernelSize,
                                         double decaySec) {
@@ -117,7 +122,7 @@ cv::Mat ActiveEventSurface::TimeSurface(double curTime,
         for (int x = 0; x < imgSize.width; ++x) {
             const double mostRecentStampAtCoord = std::max(_sae[1](x, y), _sae[0](x, y));
 
-            const double dt = curTime - mostRecentStampAtCoord;
+            const double dt = _timeLatest - mostRecentStampAtCoord;
             double expVal = std::exp(-dt / decaySec);
 
             if (!ignorePolarity) {
@@ -166,5 +171,158 @@ cv::Mat ActiveEventSurface::RawTimeSurface(bool ignorePolarity, bool undistoMat)
     } else {
         return timeSurfaceMap;
     }
+}
+
+double ActiveEventSurface::GetTimeLatest() const { return _timeLatest; }
+
+std::pair<std::list<EventNormFlow::NormFlow>, cv::Mat> EventNormFlow::ExtractNormFlows(
+    int winSize, double goodRatioThd, double timeDistEventToPlaneThd, int ransacMaxIter) const {
+    // CV_64FC1
+    auto rtsMat = _sea->RawTimeSurface(true, true /*todo: undistorted*/);
+    // CV_8UC1
+    auto tsImg = _sea->TimeSurface(true, true /*todo: undistorted*/, 0, 0.02);
+
+    cv::Mat mask;
+    cv::inRange(tsImg, 50, 230, mask);
+
+    cv::cvtColor(tsImg, tsImg, cv::COLOR_GRAY2BGR);
+
+    const int ws = winSize;
+    const int winSampleCount = (2 * ws + 1) * (2 * ws + 1);
+    const int winSampleCountThd = winSampleCount * goodRatioThd;
+    const int rows = mask.rows;
+    const int cols = mask.cols;
+    cv::Mat occupy = cv::Mat::zeros(rows, cols, CV_8UC1);
+    std::list<NormFlow> nfs;
+    for (int y = ws; y < mask.rows - ws; y++) {
+        for (int x = ws; x < mask.cols - ws; x++) {
+            if (mask.at<uchar>(y /*row*/, x /*col*/) != 255) {
+                continue;
+            }
+            // for this window, obtain the values [x, y, timestamp]
+            std::vector<std::tuple<int, int, double>> inRangeData;
+            double timeCen = 0.0;
+            inRangeData.reserve(winSampleCount);
+            bool jumpCurPixel = false;
+            for (int dy = -ws; dy <= ws; ++dy) {
+                for (int dx = -ws; dx <= ws; ++dx) {
+                    int nx = x + dx;
+                    int ny = y + dy;
+
+                    if (occupy.at<uchar>(ny /*row*/, nx /*col*/) == 255) {
+                        // this pixl has been occupied, thus the current pixel would not be
+                        // considered in norm flow estimation
+                        jumpCurPixel = true;
+                        break;
+                    }
+
+                    if (mask.at<uchar>(ny /*row*/, nx /*col*/) != 255) {
+                        continue;
+                    }
+
+                    if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+                        double timestamp = rtsMat.at<double>(ny /*row*/, nx /*col*/);
+                        inRangeData.emplace_back(nx, ny, timestamp);
+                        if (nx == x && ny == y) {
+                            timeCen = timestamp;
+                        }
+                    }
+                }
+                if (jumpCurPixel) {
+                    break;
+                }
+            }
+            // data in this window is sufficient
+            if (jumpCurPixel || static_cast<int>(inRangeData.size()) < winSampleCountThd) {
+                continue;
+            }
+            /**
+             * drawing
+             */
+            tsImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);  // selected but not verified
+            occupy.at<uchar>(y /*row*/, x /*col*/) = 255;
+
+            // try fit planes using ransac
+            opengv::sac::Ransac<EventLocalPlaneSacProblem> ransac;
+            std::shared_ptr<EventLocalPlaneSacProblem> probPtr(
+                new EventLocalPlaneSacProblem(inRangeData));
+            ransac.sac_model_ = probPtr;
+            // the point to plane threshold in temporal domain
+            ransac.threshold_ = timeDistEventToPlaneThd;
+            ransac.max_iterations_ = ransacMaxIter;
+            auto res = ransac.computeModel();
+
+            if (!res || ransac.inliers_.size() / (double)inRangeData.size() < goodRatioThd) {
+                continue;
+            }
+            // success
+            Eigen::Vector3d abd;
+            probPtr->optimizeModelCoefficients(ransac.inliers_, ransac.model_coefficients_, abd);
+
+            // 'abd' is the params we are interested in
+            const double dtdx = -abd(0), dtdy = -abd(1);
+            Eigen::Vector2d nf = 1.0 / (dtdx * dtdx + dtdy * dtdy) * Eigen::Vector2d(dtdx, dtdy);
+
+            /**
+             * drawing
+             */
+            DrawLineOnCVMat(tsImg, Eigen::Vector2d{x, y} + 0.01 * nf, {x, y});
+
+            nfs.push_back({.timestamp = timeCen, .p = Eigen::Vector2i{x, y}, .nf = nf});
+
+            /**
+             * drawing
+             */
+            tsImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 255, 0);  // selected and verified
+        }
+    }
+
+    return std::pair{nfs, tsImg};
+}
+
+/**
+ * EventLocalPlaneSacProblem
+ */
+int EventLocalPlaneSacProblem::getSampleSize() const { return 3; }
+
+double EventLocalPlaneSacProblem::PointToPlaneDistance(
+    double x, double y, double t, double A, double B, double C) {
+    // double numerator = std::abs(A * x + B * y + t + C);
+    // double denominator = std::sqrt(A * A + B * B + 1);
+    // return numerator / denominator;
+    double tPred = -(A * x + B * y + C);
+    return std::abs(t - tPred);
+}
+
+bool EventLocalPlaneSacProblem::computeModelCoefficients(const std::vector<int> &indices,
+                                                         model_t &outModel) const {
+    Eigen::MatrixXd M(indices.size(), 3);
+    Eigen::VectorXd b(indices.size());
+
+    for (int i = 0; i < static_cast<int>(indices.size()); ++i) {
+        const auto &[x, y, t] = _data.at(indices.at(i));
+        M(i, 0) = x;
+        M(i, 1) = y;
+        M(i, 2) = 1;
+        b(i) = -t;
+    }
+    outModel = (M.transpose() * M).ldlt().solve(M.transpose() * b);
+    return true;
+}
+
+void EventLocalPlaneSacProblem::getSelectedDistancesToModel(const model_t &model,
+                                                            const std::vector<int> &indices,
+                                                            std::vector<double> &scores) const {
+    scores.resize(indices.size());
+    for (int i = 0; i < static_cast<int>(indices.size()); ++i) {
+        const auto &[x, y, t] = _data.at(indices.at(i));
+        scores.at(i) = PointToPlaneDistance(x, y, t, model(0), model(1), model(2));
+    }
+}
+
+void EventLocalPlaneSacProblem::optimizeModelCoefficients(const std::vector<int> &inliers,
+                                                          const model_t &model,
+                                                          model_t &optimized_model) {
+    computeModelCoefficients(inliers, optimized_model);
 }
 }  // namespace ns_ikalibr

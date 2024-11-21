@@ -34,6 +34,7 @@
 #include "sensor/event.h"
 #include "opencv2/imgproc.hpp"
 #include "core/visual_distortion.h"
+#include "opengv/sac/SampleConsensusProblem.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -60,27 +61,85 @@ private:
 
     Eigen::MatrixXd _sae[2];        // save sae
     Eigen::MatrixXd _saeLatest[2];  // save previous sae
+    double _timeLatest;
 
     cv::Mat _eventImgMat;
 
 public:
-    explicit ActiveEventSurface(const ns_veta::PinholeIntrinsicPtr& intri, double filterThd = 0.01);
+    explicit ActiveEventSurface(const ns_veta::PinholeIntrinsicPtr &intri, double filterThd = 0.01);
 
-    static Ptr Create(const ns_veta::PinholeIntrinsicPtr& intri, double filterThd = 0.01);
+    static Ptr Create(const ns_veta::PinholeIntrinsicPtr &intri, double filterThd = 0.01);
 
-    void GrabEvent(const Event::Ptr& event, bool drawEventMat = false);
+    void GrabEvent(const Event::Ptr &event, bool drawEventMat = false);
 
-    void GrabEvent(const EventArray::Ptr& events, bool drawEventMat = false);
+    void GrabEvent(const EventArray::Ptr &events, bool drawEventMat = false);
 
     [[nodiscard]] cv::Mat GetEventImgMat(bool resetMat, bool undistoMat = false);
 
-    cv::Mat TimeSurface(double curTime,
-                        bool ignorePolarity = false,
+    cv::Mat TimeSurface(bool ignorePolarity = false,
                         bool undistoMat = false,
                         int medianBlurKernelSize = 0,
                         double decaySec = 0.02);
 
     cv::Mat RawTimeSurface(bool ignorePolarity = false, bool undistoMat = false);
+
+    [[nodiscard]] double GetTimeLatest() const;
+};
+
+class EventNormFlow {
+public:
+    using Ptr = std::shared_ptr<EventNormFlow>;
+    struct NormFlow {
+        double timestamp;
+        Eigen::Vector2i p;
+        Eigen::Vector2d nf;
+    };
+
+private:
+    ActiveEventSurface::Ptr _sea;
+
+public:
+    explicit EventNormFlow(const ActiveEventSurface::Ptr &sea)
+        : _sea(sea) {}
+
+    std::pair<std::list<NormFlow>, cv::Mat> ExtractNormFlows(int winSize = 2,
+                                                             double goodRatioThd = 0.9,
+                                                             double timeDistEventToPlaneThd = 2E-3,
+                                                             int ransacMaxIter = 3) const;
+};
+
+class EventLocalPlaneSacProblem : public opengv::sac::SampleConsensusProblem<Eigen::Vector3d> {
+public:
+    typedef Eigen::Vector3d model_t;
+
+public:
+    explicit EventLocalPlaneSacProblem(const std::vector<std::tuple<int, int, double>> &data,
+                                       bool randomSeed = true)
+        : opengv::sac::SampleConsensusProblem<model_t>(randomSeed),
+          _data(data) {
+        setUniformIndices(static_cast<int>(_data.size()));
+    };
+
+    ~EventLocalPlaneSacProblem() override = default;
+
+    bool computeModelCoefficients(const std::vector<int> &indices,
+                                  model_t &outModel) const override;
+
+    void getSelectedDistancesToModel(const model_t &model,
+                                     const std::vector<int> &indices,
+                                     std::vector<double> &scores) const override;
+
+    void optimizeModelCoefficients(const std::vector<int> &inliers,
+                                   const model_t &model,
+                                   model_t &optimized_model) override;
+
+    [[nodiscard]] int getSampleSize() const override;
+
+    static double PointToPlaneDistance(double x, double y, double t, double A, double B, double C);
+
+protected:
+    /** The adapter holding all input data */
+    const std::vector<std::tuple<int, int, double>> &_data;
 };
 
 }  // namespace ns_ikalibr

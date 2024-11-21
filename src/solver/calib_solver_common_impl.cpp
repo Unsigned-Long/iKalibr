@@ -853,15 +853,12 @@ void CalibSolver::SaveEventDataForFeatureTracking(const std::string &topic,
             if (!findSeed && (*iter)->GetTimestamp() - (*headIter)->GetTimestamp() > 0.01) {
                 // assign
                 seedIter = iter;
-                double seedTime = (*iter)->GetEvents().back()->GetTimestamp();
                 findSeed = true;
                 // create time surface
-                tsMatSeedTime =
-                    saeCreator->TimeSurface(seedTime,  // timestamp to create time surface mat
-                                            true,      // ignore polarity
-                                            false,     // undisto event frame mat
-                                            0,         // perform medianBlur
-                                            0.02);     // the constant decay rate
+                tsMatSeedTime = saeCreator->TimeSurface(true,   // ignore polarity
+                                                        false,  // undisto event frame mat
+                                                        0,      // perform medianBlur
+                                                        0.02);  // the constant decay rate
                 accumEventMat = saeCreator->GetEventImgMat(true, false);
             }
         }

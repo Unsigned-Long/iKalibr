@@ -64,6 +64,31 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                       Configor::Prior::TimeOffsetPadding;
 
     /**
+     * estimate norm flows and recover extrinsic rotations and time offsets of cameras under the
+     * pure rotation motion assumption
+     */
+    for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
+        const auto &intri = _parMagr->INTRI.Camera.at(topic);
+        auto saeCreator = ActiveEventSurface::Create(intri, 0.01);
+        double lastNfEventTime = eventMes.front()->GetTimestamp();
+        for (const auto &eventAry : eventMes) {
+            saeCreator->GrabEvent(eventAry, true);
+            if (saeCreator->GetTimeLatest() - eventMes.front()->GetTimestamp() < 0.05 ||
+                saeCreator->GetTimeLatest() - lastNfEventTime < 0.01) {
+                continue;
+            }
+            // estimate norm flows
+            auto [nfs, tsMat] = EventNormFlow(saeCreator).ExtractNormFlows(2, 0.9, 2E-3, 3);
+            cv::Mat m;
+            cv::hconcat(tsMat, saeCreator->GetEventImgMat(true, false), m);
+            cv::imshow("Time Surface & Accumulated Event Mat", m);
+            cv::waitKey(1);
+
+            lastNfEventTime = saeCreator->GetTimeLatest();
+        }
+    }
+
+    /**
      * we first perform event-based feature tracking.
      * We first dedistort the events, then export them to files and use third-party software for
      * feature tracking.
