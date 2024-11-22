@@ -89,6 +89,8 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             cv::imshow("Time Surface & Norm Flow", res.Visualization(0.02));
             _viewer->AddEventData(res.ActiveEvents(0.02), res.timestamp, Viewer::VIEW_MAP,
                                   {0.01, 100});
+            _viewer->AddEventData(res.NormFlowEvents(), res.timestamp, Viewer::VIEW_MAP,
+                                  {0.01, 100}, ns_viewer::Colour::Green());
             cv::waitKey(0);
             _viewer->ClearViewer(Viewer::VIEW_MAP);
 

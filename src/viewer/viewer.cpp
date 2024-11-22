@@ -537,7 +537,8 @@ Viewer &Viewer::AddEventData(const std::vector<EventArray::Ptr>::const_iterator 
 Viewer &Viewer::AddEventData(const EventArray::Ptr &ary,
                              float sTime,
                              const std::string &view,
-                             const std::pair<float, float> &ptScales) {
+                             const std::pair<float, float> &ptScales,
+                             const std::optional<ns_viewer::Colour> &color) {
     if (ary == nullptr) {
         return *this;
     }
@@ -548,13 +549,20 @@ Viewer &Viewer::AddEventData(const EventArray::Ptr &ary,
         float t = ((float)event->GetTimestamp() - sTime) * ptScales.second;
         ColorPoint cp;
         cp.x = p(0), cp.y = p(1), cp.z = t;
-        if (event->GetPolarity()) {
-            cp.b = 255;
-            cp.r = cp.g = 0;
+        if (color == std::nullopt) {
+            if (event->GetPolarity()) {
+                cp.b = 255;
+                cp.r = cp.g = 0;
+            } else {
+                cp.r = 255;
+                cp.b = cp.g = 0;
+            }
         } else {
-            cp.r = 255;
-            cp.b = cp.g = 0;
+            cp.b = color->b * 255;
+            cp.r = color->r * 255;
+            cp.g = color->g * 255;
         }
+
         cp.a = 255;
         cloud->push_back(cp);
     }

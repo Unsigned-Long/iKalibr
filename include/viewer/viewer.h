@@ -174,7 +174,8 @@ public:
     Viewer &AddEventData(const EventArrayPtr &ary,
                          float sTime,
                          const std::string &view,
-                         const std::pair<float, float> &ptScales = {0.01f, 2.0f});
+                         const std::pair<float, float> &ptScales = {0.01f, 2.0f},
+                         const std::optional<ns_viewer::Colour> &color = {});
 
 protected:
     ns_viewer::MultiViewerConfigor GenViewerConfigor();

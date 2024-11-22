@@ -280,9 +280,9 @@ EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(double decaySec,
     auto [rtsMat, pMat] = _sea->RawTimeSurface(true, true /*todo: undistorted*/);
     // CV_8UC1
     auto tsImg = _sea->TimeSurface(true, true /*todo: undistorted*/, 0, decaySec);
-
+    const double timeLast = _sea->GetTimeLatest();
     cv::Mat mask;
-    cv::inRange(tsImg, 50, 230, mask);
+    cv::inRange(rtsMat, std::max(1E-3, timeLast - 1.5 * decaySec), timeLast, mask);
 
     cv::cvtColor(tsImg, tsImg, cv::COLOR_GRAY2BGR);
     auto tsImgNfs = tsImg.clone();
