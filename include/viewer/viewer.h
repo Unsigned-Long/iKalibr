@@ -171,6 +171,11 @@ public:
                          const std::string &view,
                          const std::pair<float, float> &ptScales = {0.01f, 2.0f});
 
+    Viewer &AddEventData(const EventArrayPtr &ary,
+                         float sTime,
+                         const std::string &view,
+                         const std::pair<float, float> &ptScales = {0.01f, 2.0f});
+
 protected:
     ns_viewer::MultiViewerConfigor GenViewerConfigor();
 

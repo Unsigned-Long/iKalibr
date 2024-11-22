@@ -104,14 +104,22 @@ public:
     };
 
     struct NormFlowPack {
+    public:
         std::list<NormFlow::Ptr> nfs;
         cv::Mat rawTimeSurfaceMap;  // ex, ey, et
         cv::Mat inliersOccupy;      // is inlier in norm flow estimation
         cv::Mat polarityMap;        // the polarity map
+        double timestamp;
         // for visualization
-        cv::Mat diagram;
+        cv::Mat nfSeedsImg;
+        cv::Mat nfsImg;
 
+    public:
+        EventArray::Ptr ActiveEvents(double dt = 0.02) const;
 
+        EventArray::Ptr NormFlowEvents() const;
+
+        cv::Mat Visualization(double dt = 0.02) const;
     };
 
 private:
@@ -121,7 +129,8 @@ public:
     explicit EventNormFlow(const ActiveEventSurface::Ptr &sea)
         : _sea(sea) {}
 
-    NormFlowPack ExtractNormFlows(int winSize = 2,
+    NormFlowPack ExtractNormFlows(double decaySec = 0.02,
+                                  int winSize = 2,
                                   int neighborDist = 2,
                                   double goodRatioThd = 0.9,
                                   double timeDistEventToPlaneThd = 2E-3,

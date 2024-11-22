@@ -520,15 +520,43 @@ Viewer &Viewer::AddEventData(const std::vector<EventArray::Ptr>::const_iterator 
             ColorPoint cp;
             cp.x = p(0), cp.y = p(1), cp.z = t;
             if (event->GetPolarity()) {
-                cp.r = 255;
-                cp.b = cp.g = 0;
-            } else {
                 cp.b = 255;
                 cp.r = cp.g = 0;
+            } else {
+                cp.r = 255;
+                cp.b = cp.g = 0;
             }
             cp.a = 50;
             cloud->push_back(cp);
         }
+    }
+    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, 1.0f)}, view);
+    return *this;
+}
+
+Viewer &Viewer::AddEventData(const EventArray::Ptr &ary,
+                             float sTime,
+                             const std::string &view,
+                             const std::pair<float, float> &ptScales) {
+    if (ary == nullptr) {
+        return *this;
+    }
+    pcl::PointCloud<ColorPoint>::Ptr cloud(new ColorPointCloud);
+    const auto &events = ary->GetEvents();
+    for (const auto &event : events) {
+        Eigen::Vector2f p = event->GetPos().cast<float>() * ptScales.first;
+        float t = ((float)event->GetTimestamp() - sTime) * ptScales.second;
+        ColorPoint cp;
+        cp.x = p(0), cp.y = p(1), cp.z = t;
+        if (event->GetPolarity()) {
+            cp.b = 255;
+            cp.r = cp.g = 0;
+        } else {
+            cp.r = 255;
+            cp.b = cp.g = 0;
+        }
+        cp.a = 255;
+        cloud->push_back(cp);
     }
     AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, 1.0f)}, view);
     return *this;

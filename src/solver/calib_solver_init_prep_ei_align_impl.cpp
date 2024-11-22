@@ -72,7 +72,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         auto saeCreator = ActiveEventSurface::Create(intri, 0.01);
         double lastNfEventTime = eventMes.front()->GetTimestamp();
         for (const auto &eventAry : eventMes) {
-            saeCreator->GrabEvent(eventAry, true);
+            saeCreator->GrabEvent(eventAry);
             if (saeCreator->GetTimeLatest() - eventMes.front()->GetTimestamp() < 0.05 ||
                 saeCreator->GetTimeLatest() - lastNfEventTime < 0.01) {
                 continue;
@@ -80,15 +80,15 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             // estimate norm flows
             auto nfCreator = EventNormFlow(saeCreator);
             auto res = nfCreator.ExtractNormFlows(
+                0.02,  // decay seconds for time surface
                 2,     // window size to fit local planes
                 1,     // distance between neighbor norm flows
                 0.9,   // the ratio, for ransac and in-range candidates
                 2E-3,  // the point to plane threshold in temporal domain, unit (s)
                 3);    // ransac iteration count
-            cv::Mat m;
-            cv::hconcat(res.diagram, saeCreator->GetEventImgMat(true, false), m);
-            cv::imshow("Time Surface & Accumulated Event Mat", m);
-            // _viewer->AddEventData(inliers, Viewer::VIEW_MAP, {0.01, 20});
+            cv::imshow("Time Surface & Norm Flow", res.Visualization(0.02));
+            _viewer->AddEventData(res.ActiveEvents(0.02), res.timestamp, Viewer::VIEW_MAP,
+                                  {0.01, 100});
             cv::waitKey(0);
             _viewer->ClearViewer(Viewer::VIEW_MAP);
 

@@ -192,7 +192,86 @@ EventNormFlow::NormFlow::Ptr EventNormFlow::NormFlow::Create(double timestamp,
     return std::make_shared<NormFlow>(timestamp, p, nf);
 }
 
-EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(int winSize,
+EventArray::Ptr EventNormFlow::NormFlowPack::ActiveEvents(double dt) const {
+    std::list<Event::Ptr> events;
+    const int rows = rawTimeSurfaceMap.rows;
+    const int cols = rawTimeSurfaceMap.cols;
+    for (int ey = 0; ey < rows; ey++) {
+        for (int ex = 0; ex < cols; ex++) {
+            const auto &et = rawTimeSurfaceMap.at<double>(ey, ex);
+            // whether this pixel is assigned
+            if (et < 1E-3 || timestamp - et > dt) {
+                continue;
+            }
+            const auto &ep = polarityMap.at<uchar>(ey, ex);
+            events.push_back(Event::Create(et, {ex, ey}, ep));
+        }
+    }
+    if (events.size() > 0) {
+        std::vector<Event::Ptr> eventsVec(events.cbegin(), events.cend());
+        return EventArray::Create(eventsVec.back()->GetTimestamp(), eventsVec);
+    } else {
+        return nullptr;
+    }
+}
+
+EventArray::Ptr EventNormFlow::NormFlowPack::NormFlowEvents() const {
+    std::list<Event::Ptr> events;
+    const int rows = rawTimeSurfaceMap.rows;
+    const int cols = rawTimeSurfaceMap.cols;
+    for (int ey = 0; ey < rows; ey++) {
+        for (int ex = 0; ex < cols; ex++) {
+            const auto &et = rawTimeSurfaceMap.at<double>(ey, ex);
+            // whether this pixel is assigned
+            if (et < 1E-3) {
+                continue;
+            }
+            if (inliersOccupy.at<uchar>(ey, ex) == 0) {
+                continue;
+            }
+            const auto &ep = polarityMap.at<uchar>(ey, ex);
+            events.push_back(Event::Create(et, {ex, ey}, ep));
+        }
+    }
+    if (events.size() > 0) {
+        std::vector<Event::Ptr> eventsVec(events.cbegin(), events.cend());
+        return EventArray::Create(eventsVec.back()->GetTimestamp(), eventsVec);
+    } else {
+        return nullptr;
+    }
+}
+
+cv::Mat EventNormFlow::NormFlowPack::Visualization(double dt) const {
+    cv::Mat m1;
+    cv::hconcat(nfSeedsImg, nfsImg, m1);
+
+    cv::Mat actEventMat(nfSeedsImg.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+    for (const auto &event : this->ActiveEvents(dt)->GetEvents()) {
+        auto ex = event->GetPos()(0), ey = event->GetPos()(1);
+        auto ep = event->GetPolarity();
+        actEventMat.at<cv::Vec3b>(cv::Point2d(ex, ey)) =
+            ep ? cv::Vec3b(255, 0, 0) : cv::Vec3b(0, 0, 255);
+    }
+
+    cv::Mat nfEventMat(nfSeedsImg.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+    for (const auto &event : this->NormFlowEvents()->GetEvents()) {
+        auto ex = event->GetPos()(0), ey = event->GetPos()(1);
+        auto ep = event->GetPolarity();
+        nfEventMat.at<cv::Vec3b>(cv::Point2d(ex, ey)) =
+            ep ? cv::Vec3b(255, 0, 0) : cv::Vec3b(0, 0, 255);
+    }
+
+    cv::Mat m2;
+    cv::hconcat(actEventMat, nfEventMat, m2);
+
+    cv::Mat m3;
+    cv::vconcat(m1, m2, m3);
+
+    return m3;
+}
+
+EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(double decaySec,
+                                                            int winSize,
                                                             int neighborDist,
                                                             double goodRatioThd,
                                                             double timeDistEventToPlaneThd,
@@ -200,7 +279,7 @@ EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(int winSize,
     // CV_64FC1
     auto [rtsMat, pMat] = _sea->RawTimeSurface(true, true /*todo: undistorted*/);
     // CV_8UC1
-    auto tsImg = _sea->TimeSurface(true, true /*todo: undistorted*/, 0, 0.02);
+    auto tsImg = _sea->TimeSurface(true, true /*todo: undistorted*/, 0, decaySec);
 
     cv::Mat mask;
     cv::inRange(tsImg, 50, 230, mask);
@@ -306,11 +385,15 @@ EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(int winSize,
             DrawLineOnCVMat(tsImgNfs, Eigen::Vector2d{x, y} + 0.01 * nf, {x, y});
         }
     }
-    cv::Mat m;
-    cv::hconcat(tsImg, tsImgNfs, m);
     NormFlowPack pack;
-    pack.nfs = nfs, pack.diagram = m, pack.inliersOccupy = inliersOccupy, pack.polarityMap = pMat,
+    pack.nfs = nfs;
+    pack.inliersOccupy = inliersOccupy;
+    pack.polarityMap = pMat;
     pack.rawTimeSurfaceMap = rtsMat;
+    pack.timestamp = _sea->GetTimeLatest();
+    // for visualization
+    pack.nfsImg = tsImgNfs;
+    pack.nfSeedsImg = tsImg;
     return pack;
 }
 
