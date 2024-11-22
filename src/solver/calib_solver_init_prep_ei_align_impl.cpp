@@ -69,12 +69,18 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      */
     std::map<std::string, std::list<std::list<NormFlow::Ptr>>> nfsForEventCams;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
+        spdlog::info("perform norm flow estimation for event camera '{}'...", topic);
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
         auto saeCreator = ActiveEventSurface::Create(intri, 0.01);
         double lastNfEventTime = eventMes.front()->GetTimestamp();
         auto &nfsCurCam = nfsForEventCams[topic];
-        for (const auto &eventAry : eventMes) {
+        auto bar = std::make_shared<tqdm>();
+        for (int i = 0; i < static_cast<int>(eventMes.size()); i++) {
+            bar->progress(i, eventMes.size());
+
+            const auto &eventAry = eventMes.at(i);
             saeCreator->GrabEvent(eventAry);
+
             if (saeCreator->GetTimeLatest() - eventMes.front()->GetTimestamp() < 0.05 ||
                 saeCreator->GetTimeLatest() - lastNfEventTime < 0.01) {
                 continue;
@@ -103,10 +109,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             // _viewer->ClearViewer(Viewer::VIEW_MAP);
             cv::waitKey(1);
         }
+        bar->finish();
     }
     cv::destroyAllWindows();
 
     for (const auto &[topic, nfsList] : nfsForEventCams) {
+        spdlog::info("init extrinsic rotations and time offsets for event camera '{}'...", topic);
         auto estimator = Estimator::Create(_splines, _parMagr);
         auto opt = OptOption::OPT_SO3_EsToBr | OptOption::OPT_TO_EsToBr;
         for (const auto &nfs : nfsList) {
