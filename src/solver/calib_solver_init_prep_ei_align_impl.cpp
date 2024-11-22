@@ -82,7 +82,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             cv::Mat m;
             cv::hconcat(tsMat, saeCreator->GetEventImgMat(true, false), m);
             cv::imshow("Time Surface & Accumulated Event Mat", m);
-            cv::waitKey(1);
+            cv::waitKey(0);
 
             lastNfEventTime = saeCreator->GetTimeLatest();
         }

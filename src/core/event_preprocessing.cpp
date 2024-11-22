@@ -175,7 +175,20 @@ cv::Mat ActiveEventSurface::RawTimeSurface(bool ignorePolarity, bool undistoMat)
 
 double ActiveEventSurface::GetTimeLatest() const { return _timeLatest; }
 
-std::pair<std::list<EventNormFlow::NormFlow>, cv::Mat> EventNormFlow::ExtractNormFlows(
+EventNormFlow::NormFlow::NormFlow(double timestamp,
+                                  const Eigen::Vector2i &p,
+                                  const Eigen::Vector2d &nf)
+    : timestamp(timestamp),
+      p(p),
+      nf(nf) {}
+
+EventNormFlow::NormFlow::Ptr EventNormFlow::NormFlow::Create(double timestamp,
+                                                             const Eigen::Vector2i &p,
+                                                             const Eigen::Vector2d &nf) {
+    return std::make_shared<NormFlow>(timestamp, p, nf);
+}
+
+std::pair<std::list<EventNormFlow::NormFlow::Ptr>, cv::Mat> EventNormFlow::ExtractNormFlows(
     int winSize, double goodRatioThd, double timeDistEventToPlaneThd, int ransacMaxIter) const {
     // CV_64FC1
     auto rtsMat = _sea->RawTimeSurface(true, true /*todo: undistorted*/);
@@ -186,6 +199,7 @@ std::pair<std::list<EventNormFlow::NormFlow>, cv::Mat> EventNormFlow::ExtractNor
     cv::inRange(tsImg, 50, 230, mask);
 
     cv::cvtColor(tsImg, tsImg, cv::COLOR_GRAY2BGR);
+    auto tsImgNfs = tsImg.clone();
 
     const int ws = winSize;
     const int winSampleCount = (2 * ws + 1) * (2 * ws + 1);
@@ -193,7 +207,7 @@ std::pair<std::list<EventNormFlow::NormFlow>, cv::Mat> EventNormFlow::ExtractNor
     const int rows = mask.rows;
     const int cols = mask.cols;
     cv::Mat occupy = cv::Mat::zeros(rows, cols, CV_8UC1);
-    std::list<NormFlow> nfs;
+    std::list<NormFlow::Ptr> nfs;
     for (int y = ws; y < mask.rows - ws; y++) {
         for (int x = ws; x < mask.cols - ws; x++) {
             if (mask.at<uchar>(y /*row*/, x /*col*/) != 255) {
@@ -266,9 +280,9 @@ std::pair<std::list<EventNormFlow::NormFlow>, cv::Mat> EventNormFlow::ExtractNor
             /**
              * drawing
              */
-            DrawLineOnCVMat(tsImg, Eigen::Vector2d{x, y} + 0.01 * nf, {x, y});
+            DrawLineOnCVMat(tsImgNfs, Eigen::Vector2d{x, y} + 0.01 * nf, {x, y});
 
-            nfs.push_back({.timestamp = timeCen, .p = Eigen::Vector2i{x, y}, .nf = nf});
+            nfs.push_back(NormFlow::Create(timeCen, Eigen::Vector2i{x, y}, nf));
 
             /**
              * drawing
@@ -276,8 +290,10 @@ std::pair<std::list<EventNormFlow::NormFlow>, cv::Mat> EventNormFlow::ExtractNor
             tsImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 255, 0);  // selected and verified
         }
     }
-
-    return std::pair{nfs, tsImg};
+    // todo: add distance, ratio thd = 1.0
+    cv::Mat m;
+    cv::hconcat(tsImg, tsImgNfs, m);
+    return std::pair{nfs, m};
 }
 
 /**

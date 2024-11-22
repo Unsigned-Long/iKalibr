@@ -90,9 +90,16 @@ class EventNormFlow {
 public:
     using Ptr = std::shared_ptr<EventNormFlow>;
     struct NormFlow {
+    public:
+        using Ptr = std::shared_ptr<NormFlow>;
+
         double timestamp;
         Eigen::Vector2i p;
         Eigen::Vector2d nf;
+
+        NormFlow(double timestamp, const Eigen::Vector2i &p, const Eigen::Vector2d &nf);
+
+        static Ptr Create(double timestamp, const Eigen::Vector2i &p, const Eigen::Vector2d &nf);
     };
 
 private:
@@ -102,10 +109,11 @@ public:
     explicit EventNormFlow(const ActiveEventSurface::Ptr &sea)
         : _sea(sea) {}
 
-    std::pair<std::list<NormFlow>, cv::Mat> ExtractNormFlows(int winSize = 2,
-                                                             double goodRatioThd = 0.9,
-                                                             double timeDistEventToPlaneThd = 2E-3,
-                                                             int ransacMaxIter = 3) const;
+    std::pair<std::list<NormFlow::Ptr>, cv::Mat> ExtractNormFlows(
+        int winSize = 2,
+        double goodRatioThd = 0.9,
+        double timeDistEventToPlaneThd = 2E-3,
+        int ransacMaxIter = 3) const;
 };
 
 class EventLocalPlaneSacProblem : public opengv::sac::SampleConsensusProblem<Eigen::Vector3d> {
