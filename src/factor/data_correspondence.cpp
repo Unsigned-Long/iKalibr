@@ -282,4 +282,17 @@ OpticalFlowCurveCorr::OpticalFlowCurveCorr(double mid_time,
       lastTime(last_time),
       trace(trace),
       weight(weight) {}
+
+NormFlow::NormFlow(double timestamp, const Eigen::Vector2i& p, const Eigen::Vector2d& nf)
+    : timestamp(timestamp),
+      p(p),
+      nf(nf),
+      nfNorm(nf.norm()),
+      nfDir(nf.normalized()) {}
+
+NormFlow::Ptr NormFlow::Create(double timestamp,
+                               const Eigen::Vector2i& p,
+                               const Eigen::Vector2d& nf) {
+    return std::make_shared<NormFlow>(timestamp, p, nf);
+}
 }  // namespace ns_ikalibr

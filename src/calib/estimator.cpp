@@ -52,6 +52,7 @@
 #include "factor/visual_velocity_depth_factor.hpp"
 #include "util/utils_tpl.hpp"
 #include "factor/vel_visual_inertial_align_factor.hpp"
+#include "factor/norm_flow_pure_rot_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -1471,6 +1472,100 @@ void Estimator::PrintParameterInfo() const {
     spdlog::info(
         "Total number of parameter blocks: {}, with {} blocks ({} params) that are optimized",
         totalParamBlocks, numOptimizedParamBlock, numOptimizedParameter);
+}
+
+/**
+ * param blocks:
+ * [ SO3 | ... | SO3 | SO3_EsToBr | TO_EsToBr | FX | FY | CX | CY ]
+ */
+void Estimator::AddEventNormFlowRotConstraint(const NormFlowPtr &nf,
+                                              const std::string &topic,
+                                              Opt option,
+                                              double weight) {
+    auto &intri = parMagr->INTRI.Camera.at(topic);
+    const double TO_PADDING = Configor::Prior::TimeOffsetPadding;
+    const double RT_PADDING = Configor::Prior::ReadoutTimePadding;
+    double *TO_EsToBr = &parMagr->TEMPORAL.TO_EsToBr.at(topic);
+
+    std::pair<double, double> timePair = ConsideredTimeRangeForCameraStamp(
+        nf->timestamp,                                       // time stamped by the camera
+        0.0, RT_PADDING, 0.0,                                // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_EsToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_EsToBr, option)  // if opt time offset
+    );
+
+    if (!TimeInRangeForSplines(timePair)) {
+        return;
+    }
+
+    // prepare metas for splines
+    SplineMetaType so3Meta;
+
+    splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE, {timePair}, so3Meta);
+
+    // create a cost function
+    auto costFunc = NormFlowPureRotFactor<Configor::Prior::SplineOrder>::Create(so3Meta, nf, weight);
+
+    // so3 knots param block [each has four sub params]
+    for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
+        costFunc->AddParameterBlock(4);
+    }
+
+    costFunc->AddParameterBlock(4);
+    costFunc->AddParameterBlock(1);
+
+    // fx, fy, cx, cy
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+
+    costFunc->SetNumResiduals(1);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // so3 knots param block
+    AddSo3KnotsData(paramBlockVec, splines->GetSo3Spline(Configor::Preference::SO3_SPLINE), so3Meta,
+                    !IsOptionWith(Opt::OPT_SO3_SPLINE, option));
+
+    auto SO3_EsToBr = parMagr->EXTRI.SO3_EsToBr.at(topic).data();
+    paramBlockVec.push_back(SO3_EsToBr);
+
+    paramBlockVec.push_back(TO_EsToBr);
+
+    paramBlockVec.push_back(intri->FXAddress());
+    paramBlockVec.push_back(intri->FYAddress());
+    paramBlockVec.push_back(intri->CXAddress());
+    paramBlockVec.push_back(intri->CYAddress());
+
+    // pass to problem
+    this->AddResidualBlock(
+        costFunc, new ceres::HuberLoss(Configor::Prior::LossForOpticalFlowFactor * weight),
+        paramBlockVec);
+    this->SetManifold(SO3_EsToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_SO3_EsToBr, option)) {
+        this->SetParameterBlockConstant(SO3_EsToBr);
+    }
+
+    if (!IsOptionWith(Opt::OPT_TO_EsToBr, option)) {
+        this->SetParameterBlockConstant(TO_EsToBr);
+    } else {
+        // set bound
+        this->SetParameterLowerBound(TO_EsToBr, 0, -TO_PADDING);
+        this->SetParameterUpperBound(TO_EsToBr, 0, TO_PADDING);
+    }
+
+    if (!IsOptionWith(Opt::OPT_CAM_FOCAL_LEN, option)) {
+        this->SetParameterBlockConstant(intri->FXAddress());
+        this->SetParameterBlockConstant(intri->FYAddress());
+    }
+
+    if (!IsOptionWith(Opt::OPT_CAM_PRINCIPAL_POINT, option)) {
+        this->SetParameterBlockConstant(intri->CXAddress());
+        this->SetParameterBlockConstant(intri->CYAddress());
+    }
 }
 
 void Estimator::SetRefIMUParamsConstant() {

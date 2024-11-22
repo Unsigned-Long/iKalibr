@@ -67,7 +67,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * estimate norm flows and recover extrinsic rotations and time offsets of cameras under the
      * pure rotation motion assumption
      */
-    std::map<std::string, std::list<std::list<EventNormFlow::NormFlow::Ptr>>> nfsForEventCams;
+    std::map<std::string, std::list<std::list<NormFlow::Ptr>>> nfsForEventCams;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
         auto saeCreator = ActiveEventSurface::Create(intri, 0.01);
@@ -84,7 +84,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             auto res = nfCreator.ExtractNormFlows(
                 0.02,  // decay seconds for time surface
                 2,     // window size to fit local planes
-                1,     // distance between neighbor norm flows
+                4,     // distance between neighbor norm flows
                 0.9,   // the ratio, for ransac and in-range candidates
                 2E-3,  // the point to plane threshold in temporal domain, unit (s)
                 2);    // ransac iteration count
@@ -105,6 +105,21 @@ void CalibSolver::InitPrepEventInertialAlign() const {
         }
     }
     cv::destroyAllWindows();
+
+    for (const auto &[topic, nfsList] : nfsForEventCams) {
+        auto estimator = Estimator::Create(_splines, _parMagr);
+        auto opt = OptOption::OPT_SO3_EsToBr | OptOption::OPT_TO_EsToBr;
+        for (const auto &nfs : nfsList) {
+            for (const auto &nf : nfs) {
+                estimator->AddEventNormFlowRotConstraint(nf, topic, opt, 1.0);
+            }
+        }
+        auto sum = estimator->Solve(_ceresOption, this->_priori);
+        spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
+        _viewer->UpdateSensorViewer();
+    }
+    _parMagr->ShowParamStatus();
+    std::cin.get();
 
     /**
      * we first perform event-based feature tracking.

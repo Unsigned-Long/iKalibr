@@ -38,6 +38,7 @@
 #include "cereal/types/tuple.hpp"
 #include "cereal/types/list.hpp"
 #include "cereal/types/utility.hpp"
+#include "factor/data_correspondence.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -178,19 +179,6 @@ std::pair<cv::Mat, cv::Mat> ActiveEventSurface::RawTimeSurface(bool ignorePolari
 }
 
 double ActiveEventSurface::GetTimeLatest() const { return _timeLatest; }
-
-EventNormFlow::NormFlow::NormFlow(double timestamp,
-                                  const Eigen::Vector2i &p,
-                                  const Eigen::Vector2d &nf)
-    : timestamp(timestamp),
-      p(p),
-      nf(nf) {}
-
-EventNormFlow::NormFlow::Ptr EventNormFlow::NormFlow::Create(double timestamp,
-                                                             const Eigen::Vector2i &p,
-                                                             const Eigen::Vector2d &nf) {
-    return std::make_shared<NormFlow>(timestamp, p, nf);
-}
 
 EventArray::Ptr EventNormFlow::NormFlowPack::ActiveEvents(double dt) const {
     std::list<Event::Ptr> events;

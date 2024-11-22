@@ -57,6 +57,8 @@ struct OpticalFlowCorr;
 using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
 struct OpticalFlowCurveCorr;
 using OpticalFlowCurveCorrPtr = std::shared_ptr<OpticalFlowCurveCorr>;
+struct NormFlow;
+using NormFlowPtr = std::shared_ptr<NormFlow>;
 
 // myenumGenor Option OPT_SO3_SPLINE OPT_SCALE_SPLINE OPT_SO3_BiToBr OPT_POS_BiInBr
 // OPT_SO3_RjToBr OPT_POS_RjInBr OPT_SO3_LkToBr OPT_POS_LkInBr OPT_SO3_CmToBr OPT_POS_CmInBr
@@ -425,6 +427,15 @@ public:
                                              const std::string &topic,
                                              Opt option,
                                              double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | SO3_EsToBr | TO_EsToBr | FX | FY | CX | CY ]
+     */
+    void AddEventNormFlowRotConstraint(const NormFlowPtr &nf,
+                                       const std::string &topic,
+                                       Opt option,
+                                       double weight);
 
     void SetRefIMUParamsConstant();
 

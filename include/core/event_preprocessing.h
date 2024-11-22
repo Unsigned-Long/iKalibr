@@ -87,25 +87,16 @@ public:
     [[nodiscard]] double GetTimeLatest() const;
 };
 
+struct NormFlow;
+using NormFlowPtr = std::shared_ptr<NormFlow>;
+
 class EventNormFlow {
 public:
     using Ptr = std::shared_ptr<EventNormFlow>;
-    struct NormFlow {
-    public:
-        using Ptr = std::shared_ptr<NormFlow>;
-
-        double timestamp;
-        Eigen::Vector2i p;
-        Eigen::Vector2d nf;
-
-        NormFlow(double timestamp, const Eigen::Vector2i &p, const Eigen::Vector2d &nf);
-
-        static Ptr Create(double timestamp, const Eigen::Vector2i &p, const Eigen::Vector2d &nf);
-    };
 
     struct NormFlowPack {
     public:
-        std::list<NormFlow::Ptr> nfs;
+        std::list<NormFlowPtr> nfs;
         cv::Mat rawTimeSurfaceMap;  // ex, ey, et
         cv::Mat inliersOccupy;      // is inlier in norm flow estimation
         cv::Mat polarityMap;        // the polarity map

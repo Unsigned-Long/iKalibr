@@ -255,6 +255,23 @@ public:
     }
 
     template <class T>
+    static void SubBMat(const T *fx,
+                        const T *fy,
+                        const T *cx,
+                        const T *cy,
+                        const Eigen::Vector2<T> feat,
+                        Eigen::Matrix<T, 2, 3> *bMat) {
+        *bMat = Eigen::Matrix<T, 2, 3>::Zero();
+        const T up = feat(0) - *cx, vp = feat(1) - *cy;
+        (*bMat)(0, 0) = up * vp / *fy;
+        (*bMat)(0, 1) = -*fx - up * up / *fx;
+        (*bMat)(0, 2) = *fx * vp / *fy;
+        (*bMat)(1, 0) = *fy + vp * vp / *fy;
+        (*bMat)(1, 1) = -up * vp / *fx;
+        (*bMat)(1, 2) = -*fy * up / *fx;
+    }
+
+    template <class T>
     static void SubMats(const T *fx,
                         const T *fy,
                         const T *cx,
@@ -357,6 +374,22 @@ public:
                          double last_time,
                          const FeatureTrackingCurve::Ptr &trace,
                          double weight);
+};
+
+struct NormFlow {
+public:
+    using Ptr = std::shared_ptr<NormFlow>;
+
+    double timestamp;
+    Eigen::Vector2i p;
+    Eigen::Vector2d nf;
+    // components of norm flow, i.e., nf = nfNorm * nfDir
+    double nfNorm;
+    Eigen::Vector2d nfDir;
+
+    NormFlow(double timestamp, const Eigen::Vector2i &p, const Eigen::Vector2d &nf);
+
+    static Ptr Create(double timestamp, const Eigen::Vector2i &p, const Eigen::Vector2d &nf);
 };
 }  // namespace ns_ikalibr
 

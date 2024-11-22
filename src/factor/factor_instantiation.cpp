@@ -49,6 +49,7 @@
 #include "factor/visual_reproj_factor.hpp"
 #include "factor/vel_visual_inertial_align_factor.hpp"
 #include "factor/event_optical_flow_factor.hpp"
+#include "factor/norm_flow_pure_rot_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -137,4 +138,5 @@ template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 2, fa
 template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 1, false, false>;
 template struct EventOpticalFlowReProjFactor<Configor::Prior::SplineOrder, 0, false, false>;
 
+template struct NormFlowPureRotFactor<Configor::Prior::SplineOrder>;
 }  // namespace ns_ikalibr
