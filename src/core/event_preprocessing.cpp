@@ -352,9 +352,10 @@ EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(double decaySec,
             occupy.at<uchar>(y /*row*/, x /*col*/) = 255;
 
             // try fit planes using ransac
+            auto centeredInRangeData = Centralization(inRangeData);
             opengv::sac::Ransac<EventLocalPlaneSacProblem> ransac;
             std::shared_ptr<EventLocalPlaneSacProblem> probPtr(
-                new EventLocalPlaneSacProblem(inRangeData));
+                new EventLocalPlaneSacProblem(centeredInRangeData));
             ransac.sac_model_ = probPtr;
             // the point to plane threshold in temporal domain
             ransac.threshold_ = timeDistEventToPlaneThd;
@@ -395,6 +396,33 @@ EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(double decaySec,
     pack.nfsImg = tsImgNfs;
     pack.nfSeedsImg = tsImg;
     return pack;
+}
+
+std::vector<std::tuple<double, double, double>> EventNormFlow::Centralization(
+    const std::vector<std::tuple<int, int, double>> &inRangeData) {
+    double mean1 = 0.0, mean2 = 0.0, mean3 = 0.0;
+
+    for (const auto &t : inRangeData) {
+        mean1 += std::get<0>(t);
+        mean2 += std::get<1>(t);
+        mean3 += std::get<2>(t);
+    }
+
+    size_t n = inRangeData.size();
+    mean1 /= n;
+    mean2 /= n;
+    mean3 /= n;
+
+    std::vector<std::tuple<double, double, double>> centeredInRangeData;
+    centeredInRangeData.resize(inRangeData.size());
+
+    for (size_t i = 0; i < inRangeData.size(); ++i) {
+        centeredInRangeData[i] = std::make_tuple(std::get<0>(inRangeData[i]) - mean1,
+                                                 std::get<1>(inRangeData[i]) - mean2,
+                                                 std::get<2>(inRangeData[i]) - mean3);
+    }
+
+    return centeredInRangeData;
 }
 
 /**

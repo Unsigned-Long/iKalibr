@@ -135,6 +135,10 @@ public:
                                   double goodRatioThd = 0.9,
                                   double timeDistEventToPlaneThd = 2E-3,
                                   int ransacMaxIter = 3) const;
+
+protected:
+    static std::vector<std::tuple<double, double, double>> Centralization(
+        const std::vector<std::tuple<int, int, double>> &inRangeData);
 };
 
 class EventLocalPlaneSacProblem : public opengv::sac::SampleConsensusProblem<Eigen::Vector3d> {
@@ -142,7 +146,7 @@ public:
     typedef Eigen::Vector3d model_t;
 
 public:
-    explicit EventLocalPlaneSacProblem(const std::vector<std::tuple<int, int, double>> &data,
+    explicit EventLocalPlaneSacProblem(const std::vector<std::tuple<double, double, double>> &data,
                                        bool randomSeed = true)
         : opengv::sac::SampleConsensusProblem<model_t>(randomSeed),
           _data(data) {
@@ -168,7 +172,7 @@ public:
 
 protected:
     /** The adapter holding all input data */
-    const std::vector<std::tuple<int, int, double>> &_data;
+    const std::vector<std::tuple<double, double, double>> &_data;
 };
 
 }  // namespace ns_ikalibr

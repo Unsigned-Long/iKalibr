@@ -566,7 +566,7 @@ Viewer &Viewer::AddEventData(const EventArray::Ptr &ary,
         cp.a = 255;
         cloud->push_back(cp);
     }
-    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, 1.0f)}, view);
+    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, 2.0f)}, view);
     return *this;
 }
 }  // namespace ns_ikalibr
