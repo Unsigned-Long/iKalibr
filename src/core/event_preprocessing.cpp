@@ -30,14 +30,14 @@
 #include "core/event_preprocessing.h"
 #include "veta/camera/pinhole.h"
 #include "opencv2/imgproc.hpp"
-#include "veta/camera/pinhole_brown.h"
-#include "veta/camera/pinhole_fisheye.h"
 #include "util/status.hpp"
 #include "opencv2/calib3d.hpp"
-#include "opencv2/highgui.hpp"
 #include "opengv/sac/Ransac.hpp"
-
-#include <solver/batch_opt_option.hpp>
+#include "config/configor.h"
+#include "filesystem"
+#include "cereal/types/tuple.hpp"
+#include "cereal/types/list.hpp"
+#include "cereal/types/utility.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -296,6 +296,10 @@ EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(double decaySec,
     cv::Mat occupy = cv::Mat::zeros(rows, cols, CV_8UC1);
     cv::Mat inliersOccupy = cv::Mat::zeros(rows, cols, CV_8UC1);
     std::list<NormFlow::Ptr> nfs;
+#define OUTPUT_PLANE_FIT 0
+#if OUTPUT_PLANE_FIT
+    std::list<std::pair<Eigen::Vector3d, std::list<std::tuple<double, double, double>>>> drawData;
+#endif
     for (int y = subTravSize; y < mask.rows - subTravSize; y++) {
         for (int x = subTravSize; x < mask.cols - subTravSize; x++) {
             if (mask.at<uchar>(y /*row*/, x /*col*/) != 255) {
@@ -366,11 +370,11 @@ EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(double decaySec,
                 continue;
             }
             // success
-            Eigen::Vector3d abd;
-            probPtr->optimizeModelCoefficients(ransac.inliers_, ransac.model_coefficients_, abd);
+            Eigen::Vector3d abc;
+            probPtr->optimizeModelCoefficients(ransac.inliers_, ransac.model_coefficients_, abc);
 
             // 'abd' is the params we are interested in
-            const double dtdx = -abd(0), dtdy = -abd(1);
+            const double dtdx = -abc(0), dtdy = -abc(1);
             Eigen::Vector2d nf = 1.0 / (dtdx * dtdx + dtdy * dtdy) * Eigen::Vector2d(dtdx, dtdy);
             nfs.push_back(NormFlow::Create(timeCen, Eigen::Vector2i{x, y}, nf));
 
@@ -384,8 +388,27 @@ EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(double decaySec,
              */
             tsImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 255, 0);  // selected and verified
             DrawLineOnCVMat(tsImgNfs, Eigen::Vector2d{x, y} + 0.01 * nf, {x, y});
+
+#if OUTPUT_PLANE_FIT
+            std::list<std::tuple<double, double, double>> centeredInliers;
+            for (int idx : ransac.inliers_) {
+                centeredInliers.push_back(centeredInRangeData.at(idx));
+            }
+            drawData.push_back({abc, centeredInliers});
+#endif
         }
     }
+#if OUTPUT_PLANE_FIT
+    auto path = Configor::DataStream::DebugPath;
+    static int count = 0;
+    if (std::filesystem::exists(path)) {
+        auto filename = path + "/event_local_planes" + std::to_string(count++) + ".yaml";
+        std::ofstream ofs(filename);
+        cereal::YAMLOutputArchive ar(ofs);
+        ar(cereal::make_nvp("event_local_planes", drawData));
+    }
+#endif
+
     NormFlowPack pack;
     pack.nfs = nfs;
     pack.inliersOccupy = inliersOccupy;

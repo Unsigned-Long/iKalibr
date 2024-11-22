@@ -67,10 +67,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * estimate norm flows and recover extrinsic rotations and time offsets of cameras under the
      * pure rotation motion assumption
      */
+    std::map<std::string, std::list<std::list<EventNormFlow::NormFlow::Ptr>>> nfsForEventCams;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
         const auto &intri = _parMagr->INTRI.Camera.at(topic);
         auto saeCreator = ActiveEventSurface::Create(intri, 0.01);
         double lastNfEventTime = eventMes.front()->GetTimestamp();
+        auto &nfsCurCam = nfsForEventCams[topic];
         for (const auto &eventAry : eventMes) {
             saeCreator->GrabEvent(eventAry);
             if (saeCreator->GetTimeLatest() - eventMes.front()->GetTimestamp() < 0.05 ||
@@ -85,18 +87,24 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 1,     // distance between neighbor norm flows
                 0.9,   // the ratio, for ransac and in-range candidates
                 2E-3,  // the point to plane threshold in temporal domain, unit (s)
-                3);    // ransac iteration count
-            cv::imshow("Time Surface & Norm Flow", res.Visualization(0.02));
-            _viewer->AddEventData(res.ActiveEvents(0.02), res.timestamp, Viewer::VIEW_MAP,
-                                  {0.01, 100});
-            _viewer->AddEventData(res.NormFlowEvents(), res.timestamp, Viewer::VIEW_MAP,
-                                  {0.01, 100}, ns_viewer::Colour::Green());
-            cv::waitKey(0);
-            _viewer->ClearViewer(Viewer::VIEW_MAP);
+                2);    // ransac iteration count
+            if (res.nfs.empty()) {
+                continue;
+            }
 
-            lastNfEventTime = saeCreator->GetTimeLatest();
+            lastNfEventTime = res.timestamp;
+            nfsCurCam.push_back(res.nfs);
+
+            cv::imshow("Time Surface & Norm Flow", res.Visualization(0.02));
+            // _viewer->AddEventData(res.ActiveEvents(0.02), res.timestamp, Viewer::VIEW_MAP,
+            //                       {0.01, 100});
+            // _viewer->AddEventData(res.NormFlowEvents(), res.timestamp, Viewer::VIEW_MAP,
+            //                       {0.01, 100}, ns_viewer::Colour::Green());
+            // _viewer->ClearViewer(Viewer::VIEW_MAP);
+            cv::waitKey(1);
         }
     }
+    cv::destroyAllWindows();
 
     /**
      * we first perform event-based feature tracking.
