@@ -81,7 +81,8 @@ public:
                         int medianBlurKernelSize = 0,
                         double decaySec = 0.02);
 
-    cv::Mat RawTimeSurface(bool ignorePolarity = false, bool undistoMat = false);
+    std::pair<cv::Mat, cv::Mat> RawTimeSurface(bool ignorePolarity = false,
+                                               bool undistoMat = false);
 
     [[nodiscard]] double GetTimeLatest() const;
 };
@@ -102,6 +103,17 @@ public:
         static Ptr Create(double timestamp, const Eigen::Vector2i &p, const Eigen::Vector2d &nf);
     };
 
+    struct NormFlowPack {
+        std::list<NormFlow::Ptr> nfs;
+        cv::Mat rawTimeSurfaceMap;  // ex, ey, et
+        cv::Mat inliersOccupy;      // is inlier in norm flow estimation
+        cv::Mat polarityMap;        // the polarity map
+        // for visualization
+        cv::Mat diagram;
+
+
+    };
+
 private:
     ActiveEventSurface::Ptr _sea;
 
@@ -109,11 +121,11 @@ public:
     explicit EventNormFlow(const ActiveEventSurface::Ptr &sea)
         : _sea(sea) {}
 
-    std::pair<std::list<NormFlow::Ptr>, cv::Mat> ExtractNormFlows(
-        int winSize = 2,
-        double goodRatioThd = 0.9,
-        double timeDistEventToPlaneThd = 2E-3,
-        int ransacMaxIter = 3) const;
+    NormFlowPack ExtractNormFlows(int winSize = 2,
+                                  int neighborDist = 2,
+                                  double goodRatioThd = 0.9,
+                                  double timeDistEventToPlaneThd = 2E-3,
+                                  int ransacMaxIter = 3) const;
 };
 
 class EventLocalPlaneSacProblem : public opengv::sac::SampleConsensusProblem<Eigen::Vector3d> {

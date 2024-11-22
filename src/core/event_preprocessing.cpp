@@ -151,25 +151,29 @@ cv::Mat ActiveEventSurface::TimeSurface(bool ignorePolarity,
     }
 }
 
-cv::Mat ActiveEventSurface::RawTimeSurface(bool ignorePolarity, bool undistoMat) {
+std::pair<cv::Mat, cv::Mat> ActiveEventSurface::RawTimeSurface(bool ignorePolarity,
+                                                               bool undistoMat) {
     // create exponential-decayed Time Surface map
     const auto imgSize = cv::Size(_intri->imgWidth, _intri->imgHeight);
-    cv::Mat timeSurfaceMap = cv::Mat::zeros(imgSize, CV_64F);
+    cv::Mat timeSurfaceMap = cv::Mat::zeros(imgSize, CV_64FC1);
+    cv::Mat polarityMap = cv::Mat::zeros(imgSize, CV_8UC1);
 
     for (int y = 0; y < imgSize.height; ++y) {
         for (int x = 0; x < imgSize.width; ++x) {
             double mostRecentStampAtCoord = std::max(_sae[1](x, y), _sae[0](x, y));
+            double polarity = _sae[1](x, y) > _sae[0](x, y) ? 1.0 : -1.0;
+            polarityMap.at<uchar>(y, x) = polarity;
             if (!ignorePolarity) {
-                double polarity = _sae[1](x, y) > _sae[0](x, y) ? 1.0 : -1.0;
                 mostRecentStampAtCoord *= polarity;
             }
             timeSurfaceMap.at<double>(y, x) = mostRecentStampAtCoord;
         }
     }
     if (undistoMat) {
-        return _undistoMap->RemoveDistortion(timeSurfaceMap);
+        return {_undistoMap->RemoveDistortion(timeSurfaceMap),
+                _undistoMap->RemoveDistortion(polarityMap)};
     } else {
-        return timeSurfaceMap;
+        return {timeSurfaceMap, polarityMap};
     }
 }
 
@@ -188,10 +192,13 @@ EventNormFlow::NormFlow::Ptr EventNormFlow::NormFlow::Create(double timestamp,
     return std::make_shared<NormFlow>(timestamp, p, nf);
 }
 
-std::pair<std::list<EventNormFlow::NormFlow::Ptr>, cv::Mat> EventNormFlow::ExtractNormFlows(
-    int winSize, double goodRatioThd, double timeDistEventToPlaneThd, int ransacMaxIter) const {
+EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(int winSize,
+                                                            int neighborDist,
+                                                            double goodRatioThd,
+                                                            double timeDistEventToPlaneThd,
+                                                            int ransacMaxIter) const {
     // CV_64FC1
-    auto rtsMat = _sea->RawTimeSurface(true, true /*todo: undistorted*/);
+    auto [rtsMat, pMat] = _sea->RawTimeSurface(true, true /*todo: undistorted*/);
     // CV_8UC1
     auto tsImg = _sea->TimeSurface(true, true /*todo: undistorted*/, 0, 0.02);
 
@@ -202,14 +209,16 @@ std::pair<std::list<EventNormFlow::NormFlow::Ptr>, cv::Mat> EventNormFlow::Extra
     auto tsImgNfs = tsImg.clone();
 
     const int ws = winSize;
+    const int subTravSize = std::max(winSize, neighborDist);
     const int winSampleCount = (2 * ws + 1) * (2 * ws + 1);
     const int winSampleCountThd = winSampleCount * goodRatioThd;
     const int rows = mask.rows;
     const int cols = mask.cols;
     cv::Mat occupy = cv::Mat::zeros(rows, cols, CV_8UC1);
+    cv::Mat inliersOccupy = cv::Mat::zeros(rows, cols, CV_8UC1);
     std::list<NormFlow::Ptr> nfs;
-    for (int y = ws; y < mask.rows - ws; y++) {
-        for (int x = ws; x < mask.cols - ws; x++) {
+    for (int y = subTravSize; y < mask.rows - subTravSize; y++) {
+        for (int x = subTravSize; x < mask.cols - subTravSize; x++) {
             if (mask.at<uchar>(y /*row*/, x /*col*/) != 255) {
                 continue;
             }
@@ -218,28 +227,35 @@ std::pair<std::list<EventNormFlow::NormFlow::Ptr>, cv::Mat> EventNormFlow::Extra
             double timeCen = 0.0;
             inRangeData.reserve(winSampleCount);
             bool jumpCurPixel = false;
-            for (int dy = -ws; dy <= ws; ++dy) {
-                for (int dx = -ws; dx <= ws; ++dx) {
+            for (int dy = -subTravSize; dy <= subTravSize; ++dy) {
+                for (int dx = -subTravSize; dx <= subTravSize; ++dx) {
                     int nx = x + dx;
                     int ny = y + dy;
 
-                    if (occupy.at<uchar>(ny /*row*/, nx /*col*/) == 255) {
-                        // this pixl has been occupied, thus the current pixel would not be
-                        // considered in norm flow estimation
-                        jumpCurPixel = true;
-                        break;
+                    // this pixel is in neighbor range
+                    if (std::abs(dx) <= neighborDist && std::abs(dy) <= neighborDist) {
+                        if (occupy.at<uchar>(ny /*row*/, nx /*col*/) == 255) {
+                            // this pixl has been occupied, thus the current pixel would not be
+                            // considered in norm flow estimation
+                            jumpCurPixel = true;
+                            break;
+                        }
                     }
 
+                    // this pixel is not considered in the window
+                    if (std::abs(dx) > ws || std::abs(dy) > ws) {
+                        continue;
+                    }
+
+                    // in window but not involved in norm flow estimation
                     if (mask.at<uchar>(ny /*row*/, nx /*col*/) != 255) {
                         continue;
                     }
 
-                    if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
-                        double timestamp = rtsMat.at<double>(ny /*row*/, nx /*col*/);
-                        inRangeData.emplace_back(nx, ny, timestamp);
-                        if (nx == x && ny == y) {
-                            timeCen = timestamp;
-                        }
+                    double timestamp = rtsMat.at<double>(ny /*row*/, nx /*col*/);
+                    inRangeData.emplace_back(nx, ny, timestamp);
+                    if (nx == x && ny == y) {
+                        timeCen = timestamp;
                     }
                 }
                 if (jumpCurPixel) {
@@ -276,24 +292,26 @@ std::pair<std::list<EventNormFlow::NormFlow::Ptr>, cv::Mat> EventNormFlow::Extra
             // 'abd' is the params we are interested in
             const double dtdx = -abd(0), dtdy = -abd(1);
             Eigen::Vector2d nf = 1.0 / (dtdx * dtdx + dtdy * dtdy) * Eigen::Vector2d(dtdx, dtdy);
-
-            /**
-             * drawing
-             */
-            DrawLineOnCVMat(tsImgNfs, Eigen::Vector2d{x, y} + 0.01 * nf, {x, y});
-
             nfs.push_back(NormFlow::Create(timeCen, Eigen::Vector2i{x, y}, nf));
+
+            for (int idx : ransac.inliers_) {
+                const auto &[ex, ey, et] = inRangeData.at(idx);
+                inliersOccupy.at<uchar>(ey /*row*/, ex /*col*/) = 255;
+            }
 
             /**
              * drawing
              */
             tsImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 255, 0);  // selected and verified
+            DrawLineOnCVMat(tsImgNfs, Eigen::Vector2d{x, y} + 0.01 * nf, {x, y});
         }
     }
-    // todo: add distance, ratio thd = 1.0
     cv::Mat m;
     cv::hconcat(tsImg, tsImgNfs, m);
-    return std::pair{nfs, m};
+    NormFlowPack pack;
+    pack.nfs = nfs, pack.diagram = m, pack.inliersOccupy = inliersOccupy, pack.polarityMap = pMat,
+    pack.rawTimeSurfaceMap = rtsMat;
+    return pack;
 }
 
 /**

@@ -78,11 +78,19 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 continue;
             }
             // estimate norm flows
-            auto [nfs, tsMat] = EventNormFlow(saeCreator).ExtractNormFlows(2, 0.9, 2E-3, 3);
+            auto nfCreator = EventNormFlow(saeCreator);
+            auto res = nfCreator.ExtractNormFlows(
+                2,     // window size to fit local planes
+                1,     // distance between neighbor norm flows
+                0.9,   // the ratio, for ransac and in-range candidates
+                2E-3,  // the point to plane threshold in temporal domain, unit (s)
+                3);    // ransac iteration count
             cv::Mat m;
-            cv::hconcat(tsMat, saeCreator->GetEventImgMat(true, false), m);
+            cv::hconcat(res.diagram, saeCreator->GetEventImgMat(true, false), m);
             cv::imshow("Time Surface & Accumulated Event Mat", m);
+            // _viewer->AddEventData(inliers, Viewer::VIEW_MAP, {0.01, 20});
             cv::waitKey(0);
+            _viewer->ClearViewer(Viewer::VIEW_MAP);
 
             lastNfEventTime = saeCreator->GetTimeLatest();
         }
