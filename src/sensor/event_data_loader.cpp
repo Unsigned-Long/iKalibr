@@ -88,7 +88,11 @@ EventArray::Ptr PropheseeEventDataLoader::UnpackData(const rosbag::MessageInstan
             Event::Create(event.ts.toSec(), Event::PosType(event.x, event.y), event.polarity);
     }
 
-    return EventArray::Create(msg->header.stamp.toSec(), events);
+    if (msg->header.stamp.isZero()) {
+        return EventArray::Create(events.back()->GetTimestamp(), events);
+    } else {
+        return EventArray::Create(msg->header.stamp.toSec(), events);
+    }
 }
 
 DVSEventDataLoader::DVSEventDataLoader(EventModelType model)
@@ -110,7 +114,10 @@ EventArray::Ptr DVSEventDataLoader::UnpackData(const rosbag::MessageInstance& ms
         events.at(i) =
             Event::Create(event.ts.toSec(), Event::PosType(event.x, event.y), event.polarity);
     }
-
-    return EventArray::Create(msg->header.stamp.toSec(), events);
+    if (msg->header.stamp.isZero()) {
+        return EventArray::Create(events.back()->GetTimestamp(), events);
+    } else {
+        return EventArray::Create(msg->header.stamp.toSec(), events);
+    }
 }
 }  // namespace ns_ikalibr

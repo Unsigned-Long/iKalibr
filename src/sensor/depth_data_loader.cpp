@@ -125,7 +125,9 @@ DepthFrame::Ptr DepthSensorImageLoader::UnpackFrame(const rosbag::MessageInstanc
     if (_isInverse) {
         InverseMat(dImg);
     }
-
+    if (msg->header.stamp.isZero()) {
+        Status(Status::WARNING, "depth image with zero timestamp exists!!!");
+    }
     return DepthFrame::Create(msg->header.stamp.toSec(), dImg);
 }
 
@@ -158,6 +160,9 @@ DepthFrame::Ptr DepthSensorImageCompLoader::UnpackFrame(
     }
     if (_isInverse) {
         InverseMat(dImg);
+    }
+    if (msg->header.stamp.isZero()) {
+        Status(Status::WARNING, "depth image with zero timestamp exists!!!");
     }
     return DepthFrame::Create(msg->header.stamp.toSec(), dImg);
 }

@@ -234,6 +234,7 @@ protected:
         auto iter = std::find_if(seq.begin(), seq.end(), pred);
         if (iter == seq.end()) {
             // find failed
+            OutputDataStatus();
             throw Status(Status::ERROR, errorMsg);
         } else {
             // adjust
@@ -247,6 +248,7 @@ protected:
         auto iter = std::find_if(seq.rbegin(), seq.rend(), pred);
         if (iter == seq.rend()) {
             // find failed
+            OutputDataStatus();
             throw Status(Status::ERROR, errorMsg);
         } else {
             // adjust

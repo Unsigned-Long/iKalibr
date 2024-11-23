@@ -149,7 +149,9 @@ CameraFrame::Ptr SensorImageLoader::UnpackFrame(const rosbag::MessageInstance &m
     cv::Mat cImg, gImg;
     cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image.copyTo(cImg);
     cv::cvtColor(cImg, gImg, cv::COLOR_BGR2GRAY);
-
+    if (msg->header.stamp.isZero()) {
+        Status(Status::WARNING, "camera image with zero timestamp exists!!!");
+    }
     return CameraFrame::Create(msg->header.stamp.toSec(), gImg, cImg);
 }
 
@@ -172,7 +174,9 @@ CameraFrame::Ptr SensorImageCompLoader::UnpackFrame(const rosbag::MessageInstanc
     cv::Mat cImg, gImg;
     cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image.copyTo(cImg);
     cv::cvtColor(cImg, gImg, cv::COLOR_BGR2GRAY);
-
+    if (msg->header.stamp.isZero()) {
+        Status(Status::WARNING, "camera image with zero timestamp exists!!!");
+    }
     return CameraFrame::Create(msg->header.stamp.toSec(), gImg, cImg);
 }
 }  // namespace ns_ikalibr

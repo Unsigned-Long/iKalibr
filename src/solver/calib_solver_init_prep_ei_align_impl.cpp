@@ -116,7 +116,10 @@ void CalibSolver::InitPrepEventInertialAlign() const {
     for (const auto &[topic, nfsList] : nfsForEventCams) {
         spdlog::info("init extrinsic rotations and time offsets for event camera '{}'...", topic);
         auto estimator = Estimator::Create(_splines, _parMagr);
-        auto opt = OptOption::OPT_SO3_EsToBr | OptOption::OPT_TO_EsToBr;
+        auto opt = OptOption::OPT_SO3_EsToBr;
+        if (Configor::Prior::OptTemporalParams) {
+            opt |= OptOption::OPT_TO_EsToBr;
+        }
         for (const auto &nfs : nfsList) {
             for (const auto &nf : nfs) {
                 estimator->AddEventNormFlowRotConstraint(nf, topic, opt, 1.0);

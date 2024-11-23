@@ -116,7 +116,9 @@ IMUFrame::Ptr SensorIMULoader::UnpackFrame(const rosbag::MessageInstance &msgIns
     Eigen::Vector3d gyro =
         g2StdUnit *
         Eigen::Vector3d(msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z);
-
+    if (msg->header.stamp.isZero()) {
+        Status(Status::WARNING, "inertial measurement with zero timestamp exists!!!");
+    }
     return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
 }
 
@@ -138,7 +140,10 @@ IMUFrame::Ptr SbgIMULoader::UnpackFrame(const rosbag::MessageInstance &msgInstan
 
     Eigen::Vector3d acce = Eigen::Vector3d(msg->accel.x, msg->accel.y, msg->accel.z);
     Eigen::Vector3d gyro = Eigen::Vector3d(msg->gyro.x, msg->gyro.y, msg->gyro.z);
-
-    return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
+    if (msg->header.stamp.isZero()) {
+        return IMUFrame::Create(msg->time_stamp * 1E-6, gyro, acce);
+    } else {
+        return IMUFrame::Create(msg->header.stamp.toSec(), gyro, acce);
+    }
 }
 }  // namespace ns_ikalibr

@@ -111,6 +111,9 @@ LiDARFrame::Ptr Velodyne16::UnpackScan(const rosbag::MessageInstance &msgInstanc
 
 LiDARFrame::Ptr Velodyne16::UnpackScan(
     const velodyne_msgs::VelodyneScan::ConstPtr &lidarMsg) const {
+    if (lidarMsg->header.stamp.isZero()) {
+        Status(Status::WARNING, "lidar scan with zero timestamp exists!!!");
+    }
     LiDARFrame::Ptr output = LiDARFrame::Create(lidarMsg->header.stamp.toSec());
 
     // point cloud
@@ -153,7 +156,7 @@ LiDARFrame::Ptr Velodyne16::UnpackScan(
             for (int firing = 0, k = 0; firing < FIRINGS_PER_BLOCK; firing++) {
                 for (int dsr = 0; dsr < SCANS_PER_FIRING; dsr++, k += RAW_SCAN_SIZE) {
                     /** Position Calculation */
-                    union TwoBytes tmp {};
+                    union TwoBytes tmp{};
                     tmp.bytes[0] = raw->blocks[block].data[k];
                     tmp.bytes[1] = raw->blocks[block].data[k + 1];
 
@@ -299,6 +302,9 @@ LiDARFrame::Ptr VelodynePoints::UnpackScan(const rosbag::MessageInstance &msgIns
     PosIRTPointCloud pcIn;
     pcl::fromROSMsg(*lidarMsg, pcIn);
 
+    if (lidarMsg->header.stamp.isZero()) {
+        Status(Status::WARNING, "lidar scan with zero timestamp exists!!!");
+    }
     double timebase = lidarMsg->header.stamp.toSec();
 
     IKalibrPointCloud::Ptr cloud(new IKalibrPointCloud());
@@ -350,6 +356,9 @@ LiDARFrame::Ptr OusterLiDAR::UnpackScan(const rosbag::MessageInstance &msgInstan
     OusterPointCloud pcIn;
     pcl::fromROSMsg(*lidarMsg, pcIn);
 
+    if (lidarMsg->header.stamp.isZero()) {
+        Status(Status::WARNING, "lidar scan with zero timestamp exists!!!");
+    }
     double timebase = lidarMsg->header.stamp.toSec();
 
     IKalibrPointCloud::Ptr cloud(new IKalibrPointCloud());
@@ -401,6 +410,9 @@ LiDARFrame::Ptr PandarXTLiDAR::UnpackScan(const rosbag::MessageInstance &msgInst
     PandarPointCloud pcIn;
     pcl::fromROSMsg(*lidarMsg, pcIn);
 
+    if (lidarMsg->header.stamp.isZero()) {
+        Status(Status::WARNING, "lidar scan with zero timestamp exists!!!");
+    }
     double timebase = lidarMsg->header.stamp.toSec();
 
     /// point cloud
@@ -449,6 +461,9 @@ LiDARFrame::Ptr LivoxLiDAR::UnpackScan(const rosbag::MessageInstance &msgInstanc
 
     CheckMessage<ikalibr::LivoxCustomMsg>(lidarMsg);
 
+    if (lidarMsg->header.stamp.isZero()) {
+        Status(Status::WARNING, "lidar scan with zero timestamp exists!!!");
+    }
     // from nanosecond to second
     double timebase = lidarMsg->header.stamp.toSec();
 
