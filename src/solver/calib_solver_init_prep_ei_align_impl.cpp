@@ -67,6 +67,7 @@ void CalibSolver::InitPrepEventInertialAlign() const {
      * estimate norm flows and recover extrinsic rotations and time offsets of cameras under the
      * pure rotation motion assumption
      */
+    constexpr double TIME_SURFACE_DECAY_TIME = 0.03;
     std::map<std::string, std::list<std::list<NormFlow::Ptr>>> nfsForEventCams;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
         spdlog::info("perform norm flow estimation for event camera '{}'...", topic);
@@ -82,16 +83,16 @@ void CalibSolver::InitPrepEventInertialAlign() const {
             saeCreator->GrabEvent(eventAry);
 
             if (saeCreator->GetTimeLatest() - eventMes.front()->GetTimestamp() < 0.05 ||
-                saeCreator->GetTimeLatest() - lastNfEventTime < 0.01) {
+                saeCreator->GetTimeLatest() - lastNfEventTime < TIME_SURFACE_DECAY_TIME) {
                 continue;
             }
             // estimate norm flows
             auto nfCreator = EventNormFlow(saeCreator);
             auto res = nfCreator.ExtractNormFlows(
-                0.02,  // decay seconds for time surface
-                2,     // window size to fit local planes
-                4,     // distance between neighbor norm flows
-                0.9,   // the ratio, for ransac and in-range candidates
+                TIME_SURFACE_DECAY_TIME,  // decay seconds for time surface
+                2,                        // window size to fit local planes
+                4,                        // distance between neighbor norm flows
+                0.9,                      // the ratio, for ransac and in-range candidates
                 2E-3,  // the point to plane threshold in temporal domain, unit (s)
                 2);    // ransac iteration count
             lastNfEventTime = res.timestamp;
