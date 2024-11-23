@@ -364,6 +364,12 @@ EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(double decaySec,
             // 'abd' is the params we are interested in
             const double dtdx = -abc(0), dtdy = -abc(1);
             Eigen::Vector2d nf = 1.0 / (dtdx * dtdx + dtdy * dtdy) * Eigen::Vector2d(dtdx, dtdy);
+
+            if (nf.squaredNorm() > 4E3 * 4E3) {
+                // the fitted plane is orthogonal to the t-axis, todo: a better way?
+                continue;
+            }
+
             nfs.push_back(NormFlow::Create(timeCen, Eigen::Vector2i{x, y}, nf));
 
             for (int idx : ransac.inliers_) {

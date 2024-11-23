@@ -28,10 +28,10 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 import math
 
-file_path = '/home/csl/ros_ws/iKalibr/src/ikalibr/debug/event_local_planes0.yaml'
+file_path = '/home/csl/ros_ws/iKalibr/src/ikalibr/debug/event_local_planes78.yaml'
 
 import yaml
-
+from scipy.spatial import KDTree
 
 def parse_planes_from_yaml(file_path):
     with open(file_path, "r") as file:
@@ -82,17 +82,26 @@ def visualize_plane_and_samples(ax, plane):
 
     distances = []
     foot_points = []
-
+    dist_sum = 0.0
     for x, y, t in zip(x_points, y_points, t_points):
-        f = A * x + B * y + t + C
-        denominator = A ** 2 + B ** 2 + 1
-        distance = abs(f) / np.sqrt(denominator)
-        distances.append(distance)
+        # f = A * x + B * y + t + C
+        # denominator = A ** 2 + B ** 2 + 1
+        # distance = abs(f) / np.sqrt(denominator)
+        t_pred = -(A * x + B * y + C)
+        dist = math.fabs(t_pred - t)
+        distances.append(dist)
+        dist_sum += dist
 
-        x_foot = x - (A * f) / denominator
-        y_foot = y - (B * f) / denominator
-        t_foot = t - f / denominator
+        # x_foot = x - (A * f) / denominator
+        # y_foot = y - (B * f) / denominator
+        # t_foot = t - f / denominator
+        x_foot = x
+        y_foot = y
+        t_foot = t_pred
         foot_points.append((x_foot, y_foot, t_foot))
+    print("   points: {}".format(len(points)))
+    print("     dist: {}".format(dist_sum))
+    print(" avg dist: {}".format(dist_sum / len(points)))
 
     for (x, y, t), (x_foot, y_foot, t_foot) in zip(points, foot_points):
         ax.plot([x, x_foot], [y, y_foot], [t, t_foot], color='blue', linestyle='-')
@@ -107,6 +116,7 @@ def visualize_plane_and_samples(ax, plane):
 
     n = A ** 2 + B ** 2
     norm_flow_vec = np.array([-A / n, -B / n, 0.0])
+    # print(np.linalg.norm(norm_flow_vec))
     # normal_vector = np.array([A, B, 1])
     norm_flow_vec /= np.linalg.norm(norm_flow_vec)
     normal_start = np.array([center_x, center_y, center_t])
@@ -126,8 +136,18 @@ if __name__ == "__main__":
     planes = parse_planes_from_yaml(file_path)
 
     for i, plane in enumerate(planes):
+
+        A, B, C = plane["parameters"].values()
+        n = A ** 2 + B ** 2
+        norm_flow_vec = np.array([-A / n, -B / n, 0.0])
+        norm = np.linalg.norm(norm_flow_vec)
+        if norm < 2000:
+            continue
         print(f"Plane {i + 1}:")
-        print(f"  Parameters: {plane['parameters']}")
+
+        print("  nf norm: {}".format(norm))
+        # continue
+        # print(f"  Parameters: {plane['parameters']}")
         # print(f"  Points: {plane['points']}")
         fig = plt.figure(figsize=(10, 7))
         ax = fig.add_subplot(111, projection='3d')
@@ -140,3 +160,4 @@ if __name__ == "__main__":
         ax.set_zlabel("t (sec)")
         ax.legend()
         plt.show()
+        print()
