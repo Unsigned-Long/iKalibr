@@ -94,11 +94,12 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                 0.9,   // the ratio, for ransac and in-range candidates
                 2E-3,  // the point to plane threshold in temporal domain, unit (s)
                 2);    // ransac iteration count
+            lastNfEventTime = res.timestamp;
+
             if (res.nfs.empty()) {
                 continue;
             }
 
-            lastNfEventTime = res.timestamp;
             nfsCurCam.push_back(res.nfs);
 
             cv::imshow("Time Surface & Norm Flow", res.Visualization(0.02));
