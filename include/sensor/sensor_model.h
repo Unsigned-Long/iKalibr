@@ -139,7 +139,7 @@ struct RadarModel {
 using RadarModelType = RadarModel::RadarModelType;
 
 struct EventModel {
-    enum class EventModelType { PROPHESEE_EVENT };
+    enum class EventModelType { PROPHESEE_EVENT, DVS_EVENT };
 
     static std::string UnsupportedEventModelMsg(const std::string &modelStr);
 };

@@ -85,6 +85,18 @@ public:
 
     EventArray::Ptr UnpackData(const rosbag::MessageInstance &msgInstance) override;
 };
+
+class DVSEventDataLoader : public EventDataLoader {
+public:
+    using Ptr = std::shared_ptr<DVSEventDataLoader>;
+
+public:
+    explicit DVSEventDataLoader(EventModelType model);
+
+    static Ptr Create(EventModelType model);
+
+    EventArray::Ptr UnpackData(const rosbag::MessageInstance &msgInstance) override;
+};
 }  // namespace ns_ikalibr
 
 #endif  // EVENT_DATA_LOADER_H

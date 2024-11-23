@@ -143,6 +143,7 @@ std::string EventModel::UnsupportedEventModelMsg(const std::string &modelStr) {
         "Unsupported Event Camera Type: '{}'. "
         "Currently supported event camera types are: \n"
         "1. PROPHESEE_EVENT: https://github.com/prophesee-ai/prophesee_ros_wrapper.git\n"
+        "2.       DVS_EVENT: https://github.com/uzh-rpg/rpg_dvs_ros.git\n"
         "...\n"
         "If you need to use other event camera types, "
         "please 'Issues' us on the profile of the github repository.",

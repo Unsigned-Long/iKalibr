@@ -34,6 +34,7 @@
 
 #include "sensor/event_data_loader.h"
 #include "ikalibr/PropheseeEventArray.h"
+#include "ikalibr/DVSEventArray.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -56,6 +57,9 @@ EventDataLoader::Ptr EventDataLoader::GetLoader(const std::string& modelStr) {
         case EventModelType::PROPHESEE_EVENT:
             dataLoader = PropheseeEventDataLoader::Create(model);
             break;
+        case EventModelType::DVS_EVENT:
+            dataLoader = DVSEventDataLoader::Create(model);
+            break;
         default:
             throw Status(Status::ERROR, EventModel::UnsupportedEventModelMsg(modelStr));
     }
@@ -75,6 +79,29 @@ EventArray::Ptr PropheseeEventDataLoader::UnpackData(const rosbag::MessageInstan
     ikalibr::PropheseeEventArrayPtr msg = msgInstance.instantiate<ikalibr::PropheseeEventArray>();
 
     CheckMessage<ikalibr::PropheseeEventArray>(msg);
+
+    std::vector<Event::Ptr> events(msg->events.size());
+
+    for (int i = 0; i < static_cast<int>(msg->events.size()); i++) {
+        const auto& event = msg->events.at(i);
+        events.at(i) =
+            Event::Create(event.ts.toSec(), Event::PosType(event.x, event.y), event.polarity);
+    }
+
+    return EventArray::Create(msg->header.stamp.toSec(), events);
+}
+
+DVSEventDataLoader::DVSEventDataLoader(EventModelType model)
+    : EventDataLoader(model) {}
+
+DVSEventDataLoader::Ptr DVSEventDataLoader::Create(EventModelType model) {
+    return std::make_shared<DVSEventDataLoader>(model);
+}
+
+EventArray::Ptr DVSEventDataLoader::UnpackData(const rosbag::MessageInstance& msgInstance) {
+    ikalibr::DVSEventArrayPtr msg = msgInstance.instantiate<ikalibr::DVSEventArray>();
+
+    CheckMessage<ikalibr::DVSEventArray>(msg);
 
     std::vector<Event::Ptr> events(msg->events.size());
 

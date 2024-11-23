@@ -124,6 +124,9 @@ add_message_files(
 
         PropheseeEvent.msg
         PropheseeEventArray.msg
+
+        DVSEvent.msg
+        DVSEventArray.msg
 )
 
 ## Generate services in the 'srv' folder
