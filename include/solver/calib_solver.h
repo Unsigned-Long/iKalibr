@@ -306,6 +306,13 @@ protected:
     void InitPrepEventInertialAlign() const;
 
     /**
+     * detailed sensor-inertial alignment for event camera and IMU, i.e., event-inertial
+     * alignment based on lines, this is the preparation for final one-shot sensor-inertial
+     * alignment
+     */
+    void InitPrepEventInertialAlignLineBased() const;
+
+    /**
      * initialize the linear scale spline using by-products from sensor-inertial alignment
      * one of three kinds of linear scale spline, i.e., linear acceleration, linear velocity, and
      * translation splines, would be recovered

@@ -73,9 +73,12 @@ void CalibSolver::Process() {
     this->InitPrepRGBDInertialAlign();       // rgbd-inertial
     this->InitPrepLiDARInertialAlign();      // lidar-inertial
     this->InitPrepRadarInertialAlign();      // radar-inertial
-    this->InitPrepEventInertialAlign();      // event-inertial
     this->InitPrepInertialInertialAlign();   // inertial-inertial
-    this->InitSensorInertialAlign();         // one-shot sensor-inertial alignment
+
+    // this->InitPrepEventInertialAlign();        // point-based optical flow event-inertial
+    this->InitPrepEventInertialAlignLineBased();  // line-based norm flow event-inertial
+
+    this->InitSensorInertialAlign();  // one-shot sensor-inertial alignment
 
     if (outputParams) {
         SaveStageCalibParam(_parMagr, "stage_2_align");

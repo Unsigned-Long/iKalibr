@@ -49,6 +49,13 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 void CalibSolver::InitPrepEventInertialAlign() const {
+    throw Status(
+        Status::WARNING,
+        "Although point-based optical flow event-inertial calibration has been developed "
+        "in iKalibr, the poor results of event-based sparse optical flow estimation have led to "
+        "unsatisfactory calibration outcomes, leading to the temporary suspension of "
+        "support for this method. Accurate event-based sparse optical flow estimation is "
+        "all it needs!");
     if (!Configor::IsEventIntegrated()) {
         return;
     }
@@ -62,77 +69,6 @@ void CalibSolver::InitPrepEventInertialAlign() const {
                       Configor::Prior::TimeOffsetPadding;
     const double et = std::min(so3Spline.MaxTime(), scaleSpline.MaxTime()) -  // the min as end
                       Configor::Prior::TimeOffsetPadding;
-
-    /**
-     * estimate norm flows and recover extrinsic rotations and time offsets of cameras under the
-     * pure rotation motion assumption
-     */
-    constexpr double TIME_SURFACE_DECAY_TIME = 0.03;
-    std::map<std::string, std::list<std::list<NormFlow::Ptr>>> nfsForEventCams;
-    for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
-        spdlog::info("perform norm flow estimation for event camera '{}'...", topic);
-        const auto &intri = _parMagr->INTRI.Camera.at(topic);
-        auto saeCreator = ActiveEventSurface::Create(intri, 0.01);
-        double lastNfEventTime = eventMes.front()->GetTimestamp();
-        auto &nfsCurCam = nfsForEventCams[topic];
-        auto bar = std::make_shared<tqdm>();
-        for (int i = 0; i < static_cast<int>(eventMes.size()); i++) {
-            bar->progress(i, eventMes.size());
-
-            const auto &eventAry = eventMes.at(i);
-            saeCreator->GrabEvent(eventAry);
-
-            if (saeCreator->GetTimeLatest() - eventMes.front()->GetTimestamp() < 0.05 ||
-                saeCreator->GetTimeLatest() - lastNfEventTime < TIME_SURFACE_DECAY_TIME) {
-                continue;
-            }
-            // estimate norm flows
-            auto nfCreator = EventNormFlow(saeCreator);
-            auto res = nfCreator.ExtractNormFlows(
-                TIME_SURFACE_DECAY_TIME,  // decay seconds for time surface
-                2,                        // window size to fit local planes
-                4,                        // distance between neighbor norm flows
-                0.9,                      // the ratio, for ransac and in-range candidates
-                2E-3,  // the point to plane threshold in temporal domain, unit (s)
-                2);    // ransac iteration count
-            lastNfEventTime = res.timestamp;
-
-            if (res.nfs.empty()) {
-                continue;
-            }
-
-            nfsCurCam.push_back(res.nfs);
-
-            cv::imshow("Time Surface & Norm Flow", res.Visualization(0.02));
-            // _viewer->AddEventData(res.ActiveEvents(0.02), res.timestamp, Viewer::VIEW_MAP,
-            //                       {0.01, 100});
-            // _viewer->AddEventData(res.NormFlowEvents(), res.timestamp, Viewer::VIEW_MAP,
-            //                       {0.01, 100}, ns_viewer::Colour::Green());
-            // _viewer->ClearViewer(Viewer::VIEW_MAP);
-            cv::waitKey(1);
-        }
-        bar->finish();
-    }
-    cv::destroyAllWindows();
-
-    for (const auto &[topic, nfsList] : nfsForEventCams) {
-        spdlog::info("init extrinsic rotations and time offsets for event camera '{}'...", topic);
-        auto estimator = Estimator::Create(_splines, _parMagr);
-        auto opt = OptOption::OPT_SO3_EsToBr;
-        if (Configor::Prior::OptTemporalParams) {
-            opt |= OptOption::OPT_TO_EsToBr;
-        }
-        for (const auto &nfs : nfsList) {
-            for (const auto &nf : nfs) {
-                estimator->AddEventNormFlowRotConstraint(nf, topic, opt, 1.0);
-            }
-        }
-        auto sum = estimator->Solve(_ceresOption, this->_priori);
-        spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
-        _viewer->UpdateSensorViewer();
-    }
-    _parMagr->ShowParamStatus();
-    std::cin.get();
 
     /**
      * we first perform event-based feature tracking.
