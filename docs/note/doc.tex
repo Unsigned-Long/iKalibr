@@ -1070,6 +1070,106 @@
 	\translation{b^r_i}{b^r_j}=\left( \rotation{b^r_j}{w}\right)^\top\cdot\frac{1}{2}\cdot\left(\linvel{b^r_i}{w}+\linvel{b^r_j}{w} \right) \cdot\left( \tau_i-\tau_j\right) 
 	\end{equation}
 	
+	\subsection{Trifocal Tensor (Line-Point-Line)}
+	在多视图几何中，Trifocal Tensor 通常翻译为 三焦张量 或 三重焦张量。三焦张量 是三视图几何的核心工具，用于描述三台摄像机之间的几何关系。它是一个$3\times3\times3$的张量，能够将三视图中的点对应关系转化为代数约束。
+	
+	举例，对于“线-点-线”而言，如果选择第一张图像作为参考，有如下的约束：
+	\begin{equation}
+	\left[ \bsm{l}_2^\top\cdot\texttt{T}_1\cdot\bsm{l}_3,\;
+	\bsm{l}_2^\top\cdot\texttt{T}_2\cdot\bsm{l}_3,\;
+	\bsm{l}_2^\top\cdot\texttt{T}_3\cdot\bsm{l}_3\right]   \cdot\liehat{\bsm{l}_1}=\bsm{0}^\top
+	\end{equation}
+	\begin{equation}
+	\left(\bsm{l}_2^\top\cdot\left[ \texttt{T}_1,\texttt{T}_2,\texttt{T}_3\right]\cdot\bsm{l}_3  \right) \cdot\liehat{\bsm{l}_1}=\bsm{0}^\top
+	\end{equation}
+	其中：
+	\begin{equation}
+	\label{equ:fir_ref_ti}
+	\texttt{T}_i=\rotation{c_1}{c_2}(i)\cdot\left( \translation{c_1}{c_3}\right)^\top-\translation{c_1}{c_2}\cdot\left(\rotation{c_1}{c_3}(i)\right)^\top
+	\end{equation}
+	其中$\rotation{c_1}{c_2}(i)$表示矩阵$\rotation{c_1}{c_2}$的第$i\in1,2,3$列。
+	如果拿第二张图像作为参考，有如下的约束(1和2互换)：
+	\begin{equation}
+	\left(\bsm{l}_1^\top\cdot\left[ \texttt{T}_1,\texttt{T}_2,\texttt{T}_3\right]\cdot\bsm{l}_3  \right) \cdot\liehat{\bsm{l}_2}=\bsm{0}^\top
+	\end{equation}
+	\begin{equation}
+	\texttt{T}_i=\rotation{c_2}{c_1}(i)\cdot\left( \translation{c_2}{c_3}\right)^\top-\translation{c_2}{c_1}\cdot\left(\rotation{c_2}{c_3}(i)\right)^\top
+	\end{equation}
+	为了构建上述的约束，我们要进行线特征的提取和关联(不在这里描述)。我们现在讨论的是怎么从中恢复离散相机线速度(其实只是方向信息)。
+	我们现在假设$\bsm{l}_2$上有一点，其在图像上为$\bsm{x}_2$，其bearing vector为$\bsm{f}_2$，那么约束可以写为(叉乘变换的小技巧)：
+	\begin{equation}
+	\Rightarrow\quad\bsm{l}_2\times\left(\bsm{l}_1^\top\cdot\left[ \texttt{T}_1,\texttt{T}_2,\texttt{T}_3\right]\cdot\bsm{l}_3  \right) =\bsm{0}
+	\quad\to\quad
+	\bsm{l}_2\parallel\left(\bsm{l}_1^\top\cdot\left[ \texttt{T}_1,\texttt{T}_2,\texttt{T}_3\right]\cdot\bsm{l}_3  \right)
+	\end{equation}
+	\begin{equation}
+	\bsm{f}_2^\top\cdot\bsm{l}_2=0\quad\Rightarrow\quad
+	\bsm{f}_2^\top\cdot\left(\bsm{l}_1^\top\cdot\left[ \texttt{T}_1,\texttt{T}_2,\texttt{T}_3\right]\cdot\bsm{l}_3  \right)=0
+	\end{equation}
+	对于第$i$维，计算$\texttt{T}_i$时，有：
+	\begin{equation}
+	\texttt{T}_i=\rotation{c_2}{c_1}(i)\cdot\left( \translation{c_2}{c_3}\right)^\top-\translation{c_2}{c_1}\cdot\left(\rotation{c_2}{c_3}(i)\right)^\top
+	\end{equation}
+	其中$\rotation{c_2}{c_1}(i)$和$\rotation{c_2}{c_3}(i)$很轻易可以获得，$\translation{c_2}{c_3}$和$\translation{c_2}{c_1}$，则基于常加速度假设获得：
+	\begin{equation}
+	\translation{c_i}{c_j}=\left( \rotation{c_j}{w}\right)^\top\cdot\frac{1}{2}\cdot\left(\linvel{c_i}{w}+\linvel{c_j}{w} \right) \cdot\left( \tau_i-\tau_j\right) 
+	\end{equation}
+	将$\linvel{c_i}{w}$变换为$^{c_i}\linvel{c_i}{w}\triangleq\bsm{v}_{c_i}$也即表达在相机坐标系下，有：
+	\begin{equation}
+	\translation{c_i}{c_j}=\left( \rotation{c_j}{w}\right)^\top\cdot\frac{1}{2}\cdot\left(\rotation{c_i}{w}\cdot\bsm{v}_{c_i}+\rotation{c_j}{w}\cdot\bsm{v}_{c_j} \right) \cdot\left( \tau_i-\tau_j\right) 
+	\end{equation}
+	基于常速度假设获得：
+	\begin{equation}
+	\translation{c_i}{c_j}=\left( \rotation{c_j}{w}\right)^\top\cdot\linvel{c_i}{w} \cdot\left( \tau_i-\tau_j\right)
+	=\left( \rotation{c_j}{w}\right)^\top\cdot\rotation{c_i}{w}\cdot\bsm{v}_{c_i} \cdot\left( \tau_i-\tau_j\right)
+	=\rotation{c_i}{c_j}\cdot\bsm{v}_{c_i} \cdot\left( \tau_i-\tau_j\right)
+	\end{equation}
+	我们只能观测得到速度的方向，所以有：
+	\begin{equation}
+	\translation{c_i}{c_j}=\rotation{c_i}{c_j}\cdot s_{c_i}\cdot\bsm{d}_{c_i} \cdot\left( \tau_i-\tau_j\right)
+	\end{equation}
+	最终，有：
+	\begin{equation}
+	\translation{c_2}{c_3}=\rotation{c_2}{c_3}\cdot s_{c_2}\cdot\bsm{d}_{c_2} \cdot\left( \tau_2-\tau_3\right)
+	\qquad
+	\translation{c_2}{c_1}=\rotation{c_2}{c_1}\cdot s_{c_2}\cdot\bsm{d}_{c_2} \cdot\left( \tau_2-\tau_1\right)
+	\end{equation}
+	所以：
+	\begin{equation}
+	\label{equ:sed_ref_ti}
+	\begin{aligned}
+	\texttt{T}_i&=\rotation{c_2}{c_1}(i)\cdot\left( \translation{c_2}{c_3}\right)^\top-\translation{c_2}{c_1}\cdot\left(\rotation{c_2}{c_3}(i)\right)^\top
+	\\
+	&=\rotation{c_2}{c_1}(i)\cdot\left(
+	\rotation{c_2}{c_3}\cdot\bsm{v}_{c_2} \cdot\left( \tau_2-\tau_3\right)
+	\right)^\top-
+	\left( 
+	\rotation{c_2}{c_1}\cdot \bsm{v}_{c_2} \cdot\left( \tau_2-\tau_1\right)
+	\right) 
+	\cdot\left(\rotation{c_2}{c_3}(i)\right)^\top
+	\\
+	&=\left( \tau_2-\tau_3\right)\cdot\rotation{c_2}{c_1}(i)\cdot\bsm{v}_{c_2}^\top\cdot\rotation{c_3}{c_2}-
+	\left( \tau_2-\tau_1\right)\cdot\rotation{c_2}{c_1}\cdot \bsm{v}_{c_2}\cdot\left(\rotation{c_2}{c_3}(i)\right)^\top
+	\end{aligned}
+	\end{equation}
+	\subsection{Trifocal Tensor (Point-Point-Point)}
+	对于三点三焦张量，如果选择第一张图像作为参考,有($\texttt{T}_i$通过式(\ref{equ:fir_ref_ti})计算)：
+	\begin{equation}
+	\liehat{\bsm{f}_2}\cdot\left[ \sum_{i}f_1^i\cdot\texttt{T}_i\right]\cdot\liehat{\bsm{f}_3}=\bsm{0}_{3\times 3}
+	\quad\mathrm{s.t.}\quad
+	\bsm{f}_1=\begin{bmatrix}
+	f_1^1,f_1^2,f_1^3
+	\end{bmatrix}^\top
+	\end{equation}
+	如果选择第二张图像作为参考,有($\texttt{T}_i$通过式(\ref{equ:sed_ref_ti})计算)：
+	\begin{equation}
+	\liehat{\bsm{f}_1}\cdot\left[ \sum_{i}f_2^i\cdot\texttt{T}_i\right]\cdot\liehat{\bsm{f}_3}=\bsm{0}_{3\times 3}
+	\quad\mathrm{s.t.}\quad
+	\bsm{f}_2=\begin{bmatrix}
+	f_2^1,f_2^2,f_2^3
+	\end{bmatrix}^\top
+	\end{equation}
+	
 	\newpage
 	\bibliographystyle{IEEEtran}
 	\bibliography{reference}

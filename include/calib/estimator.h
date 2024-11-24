@@ -524,6 +524,11 @@ public:
                                                bool estDepth,
                                                bool estVelDirOnly);
 
+    void AddPPPTrifocalTensorVelFactorForVelCam(Eigen::Vector3d *LIN_VEL_CmToWInCm_DIR,
+                                                const OpticalFlowCorrPtr &corr,
+                                                const std::string &topic,
+                                                double weight);
+
     void AddVisualVelocityDepthFactorForEvent(Eigen::Vector3d *LIN_VEL_CmToWInCm,
                                               const OpticalFlowCorrPtr &corr,
                                               const std::string &topic,

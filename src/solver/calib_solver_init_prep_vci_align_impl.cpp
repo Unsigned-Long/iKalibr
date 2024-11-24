@@ -304,6 +304,15 @@ void CalibSolver::InitPrepVelCameraInertialAlign() const {
                     1.0,      // weight
                     true,     // estimate the depth information
                     true);    // only estimate the direction of the linear velocity
+                /**
+                 * point-point-point trifocal tensor constraints, something wrong exists!!!
+                 */
+                // estimator->AddPPPTrifocalTensorVelFactorForVelCam(
+                //     &velDir,  // the direction of linear velocity to be estimated
+                //     corr,     // the optical flow correspondence
+                //     topic,    // rostopic
+                //     1E5       // weight
+                // );
             }
             // we don't want to output the solving information
             auto optWithoutOutput =

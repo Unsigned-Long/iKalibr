@@ -53,6 +53,7 @@
 #include "util/utils_tpl.hpp"
 #include "factor/vel_visual_inertial_align_factor.hpp"
 #include "factor/norm_flow_pure_rot_factor.hpp"
+#include "factor/ppp_trifocal_tensor_vel_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -1504,7 +1505,8 @@ void Estimator::AddEventNormFlowRotConstraint(const NormFlowPtr &nf,
     splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE, {timePair}, so3Meta);
 
     // create a cost function
-    auto costFunc = NormFlowPureRotFactor<Configor::Prior::SplineOrder>::Create(so3Meta, nf, weight);
+    auto costFunc =
+        NormFlowPureRotFactor<Configor::Prior::SplineOrder>::Create(so3Meta, nf, weight);
 
     // so3 knots param block [each has four sub params]
     for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
@@ -1540,9 +1542,9 @@ void Estimator::AddEventNormFlowRotConstraint(const NormFlowPtr &nf,
     paramBlockVec.push_back(intri->CYAddress());
 
     // pass to problem
-    this->AddResidualBlock(
-        costFunc, new ceres::HuberLoss(Configor::Prior::LossForOpticalFlowFactor * weight),
-        paramBlockVec);
+    this->AddResidualBlock(costFunc,
+                           new ceres::HuberLoss(Configor::Prior::LossForOpticalFlowFactor * weight),
+                           paramBlockVec);
     this->SetManifold(SO3_EsToBr, QUATER_MANIFOLD.get());
 
     if (!IsOptionWith(Opt::OPT_SO3_EsToBr, option)) {
@@ -1954,6 +1956,48 @@ void Estimator::AddVisualVelocityDepthFactorForVelCam(Eigen::Vector3d *LIN_VEL_C
         LIN_VEL_CmToWInCm, corr, parMagr->TEMPORAL.TO_CmToBr.at(topic),
         parMagr->TEMPORAL.RS_READOUT.at(topic), parMagr->EXTRI.SO3_CmToBr.at(topic),
         parMagr->INTRI.Camera.at(topic), weight, estDepth, estVelDirOnly);
+}
+
+/**
+ * param blocks:
+ * [ LIN_VEL_DIR_CmToWInCm ]
+ */
+void Estimator::AddPPPTrifocalTensorVelFactorForVelCam(Eigen::Vector3d *LIN_VEL_CmToWInCm_DIR,
+                                                       const OpticalFlowCorrPtr &corr,
+                                                       const std::string &topic,
+                                                       double weight) {
+    const auto &so3Spline = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    const double TO_CamToBr = parMagr->TEMPORAL.TO_CmToBr.at(topic);
+    const double RS_READOUT = parMagr->TEMPORAL.RS_READOUT.at(topic);
+    const auto &intri = parMagr->INTRI.Camera.at(topic);
+
+    for (int i = 0; i < 3; i++) {
+        const double t = corr->timeAry[i];
+        const double timeByBr = t + TO_CamToBr + RS_READOUT * corr->rdFactorAry[i];
+        if (!so3Spline.TimeStampInRange(timeByBr)) {
+            return;
+        }
+    }
+
+    const Sophus::SO3d SO3_CamToBr = parMagr->EXTRI.SO3_CmToBr.at(topic);
+    auto helper = PPPTrifocalTensorVelFactorHelper<Configor::Prior::SplineOrder>(
+        so3Spline, TO_CamToBr, RS_READOUT, SO3_CamToBr, corr, intri);
+    auto costFunc =
+        PPPTrifocalTensorVelFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
+
+    costFunc->AddParameterBlock(3);
+
+    costFunc->SetNumResiduals(1);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    paramBlockVec.push_back(LIN_VEL_CmToWInCm_DIR->data());
+
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+
+    // constant norm
+    this->SetManifold(LIN_VEL_CmToWInCm_DIR->data(), GRAVITY_MANIFOLD.get());
 }
 
 void Estimator::AddVisualVelocityDepthFactorForEvent(Eigen::Vector3d *LIN_VEL_CmToWInCm,
