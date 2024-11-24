@@ -258,13 +258,10 @@ public:
         ComputeSE3BrToBr0ByPosSpline<T>(sKnots, t2ByBr, &SO3_Br2ToBr0, &VEL_Br2ToBr0InBr0, so3Meta,
                                         so3DtInv, scaleMeta, scaleDtInv);
 
-        // equal to 'POS_Br2InBr0' - 'POS_Br1InBr0'
-        Eigen::Vector3<T> DELTA_POS_Br1ToBr2InBr0 =
-            0.5 * (VEL_Br1ToBr0InBr0 + VEL_Br2ToBr0InBr0) * (*t2ByBr - *t1ByBr);
-
         Sophus::SO3<T> SO3_Br0ToBr2 = SO3_Br2ToBr0.inverse();
         *SO3_Br1ToBr2 = SO3_Br0ToBr2 * SO3_Br1ToBr0;
-        *POS_Br1InBr2 = -(SO3_Br0ToBr2 * DELTA_POS_Br1ToBr2InBr0);
+        *POS_Br1InBr2 =
+            SO3_Br0ToBr2 * (VEL_Br1ToBr0InBr0 + VEL_Br2ToBr0InBr0) * (0.5 * (*t1ByBr - *t2ByBr));
     }
 
     template <class T>
@@ -337,11 +334,9 @@ public:
             SE3_BrMidToBrFir = SE3_BrToBr0_Fir.inverse() * SE3_BrToBr0_Mid;
             SE3_BrMidToBrLast = SE3_BrToBr0_Last.inverse() * SE3_BrToBr0_Mid;
         } else {
-            Sophus::SE3<T> SE3_BrFirToBrMid;
-            ComputeSE3Br1ToBr2ByVelSpline<T>(sKnots, &timeByBrFir, &timeByBrMid,
-                                             &SE3_BrFirToBrMid.so3(),
-                                             &SE3_BrFirToBrMid.translation());
-            SE3_BrMidToBrFir = SE3_BrFirToBrMid.inverse();
+            ComputeSE3Br1ToBr2ByVelSpline<T>(sKnots, &timeByBrMid, &timeByBrFir,
+                                             &SE3_BrMidToBrFir.so3(),
+                                             &SE3_BrMidToBrFir.translation());
 
             ComputeSE3Br1ToBr2ByVelSpline<T>(sKnots, &timeByBrMid, &timeByBrLast,
                                              &SE3_BrMidToBrLast.so3(),

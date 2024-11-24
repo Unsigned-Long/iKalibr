@@ -38,15 +38,15 @@ Configor:
     #   7. SENSOR_IMAGE_COMP_RS_MID: middle-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
     #   8. SENSOR_IMAGE_COMP_RS_LAST: last-row exposure, https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CompressedImage.html\n"
     CameraTopics:
-    #      - key: "/camera/left/image_mono_undistort"
-    #        value:
-    #          Type: "SENSOR_IMAGE_GS"
-    #          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/cam-left-intri-pinhole-brown.yaml"
-    #          # 0.1 for 'LIN_VEL_SPLINE', and 50.0 for 'LIN_POS_SPLINE'
-    #          Weight: 0.1
-    #          TrackLengthMin: 5
-    #          # 'LIN_POS_SPLINE' or 'LIN_VEL_SPLINE'
-    #          ScaleSplineType: LIN_VEL_SPLINE
+      - key: "/camera/left/image_mono_undistort"
+        value:
+          Type: "SENSOR_IMAGE_GS"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/cam-left-intri-pinhole-brown.yaml"
+          # 0.1 for 'LIN_VEL_SPLINE', and 50.0 for 'LIN_POS_SPLINE'
+          Weight: 0.1
+          TrackLengthMin: 5
+          # 'LIN_POS_SPLINE' or 'LIN_VEL_SPLINE'
+          ScaleSplineType: LIN_VEL_SPLINE
     #      - key: "/camera/right/image_mono_undistort"
     #        value:
     #          Type: "SENSOR_IMAGE_GS"
@@ -83,24 +83,24 @@ Configor:
     # key: event camera topic, value: event type. Supported event types:
     # 1. PROPHESEE_EVENT: https://github.com/prophesee-ai/prophesee_ros_wrapper.git
     EventTopics:
-      - key: "/prophesee/left/events"
-        value:
-          Type: "PROPHESEE_EVENT"
-          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/event-left-intri-pinhole-brown.yaml"
-          Weight: 0.1
+    #      - key: "/prophesee/left/events"
+    #        value:
+    #          Type: "PROPHESEE_EVENT"
+    #          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/event-left-intri-pinhole-brown.yaml"
+    #          Weight: 0.1
     #      - key: "/prophesee/right/events"
     #        value:
     #          Type: "PROPHESEE_EVENT"
     #          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/event-right-intri-pinhole-brown.yaml"
     #          Weight: 0.1
     ReferIMU: "/imu/data"
-    BagPath: "/home/csl/dataset/vector/desk_fast/desk_fast1.synced.ei.bag"
+    BagPath: "/home/csl/dataset/vector/desk_fast/desk_fast1.synced.bag"
     # the time piece: [BegTime, BegTime + Duration], unit: second(s)
     # if you want to use all time data for calibration, please set them to negative numbers
     # Note that the 'BegTime' here is measured from the start time of bag
     # and is not related to the timestamp of the data recorded in the package.
     BeginTime: -1
-    Duration: 10
+    Duration: -1
     OutputPath: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/desk-fast"
   Prior:
     GravityNorm: 9.79

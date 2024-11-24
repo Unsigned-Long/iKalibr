@@ -59,22 +59,45 @@
 \newcommand\boldf{\heiti}
 \newcommand\keywords[1]{\bfseries{关键词：} \normf #1}
 
+%\newcommand\mlcomment[1]{ #1 }
+
+\newcommand\mynote[1]{{\bf{\emph{\textcolor{blue}{* #1 ...}}}}}
+\newcommand\todo[1]{{\bf{\emph{\textcolor[rgb]{0, 0.7, 0}{[todo]: #1 }}}}}
 \newcommand\liehat[1]{\left[ #1 \right]_\times}
 \newcommand\lievee[1]{\left[ #1 \right]^\vee}
 \newcommand\liehatvee[1]{\left[ #1 \right]^\vee_\times}
-
 \newcommand\mlcomment[1]{\iffalse #1 \fi}
-%\newcommand\mlcomment[1]{ #1 }
-
 \newcommand\bsm[1]{\boldsymbol{\mathrm{#1}}}
+\newcommand\transform[2]{{\bsm{T}_{#1}^{#2}}}
+\newcommand\transformhat[2]{{\hat{\bsm{T}}_{#1}^{#2}}}
+\newcommand\transformtilde[2]{{\tilde{\bsm{T}}_{#1}^{#2}}}
 \newcommand\rotation[2]{{\bsm{R}_{#1}^{#2}}}
+\newcommand\rotationhat[2]{{\hat{\bsm{R}}_{#1}^{#2}}}
+\newcommand\rotationtilde[2]{{\tilde{\bsm{R}}_{#1}^{#2}}}
+\newcommand\timeoffset[2]{{\tau_{#1}^{#2}}}
+\newcommand\timeoffsethat[2]{{\hat{\tau}_{#1}^{#2}}}
+\newcommand\timeoffsettilde[2]{{\tilde{\tau}_{#1}^{#2}}}
+\newcommand\quaternion[2]{{\bsm{q}_{#1}^{#2}}}
+\newcommand\quaternionhat[2]{{\hat{\bsm{q}}_{#1}^{#2}}}
+\newcommand\quaterniontilde[2]{{\tilde{\bsm{q}}_{#1}^{#2}}}
 \newcommand\angvel[2]{{\bsm{\omega}_{#1}^{#2}}}
+\newcommand\angvelhat[2]{{\hat{\bsm{\omega}}_{#1}^{#2}}}
+\newcommand\angveltilde[2]{{\tilde{\bsm{\omega}}_{#1}^{#2}}}
 \newcommand\angacce[2]{{\bsm{\alpha}_{#1}^{#2}}}
+\newcommand\angaccehat[2]{{\hat{\bsm{\alpha}}_{#1}^{#2}}}
+\newcommand\angaccetilde[2]{{\tilde{\bsm{\alpha}}_{#1}^{#2}}}
 \newcommand\translation[2]{{\bsm{p}_{#1}^{#2}}}
 \newcommand\translationhat[2]{{\hat{\bsm{p}}_{#1}^{#2}}}
+\newcommand\translationtilde[2]{{\tilde{\bsm{p}}_{#1}^{#2}}}
 \newcommand\linvel[2]{{\bsm{v}_{#1}^{#2}}}
+\newcommand\linvelhat[2]{{\hat{\bsm{v}}_{#1}^{#2}}}
+\newcommand\linveltilde[2]{{\tilde{\bsm{v}}_{#1}^{#2}}}
 \newcommand\linacce[2]{{\bsm{a}_{#1}^{#2}}}
+\newcommand\linaccehat[2]{{\hat{\bsm{a}}_{#1}^{#2}}}
+\newcommand\linaccetilde[2]{{\tilde{\bsm{a}}_{#1}^{#2}}}
 \newcommand\gravity[1]{{\bsm{g}^{#1}}}
+\newcommand\gravityhat[1]{{\hat{\bsm{g}}^{#1}}}
+\newcommand\gravitytilde[1]{{\tilde{\bsm{g}}^{#1}}}
 \newcommand\smallminus{{\text{-}}}
 \newcommand\smallplus{{\text{+}}}
 \newcommand\coordframe[1]{\underrightarrow{\mathcal{F}}_{#1}}
@@ -1006,7 +1029,46 @@
 	-{^{b_0}\boldsymbol{g}}\cdot (t_{k+1}-t_k)
 	\end{equation}
 	
-	
+	\subsection{Optical Flow Reprojection Constraints}
+	我们维护了一个线速度和姿态样条，通过光流速度因子来构建光流约束，进而进行时空优化。但是，二维光流速度是通过二次曲线模型得到的，可能存在模型误差。为此，我们可以仍然使用视觉重投影约束，并基于常加速度假设，通过从速度样条获取相对位移来实现。具体来说，对于$\tau_{i}$和$\tau_{j}$时刻，我们可以获得(先不考虑时延，不失一般性)：
+	\begin{equation}
+	\tau_{i}:\linvel{b^r_i}{w},\;\rotation{b^r_i}{w}
+	\qquad
+	\tau_{j}:\linvel{b^r_j}{w},\;\rotation{b^r_j}{w}
+	\end{equation}
+	我们想要获得的是$\tau_i$到$\tau_j$时刻的相对位姿变换，也即：
+	\begin{equation}
+	\tau_{i}\to\tau_{j}:\;\rotation{b^r_i}{b^r_j}=\left( \rotation{b^r_j}{w}\right)^\top\cdot\rotation{b^r_i}{w},\;\translation{b^r_i}{b^r_j}
+	\end{equation}
+	相对姿态比较好获取，对于相对位置，有：
+	\begin{equation}
+	^{w}\translation{b^r_i}{b^r_j}=\frac{1}{2}\cdot\left(\linvel{b^r_i}{w}+\linvel{b^r_j}{w} \right) \cdot\left( \tau_j-\tau_i\right) 
+	\end{equation}
+	其中$^{w}\translation{b^r_i}{b^r_j}$表示的是一个由$\coordframe{b^r_i}$指向$\coordframe{b^r_j}$的向量，表达(参数化)在$\coordframe{w}$系下：
+	\begin{equation}
+	^{w}\translation{b^r_i}{b^r_j}=\translation{b^r_j}{w}-\translation{b^r_i}{w}
+	\end{equation}
+	容易知道：
+	\begin{equation}
+	\transform{b^r_i}{b^r_j}=\left( \transform{b^r_j}{w}\right)^\top\cdot\transform{b^r_i}{w}
+	=\begin{bmatrix}
+	\left( \rotation{b^r_j}{w}\right)^\top&-\left( \rotation{b^r_j}{w}\right)^\top\cdot\translation{b^r_j}{w}\\
+	\bsm{0}&1
+	\end{bmatrix}\cdot
+	\begin{bmatrix}
+	\rotation{b^r_i}{w}&\translation{b^r_i}{w}\\
+	\bsm{0}&1
+	\end{bmatrix}
+	\end{equation}
+	也即：
+	\begin{equation}
+	\translation{b^r_i}{b^r_j}=\left( \rotation{b^r_j}{w}\right)^\top\cdot\translation{b^r_i}{w}-\left( \rotation{b^r_j}{w}\right)^\top\cdot\translation{b^r_j}{w}
+	=\left( \rotation{b^r_j}{w}\right)^\top\cdot\left( \translation{b^r_i}{w}-\translation{b^r_j}{w}\right) 
+	\end{equation}
+	最后可以得到：
+	\begin{equation}
+	\translation{b^r_i}{b^r_j}=\left( \rotation{b^r_j}{w}\right)^\top\cdot\frac{1}{2}\cdot\left(\linvel{b^r_i}{w}+\linvel{b^r_j}{w} \right) \cdot\left( \tau_i-\tau_j\right) 
+	\end{equation}
 	
 	\newpage
 	\bibliographystyle{IEEEtran}
