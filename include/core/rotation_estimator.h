@@ -49,7 +49,10 @@ public:
     using Ptr = std::shared_ptr<RotationEstimator>;
     using SplineBundleType = ns_ctraj::SplineBundle<Configor::Prior::SplineOrder>;
     using So3SplineType = SplineBundleType::So3SplineType;
+    // timestamp, rotation from the current frame to the world frame
     using RotationSequence = std::vector<std::pair<double, Sophus::SO3d>>;
+    // t1, t2, rotation from the t2 frame to the t1 frame
+    using RelRotationSequence = std::vector<std::tuple<double, double, Sophus::SO3d>>;
 
 private:
     bool _solveFlag;
@@ -62,6 +65,8 @@ public:
 
     void Estimate(const So3SplineType &spline, const RotationSequence &rotSeq);
 
+    void Estimate(const So3SplineType &spline, const RelRotationSequence &relRotSeq);
+
     void Estimate(const So3SplineType &spline, const std::vector<ns_ctraj::Posed> &poseSeq);
 
     [[nodiscard]] bool SolveStatus() const;
@@ -71,6 +76,9 @@ public:
 protected:
     static std::vector<Eigen::Matrix4d> OrganizeCoeffMatSeq(const So3SplineType &spline,
                                                             const RotationSequence &rotSeq);
+
+    static std::vector<Eigen::Matrix4d> OrganizeCoeffMatSeq(const So3SplineType &spline,
+                                                            const RelRotationSequence &relRotSeq);
 };
 }  // namespace ns_ikalibr
 

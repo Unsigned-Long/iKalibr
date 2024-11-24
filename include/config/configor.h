@@ -179,6 +179,24 @@ public:
             }
         };
 
+        struct EventConfig {
+        public:
+            std::string Type;
+            std::string Intrinsics;
+            double Weight;
+
+            EventConfig()
+                : Type(),
+                  Intrinsics(),
+                  Weight(){};
+
+        public:
+            template <class Archive>
+            void serialize(Archive &ar) {
+                ar(CEREAL_NVP(Type), CEREAL_NVP(Intrinsics), CEREAL_NVP(Weight));
+            }
+        };
+
         static std::optional<std::string> CreateImageStoreFolder(const std::string &camTopic);
 
         static std::optional<std::string> CreateSfMWorkspace(const std::string &camTopic);
@@ -203,11 +221,14 @@ public:
 
         static bool IsPosCamera(const std::string &topic);
 
+        static bool IsEventCamera(const std::string &topic);
+
         static std::map<std::string, IMUConfig> IMUTopics;
         static std::map<std::string, RadarConfig> RadarTopics;
         static std::map<std::string, LiDARConfig> LiDARTopics;
         static std::map<std::string, CameraConfig> CameraTopics;
         static std::map<std::string, RGBDConfig> RGBDTopics;
+        static std::map<std::string, EventConfig> EventTopics;
 
         static std::string ReferIMU;
 
@@ -223,9 +244,9 @@ public:
         template <class Archive>
         void serialize(Archive &ar) {
             ar(CEREAL_NVP(IMUTopics), CEREAL_NVP(RadarTopics), CEREAL_NVP(LiDARTopics),
-               CEREAL_NVP(CameraTopics), CEREAL_NVP(RGBDTopics), CEREAL_NVP(ReferIMU),
-               CEREAL_NVP(BagPath), CEREAL_NVP(BeginTime), CEREAL_NVP(Duration),
-               CEREAL_NVP(OutputPath));
+               CEREAL_NVP(CameraTopics), CEREAL_NVP(RGBDTopics), CEREAL_NVP(EventTopics),
+               CEREAL_NVP(ReferIMU), CEREAL_NVP(BagPath), CEREAL_NVP(BeginTime),
+               CEREAL_NVP(Duration), CEREAL_NVP(OutputPath));
         }
     } dataStream;
 
@@ -356,6 +377,8 @@ public:
     [[nodiscard]] static bool IsRadarIntegrated();
 
     [[nodiscard]] static bool IsRGBDIntegrated();
+
+    [[nodiscard]] static bool IsEventIntegrated();
 
 protected:
     // check the input configure

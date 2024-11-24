@@ -104,7 +104,7 @@ void MergeConfigor::PrintMainFields() {
             stream << "{'" << srcTopic << "' -> '" << dstTopic << "'}";
         }
         spdlog::info("rosbag path: '{}', topics to merge in this bag: {}.", bag.bagPath,
-                     stream.str());
+                     bag.topicsToMerge.empty() ? "all topics" : stream.str());
     }
     spdlog::info("output rosbag path: '{}'.", _outputBagPath);
 }

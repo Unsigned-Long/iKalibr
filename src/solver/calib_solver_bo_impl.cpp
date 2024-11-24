@@ -48,6 +48,7 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
     const std::map<std::string, std::vector<VisualReProjCorrSeq::Ptr>> &visualReprojCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &rgbdCorrs,
     const std::map<std::string, std::vector<OpticalFlowCorr::Ptr>> &visualVelCorrs,
+    const std::map<std::string, std::vector<OpticalFlowCurveCorr::Ptr>> &eventCorrs,
     const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>> &rgbdPtsCorrs)
     const {
     // a lambda function to obtain the string of current optimization option
@@ -117,11 +118,42 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddRGBDOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
                                                OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+                /**
+                 * when vel spline is maintained, we add additional reprojection constraints for
+                 * optical flow tracking correspondence, under the assumption of uniform velocity
+                 * variation
+                 */
+                this->AddRGBDOpticalFlowReprojFactor<TimeDeriv::LIN_VEL_SPLINE,
+                                                     OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
             for (const auto &[topic, corrs] : visualVelCorrs) {
                 this->AddVisualOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
                                                  OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+
+                /**
+                 * when vel spline is maintained, we add additional reprojection constraints for
+                 * optical flow tracking correspondence, under the assumption of uniform velocity
+                 * variation
+                 */
+                this->AddVisualOpticalFlowReprojFactor<TimeDeriv::LIN_VEL_SPLINE,
+                                                       OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+            }
+            for (const auto &[topic, corrs] : eventCorrs) {
+                this->AddEventOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
+                                                OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+                /**
+                 * when vel spline is maintained, we add additional reprojection constraints for
+                 * optical flow tracking correspondence, under the assumption of uniform velocity
+                 * variation
+                 */
+                // todo: poor performance due to poor event-based feature tracking
+                // this->AddEventOpticalFlowReprojFactor<TimeDeriv::LIN_VEL_SPLINE,
+                //                                       OPTICAL_FLOW_EST_INV_DEPTH>(
+                //     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
         } break;
         case TimeDeriv::LIN_POS_SPLINE: {
@@ -169,6 +201,18 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                                                        OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
+            for (const auto &[topic, corrs] : eventCorrs) {
+                this->AddEventOpticalFlowFactor<TimeDeriv::LIN_POS_SPLINE,
+                                                OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+                /**
+                 * when pos spline is maintained, we add additional reprojection constraints
+                 * for optical flow tracking correspondence
+                 */
+                this->AddEventOpticalFlowReprojFactor<TimeDeriv::LIN_POS_SPLINE,
+                                                      OPTICAL_FLOW_EST_INV_DEPTH>(
+                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+            }
             if (rgbdPtsCorrs != std::nullopt) {
                 /**
                  * such point-to-surfel data association is not necessary, if it exists, we add to
@@ -184,6 +228,8 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
 
     // make this problem full rank
     estimator->SetRefIMUParamsConstant();
+
+    estimator->PrintParameterInfo();
 
     auto sum = estimator->Solve(_ceresOption, this->_priori);
     spdlog::info("here is the summary:\n{}\n", sum.BriefReport());
@@ -241,6 +287,19 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
             } else {
                 // the depth is estimated, we update the inverse depth
                 corr->invDepth = corr->depth > 1E-3 ? 1.0 / corr->depth : -1.0;
+            }
+        }
+    }
+
+    // update depth information for event cameras
+    for (const auto &[topic, corrs] : eventCorrs) {
+        for (const auto &corr : corrs) {
+            if constexpr (OPTICAL_FLOW_EST_INV_DEPTH) {
+                // the inverse depth is estimated, we update the depth
+                corr->midDepth = corr->midInvDepth > 1E-3 ? 1.0 / corr->midInvDepth : -1.0;
+            } else {
+                // the depth is estimated, we update the inverse depth
+                corr->midInvDepth = corr->midDepth > 1E-3 ? 1.0 / corr->midDepth : -1.0;
             }
         }
     }

@@ -39,9 +39,22 @@
 
 namespace ns_ikalibr {
 
-Feature::Feature(cv::Point2f raw, cv::Point2f undistorted)
+Feature::Feature(cv::Point2f raw, cv::Point2f undistorted, double timestamp)
     : raw(std::move(raw)),
-      undistorted(std::move(undistorted)) {}
+      undistorted(std::move(undistorted)),
+      timestamp(timestamp) {}
+
+Feature::Ptr Feature::Create(const cv::Point2f& raw,
+                             const cv::Point2f& undistorted,
+                             double timestamp) {
+    return std::make_shared<Feature>(raw, undistorted, timestamp);
+}
+
+Eigen::Vector2f Feature::Raw() const { return Eigen::Vector2f(raw.x, raw.y); }
+
+Eigen::Vector2f Feature::Undistorted() const {
+    return Eigen::Vector2f(undistorted.x, undistorted.y);
+}
 
 cv::Mat FeatureTracking::TrackedFeaturePack::DrawMatches() const {
     const cv::Mat matLast = imgLast->GetColorImage();
@@ -71,16 +84,15 @@ cv::Mat FeatureTracking::TrackedFeaturePack::DrawMatches(const Ptr& compPack) co
     return matchImg;
 }
 
-void FeatureTracking::TrackedFeaturePack::DrawFeatureTracking(
-    const std::map<int, Feature>& ptsInLast,
-    const std::map<int, Feature>& ptsInCur,
-    const std::map<int, int>& matches,
-    cv::Mat& matImg,
-    const cv::Point2f& bias,
-    const cv::Scalar& color) {
+void FeatureTracking::TrackedFeaturePack::DrawFeatureTracking(const FeatureMap& ptsInLast,
+                                                              const FeatureMap& ptsInCur,
+                                                              const std::map<int, int>& matches,
+                                                              cv::Mat& matImg,
+                                                              const cv::Point2f& bias,
+                                                              const cv::Scalar& color) {
     for (const auto& [idLast, idCur] : matches) {
-        cv::Point2f pt1 = ptsInLast.at(idLast).raw;
-        cv::Point2f pt2 = ptsInCur.at(idCur).raw + bias;
+        cv::Point2f pt1 = ptsInLast.at(idLast)->raw;
+        cv::Point2f pt2 = ptsInCur.at(idCur)->raw + bias;
         cv::drawMarker(matImg, pt1, color, cv::MarkerTypes::MARKER_SQUARE, 10, 1);
         cv::drawMarker(matImg, pt1, color, cv::MarkerTypes::MARKER_SQUARE, 2, 2);
         cv::drawMarker(matImg, pt2, color, cv::MarkerTypes::MARKER_SQUARE, 10, 1);
@@ -116,7 +128,8 @@ FeatureTracking::TrackedFeaturePack::Ptr FeatureTracking::GrabImageFrame(
         FeatureMap featCur;
         for (int i = 0; i < static_cast<int>(ptsCurVec.size()); ++i) {
             const auto& raw = ptsCurVec.at(i);
-            featCur.insert({ptsCurIdVec.at(i), Feature(raw, UndistortPoint(raw))});
+            featCur.insert({ptsCurIdVec.at(i),
+                            Feature::Create(raw, UndistortPoint(raw), imgCur->GetTimestamp())});
         }
         // organize as pack
         TrackedFeaturePack::Ptr pack = std::make_shared<TrackedFeaturePack>();
@@ -139,7 +152,7 @@ FeatureTracking::TrackedFeaturePack::Ptr FeatureTracking::GrabImageFrame(
     FeatureIdVec ptsLastIdVec;
     ptsLastIdVec.reserve(_featLast.size());
     for (const auto& [id, feat] : _featLast) {
-        ptsLastVec.push_back(feat.raw);
+        ptsLastVec.push_back(feat->raw);
         ptsLastIdVec.push_back(id);
     }
     // current tracking
@@ -156,7 +169,8 @@ FeatureTracking::TrackedFeaturePack::Ptr FeatureTracking::GrabImageFrame(
         const cv::Point2f& pCur = ptsCurVec.at(i);
         if (status.at(i) && InImageBorder(pCur, imgCur->GetImage(), 5)) {
             auto idCur = ptsCurIdVec.at(i);
-            featCur.insert({idCur, Feature(pCur, UndistortPoint(pCur))});
+            featCur.insert(
+                {idCur, Feature::Create(pCur, UndistortPoint(pCur), imgCur->GetTimestamp())});
             featMatchLast2Cur.insert({ptsLastIdVec.at(i), idCur});
         }
     }
@@ -234,7 +248,7 @@ FeatureTracking::TrackedFeaturePack::Ptr FeatureTracking::GrabImageFrame(
         for (int i = 0; i < static_cast<int>(newPtsCurVec.size()); ++i) {
             const auto& raw = newPtsCurVec.at(i);
             auto id = newPtsCurIdVec.at(i);
-            featCur.insert({id, Feature(raw, UndistortPoint(raw))});
+            featCur.insert({id, Feature::Create(raw, UndistortPoint(raw), imgCur->GetTimestamp())});
             featTrackCountCur.insert({id, 1});
         }
     }
@@ -295,9 +309,9 @@ std::pair<cv::Mat, FeatureMap> FeatureTracking::MakeTrackedFeatUniform(
     for (const auto& featId : featPriority) {
         auto feat = feats.at(featId);
         // if this not has been occupied
-        if (mask.at<uchar>(feat.raw) == 255) {
+        if (mask.at<uchar>(feat->raw) == 255) {
             // draw mask
-            cv::circle(mask, feat.raw, MIN_DIST, 0, -1);
+            cv::circle(mask, feat->raw, MIN_DIST, 0, -1);
             filteredFeatLast.insert({featId, feat});
         }
     }

@@ -53,6 +53,8 @@ class CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
 struct OpticalFlowCorr;
 using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
+struct VisualUndistortionMap;
+using VisualUndistortionMapPtr = std::shared_ptr<VisualUndistortionMap>;
 
 class VisualLinVelDrawer {
 public:
@@ -64,6 +66,7 @@ private:
     SplineBundleType::Ptr _splines;
 
     ns_veta::PinholeIntrinsic::Ptr _intri;
+    VisualUndistortionMapPtr _undistoMapper;
 
     Sophus::SE3d SE3_CmToBr;
     double TO_CmToBr;
@@ -93,6 +96,7 @@ private:
     SplineBundleType::Ptr _splines;
 
     ns_veta::PinholeIntrinsic::Ptr _intri;
+    VisualUndistortionMapPtr _undistoMapper;
 
     Sophus::SE3d SE3_SenToBr;
     double TO_SenToBr;

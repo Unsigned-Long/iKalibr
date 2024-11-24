@@ -63,7 +63,8 @@ CalibParamManager::CalibParamManager(const std::vector<std::string> &imuTopics,
                                      const std::vector<std::string> &radarTopics,
                                      const std::vector<std::string> &lidarTopics,
                                      const std::vector<std::string> &cameraTopics,
-                                     const std::vector<std::string> &rgbdTopics)
+                                     const std::vector<std::string> &rgbdTopics,
+                                     const std::vector<std::string> &eventTopics)
     : EXTRI(),
       TEMPORAL(),
       INTRI(),
@@ -98,6 +99,14 @@ CalibParamManager::CalibParamManager(const std::vector<std::string> &imuTopics,
         TEMPORAL.RS_READOUT[topic] = 0.0;
         INTRI.RGBD[topic] = nullptr;
     }
+    for (const auto &topic : eventTopics) {
+        EXTRI.SO3_EsToBr[topic] = Sophus::SO3d();
+        EXTRI.POS_EsInBr[topic] = Eigen::Vector3d::Zero();
+        TEMPORAL.TO_EsToBr[topic] = 0.0;
+        // for rs camera, this does not make sense, but we still assign it and make it zero
+        TEMPORAL.RS_READOUT[topic] = 0.0;
+        INTRI.Camera[topic] = nullptr;
+    }
     GRAVITY = Eigen::Vector3d(0.0, 0.0, -9.8);
 }
 
@@ -105,9 +114,10 @@ CalibParamManager::Ptr CalibParamManager::Create(const std::vector<std::string> 
                                                  const std::vector<std::string> &radarTopics,
                                                  const std::vector<std::string> &lidarTopics,
                                                  const std::vector<std::string> &cameraTopics,
-                                                 const std::vector<std::string> &rgbdTopics) {
+                                                 const std::vector<std::string> &rgbdTopics,
+                                                 const std::vector<std::string> &eventTopics) {
     return std::make_shared<CalibParamManager>(imuTopics, radarTopics, lidarTopics, cameraTopics,
-                                               rgbdTopics);
+                                               rgbdTopics, eventTopics);
 }
 
 CalibParamManager::Ptr CalibParamManager::InitParamsFromConfigor() {
@@ -117,22 +127,35 @@ CalibParamManager::Ptr CalibParamManager::InitParamsFromConfigor() {
                                              ExtractKeysAsVec(Configor::DataStream::RadarTopics),
                                              ExtractKeysAsVec(Configor::DataStream::LiDARTopics),
                                              ExtractKeysAsVec(Configor::DataStream::CameraTopics),
-                                             ExtractKeysAsVec(Configor::DataStream::RGBDTopics));
+                                             ExtractKeysAsVec(Configor::DataStream::RGBDTopics),
+                                             ExtractKeysAsVec(Configor::DataStream::EventTopics));
 
     // intrinsics
     for (auto &[topic, intri] : parMarg->INTRI.IMU) {
         intri = ParIntri::LoadIMUIntri(Configor::DataStream::IMUTopics.at(topic).Intrinsics,
                                        Configor::Preference::OutputDataFormat);
     }
-    for (auto &[topic, intri] : parMarg->INTRI.Camera) {
-        intri = ParIntri::LoadCameraIntri(Configor::DataStream::CameraTopics.at(topic).Intrinsics,
-                                          Configor::Preference::OutputDataFormat);
+    for (const auto &[topic, config] : Configor::DataStream::CameraTopics) {
+        parMarg->INTRI.Camera.at(topic) =
+            ParIntri::LoadCameraIntri(config.Intrinsics, Configor::Preference::OutputDataFormat);
     }
     for (auto &[topic, intri] : parMarg->INTRI.RGBD) {
         intri = RGBDIntrinsics::Create(
             ParIntri::LoadCameraIntri(Configor::DataStream::RGBDTopics.at(topic).Intrinsics,
                                       Configor::Preference::OutputDataFormat),
             std::abs(Configor::DataStream::RGBDTopics.at(topic).DepthFactor), 0.0);
+    }
+    for (const auto &[topic, config] : Configor::DataStream::EventTopics) {
+        parMarg->INTRI.Camera.at(topic) =
+            ParIntri::LoadCameraIntri(config.Intrinsics, Configor::Preference::OutputDataFormat);
+        if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(
+                parMarg->INTRI.Camera.at(topic)) == nullptr) {
+            // the intrinsics of this camera is not 'ns_veta::PinholeIntrinsicBrownT2'
+            throw Status(Status::CRITICAL,
+                         "intrinsics of event camera '{}' is invalid, only the "
+                         "'PinholeIntrinsicBrownT2' is supported currently!!!",
+                         topic);
+        }
     }
 
     // align to the negative 'z' axis
@@ -203,6 +226,13 @@ void CalibParamManager::ShowParamStatus() {
         STREAM_PACK("")
     }
 
+    // events
+    for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
+        STREAM_PACK("Event: '" << topic << "'")
+        OUTPUT_EXTRINSICS(E, s, B, r)
+        STREAM_PACK("")
+    }
+
     STREAM_PACK(std::string(n, '-'))
 
     // ----------------------------
@@ -254,6 +284,15 @@ void CalibParamManager::ShowParamStatus() {
         STREAM_PACK("")
     }
 
+    // cameras
+    for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
+        STREAM_PACK("Event: '" << topic << "'")
+        OUTPUT_TEMPORAL(E, s, B, r)
+        const auto RS_READOUT = TEMPORAL.RS_READOUT.at(topic);
+        STREAM_PACK(fmt::format("{}: {:+010.6f} (s)", PARAM("RS_READOUT"), RS_READOUT))
+        STREAM_PACK("")
+    }
+
     STREAM_PACK(std::string(n, '-'))
 
     // -------------------------
@@ -296,9 +335,8 @@ void CalibParamManager::ShowParamStatus() {
     }
 
     // cameras
-    for (const auto &[topic, _] : Configor::DataStream::CameraTopics) {
+    for (const auto &[topic, intri] : INTRI.Camera) {
         STREAM_PACK("Camera: '" << topic << "'")
-        const auto &intri = INTRI.Camera.at(topic);
         const auto &pars = intri->GetParams();
 
         STREAM_PACK(
@@ -516,6 +554,19 @@ std::vector<ns_viewer::Entity::Ptr> CalibParamManager::EntitiesForVisualization(
         entities.push_back(line);
     }
 
+    // event cameras
+    for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
+        auto SE3_EsToBr = EXTRI.SE3_EsToBr(topic).cast<float>();
+        auto event = ns_viewer::CubeCamera::Create(
+            ns_viewer::Posef(SE3_EsToBr.so3().matrix(), SE3_EsToBr.translation()), CAMERA_SIZE,
+            ns_viewer::Colour::Black());
+        auto line =
+            ns_viewer::Line::Create(Eigen::Vector3f::Zero(), SE3_EsToBr.translation().cast<float>(),
+                                    ns_viewer::Colour::Black());
+        entities.push_back(event);
+        entities.push_back(line);
+    }
+
 #undef IMU_SIZE
 #undef RADAR_SIZE
 #undef LiDAR_SIZE
@@ -583,52 +634,5 @@ void CalibParamManager::ParIntri::SaveIMUIntri(const IMUIntrinsics::Ptr &intri,
     std::ofstream file(filename, std::ios::out);
     auto ar = GetOutputArchiveVariant(file, archiveType);
     SerializeByOutputArchiveVariant(ar, archiveType, cereal::make_nvp("Intrinsics", intri));
-}
-
-cv::Mat CalibParamManager::ParIntri::UndistortImage(const ns_veta::PinholeIntrinsic::Ptr &intri,
-                                                    const cv::Mat &src) {
-    auto [K, D] = ObtainKDMatForUndisto(intri);
-    if (cv::countNonZero(D) == 0) {
-        // don't need to undedistort this image
-        return src.clone();
-    }
-    cv::Mat undistImg;
-    if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(intri)) {
-        cv::undistort(src, undistImg, K, D);
-    } else if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicFisheye>(intri)) {
-        cv::Mat E = cv::Mat::eye(3, 3, cv::DataType<double>::type);
-        cv::Size size(src.cols, src.rows);
-        cv::Mat map1, map2;
-        cv::fisheye::initUndistortRectifyMap(K, D, E, K, size, CV_16SC2, map1, map2);
-        cv::remap(src, undistImg, map1, map2, cv::INTER_LINEAR, CV_HAL_BORDER_CONSTANT);
-    } else {
-        throw Status(Status::CRITICAL,
-                     "unknown camera intrinsic model! supported models:\n"
-                     "(a) pinhole_brown_t2 (k1, k2, k3, p1, p2)\n"
-                     "(b)  pinhole_fisheye (k1, k2, k3, k4)");
-    }
-    return undistImg;
-}
-
-std::pair<cv::Mat, cv::Mat> CalibParamManager::ParIntri::ObtainKDMatForUndisto(
-    const ns_veta::PinholeIntrinsic::Ptr &intri) {
-    const auto &par = intri->GetParams();
-    cv::Mat K, D;
-    K = (cv::Mat_<double>(3, 3) << par[0], 0.0, par[2], 0.0, par[1], par[3], 0.0, 0.0, 1.0);
-
-    if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicBrownT2>(intri)) {
-        // k_1, k_2, p_1, p_2[, k_3[, k_4, k_5, k_6[, s_1, s_2, s_3, s_4[, t_x, t_y]]]]
-        D = (cv::Mat_<double>(5, 1) << par[4], par[5], par[7], par[8], par[6]);
-    } else if (std::dynamic_pointer_cast<ns_veta::PinholeIntrinsicFisheye>(intri)) {
-        // k_1, k_2, k_3, k_4
-        D = (cv::Mat_<double>(4, 1) << par[4], par[5], par[6], par[7]);
-    } else {
-        throw Status(Status::CRITICAL,
-                     "unknown camera intrinsic model! supported models:\n"
-                     "(a) pinhole_brown_t2 (k1, k2, k3, p1, p2)\n"
-                     "(b)  pinhole_fisheye (k1, k2, k3, k4)");
-    }
-
-    return {K, D};
 }
 }  // namespace ns_ikalibr

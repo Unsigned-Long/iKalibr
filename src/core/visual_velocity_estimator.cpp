@@ -111,7 +111,9 @@ cv::Mat VisualVelocityEstimator::DrawVisualVelocityMat(
     const Eigen::Vector3d& LIN_VEL_DnToWInDn,
     const CameraFramePtr& frame,
     double factor) {
-    cv::Mat img = CalibParamManager::ParIntri::UndistortImage(intri, frame->GetColorImage());
+    // this code does not matter, as it's only used for verifying
+    cv::Mat img = VisualUndistortionMap::Create(intri)->RemoveDistortion(frame->GetColorImage());
+
     auto SO3_BrToBr0 = spline.Evaluate(timeByBr);
     Eigen::Vector3d ANG_VEL_BrToBr0InBr0 = SO3_BrToBr0 * spline.VelocityBody(timeByBr);
     auto SO3_DnToBr0 = SO3_BrToBr0 * SO3_DnToBr;

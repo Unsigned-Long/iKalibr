@@ -177,12 +177,24 @@ public:
                     const CameraFramePtr &frame,
                     double rsExpFactor);
 
+    // this is for event camera, which does not have associated camera frame pointer
+    OpticalFlowCorr(const std::array<double, 3> &timeAry,
+                    const std::array<double, 3> &xTraceAry,
+                    const std::array<double, 3> &yTraceAry,
+                    double depth);
+
     static Ptr Create(const std::array<double, 3> &timeAry,
                       const std::array<double, 3> &xDynamicAry,
                       const std::array<double, 3> &yDynamicAry,
                       double depth,
                       const CameraFramePtr &frame,
                       double rsExpFactor);
+
+    // this is for event camera, which does not have associated camera frame pointer
+    static Ptr Create(const std::array<double, 3> &timeAry,
+                      const std::array<double, 3> &xDynamicAry,
+                      const std::array<double, 3> &yDynamicAry,
+                      double depth);
 
     [[nodiscard]] Eigen::Vector2d FirPoint() const;
 
@@ -243,6 +255,23 @@ public:
     }
 
     template <class T>
+    static void SubBMat(const T *fx,
+                        const T *fy,
+                        const T *cx,
+                        const T *cy,
+                        const Eigen::Vector2<T> feat,
+                        Eigen::Matrix<T, 2, 3> *bMat) {
+        *bMat = Eigen::Matrix<T, 2, 3>::Zero();
+        const T up = feat(0) - *cx, vp = feat(1) - *cy;
+        (*bMat)(0, 0) = up * vp / *fy;
+        (*bMat)(0, 1) = -*fx - up * up / *fx;
+        (*bMat)(0, 2) = *fx * vp / *fy;
+        (*bMat)(1, 0) = *fy + vp * vp / *fy;
+        (*bMat)(1, 1) = -up * vp / *fx;
+        (*bMat)(1, 2) = -*fy * up / *fx;
+    }
+
+    template <class T>
     static void SubMats(const T *fx,
                         const T *fy,
                         const T *cx,
@@ -256,6 +285,112 @@ public:
     }
 };
 
+struct Feature;
+using FeaturePtr = std::shared_ptr<Feature>;
+
+struct FeatureTrackingCurve {
+public:
+    using Ptr = std::shared_ptr<FeatureTrackingCurve>;
+
+public:
+    double sTime{}, eTime{};
+    Eigen::Vector3d xParm, yParm;
+
+public:
+    FeatureTrackingCurve(double s_time,
+                         double e_time,
+                         Eigen::Vector3d x_parm,
+                         Eigen::Vector3d y_parm);
+
+    FeatureTrackingCurve() = default;
+
+    static Ptr Create(double s_time,
+                      double e_time,
+                      const Eigen::Vector3d &x_parm,
+                      const Eigen::Vector3d &y_parm);
+
+    static Ptr CreateFrom(const std::vector<FeaturePtr> &trackingAry, bool useUndistortedOnes);
+
+    [[nodiscard]] std::optional<Eigen::Vector2d> PositionAt(double t) const;
+
+    [[nodiscard]] std::optional<Eigen::Vector2d> VelocityAt(double t) const;
+
+    [[nodiscard]] std::vector<Eigen::Vector3d> DiscretePositions(double dt = 0.005) const;
+
+    bool IsTimeInRange(double time) const;
+
+    template <typename ScaleType>
+    static ScaleType QuadraticCurveValueAt(ScaleType x, const Eigen::Vector3<ScaleType> &params) {
+        ScaleType a = params[0];
+        ScaleType b = params[1];
+        ScaleType c = params[2];
+        return a * x * x + b * x + c;
+    }
+
+    template <typename ScaleType>
+    static ScaleType QuadraticCurveVelocityAt(ScaleType x,
+                                              const Eigen::Vector3<ScaleType> &params) {
+        ScaleType a = params[0];
+        ScaleType b = params[1];
+        return 2.0 * a * x + b;
+    }
+
+protected:
+    static Eigen::Vector3d FitQuadraticCurve(const std::vector<double> &x,
+                                             const std::vector<double> &y);
+};
+
+struct OpticalFlowCurveCorr {
+public:
+    using Ptr = std::shared_ptr<OpticalFlowCurveCorr>;
+
+public:
+    double midTime;
+    double midDepth, midInvDepth;
+    double firTime, lastTime;
+    FeatureTrackingCurve::Ptr trace;
+    double weight;
+
+public:
+    static Ptr Create(double midTime,
+                      double midDepth,
+                      double reprojTimePadding,
+                      const FeatureTrackingCurve::Ptr &trace,
+                      double weight = 1.0);
+
+    /**
+     * given a optical flow tracking correspondence (triple tracking, three points), we throw
+     * the middle feature to the camera frame and reproject it to the first and last camera
+     * image plane, just like this:
+     *                         +-<---<---(*)--->--->-+
+     *                         |          ^          |
+     *                         v          |          v
+     *                      [ fir        mid        last ] -> a optical flow tracking (triple)
+     */
+    OpticalFlowCurveCorr(double mid_time,
+                         double mid_depth,
+                         double mid_inv_depth,
+                         double fir_time,
+                         double last_time,
+                         const FeatureTrackingCurve::Ptr &trace,
+                         double weight);
+};
+
+struct NormFlow {
+public:
+    using Ptr = std::shared_ptr<NormFlow>;
+
+    double timestamp;
+    Eigen::Vector2i p;
+    Eigen::Vector2d nf;
+    // components of norm flow, i.e., nf = nfNorm * nfDir
+    double nfNorm;
+    Eigen::Vector2d nfDir;
+
+    NormFlow(double timestamp, const Eigen::Vector2i &p, const Eigen::Vector2d &nf);
+
+    static Ptr Create(double timestamp, const Eigen::Vector2i &p, const Eigen::Vector2d &nf);
+};
 }  // namespace ns_ikalibr
 
 #endif  // DATA_CORRESPONDENCE_H

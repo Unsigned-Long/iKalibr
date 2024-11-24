@@ -145,6 +145,33 @@ void CalibSolver::InitScaleSpline() const {
                 }
             }
 
+            // event-derived velocities
+            for (const auto &[camTopic, bodyFrameVels] : _initAsset->velEventBodyFrameVel) {
+                constexpr double weight = 10.0;
+                double TO_EsToBr = _parMagr->TEMPORAL.TO_EsToBr.at(camTopic);
+                const auto &SO3_EsToBr = _parMagr->EXTRI.SO3_EsToBr.at(camTopic);
+                const Eigen::Vector3d &POS_EsInBr = _parMagr->EXTRI.POS_EsInBr.at(camTopic);
+
+                for (const auto &[timeByCam, vel] : bodyFrameVels) {
+                    double timeByBr = timeByCam + TO_EsToBr;
+                    if (!so3Spline.TimeStampInRange(timeByBr)) {
+                        continue;
+                    }
+
+                    auto SO3_BrToW = so3Spline.Evaluate(timeByBr);
+                    auto ANG_VEL_BrToWInW = SO3_BrToW * so3Spline.VelocityBody(timeByBr);
+                    Eigen::Vector3d LIN_VEL_BrToWInW =
+                        SO3_BrToW * SO3_EsToBr * vel -
+                        Sophus::SO3d::hat(ANG_VEL_BrToWInW) * (SO3_BrToW * POS_EsInBr);
+
+                    estimator->AddLinearScaleConstraint<VelDeriv>(
+                        timeByBr,          // time stamped the reference imu
+                        LIN_VEL_BrToWInW,  // the linear velocity
+                        optOption,         // the optimization option
+                        weight);           // the weigh
+                }
+            }
+
             // add acceleration factor using inertial measurements only from reference IMU
             this->AddAcceFactor<TimeDeriv::LIN_VEL_SPLINE>(
                 estimator, Configor::DataStream::ReferIMU, optOption);

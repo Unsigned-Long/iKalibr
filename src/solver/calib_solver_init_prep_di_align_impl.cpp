@@ -277,6 +277,7 @@ void CalibSolver::InitPrepRGBDInertialAlign() const {
                 cv::waitKey(0);
             }
 #endif
+#undef VISUALIZE_OPTICAL_FLOW_TRACE
         }
     }
 

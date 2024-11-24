@@ -101,7 +101,7 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
     auto undistFeatCur = ExtractFeatMapAsUndistoFeatVec(
         trackedFeats->featCur, ExtractValsAsVec(trackedFeats->featMatchLast2Cur));
 
-    auto status = RejectUsingFMat(undistFeatLast.second, undistFeatCur.second);
+    auto status = RejectUsingFMat(undistFeatLast.second, undistFeatCur.second, 1.0);
 
     for (int i = 0; i < static_cast<int>(status.size()); ++i) {
         // is an outlier, erase this match
@@ -133,7 +133,7 @@ bool RotOnlyVisualOdometer::GrabFrame(const CameraFrame::Ptr &curFrame,
     undistFeatCur = ExtractFeatMapAsUndistoFeatVec(
         trackedFeats->featCur, ExtractValsAsVec(trackedFeats->featMatchLast2Cur));
 
-    auto res = RelRotationRecovery(undistFeatLast.second, undistFeatCur.second);
+    auto res = RelRotationRecovery(undistFeatLast.second, undistFeatCur.second, _intri, 1.0);
 
     // solving failed
     if (res.second.empty()) {
@@ -203,6 +203,33 @@ void RotOnlyVisualOdometer::ResetWorkspace() {
     _rotations.clear();
 }
 
+std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotationRecovery(
+    const std::vector<Eigen::Vector2d> &featUndisto1,
+    const std::vector<Eigen::Vector2d> &featUndisto2,
+    const ns_veta::PinholeIntrinsic::Ptr &intri,
+    double thd) {
+    if (featUndisto1.size() != featUndisto2.size()) {
+        spdlog::warn(
+            "the size of 'featUndisto1' (count: {}) and 'featUndisto2' (count: {}) is "
+            "different in 'RotOnlyVisualOdometer::RelRotationRecovery'!!!",
+            featUndisto1.size(), featUndisto2.size());
+        return {};
+    }
+    const auto size = featUndisto1.size();
+    if (size < 2) {
+        // warning
+        // spdlog::warn("at least two features are required while current input has {}
+        // element(s)!!!", size);
+        return {};
+    }
+    std::vector<cv::Point2f> ptsUndisto1(size), ptsUndisto2(size);
+    for (int i = 0; i < static_cast<int>(size); ++i) {
+        ptsUndisto1.at(i) = cv::Point2d(featUndisto1.at(i)(0), featUndisto1.at(i)(1));
+        ptsUndisto2.at(i) = cv::Point2d(featUndisto2.at(i)(0), featUndisto2.at(i)(1));
+    }
+    return RelRotationRecovery(ptsUndisto1, ptsUndisto2, intri, thd);
+}
+
 void RotOnlyVisualOdometer::ShowCurrentFrame() const {
     cv::Mat img = _trackFeatLast->imgCur->GetImage().clone();
     cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
@@ -212,8 +239,8 @@ void RotOnlyVisualOdometer::ShowCurrentFrame() const {
         if (count < 2) {
             continue;
         }
-        const auto &pt = feat.raw;
-        const auto &upt = feat.undistorted;
+        const auto &pt = feat->raw;
+        const auto &upt = feat->undistorted;
 
         // connect between point and its undistorted one
         DrawLineOnCVMat(img, pt, upt, cv::Scalar(255, 255, 255));
@@ -239,18 +266,47 @@ void RotOnlyVisualOdometer::ShowCurrentFrame() const {
 
 std::vector<uchar> RotOnlyVisualOdometer::RejectUsingFMat(
     const std::vector<cv::Point2f> &undistPtsInLast,
-    const std::vector<cv::Point2f> &undistPtsInCur) {
+    const std::vector<cv::Point2f> &undistPtsInCur,
+    double thd) {
     std::vector<uchar> status;
-    cv::findFundamentalMat(undistPtsInLast, undistPtsInCur, cv::FM_RANSAC, 1.0, 0.99, status);
+    cv::findFundamentalMat(undistPtsInLast, undistPtsInCur, cv::FM_RANSAC, thd, 0.99, status);
     return status;
+}
+
+std::pair<bool, std::vector<uchar>> RotOnlyVisualOdometer::RejectUsingFMat(
+    const std::vector<Eigen::Vector2d> &undistPtsInLast,
+    const std::vector<Eigen::Vector2d> &undistPtsInCur,
+    double thd) {
+    if (undistPtsInLast.size() != undistPtsInCur.size()) {
+        spdlog::warn(
+            "the size of 'undistPtsInLast' (count: {}) and 'undistPtsInCur' (count: {}) is "
+            "different in 'RotOnlyVisualOdometer::RejectUsingFMat'!!!",
+            undistPtsInLast.size(), undistPtsInCur.size());
+        return {false, {}};
+    }
+    const auto size = undistPtsInLast.size();
+    if (size < 8) {
+        // warning
+        // spdlog::warn("at least eight features are required while current input has {}
+        // element(s)!!!", size);
+        return {false, {}};
+    }
+    std::vector<cv::Point2f> cvUndistPtsInLast(size), cvUndistPtsInCur(size);
+    for (int i = 0; i < static_cast<int>(size); ++i) {
+        cvUndistPtsInLast.at(i) = cv::Point2d(undistPtsInLast.at(i)(0), undistPtsInLast.at(i)(1));
+        cvUndistPtsInCur.at(i) = cv::Point2d(undistPtsInCur.at(i)(0), undistPtsInCur.at(i)(1));
+    }
+    return {true, RejectUsingFMat(cvUndistPtsInLast, cvUndistPtsInCur, thd)};
 }
 
 std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotationRecovery(
     const std::vector<cv::Point2f> &ptsUndisto1,
-    const std::vector<cv::Point2f> &ptsUndisto2) const {
+    const std::vector<cv::Point2f> &ptsUndisto2,
+    const ns_veta::PinholeIntrinsic::Ptr &intri,
+    double thd) {
     assert(ptsUndisto1.size() == ptsUndisto2.size());
-    opengv::bearingVectors_t bearingVectors1 = ComputeBeringVec(ptsUndisto1);
-    opengv::bearingVectors_t bearingVectors2 = ComputeBeringVec(ptsUndisto2);
+    opengv::bearingVectors_t bearingVectors1 = ComputeBeringVec(ptsUndisto1, intri);
+    opengv::bearingVectors_t bearingVectors2 = ComputeBeringVec(ptsUndisto2, intri);
     // create a central relative adapter
     opengv::relative_pose::CentralRelativeAdapter adapter(bearingVectors1, bearingVectors2);
 
@@ -262,7 +318,7 @@ std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotati
     std::shared_ptr<opengv::sac_problems::relative_pose::RotationOnlySacProblem> probPtr(
         new opengv::sac_problems::relative_pose::RotationOnlySacProblem(adapter));
     ransac.sac_model_ = probPtr;
-    ransac.threshold_ = _intri->ImagePlaneToCameraPlaneError(1.0);
+    ransac.threshold_ = intri->ImagePlaneToCameraPlaneError(thd);
     ransac.max_iterations_ = 50;
 
     auto res = ransac.computeModel(0);
@@ -280,11 +336,11 @@ std::pair<opengv::rotation_t, std::vector<int>> RotOnlyVisualOdometer::RelRotati
 }
 
 opengv::bearingVectors_t RotOnlyVisualOdometer::ComputeBeringVec(
-    const std::vector<cv::Point2f> &ptsUndist) const {
+    const std::vector<cv::Point2f> &ptsUndist, const ns_veta::PinholeIntrinsic::Ptr &intri) {
     opengv::bearingVectors_t bearingVec(ptsUndist.size());
     for (int i = 0; i < static_cast<int>(ptsUndist.size()); ++i) {
         const auto &p = ptsUndist.at(i);
-        ns_veta::Vec2d pCam = _intri->ImgToCam(ns_veta::Vec2d(p.x, p.y));
+        ns_veta::Vec2d pCam = intri->ImgToCam(ns_veta::Vec2d(p.x, p.y));
         bearingVec.at(i) = ns_veta::Vec3d(pCam(0), pCam(1), 1.0).normalized();
     }
     return bearingVec;
@@ -302,7 +358,7 @@ ns_veta::IndexT RotOnlyVisualOdometer::GenNewLmId() {
 }
 
 std::pair<std::vector<int>, std::vector<cv::Point2f>>
-RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const std::map<int, Feature> &featMap,
+RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const FeatureMap &featMap,
                                                   const std::vector<int> &desiredIds) {
     std::vector<int> ids;
     std::vector<cv::Point2f> feats;
@@ -312,7 +368,7 @@ RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const std::map<int, Feature> &
         for (const auto &[id, pt] : featMap) {
             ids.push_back(id);
             // distorted point
-            feats.push_back(pt.raw);
+            feats.push_back(pt->raw);
         }
     } else {
         ids.reserve(desiredIds.size());
@@ -321,7 +377,7 @@ RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const std::map<int, Feature> &
             if (auto iter = featMap.find(id); iter != featMap.cend()) {
                 ids.push_back(id);
                 // distorted point
-                feats.push_back(iter->second.raw);
+                feats.push_back(iter->second->raw);
             }
         }
     }
@@ -329,7 +385,7 @@ RotOnlyVisualOdometer::ExtractFeatMapAsRawFeatVec(const std::map<int, Feature> &
 }
 
 std::pair<std::vector<int>, std::vector<cv::Point2f>>
-RotOnlyVisualOdometer::ExtractFeatMapAsUndistoFeatVec(const std::map<int, Feature> &featMap,
+RotOnlyVisualOdometer::ExtractFeatMapAsUndistoFeatVec(const FeatureMap &featMap,
                                                       const std::vector<int> &desiredIds) {
     std::vector<int> ids;
     std::vector<cv::Point2f> feats;
@@ -339,7 +395,7 @@ RotOnlyVisualOdometer::ExtractFeatMapAsUndistoFeatVec(const std::map<int, Featur
         for (const auto &[id, pt] : featMap) {
             ids.push_back(id);
             // distorted point
-            feats.push_back(pt.undistorted);
+            feats.push_back(pt->undistorted);
         }
     } else {
         ids.reserve(desiredIds.size());
@@ -348,15 +404,14 @@ RotOnlyVisualOdometer::ExtractFeatMapAsUndistoFeatVec(const std::map<int, Featur
             if (auto iter = featMap.find(id); iter != featMap.cend()) {
                 ids.push_back(id);
                 // distorted point
-                feats.push_back(iter->second.undistorted);
+                feats.push_back(iter->second->undistorted);
             }
         }
     }
     return {ids, feats};
 }
 
-const std::map<ns_veta::IndexT, std::list<std::pair<CameraFramePtr, Feature>>> &
-RotOnlyVisualOdometer::GetLmTrackInfo() const {
+const RotOnlyVisualOdometer::FeatTrackingInfo &RotOnlyVisualOdometer::GetLmTrackInfo() const {
     return _lmTrackInfo;
 }
 
@@ -370,8 +425,8 @@ void RotOnlyVisualOdometer::ShowLmTrackInfo() const {
         for (const auto &[frame, feat] : trackList) {
             cv::Mat img = frame->GetColorImage().clone();
 
-            const auto &pt = feat.raw;
-            const auto &upt = feat.undistorted;
+            const auto &pt = feat->raw;
+            const auto &upt = feat->undistorted;
 
             // connect between point and its undistorted one
             DrawLineOnCVMat(img, pt, upt, cv::Scalar(255, 255, 255));

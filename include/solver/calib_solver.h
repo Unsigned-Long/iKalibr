@@ -35,6 +35,8 @@
 #ifndef IKALIBR_CALIB_SOLVER_H
 #define IKALIBR_CALIB_SOLVER_H
 
+#include <utility>
+
 #include "calib/time_deriv.hpp"
 #include "ceres/solver.h"
 #include "config/configor.h"
@@ -51,6 +53,8 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_veta {
 class Veta;
 using VetaPtr = std::shared_ptr<Veta>;
+struct PinholeIntrinsic;
+using PinholeIntrinsicPtr = std::shared_ptr<PinholeIntrinsic>;
 }  // namespace ns_veta
 
 namespace pcl {
@@ -86,7 +90,11 @@ class Viewer;
 using ViewerPtr = std::shared_ptr<Viewer>;
 class Estimator;
 using EstimatorPtr = std::shared_ptr<Estimator>;
-enum class OptOption : std::uint32_t;
+enum class OptOption : std::uint64_t;
+struct EventArray;
+using EventArrayPtr = std::shared_ptr<EventArray>;
+struct OpticalFlowCurveCorr;
+using OpticalFlowCurveCorrPtr = std::shared_ptr<OpticalFlowCurveCorr>;
 
 struct ImagesInfo {
 public:
@@ -157,12 +165,17 @@ public:
         // rgbd-derived rgbd-frame velocities for each rgbd camera
         std::map<std::string, std::vector<std::pair<CameraFramePtr, Eigen::Vector3d>>>
             rgbdBodyFrameVels;
-        // camera-derived rgbd-frame velocities for each vel-based camera
+        // camera-derived rgbd-frame velocity directions for each vel-based camera
         std::map<std::string, std::vector<std::pair<CameraFramePtr, Eigen::Vector3d>>>
             velCamBodyFrameVelDirs;
         // camera-derived rgbd-frame velocities for each vel-based camera
         std::map<std::string, std::vector<std::pair<CameraFramePtr, Eigen::Vector3d>>>
             velCamBodyFrameVels;
+        // camera-derived event-frame velocity directions for each event camera
+        std::map<std::string, std::vector<std::pair<double, Eigen::Vector3d>>>
+            eventBodyFrameVelDirs;
+        // camera-derived event-frame velocities for each event camera
+        std::map<std::string, std::vector<std::pair<double, Eigen::Vector3d>>> velEventBodyFrameVel;
         // SfM pose sequence for each camera
         std::map<std::string, std::vector<ns_ctraj::Posed>> sfmPoseSeq;
         // the global lidar map expressed in world frame
@@ -287,6 +300,19 @@ protected:
     void InitPrepInertialInertialAlign();
 
     /**
+     * detailed sensor-inertial alignment for event camera and IMU, i.e., event-inertial
+     * alignment, this is the preparation for final one-shot sensor-inertial alignment
+     */
+    void InitPrepEventInertialAlign() const;
+
+    /**
+     * detailed sensor-inertial alignment for event camera and IMU, i.e., event-inertial
+     * alignment based on lines, this is the preparation for final one-shot sensor-inertial
+     * alignment
+     */
+    void InitPrepEventInertialAlignLineBased() const;
+
+    /**
      * initialize the linear scale spline using by-products from sensor-inertial alignment
      * one of three kinds of linear scale spline, i.e., linear acceleration, linear velocity, and
      * translation splines, would be recovered
@@ -371,6 +397,14 @@ protected:
     std::map<std::string, std::vector<OpticalFlowCorrPtr>> DataAssociationForVelCameras() const;
 
     /**
+     * perform data association for event cameras
+     * @return the optical flow correspondences for each optical camera
+     */
+    std::map<std::string, std::vector<OpticalFlowCorrPtr>> DataAssociationForEventCameras() const;
+
+    std::map<std::string, std::vector<OpticalFlowCurveCorrPtr>> DataAssociationForEventCameras(
+        bool) const;
+    /**
      * perform data association for RGBD cameras
      * @param estDepth whether estimate depth of the constructed correspondences
      * @return the RGBD optical flow correspondence
@@ -410,6 +444,7 @@ protected:
         const std::map<std::string, std::vector<VisualReProjCorrSeqPtr>> &visualReprojCorrs,
         const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &rgbdCorrs,
         const std::map<std::string, std::vector<OpticalFlowCorrPtr>> &visualVelCorrs,
+        const std::map<std::string, std::vector<OpticalFlowCurveCorrPtr>> &eventCorrs,
         const std::optional<std::map<std::string, std::vector<PointToSurfelCorrPtr>>>
             &rgbdPtsCorrs = std::nullopt) const;
 
@@ -435,6 +470,14 @@ protected:
      * @return the camera pose, if the timestamp is out of range, return 'std::nullopt'
      */
     std::optional<Sophus::SE3d> CurCmToW(double timeByCm, const std::string &topic) const;
+
+    /**
+     * compute the pose of camera in the global (world) coordinate frame
+     * @param timeByEs the time stamped by the camera, i.e., the raw timestamp
+     * @param topic the ros topic of this camera
+     * @return the camera pose, if the timestamp is out of range, return 'std::nullopt'
+     */
+    std::optional<Sophus::SE3d> CurEsToW(double timeByEs, const std::string &topic) const;
 
     /**
      * compute the pose of RGBD camera in the global (world) coordinate frame
@@ -585,6 +628,27 @@ protected:
      * @tparam type the linear scale spline type
      * @tparam IsInvDepth estimate the depth or the inverse depth
      * @param estimator the estimator
+     * @param eventTopic the ros topic of this camera
+     * @param corrs the optical flow correspondences
+     * @param option the option for the optimization
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    static void AddEventOpticalFlowFactor(EstimatorPtr &estimator,
+                                          const std::string &eventTopic,
+                                          const std::vector<OpticalFlowCorrPtr> &corrs,
+                                          OptOption option);
+
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    static void AddEventOpticalFlowFactor(EstimatorPtr &estimator,
+                                          const std::string &eventTopic,
+                                          const std::vector<OpticalFlowCurveCorrPtr> &corrs,
+                                          OptOption option);
+
+    /**
+     * add optical flow factors for the optical camera to the estimator
+     * @tparam type the linear scale spline type
+     * @tparam IsInvDepth estimate the depth or the inverse depth
+     * @param estimator the estimator
      * @param camTopic the ros topic of this camera
      * @param corrs the optical flow correspondences
      * @param option the option for the optimization
@@ -609,6 +673,12 @@ protected:
                                                const std::string &rgbdTopic,
                                                const std::vector<OpticalFlowCorrPtr> &corrs,
                                                OptOption option);
+
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    static void AddEventOpticalFlowReprojFactor(EstimatorPtr &estimator,
+                                                const std::string &eventTopic,
+                                                const std::vector<OpticalFlowCurveCorrPtr> &corrs,
+                                                OptOption option);
 
     /**
      * store images to the disk for structure from motion (SfM)
@@ -662,6 +732,37 @@ protected:
      */
     static std::vector<OpticalFlowTripleTracePtr> CreateOpticalFlowTrace(
         const std::list<RotOnlyVisualOdometer::FeatTrackingInfo> &trackInfoList, int trackThd);
+
+    /**
+     * find texture points for HASTE-based feature tracking
+     * @param eventFrame the event frame mat
+     */
+    static std::vector<Eigen::Vector2d> FindTexturePoints(const cv::Mat &eventFrame, int num);
+
+    /**
+     * Given a reference point, accumulate event data near the point and then detect feature points.
+     * @param tarIter the reference iterator
+     * @param data the total event data container
+     * @param eventNumThd cumulative event count threshold
+     * @param intri the intrinsics of the camera
+     * @param featNum the feature number to detect
+     * @return the detected seeds (initial features/points)
+     */
+    static std::vector<Eigen::Vector2d> FindTexturePointsAt(
+        const std::vector<EventArrayPtr>::const_iterator &tarIter,
+        const std::vector<EventArrayPtr> &data,
+        std::size_t eventNumThd,
+        const ns_veta::PinholeIntrinsicPtr &intri,
+        int featNum);
+
+    static std::vector<Eigen::Vector2d> GenUniformSeeds(const ns_veta::PinholeIntrinsicPtr &intri,
+                                                        int seedNum,
+                                                        int padding);
+
+    void SaveEventDataForFeatureTracking(const std::string &topic,
+                                         const std::string &ws,
+                                         double BATCH_TIME_WIN_THD,
+                                         std::size_t seedNum) const;
 };
 
 }  // namespace ns_ikalibr

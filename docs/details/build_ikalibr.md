@@ -70,7 +70,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
   git clone --recursive https://github.com/Unsigned-Long/iKalibr.git ikalibr
   ```
 
-  **Key point ** (you can't skip this part): the ros package name is `ikalibr` (the letter `k` is lowercase), rather than `iKalibr` (the letter `K` is uppercase).
+  **Key point** (you can't skip this part): the ros package name is `ikalibr` (the letter `k` is lowercase), rather than `iKalibr` (the letter `K` is uppercase).
 
   change directory to '`ikalibr`', and run '`build_thirdparty.sh`'.
 
@@ -82,7 +82,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
   this would build sub module libraries, namely `tiny-viewer`, `ctraj`, `ufomap`, `veta`, and `opengv`.
   
-  **Key point ** (you can't skip this part): the sub module `ufomap` would be checkout to `origin/devel_surfel` branch in `build_thirdparty.sh`. If errors about `ufomap` happen when compiling `iKalibr`, make sure the branch of `ufomap` is correct.
+  **Key point** (you can't skip this part): the sub module `ufomap` would be checkout to `origin/devel_surfel` branch in `build_thirdparty.sh`. If errors about `ufomap` happen when compiling `iKalibr`, make sure the branch of `ufomap` is correct.
 
 <p align="left">
     <a><strong>Compile iKalibr »</strong></a>

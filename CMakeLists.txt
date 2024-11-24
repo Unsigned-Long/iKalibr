@@ -121,6 +121,12 @@ add_message_files(
 
         AWR1843RadarScan.msg
         AWR1843RadarScanCustom.msg
+
+        PropheseeEvent.msg
+        PropheseeEventArray.msg
+
+        DVSEvent.msg
+        DVSEventArray.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -340,6 +346,7 @@ target_link_libraries(
         ctraj
         veta
         UFO::Map
+        opengv
 )
 #target_precompile_headers(
 #        ${PROJECT_NAME}_viewer REUSE_FROM

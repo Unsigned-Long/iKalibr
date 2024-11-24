@@ -74,7 +74,11 @@ void CalibSolver::Process() {
     this->InitPrepLiDARInertialAlign();      // lidar-inertial
     this->InitPrepRadarInertialAlign();      // radar-inertial
     this->InitPrepInertialInertialAlign();   // inertial-inertial
-    this->InitSensorInertialAlign();         // one-shot sensor-inertial alignment
+
+    // this->InitPrepEventInertialAlign();        // point-based optical flow event-inertial
+    this->InitPrepEventInertialAlignLineBased();  // line-based norm flow event-inertial
+
+    this->InitSensorInertialAlign();  // one-shot sensor-inertial alignment
 
     if (outputParams) {
         SaveStageCalibParam(_parMagr, "stage_2_align");
@@ -158,7 +162,9 @@ void CalibSolver::Process() {
             // visual velocity creation for rgbd cameras
             DataAssociationForRGBDs(IsOptionWith(OptOption::OPT_VISUAL_DEPTH, options.at(i))),
             // visual velocity creation for optical cameras
-            DataAssociationForVelCameras());
+            DataAssociationForVelCameras(),
+            // visual velocity creation for event cameras
+            DataAssociationForEventCameras(true));
 
         /**
          * update the viewer and output the spatiotemporal parameters after this batch optimization

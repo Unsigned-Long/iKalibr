@@ -109,6 +109,7 @@ public:
         std::map<std::string, Sophus::SO3d> SO3_LkToBr;
         std::map<std::string, Sophus::SO3d> SO3_CmToBr;
         std::map<std::string, Sophus::SO3d> SO3_DnToBr;
+        std::map<std::string, Sophus::SO3d> SO3_EsToBr;
 
         // topic, POS
         std::map<std::string, Eigen::Vector3d> POS_BiInBr;
@@ -116,6 +117,7 @@ public:
         std::map<std::string, Eigen::Vector3d> POS_LkInBr;
         std::map<std::string, Eigen::Vector3d> POS_CmInBr;
         std::map<std::string, Eigen::Vector3d> POS_DnInBr;
+        std::map<std::string, Eigen::Vector3d> POS_EsInBr;
 
         SE3_SEN_TO_REF(B, i, B, r)
 
@@ -127,6 +129,8 @@ public:
 
         SE3_SEN_TO_REF(D, n, B, r)
 
+        SE3_SEN_TO_REF(E, s, B, r)
+
         Q_SEN_TO_REF(B, i, B, r)
 
         Q_SEN_TO_REF(R, j, B, r)
@@ -136,6 +140,8 @@ public:
         Q_SEN_TO_REF(C, m, B, r)
 
         Q_SEN_TO_REF(D, n, B, r)
+
+        Q_SEN_TO_REF(E, s, B, r)
 
         EULER_SEN_TO_REF_RAD(B, i, B, r)
 
@@ -147,6 +153,8 @@ public:
 
         EULER_SEN_TO_REF_RAD(D, n, B, r)
 
+        EULER_SEN_TO_REF_RAD(E, s, B, r)
+
         EULER_SEN_TO_REF_DEG(B, i, B, r)
 
         EULER_SEN_TO_REF_DEG(R, j, B, r)
@@ -157,6 +165,8 @@ public:
 
         EULER_SEN_TO_REF_DEG(D, n, B, r)
 
+        EULER_SEN_TO_REF_DEG(E, s, B, r)
+
     public:
         // Serialization
         template <class Archive>
@@ -164,7 +174,7 @@ public:
             archive(CEREAL_NVP(SO3_BiToBr), CEREAL_NVP(POS_BiInBr), CEREAL_NVP(SO3_RjToBr),
                     CEREAL_NVP(POS_RjInBr), CEREAL_NVP(SO3_LkToBr), CEREAL_NVP(POS_LkInBr),
                     CEREAL_NVP(SO3_CmToBr), CEREAL_NVP(POS_CmInBr), CEREAL_NVP(SO3_DnToBr),
-                    CEREAL_NVP(POS_DnInBr));
+                    CEREAL_NVP(POS_DnInBr), CEREAL_NVP(SO3_EsToBr), CEREAL_NVP(POS_EsInBr));
         }
 
     public:
@@ -181,6 +191,7 @@ public:
         std::map<std::string, double> TO_LkToBr;
         std::map<std::string, double> TO_CmToBr;
         std::map<std::string, double> TO_DnToBr;
+        std::map<std::string, double> TO_EsToBr;
         std::map<std::string, double> RS_READOUT;
 
     public:
@@ -188,7 +199,8 @@ public:
         template <class Archive>
         void serialize(Archive &ar) {
             ar(CEREAL_NVP(TO_BiToBr), CEREAL_NVP(TO_RjToBr), CEREAL_NVP(TO_LkToBr),
-               CEREAL_NVP(TO_CmToBr), CEREAL_NVP(TO_DnToBr), CEREAL_NVP(RS_READOUT));
+               CEREAL_NVP(TO_CmToBr), CEREAL_NVP(TO_DnToBr), CEREAL_NVP(TO_EsToBr),
+               CEREAL_NVP(RS_READOUT));
         }
     } TEMPORAL;
 
@@ -219,13 +231,6 @@ public:
             const std::string &filename,
             CerealArchiveType::Enum archiveType = CerealArchiveType::Enum::YAML);
 
-        static cv::Mat UndistortImage(const ns_veta::PinholeIntrinsic::Ptr &intri,
-                                      const cv::Mat &src);
-
-    private:
-        [[nodiscard]] static std::pair<cv::Mat, cv::Mat> ObtainKDMatForUndisto(
-            const ns_veta::PinholeIntrinsic::Ptr &intri);
-
     public:
         // Serialization
         template <class Archive>
@@ -246,14 +251,16 @@ public:
                                const std::vector<std::string> &radarTopics = {},
                                const std::vector<std::string> &lidarTopics = {},
                                const std::vector<std::string> &cameraTopics = {},
-                               const std::vector<std::string> &rgbdTopics = {});
+                               const std::vector<std::string> &rgbdTopics = {},
+                               const std::vector<std::string> &eventTopics = {});
 
     // the creator
     static CalibParamManager::Ptr Create(const std::vector<std::string> &imuTopics = {},
                                          const std::vector<std::string> &radarTopics = {},
                                          const std::vector<std::string> &lidarTopics = {},
                                          const std::vector<std::string> &cameraTopics = {},
-                                         const std::vector<std::string> &rgbdTopics = {});
+                                         const std::vector<std::string> &rgbdTopics = {},
+                                         const std::vector<std::string> &eventTopics = {});
 
     // save the parameters to file using cereal library
     template <class CerealArchiveType = CerealArchiveType::YAML>

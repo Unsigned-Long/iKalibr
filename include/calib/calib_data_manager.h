@@ -41,8 +41,10 @@
 #include "sensor/lidar.h"
 #include "sensor/radar.h"
 #include "sensor/rgbd.h"
+#include "sensor/event.h"
 #include "util/status.hpp"
 #include "veta/veta.h"
+#include "rosbag/bag.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -52,6 +54,8 @@ namespace ns_ikalibr {
 
 struct OpticalFlowTripleTrace;
 using OpticalFlowTripleTracePtr = std::shared_ptr<OpticalFlowTripleTrace>;
+struct FeatureTrackingCurve;
+using FeatureTrackingCurvePtr = std::shared_ptr<FeatureTrackingCurve>;
 
 class CalibDataManager {
 public:
@@ -62,11 +66,13 @@ private:
     std::map<std::string, std::vector<RadarTargetArray::Ptr>> _radarMes;
     std::map<std::string, std::vector<LiDARFrame::Ptr>> _lidarMes;
     std::map<std::string, std::vector<CameraFrame::Ptr>> _camMes;
+    std::map<std::string, std::vector<EventArray::Ptr>> _eventMes;
     std::map<std::string, std::vector<RGBDFrame::Ptr>> _rgbdMes;
 
     std::map<std::string, ns_veta::Veta::Ptr> _sfmData;
 
     std::map<std::string, std::vector<OpticalFlowTripleTracePtr>> _visualOpticalFlowTrace;
+    std::map<std::string, std::vector<FeatureTrackingCurvePtr>> _visualFeatTrackingCurve;
 
     double _rawStartTimestamp{};
     double _rawEndTimestamp{};
@@ -116,6 +122,13 @@ public:
     [[nodiscard]] const std::vector<RGBDFrame::Ptr> &GetRGBDMeasurements(
         const std::string &rgbdTopic) const;
 
+    // get raw event measurements
+    [[nodiscard]] const std::map<std::string, std::vector<EventArray::Ptr>> &GetEventMeasurements()
+        const;
+
+    [[nodiscard]] const std::vector<EventArray::Ptr> &GetEventMeasurements(
+        const std::string &eventTopic) const;
+
     // get raw SfM data
     [[nodiscard]] const std::map<std::string, ns_veta::Veta::Ptr> &GetSfMData() const;
 
@@ -132,6 +145,12 @@ public:
     void SetVisualOpticalFlowTrace(const std::string &visualTopic,
                                    const std::vector<OpticalFlowTripleTracePtr> &dynamics);
 
+    [[nodiscard]] const std::vector<FeatureTrackingCurvePtr> &GetVisualFeatureTrackingCurve(
+        const std::string &visualTopic) const;
+
+    void SetVisualFeatureTrackingCurve(const std::string &visualTopic,
+                                       const std::vector<FeatureTrackingCurvePtr> &dynamics);
+
     [[nodiscard]] double GetRawStartTimestamp() const;
 
     [[nodiscard]] double GetRawEndTimestamp() const;
@@ -147,6 +166,8 @@ public:
     [[nodiscard]] double GetCalibEndTimestamp() const;
 
     [[nodiscard]] double GetCalibTimeRange() const;
+
+    [[nodiscard]] double RecoverRawTimeFromAlignedTime(double alignedTimestamp) const;
 
     // sensor measurement frequency
 
@@ -180,6 +201,22 @@ public:
         return ExtractIMUDataPiece(_imuMes.at(topic), st, et);
     }
 
+    static auto ExtractEventDataPiece(const std::vector<EventArray::Ptr> &data,
+                                      double st,
+                                      double et) {
+        auto sIter = std::find_if(data.begin(), data.end(), [st](const EventArray::Ptr &frame) {
+            return frame->GetTimestamp() > st;
+        });
+        auto eIter = std::find_if(data.rbegin(), data.rend(), [et](const EventArray::Ptr &frame) {
+                         return frame->GetTimestamp() < et;
+                     }).base();
+        return std::pair(sIter, eIter);
+    }
+
+    auto ExtractEventDataPiece(const std::string &topic, double st, double et) {
+        return ExtractEventDataPiece(_eventMes.at(topic), st, et);
+    }
+
     // load camera, lidar, imu data from the ros bag [according to the config file]
     void LoadCalibData();
 
@@ -197,6 +234,7 @@ protected:
         auto iter = std::find_if(seq.begin(), seq.end(), pred);
         if (iter == seq.end()) {
             // find failed
+            OutputDataStatus();
             throw Status(Status::ERROR, errorMsg);
         } else {
             // adjust
@@ -210,6 +248,7 @@ protected:
         auto iter = std::find_if(seq.rbegin(), seq.rend(), pred);
         if (iter == seq.rend()) {
             // find failed
+            OutputDataStatus();
             throw Status(Status::ERROR, errorMsg);
         } else {
             // adjust
@@ -223,7 +262,7 @@ protected:
     template <typename MesSeqType>
     static void CheckTopicExists(const std::string &topic,
                                  const std::map<std::string, MesSeqType> &mesSeq) {
-        if (mesSeq.count(topic) == 0) {
+        if (auto iter = mesSeq.find(topic); iter == mesSeq.end() || iter->second.empty()) {
             throw Status(Status::CRITICAL,
                          "there is no data in topic '{}'! "
                          "check your configure file and rosbag!",
@@ -254,6 +293,11 @@ protected:
             return hz / static_cast<double>(mesMap.size());
         }
     }
+
+    static std::uint32_t MessageNumInTopic(const rosbag::Bag *bag,
+                                           const std::string &topic,
+                                           const ros::Time &begTime,
+                                           const ros::Time &endTime);
 };
 
 }  // namespace ns_ikalibr

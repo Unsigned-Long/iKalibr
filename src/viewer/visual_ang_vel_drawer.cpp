@@ -37,15 +37,16 @@
 #include "opencv2/imgproc.hpp"
 #include "sensor/camera.h"
 #include "factor/data_correspondence.h"
+#include "core/visual_distortion.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
-// ------------------
-// VisualAngVelDrawer
-// ------------------
+/**
+ * VisualAngVelDrawer
+ */
 VisualAngVelDrawer::VisualAngVelDrawer(std::string topic,
                                        ns_veta::Veta::Ptr veta,
                                        SplineBundleType::Ptr splines,
@@ -54,6 +55,7 @@ VisualAngVelDrawer::VisualAngVelDrawer(std::string topic,
       _veta(std::move(veta)),
       _splines(std::move(splines)) {
     _intri = parMagr->INTRI.Camera.at(_topic);
+    _undistoMapper = VisualUndistortionMap::Create(_intri);
     SE3_CmToBr = parMagr->EXTRI.SE3_CmToBr(_topic);
     TO_CmToBr = parMagr->TEMPORAL.TO_CmToBr.at(_topic);
 }
@@ -68,7 +70,7 @@ VisualAngVelDrawer::Ptr VisualAngVelDrawer::Create(const std::string &topic,
 cv::Mat VisualAngVelDrawer::CreateAngVelImg(const CameraFrame::Ptr &frame, float scale) {
     // undistorted gray image
     cv::Mat undistImgColor, res;
-    undistImgColor = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
+    undistImgColor = _undistoMapper->RemoveDistortion(frame->GetColorImage());
 
     // compute timestamp by reference IMU, we do not consider the readout time for RS cameras here
     double timeByBr = frame->GetTimestamp() + TO_CmToBr;
@@ -111,9 +113,9 @@ cv::Mat VisualAngVelDrawer::CreateAngVelImg(const CameraFrame::Ptr &frame, float
     return undistImgColor;
 }
 
-// ----------------------
-// VisualOpticalFlowAngVelDrawer
-// ----------------------
+/**
+ * VisualOpticalFlowAngVelDrawer
+ */
 
 VisualOpticalFlowAngVelDrawer::VisualOpticalFlowAngVelDrawer(
     const std::vector<OpticalFlowCorr::Ptr> &corrs,
@@ -123,6 +125,7 @@ VisualOpticalFlowAngVelDrawer::VisualOpticalFlowAngVelDrawer(
     const double &TO_SenToBr)
     : _splines(std::move(splines)),
       _intri(std::move(intri)),
+      _undistoMapper(VisualUndistortionMap::Create(_intri)),
       SE3_SenToBr(SE3_SenToBr),
       TO_SenToBr(TO_SenToBr) {
     for (const auto &corr : corrs) {
@@ -156,7 +159,7 @@ VisualOpticalFlowAngVelDrawer::Ptr VisualOpticalFlowAngVelDrawer::CreateDrawerFo
 cv::Mat VisualOpticalFlowAngVelDrawer::CreateAngVelImg(const CameraFrame::Ptr &frame, float scale) {
     // undistorted gray image
     cv::Mat undistImgColor, res;
-    undistImgColor = CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
+    undistImgColor = _undistoMapper->RemoveDistortion(frame->GetColorImage());
 
     // compute timestamp by reference IMU, we do not consider the readout time for RS cameras here
     double timeByBr = frame->GetTimestamp() + TO_SenToBr;

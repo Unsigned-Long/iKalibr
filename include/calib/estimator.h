@@ -35,13 +35,13 @@
 #ifndef IKALIBR_ESTIMATOR_H
 #define IKALIBR_ESTIMATOR_H
 
-#include "config/configor.h"
-#include "ctraj/core/spline_bundle.h"
-#include "ctraj/core/pose.hpp"
-#include "calib/calib_param_manager.h"
 #include "calib/calib_data_manager.h"
+#include "calib/calib_param_manager.h"
 #include "calib/time_deriv.hpp"
 #include "ceres/ceres.h"
+#include "config/configor.h"
+#include "ctraj/core/pose.hpp"
+#include "ctraj/core/spline_bundle.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -55,6 +55,10 @@ struct VisualReProjCorr;
 using VisualReProjCorrPtr = std::shared_ptr<VisualReProjCorr>;
 struct OpticalFlowCorr;
 using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
+struct OpticalFlowCurveCorr;
+using OpticalFlowCurveCorrPtr = std::shared_ptr<OpticalFlowCurveCorr>;
+struct NormFlow;
+using NormFlowPtr = std::shared_ptr<NormFlow>;
 
 // myenumGenor Option OPT_SO3_SPLINE OPT_SCALE_SPLINE OPT_SO3_BiToBr OPT_POS_BiInBr
 // OPT_SO3_RjToBr OPT_POS_RjInBr OPT_SO3_LkToBr OPT_POS_LkInBr OPT_SO3_CmToBr OPT_POS_CmInBr
@@ -62,61 +66,68 @@ using OpticalFlowCorrPtr = std::shared_ptr<OpticalFlowCorr>;
 // OPT_TO_DnToBr OPT_GYRO_BIAS OPT_GYRO_MAP_COEFF OPT_ACCE_BIAS OPT_ACCE_MAP_COEFF OPT_SO3_AtoG
 // OPT_GRAVITY OPT_VISUAL_GLOBAL_SCALE OPT_VISUAL_DEPTH OPT_RGBD_ALPHA
 // OPT_RGBD_BETA OPT_CAM_FOCAL_LEN OPT_CAM_PRINCIPAL_POINT OPT_RS_CAM_READOUT_TIME
-enum class OptOption : std::uint32_t {
+enum class OptOption : std::uint64_t {
     /**
      * @brief options
      */
-    NONE = std::uint32_t(1) << 0,
-    OPT_SO3_SPLINE = std::uint32_t(1) << 1,
-    OPT_SCALE_SPLINE = std::uint32_t(1) << 2,
+    NONE = std::uint64_t(1) << 0,
+    OPT_SO3_SPLINE = std::uint64_t(1) << 1,
+    OPT_SCALE_SPLINE = std::uint64_t(1) << 2,
 
-    OPT_SO3_BiToBr = std::uint32_t(1) << 3,
-    OPT_POS_BiInBr = std::uint32_t(1) << 4,
+    OPT_SO3_BiToBr = std::uint64_t(1) << 3,
+    OPT_POS_BiInBr = std::uint64_t(1) << 4,
 
-    OPT_SO3_RjToBr = std::uint32_t(1) << 5,
-    OPT_POS_RjInBr = std::uint32_t(1) << 6,
+    OPT_SO3_RjToBr = std::uint64_t(1) << 5,
+    OPT_POS_RjInBr = std::uint64_t(1) << 6,
 
-    OPT_SO3_LkToBr = std::uint32_t(1) << 7,
-    OPT_POS_LkInBr = std::uint32_t(1) << 8,
+    OPT_SO3_LkToBr = std::uint64_t(1) << 7,
+    OPT_POS_LkInBr = std::uint64_t(1) << 8,
 
-    OPT_SO3_CmToBr = std::uint32_t(1) << 9,
-    OPT_POS_CmInBr = std::uint32_t(1) << 10,
+    OPT_SO3_CmToBr = std::uint64_t(1) << 9,
+    OPT_POS_CmInBr = std::uint64_t(1) << 10,
 
-    OPT_SO3_DnToBr = std::uint32_t(1) << 11,
-    OPT_POS_DnInBr = std::uint32_t(1) << 12,
+    OPT_SO3_DnToBr = std::uint64_t(1) << 11,
+    OPT_POS_DnInBr = std::uint64_t(1) << 12,
 
-    OPT_TO_BiToBr = std::uint32_t(1) << 13,
-    OPT_TO_RjToBr = std::uint32_t(1) << 14,
-    OPT_TO_LkToBr = std::uint32_t(1) << 15,
-    OPT_TO_CmToBr = std::uint32_t(1) << 16,
-    OPT_TO_DnToBr = std::uint32_t(1) << 17,
+    OPT_SO3_EsToBr = std::uint64_t(1) << 13,
+    OPT_POS_EsInBr = std::uint64_t(1) << 14,
 
-    OPT_GYRO_BIAS = std::uint32_t(1) << 18,
-    OPT_GYRO_MAP_COEFF = std::uint32_t(1) << 19,
-    OPT_ACCE_BIAS = std::uint32_t(1) << 20,
-    OPT_ACCE_MAP_COEFF = std::uint32_t(1) << 21,
-    OPT_SO3_AtoG = std::uint32_t(1) << 22,
+    OPT_TO_BiToBr = std::uint64_t(1) << 15,
+    OPT_TO_RjToBr = std::uint64_t(1) << 16,
+    OPT_TO_LkToBr = std::uint64_t(1) << 17,
+    OPT_TO_CmToBr = std::uint64_t(1) << 18,
+    OPT_TO_DnToBr = std::uint64_t(1) << 19,
+    OPT_TO_EsToBr = std::uint64_t(1) << 20,
 
-    OPT_GRAVITY = std::uint32_t(1) << 23,
+    OPT_GYRO_BIAS = std::uint64_t(1) << 21,
+    OPT_GYRO_MAP_COEFF = std::uint64_t(1) << 22,
+    OPT_ACCE_BIAS = std::uint64_t(1) << 23,
+    OPT_ACCE_MAP_COEFF = std::uint64_t(1) << 24,
+    OPT_SO3_AtoG = std::uint64_t(1) << 25,
 
-    OPT_VISUAL_GLOBAL_SCALE = std::uint32_t(1) << 24,
-    OPT_VISUAL_DEPTH = std::uint32_t(1) << 25,
+    OPT_GRAVITY = std::uint64_t(1) << 26,
 
-    OPT_RGBD_ALPHA = std::uint32_t(1) << 26,
-    OPT_RGBD_BETA = std::uint32_t(1) << 27,
+    OPT_VISUAL_GLOBAL_SCALE = std::uint64_t(1) << 27,
+    OPT_VISUAL_DEPTH = std::uint64_t(1) << 28,
 
-    OPT_CAM_FOCAL_LEN = std::uint32_t(1) << 28,
-    OPT_CAM_PRINCIPAL_POINT = std::uint32_t(1) << 29,
+    OPT_RGBD_ALPHA = std::uint64_t(1) << 29,
+    OPT_RGBD_BETA = std::uint64_t(1) << 30,
 
-    OPT_RS_CAM_READOUT_TIME = std::uint32_t(1) << 30,
+    OPT_CAM_FOCAL_LEN = std::uint64_t(1) << 31,
+    OPT_CAM_PRINCIPAL_POINT = std::uint64_t(1) << 32,
+
+    OPT_RS_CAM_READOUT_TIME = std::uint64_t(1) << 33,
+
+    OPT_EVENT_TRACE_PARAM = std::uint64_t(1) << 34,
 
     ALL = OPT_SO3_SPLINE | OPT_SCALE_SPLINE | OPT_SO3_BiToBr | OPT_POS_BiInBr | OPT_SO3_RjToBr |
           OPT_POS_RjInBr | OPT_SO3_LkToBr | OPT_POS_LkInBr | OPT_SO3_CmToBr | OPT_POS_CmInBr |
-          OPT_SO3_DnToBr | OPT_POS_DnInBr | OPT_TO_BiToBr | OPT_TO_RjToBr | OPT_TO_LkToBr |
-          OPT_TO_CmToBr | OPT_TO_DnToBr | OPT_GYRO_BIAS | OPT_GYRO_MAP_COEFF | OPT_ACCE_BIAS |
-          OPT_ACCE_MAP_COEFF | OPT_SO3_AtoG | OPT_GRAVITY | OPT_VISUAL_GLOBAL_SCALE |
-          OPT_VISUAL_DEPTH | OPT_RGBD_ALPHA | OPT_RGBD_BETA | OPT_CAM_FOCAL_LEN |
-          OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME
+          OPT_SO3_DnToBr | OPT_POS_DnInBr | OPT_SO3_EsToBr | OPT_POS_EsInBr | OPT_TO_BiToBr |
+          OPT_TO_RjToBr | OPT_TO_LkToBr | OPT_TO_CmToBr | OPT_TO_DnToBr | OPT_GYRO_BIAS |
+          OPT_GYRO_MAP_COEFF | OPT_ACCE_BIAS | OPT_ACCE_MAP_COEFF | OPT_SO3_AtoG | OPT_GRAVITY |
+          OPT_VISUAL_GLOBAL_SCALE | OPT_VISUAL_DEPTH | OPT_RGBD_ALPHA | OPT_RGBD_BETA |
+          OPT_CAM_FOCAL_LEN | OPT_CAM_PRINCIPAL_POINT | OPT_RS_CAM_READOUT_TIME |
+          OPT_EVENT_TRACE_PARAM
 };
 
 struct SpatialTemporalPriori;
@@ -155,6 +166,8 @@ public:
 
     Eigen::MatrixXd GetHessianMatrix(const std::vector<double *> &consideredParBlocks,
                                      int numThread = 1);
+
+    void PrintParameterInfo() const;
 
 public:
     void AddIMUGyroMeasurement(const IMUFrame::Ptr &imuFrame,
@@ -221,6 +234,16 @@ public:
                                   Estimator::Opt option,
                                   double weight);
 
+    void AddEventInertialAlignment(const std::vector<IMUFrame::Ptr> &data,
+                                   const std::string &imuTopic,
+                                   const std::string &eventTopic,
+                                   const std::pair<double, Eigen::Vector3d> &sVelAry,
+                                   double *sVelScale,
+                                   const std::pair<double, Eigen::Vector3d> &eVelAry,
+                                   double *eVelScale,
+                                   Estimator::Opt option,
+                                   double weight);
+
     void AddVelVisualInertialAlignment(const std::vector<IMUFrame::Ptr> &data,
                                        const std::string &imuTopic,
                                        const std::string &topic,
@@ -263,6 +286,13 @@ public:
                                             Estimator::Opt option,
                                             double weight);
 
+    void AddHandEyeRotationAlignmentForEvent(const std::string &eventTopic,
+                                             double tLastByEs,
+                                             double tCurByEs,
+                                             const Sophus::SO3d &so3CurToLast,
+                                             Estimator::Opt option,
+                                             double weight);
+
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_RjToBr | POS_RjInBr | TO_RjToBr ]
@@ -293,7 +323,7 @@ public:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_LkToBr | POS_LkInBr | TO_LkToBr ]
      */
     template <TimeDeriv::ScaleSplineType type>
-    void AddLiDARPointTiSurfelConstraint(const PointToSurfelCorrPtr &ptsCorr,
+    void AddLiDARPointToSurfelConstraint(const PointToSurfelCorrPtr &ptsCorr,
                                          const std::string &topic,
                                          Opt option,
                                          double weight);
@@ -346,6 +376,28 @@ public:
     /**
      * param blocks:
      * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+     *   READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddEventOpticalFlowConstraint(const OpticalFlowCorrPtr &ofCorr,
+                                       const std::string &topic,
+                                       Opt option,
+                                       double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+     *   | FX | FY | CX | CY | DEPTH_INFO | CURVE_X_PARAM | CURVE_Y_PARAM ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddEventOpticalFlowConstraint(const OpticalFlowCurveCorrPtr &ftm,
+                                       const std::string &topic,
+                                       Opt option,
+                                       double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
      * READOUT_TIME | FX | FY | CX | CY | DEPTH_INFO ]
      */
     template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
@@ -364,6 +416,26 @@ public:
                                             const std::string &topic,
                                             Opt option,
                                             double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+     *   | FX | FY | CX | CY | DEPTH_INFO | CURVE_X_PARAM | CURVE_Y_PARAM ]
+     */
+    template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
+    void AddEventOpticalFlowReprojConstraint(const OpticalFlowCurveCorrPtr &ftm,
+                                             const std::string &topic,
+                                             Opt option,
+                                             double weight);
+
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | SO3_EsToBr | TO_EsToBr | FX | FY | CX | CY ]
+     */
+    void AddEventNormFlowRotConstraint(const NormFlowPtr &nf,
+                                       const std::string &topic,
+                                       Opt option,
+                                       double weight);
 
     void SetRefIMUParamsConstant();
 
@@ -406,6 +478,29 @@ public:
     void PrintUninvolvedKnots() const;
 
     void AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                      double timeByCam,
+                                      const Eigen::Vector2d &pos,
+                                      const Eigen::Vector2d &vel,
+                                      double *depth,
+                                      double TO_CamToBr,
+                                      double readout,
+                                      const Sophus::SO3d &SO3_CamToBr,
+                                      const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                      double weight,
+                                      bool estDepth,
+                                      bool estVelDirOnly);
+
+    void AddVisualVelocityDepthFactorForEvent(const std::string &eventTopic,
+                                              Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                              double timeByCam,
+                                              const Eigen::Vector2d &pos,
+                                              const Eigen::Vector2d &vel,
+                                              double *depth,
+                                              double weight,
+                                              bool estDepth,
+                                              bool estVelDirOnly);
+
+    void AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
                                       const OpticalFlowCorrPtr &corr,
                                       double TO_CamToBr,
                                       double readout,
@@ -428,6 +523,13 @@ public:
                                                double weight,
                                                bool estDepth,
                                                bool estVelDirOnly);
+
+    void AddVisualVelocityDepthFactorForEvent(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                              const OpticalFlowCorrPtr &corr,
+                                              const std::string &topic,
+                                              double weight,
+                                              bool estDepth,
+                                              bool estVelDirOnly);
 
 protected:
     void AddSo3KnotsData(std::vector<double *> &paramBlockVec,
@@ -484,7 +586,8 @@ protected:
                                                                        bool optTimeOffset);
 
     /**
-     * check whether time range (mainly from 'ConsideredTimeRangeForCameraStamp') is valid foe splines
+     * check whether time range (mainly from 'ConsideredTimeRangeForCameraStamp') is valid foe
+     * splines
      * @param timePair the time stamp pair
      * @return true: valid, false invalid
      */

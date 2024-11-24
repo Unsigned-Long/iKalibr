@@ -114,8 +114,11 @@ RadarTargetArray::Ptr AinsteinRadarLoader::UnpackScan(const rosbag::MessageInsta
         targets.push_back(RadarTarget::Create(msg->header.stamp.toSec(),
                                               {tar.range, tar.azimuth, tar.elevation, tar.speed}));
     }
-
-    return RadarTargetArray::Create(msg->header.stamp.toSec(), targets);
+    if (msg->header.stamp.isZero()) {
+        return RadarTargetArray::Create(targets.back()->GetTimestamp(), targets);
+    } else {
+        return RadarTargetArray::Create(msg->header.stamp.toSec(), targets);
+    }
 }
 
 // ---------------------
@@ -146,8 +149,11 @@ RadarTargetArray::Ptr AWR1843BOOSTRawLoader::UnpackScan(
     if (target->GetRange() < 0.5) {
         return nullptr;
     }
-
-    return RadarTargetArray::Create(msg->header.stamp.toSec(), {target});
+    if (msg->header.stamp.isZero()) {
+        return RadarTargetArray::Create(target->GetTimestamp(), {target});
+    } else {
+        return RadarTargetArray::Create(msg->header.stamp.toSec(), {target});
+    }
 }
 
 // ---------------------
@@ -185,8 +191,11 @@ RadarTargetArray::Ptr PointCloud2POSVLoader::UnpackScan(
         targets.push_back(RadarTarget::Create(msgInstance.getTime().toSec(), {tar.x, tar.y, tar.z},
                                               tar.velocity));
     }
-
-    return RadarTargetArray::Create(msgInstance.getTime().toSec(), targets);
+    if (msg->header.stamp.isZero()) {
+        return RadarTargetArray::Create(targets.back()->GetTimestamp(), targets);
+    } else {
+        return RadarTargetArray::Create(msg->header.stamp.toSec(), targets);
+    }
 }
 
 // ----------------------
@@ -224,8 +233,11 @@ RadarTargetArray::Ptr PointCloud2POSIVLoader::UnpackScan(
         targets.push_back(RadarTarget::Create(msgInstance.getTime().toSec(), {tar.x, tar.y, tar.z},
                                               tar.velocity));
     }
-
-    return RadarTargetArray::Create(msgInstance.getTime().toSec(), targets);
+    if (msg->header.stamp.isZero()) {
+        return RadarTargetArray::Create(targets.back()->GetTimestamp(), targets);
+    } else {
+        return RadarTargetArray::Create(msg->header.stamp.toSec(), targets);
+    }
 }
 
 // ------------------------
@@ -257,8 +269,11 @@ RadarTargetArray::Ptr AWR1843BOOSTCustomLoader::UnpackScan(
     if (target->GetRange() < 0.5) {
         return nullptr;
     }
-
-    return RadarTargetArray::Create(msg->header.stamp.toSec(), {target});
+    if (msg->header.stamp.isZero()) {
+        return RadarTargetArray::Create(target->GetTimestamp(), {target});
+    } else {
+        return RadarTargetArray::Create(msg->header.stamp.toSec(), {target});
+    }
 }
 
 // ---------------------
@@ -297,7 +312,11 @@ RadarTargetArray::Ptr PointCloud2XRIOLoader::UnpackScan(
                                               tar.v_doppler_mps));
     }
 
-    return RadarTargetArray::Create(msgInstance.getTime().toSec(), targets);
+    if (msg->header.stamp.isZero()) {
+        return RadarTargetArray::Create(targets.back()->GetTimestamp(), targets);
+    } else {
+        return RadarTargetArray::Create(msg->header.stamp.toSec(), targets);
+    }
 }
 
 }  // namespace ns_ikalibr

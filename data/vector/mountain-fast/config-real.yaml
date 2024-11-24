@@ -52,37 +52,48 @@ Configor:
     #          TrackLengthMin: 10
     # key: rgbd color image topic, value: camera type. Supported camera types are the same as the ones in 'CameraTopics'
     RGBDTopics:
-      - key: "/camera/left/image_mono_undistort"
+    #      - key: "/camera/left/image_mono_undistort"
+    #        value:
+    #          Type: "SENSOR_IMAGE_GS"
+    #          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/cam-left-intri-pinhole-brown.yaml"
+    #          # the depth map needs to correspond one-to-one with the pixels in the color image after undistorted.
+    #          DepthTopic: "/camera/left/depth_image_undistort"
+    #          # {real depth} = abs{DepthFactor} * {image depth}, if 'DepthFactor' is positive
+    #          # {real depth} = abs{DepthFactor} / {image depth}, if 'DepthFactor' is negative (depth images are inverse ones)
+    #          DepthFactor: 0.001
+    #          # too large weight would lead to poor convergence
+    #          Weight: 0.1
+    #          TrackLengthMin: 5
+    #      - key: "/camera/right/image_mono_undistort"
+    #        value:
+    #          Type: "SENSOR_IMAGE_GS"
+    #          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/cam-right-intri-pinhole-brown.yaml"
+    #          # the depth map needs to correspond one-to-one with the pixels in the color image after undistorted.
+    #          DepthTopic: "/camera/right/depth_image_undistort"
+    #          # {real depth} = abs{DepthFactor} * {image depth}, if 'DepthFactor' is positive
+    #          # {real depth} = abs{DepthFactor} / {image depth}, if 'DepthFactor' is negative (depth images are inverse ones)
+    #          DepthFactor: 0.001
+    #          Weight: 0.1
+    #          TrackLengthMin: 5
+    EventTopics:
+      - key: "/prophesee/left/events"
         value:
-          Type: "SENSOR_IMAGE_GS"
-          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/cam-left-intri-pinhole-brown.yaml"
-          # the depth map needs to correspond one-to-one with the pixels in the color image after undistorted.
-          DepthTopic: "/camera/left/depth_image_undistort"
-          # {real depth} = abs{DepthFactor} * {image depth}, if 'DepthFactor' is positive
-          # {real depth} = abs{DepthFactor} / {image depth}, if 'DepthFactor' is negative (depth images are inverse ones)
-          DepthFactor: 0.001
-          # too large weight would lead to poor convergence
+          Type: "PROPHESEE_EVENT"
+          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/event-left-intri-pinhole-brown.yaml"
           Weight: 0.1
-          TrackLengthMin: 5
-      - key: "/camera/right/image_mono_undistort"
-        value:
-          Type: "SENSOR_IMAGE_GS"
-          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/cam-right-intri-pinhole-brown.yaml"
-          # the depth map needs to correspond one-to-one with the pixels in the color image after undistorted.
-          DepthTopic: "/camera/right/depth_image_undistort"
-          # {real depth} = abs{DepthFactor} * {image depth}, if 'DepthFactor' is positive
-          # {real depth} = abs{DepthFactor} / {image depth}, if 'DepthFactor' is negative (depth images are inverse ones)
-          DepthFactor: 0.001
-          Weight: 0.1
-          TrackLengthMin: 5
+    #      - key: "/prophesee/right/events"
+    #        value:
+    #          Type: "PROPHESEE_EVENT"
+    #          Intrinsics: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/event-right-intri-pinhole-brown.yaml"
+    #          Weight: 0.1
     ReferIMU: "/imu/data"
-    BagPath: "/home/csl/dataset/vector/mountain_fast/mountain_fast1.synced.bag"
+    BagPath: "/home/csl/dataset/vector/mountain_fast/mountain_fast1.synced.ei.bag"
     # the time piece: [BegTime, BegTime + Duration], unit: second(s)
     # if you want to use all time data for calibration, please set them to negative numbers
     # Note that the 'BegTime' here is measured from the start time of bag
     # and is not related to the timestamp of the data recorded in the package.
-    BeginTime: -1
-    Duration: -1
+    BeginTime: 3
+    Duration: 10
     OutputPath: "/home/csl/ros_ws/iKalibr/src/ikalibr/data/vector/mountain-fast"
   Prior:
     GravityNorm: 9.8

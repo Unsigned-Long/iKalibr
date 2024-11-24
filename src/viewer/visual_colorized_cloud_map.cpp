@@ -59,6 +59,7 @@ ColorizedCloudMap::ColorizedCloudMap(const std::vector<CameraFrame::Ptr> &frames
       _veta(std::move(veta)),
       _splines(std::move(splines)),
       _intri(std::move(intri)),
+      _undistoMapper(VisualUndistortionMap::Create(_intri)),
       SE3_CmToBr(SE3_SenToBr),
       TO_CmToBr(TO_SenToBr) {
     for (const auto &frame : _frames) {
@@ -67,8 +68,7 @@ ColorizedCloudMap::ColorizedCloudMap(const std::vector<CameraFrame::Ptr> &frames
             continue;
         }
         // undistorted gray image
-        cv::Mat undistImg =
-            CalibParamManager::ParIntri::UndistortImage(_intri, frame->GetColorImage());
+        cv::Mat undistImg = _undistoMapper->RemoveDistortion(frame->GetColorImage());
         _viewIdToFrame.insert({frame->GetId(), {CurCmToW(frame->GetTimestamp()), undistImg}});
     }
 }

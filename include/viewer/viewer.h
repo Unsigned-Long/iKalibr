@@ -48,6 +48,11 @@ namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
+namespace ns_veta {
+class PinholeIntrinsic;
+using PinholeIntrinsicPtr = std::shared_ptr<PinholeIntrinsic>;
+}  // namespace ns_veta
+
 namespace ns_ikalibr {
 struct CalibParamManager;
 using CalibParamManagerPtr = std::shared_ptr<CalibParamManager>;
@@ -58,6 +63,11 @@ struct RGBDFrame;
 using RGBDFramePtr = std::shared_ptr<RGBDFrame>;
 struct RGBDIntrinsics;
 using RGBDIntrinsicsPtr = std::shared_ptr<RGBDIntrinsics>;
+struct Feature;
+using FeaturePtr = std::shared_ptr<Feature>;
+using FeatureVec = std::vector<FeaturePtr>;
+struct EventArray;
+using EventArrayPtr = std::shared_ptr<EventArray>;
 
 class Viewer : public ns_viewer::MultiViewer {
 public:
@@ -132,6 +142,40 @@ public:
                          const std::string &view,
                          bool trueColor,
                          float size);
+
+    // for batch
+    Viewer &AddEventFeatTracking(const std::map<int, FeatureVec> &batchTracking,
+                                 const ns_veta::PinholeIntrinsicPtr &intri,
+                                 float sTime,
+                                 float eTime,
+                                 const std::string &view,
+                                 const std::pair<float, float> &ptScales = {0.01f, 2.0f});
+
+    // for each tracking in a batch
+    Viewer &AddEventFeatTracking(const FeatureVec &tracking,
+                                 float sTime,
+                                 const std::string &view,
+                                 const std::pair<float, float> &ptScales = {0.01f, 2.0f});
+
+    // add discrete pos
+    Viewer &AddSpatioTemporalTrace(const std::vector<Eigen::Vector3d> &trace,
+                                   float sTime,
+                                   const std::string &view,
+                                   float size = 0.5f,
+                                   const ns_viewer::Colour &color = ns_viewer::Colour::Blue(),
+                                   const std::pair<float, float> &ptScales = {0.01f, 2.0f});
+
+    Viewer &AddEventData(const std::vector<EventArrayPtr>::const_iterator &sIter,
+                         const std::vector<EventArrayPtr>::const_iterator &eIter,
+                         float sTime,
+                         const std::string &view,
+                         const std::pair<float, float> &ptScales = {0.01f, 2.0f});
+
+    Viewer &AddEventData(const EventArrayPtr &ary,
+                         float sTime,
+                         const std::string &view,
+                         const std::pair<float, float> &ptScales = {0.01f, 2.0f},
+                         const std::optional<ns_viewer::Colour> &color = {});
 
 protected:
     ns_viewer::MultiViewerConfigor GenViewerConfigor();

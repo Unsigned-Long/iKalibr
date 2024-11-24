@@ -34,10 +34,10 @@
 
 #include "calib/calib_data_manager.h"
 #include "core/optical_flow_trace.h"
-#include "opencv4/opencv2/imgcodecs.hpp"
 #include "rosbag/view.h"
 #include "sensor/camera_data_loader.h"
 #include "sensor/depth_data_loader.h"
+#include "sensor/event_data_loader.h"
 #include "sensor/imu_data_loader.h"
 #include "sensor/lidar_data_loader.h"
 #include "sensor/radar_data_loader.h"
@@ -92,6 +92,9 @@ void CalibDataManager::LoadCalibData() {
         topicsToQuery.push_back(topic);
         topicsToQuery.push_back(info.DepthTopic);
     }
+    for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
+        topicsToQuery.push_back(topic);
+    }
 
     viewTemp.addQuery(*bag, rosbag::TopicQuery(topicsToQuery));
     auto begTime = viewTemp.getBeginTime();
@@ -128,6 +131,7 @@ void CalibDataManager::LoadCalibData() {
     std::map<std::string, RadarDataLoader::Ptr> radarDataLoaders;
     std::map<std::string, LiDARDataLoader::Ptr> lidarDataLoaders;
     std::map<std::string, CameraDataLoader::Ptr> cameraDataLoaders;
+    std::map<std::string, EventDataLoader::Ptr> eventDataLoaders;
     // for rgbd cameras
     std::map<std::string, CameraDataLoader::Ptr> rgbdColorDataLoaders;
     std::map<std::string, DepthDataLoader::Ptr> rgbdDepthDataLoaders;
@@ -138,21 +142,51 @@ void CalibDataManager::LoadCalibData() {
     // get type enum from the string
     for (const auto &[topic, config] : Configor::DataStream::IMUTopics) {
         imuDataLoaders.insert({topic, IMUDataLoader::GetLoader(config.Type)});
+        // reserve tp speed up the data loading
+        auto size = MessageNumInTopic(bag.get(), topic, begTime, endTime);
+        if (size > 0) {
+            _imuMes[topic].reserve(size);
+        }
     }
     for (const auto &[topic, config] : Configor::DataStream::RadarTopics) {
         radarDataLoaders.insert({topic, RadarDataLoader::GetLoader(config.Type)});
+        // reserve tp speed up the data loading
+        auto size = MessageNumInTopic(bag.get(), topic, begTime, endTime);
+        if (size > 0) {
+            _radarMes[topic].reserve(size);
+        }
     }
     for (const auto &[topic, config] : Configor::DataStream::LiDARTopics) {
         lidarDataLoaders.insert({topic, LiDARDataLoader::GetLoader(config.Type)});
+        // reserve tp speed up the data loading
+        auto size = MessageNumInTopic(bag.get(), topic, begTime, endTime);
+        if (size > 0) {
+            _lidarMes[topic].reserve(size);
+        }
     }
     for (const auto &[topic, config] : Configor::DataStream::CameraTopics) {
         cameraDataLoaders.insert({topic, CameraDataLoader::GetLoader(config.Type)});
+        // reserve tp speed up the data loading
+        auto size = MessageNumInTopic(bag.get(), topic, begTime, endTime);
+        if (size > 0) {
+            _camMes[topic].reserve(size);
+        }
     }
     for (const auto &[topic, config] : Configor::DataStream::RGBDTopics) {
         rgbdColorDataLoaders.insert({topic, CameraDataLoader::GetLoader(config.Type)});
         bool isInverse = config.DepthFactor < 0.0f;
         rgbdDepthDataLoaders.insert(
             {config.DepthTopic, DepthDataLoader::GetLoader(config.Type, isInverse)});
+        // reserve tp speed up the data loading
+        // 'rgbdColorMesTemp' and 'rgbdDepthMesTemp' are std::list, three is no need to 'reserve'
+    }
+    for (const auto &[topic, config] : Configor::DataStream::EventTopics) {
+        eventDataLoaders.insert({topic, EventDataLoader::GetLoader(config.Type)});
+        // reserve tp speed up the data loading
+        auto size = MessageNumInTopic(bag.get(), topic, begTime, endTime);
+        if (size > 0) {
+            _eventMes[topic].reserve(size);
+        }
     }
 
     // read raw data
@@ -204,6 +238,12 @@ void CalibDataManager::LoadCalibData() {
                 mes->SetId(static_cast<ns_veta::IndexT>(mes->GetTimestamp() * 1E3));
                 _camMes[topic].push_back(mes);
             }
+        } else if (eventDataLoaders.cend() != eventDataLoaders.find(topic)) {
+            // is a camera frame
+            auto mes = eventDataLoaders.at(topic)->UnpackData(item);
+            if (mes != nullptr) {
+                _eventMes[topic].push_back(mes);
+            }
         }
     }
     bar->finish();
@@ -225,6 +265,9 @@ void CalibDataManager::LoadCalibData() {
         // measurements are stored in 'rgbdColorMesTemp' and 'rgbdDepthMesTemp' temporally
         CheckTopicExists(topic, rgbdColorMesTemp);
         CheckTopicExists(info.DepthTopic, rgbdDepthMesTemp);
+    }
+    for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
+        CheckTopicExists(topic, _eventMes);
     }
 
     // if the radar is AWR1843BOOST, data should be reorganized,
@@ -462,6 +505,25 @@ void CalibDataManager::AdjustCalibDataSequence() {
         _rawEndTimestamp = std::min({_rawEndTimestamp, rgbdMaxTime});
     }
 
+    if (Configor::IsEventIntegrated()) {
+        auto eventMinTime = std::max_element(_eventMes.begin(), _eventMes.end(),
+                                             [](const auto &p1, const auto &p2) {
+                                                 return p1.second.front()->GetTimestamp() <
+                                                        p2.second.front()->GetTimestamp();
+                                             })
+                                ->second.front()
+                                ->GetTimestamp();
+        auto eventMaxTime = std::min_element(_eventMes.begin(), _eventMes.end(),
+                                             [](const auto &p1, const auto &p2) {
+                                                 return p1.second.back()->GetTimestamp() <
+                                                        p2.second.back()->GetTimestamp();
+                                             })
+                                ->second.back()
+                                ->GetTimestamp();
+        _rawStartTimestamp = std::max({_rawStartTimestamp, eventMinTime});
+        _rawEndTimestamp = std::min({_rawEndTimestamp, eventMaxTime});
+    }
+
     for (const auto &[topic, _] : Configor::DataStream::IMUTopics) {
         // remove imu frames that are before the start time stamp
         EraseSeqHeadData(
@@ -563,6 +625,27 @@ void CalibDataManager::AdjustCalibDataSequence() {
             },
             "the rgbd data is invalid, there is no intersection between imu data and rgbd data.");
     }
+
+    for (const auto &[topic, _] : Configor::DataStream::EventTopics) {
+        // remove event data arrays that are before the start time stamp
+        EraseSeqHeadData(
+            _eventMes.at(topic),
+            [this](const EventArray::Ptr &ary) {
+                return ary->GetTimestamp() >
+                       _rawStartTimestamp + 2 * Configor::Prior::TimeOffsetPadding;
+            },
+            "the event data is invalid, there is no intersection between imu data and event data.");
+
+        // remove event data arrays that are after the end time stamp
+        EraseSeqTailData(
+            _eventMes.at(topic),
+            [this](const EventArray::Ptr &ary) {
+                return ary->GetTimestamp() <
+                       _rawEndTimestamp - 2 * Configor::Prior::TimeOffsetPadding;
+            },
+            "the event data is invalid, there is no intersection between imu data and event data.");
+    }
+
     OutputDataStatus();
 }
 
@@ -605,6 +688,16 @@ void CalibDataManager::AlignTimestamp() {
             frame->SetTimestamp(frame->GetTimestamp() - _rawStartTimestamp);
         }
     }
+    for (const auto &[eventTopic, mes] : _eventMes) {
+        for (const auto &array : mes) {
+            // array
+            array->SetTimestamp(array->GetTimestamp() - _rawStartTimestamp);
+            // targets
+            for (auto &tar : array->GetEvents()) {
+                tar->SetTimestamp(tar->GetTimestamp() - _rawStartTimestamp);
+            }
+        }
+    }
     OutputDataStatus();
 }
 
@@ -639,7 +732,12 @@ void CalibDataManager::OutputDataStatus() const {
             "(s)",
             topic, mes.size(), mes.front()->GetTimestamp(), mes.back()->GetTimestamp());
     }
-
+    for (const auto &[topic, mes] : _eventMes) {
+        spdlog::info(
+            "Event topic: '{}', data size: '{:06}', time span: from '{:+010.5f}' to '{:+010.5f}' "
+            "(s)",
+            topic, mes.size(), mes.front()->GetTimestamp(), mes.back()->GetTimestamp());
+    }
     spdlog::info("raw start time: '{:+010.5f}' (s), raw end time: '{:+010.5f}' (s)",
                  GetRawStartTimestamp(), GetRawEndTimestamp());
     spdlog::info("aligned start time: '{:+010.5f}' (s), aligned end time: '{:+010.5f}' (s)",
@@ -647,10 +745,23 @@ void CalibDataManager::OutputDataStatus() const {
     spdlog::info("calib start time: '{:+010.5f}' (s), calib end time: '{:+010.5f}' (s)\n",
                  GetCalibStartTimestamp(), GetCalibEndTimestamp());
 }
+std::uint32_t CalibDataManager::MessageNumInTopic(const rosbag::Bag *bag,
+                                                  const std::string &topic,
+                                                  const ros::Time &begTime,
+                                                  const ros::Time &endTime) {
+    auto view = rosbag::View();
+    view.addQuery(*bag, rosbag::TopicQuery({topic}), begTime, endTime);
+    return view.size();
+}
 
 // -----------
 // time access
 // -----------
+
+void CalibDataManager::SetVisualFeatureTrackingCurve(
+    const std::string &visualTopic, const std::vector<FeatureTrackingCurvePtr> &dynamics) {
+    _visualFeatTrackingCurve[visualTopic] = dynamics;
+}
 
 double CalibDataManager::GetRawStartTimestamp() const { return _rawStartTimestamp; }
 
@@ -677,6 +788,10 @@ double CalibDataManager::GetCalibEndTimestamp() const {
 
 double CalibDataManager::GetCalibTimeRange() const {
     return GetCalibEndTimestamp() - GetCalibStartTimestamp();
+}
+
+double CalibDataManager::RecoverRawTimeFromAlignedTime(double alignedTimestamp) const {
+    return alignedTimestamp + _rawStartTimestamp;
 }
 
 double CalibDataManager::GetLiDARAvgFrequency() const {
@@ -765,6 +880,16 @@ const std::vector<RGBDFrame::Ptr> &CalibDataManager::GetRGBDMeasurements(
     return _rgbdMes.at(rgbdTopic);
 }
 
+const std::map<std::string, std::vector<EventArray::Ptr>> &CalibDataManager::GetEventMeasurements()
+    const {
+    return _eventMes;
+}
+
+const std::vector<EventArray::Ptr> &CalibDataManager::GetEventMeasurements(
+    const std::string &eventTopic) const {
+    return _eventMes.at(eventTopic);
+}
+
 const std::map<std::string, ns_veta::Veta::Ptr> &CalibDataManager::GetSfMData() const {
     return _sfmData;
 }
@@ -779,6 +904,11 @@ void CalibDataManager::SetSfMData(const std::string &camTopic, const ns_veta::Ve
 void CalibDataManager::SetVisualOpticalFlowTrace(
     const std::string &visualTopic, const std::vector<OpticalFlowTripleTrace::Ptr> &dynamics) {
     _visualOpticalFlowTrace[visualTopic] = dynamics;
+}
+
+const std::vector<FeatureTrackingCurvePtr> &CalibDataManager::GetVisualFeatureTrackingCurve(
+    const std::string &visualTopic) const {
+    return _visualFeatTrackingCurve.at(visualTopic);
 }
 
 // const std::map<std::string, std::vector<OpticalFlowTripleTrace::Ptr>> &

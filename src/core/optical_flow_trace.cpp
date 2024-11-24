@@ -69,6 +69,17 @@ OpticalFlowCorr::Ptr OpticalFlowTripleTrace::CreateOpticalFlowCorr(double rsExpo
                                    rsExposureFactor);
 }
 
+OpticalFlowCorrPtr OpticalFlowTripleTrace::CreateEventOpticalFlowCorr() const {
+    std::array<double, 3> timeAry{}, xAry{}, yAry{};
+    for (int i = 0; i < 3; ++i) {
+        timeAry[i] = _trace[i].first->GetTimestamp();
+        xAry[i] = _trace[i].second(0);
+        yAry[i] = _trace[i].second(1);
+    }
+    // works for event camera
+    return OpticalFlowCorr::Create(timeAry, xAry, yAry, -1.0);
+}
+
 OpticalFlowCorr::Ptr OpticalFlowTripleTrace::CreateOpticalFlowCorr(
     double rsExposureFactor, const RGBDIntrinsicsPtr& intri) const {
     auto corr = CreateOpticalFlowCorr(rsExposureFactor);
@@ -93,8 +104,9 @@ cv::Mat OpticalFlowTripleTrace::CreateOpticalFlowMat(const ns_veta::PinholeIntri
     std::array<cv::Mat, 3> imgs;
     // obtain images
     for (int i = 0; i < static_cast<int>(_trace.size()); ++i) {
-        imgs[i] =
-            CalibParamManager::ParIntri::UndistortImage(intri, _trace.at(i).first->GetColorImage());
+        // this code does not matter, as it's only used for verifying
+        imgs[i] = VisualUndistortionMap::Create(intri)->RemoveDistortion(
+            _trace.at(i).first->GetColorImage());
     }
     // trace of point
     DrawTrace(imgs[MID], midVel, 2);
@@ -124,6 +136,11 @@ cv::Mat OpticalFlowTripleTrace::CreateOpticalFlowMat(const ns_veta::PinholeIntri
     cv::hconcat(imgs[0], imgs[1], img);
     cv::hconcat(img, imgs[2], img);
     return img;
+}
+
+std::array<std::pair<CameraFrame::Ptr, Eigen::Vector2d>, 3> OpticalFlowTripleTrace::GetTrace()
+    const {
+    return _trace;
 }
 
 cv::Mat OpticalFlowTripleTrace::GetInRangeSubMat(const cv::Mat& image,

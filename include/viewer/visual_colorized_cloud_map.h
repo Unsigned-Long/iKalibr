@@ -53,6 +53,8 @@ struct CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
 struct RGBDFrame;
 using RGBDFramePtr = std::shared_ptr<RGBDFrame>;
+struct VisualUndistortionMap;
+using VisualUndistortionMapPtr = std::shared_ptr<VisualUndistortionMap>;
 
 class ColorizedCloudMap {
 public:
@@ -67,6 +69,7 @@ private:
     CalibParamManagerPtr _parMagr;
 
     ns_veta::PinholeIntrinsic::Ptr _intri;
+    VisualUndistortionMapPtr _undistoMapper;
 
     Sophus::SE3d SE3_CmToBr;
     double TO_CmToBr;

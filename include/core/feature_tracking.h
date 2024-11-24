@@ -49,14 +49,31 @@ class CameraFrame;
 using CameraFramePtr = std::shared_ptr<CameraFrame>;
 
 struct Feature {
+public:
+    using Ptr = std::shared_ptr<Feature>;
+
+public:
     cv::Point2f raw;
     cv::Point2f undistorted;
+    double timestamp;
 
-    Feature(cv::Point2f raw, cv::Point2f undistorted);
+    Feature(cv::Point2f raw, cv::Point2f undistorted, double timestamp);
+
+    Feature()
+        : raw(-1.0f, -1.0f),
+          undistorted(-1.0f, -1.0f),
+          timestamp(-1.0) {}
+
+    static Ptr Create(const cv::Point2f& raw, const cv::Point2f& undistorted, double timestamp);
+
+    inline Eigen::Vector2f Raw() const;
+
+    inline Eigen::Vector2f Undistorted() const;
 };
 
-using FeatureMap = std::map<int, Feature>;
-using FeatureVec = std::vector<Feature>;
+using FeatureMap = std::map<int, Feature::Ptr>;
+using FeatureVec = std::vector<Feature::Ptr>;
+using FeatureVecMap = std::map<int, FeatureVec>;
 using FeatureIdVec = std::vector<int>;
 using FeatureMatch = std::map<int, int>;
 
@@ -78,8 +95,8 @@ public:
         [[nodiscard]] cv::Mat DrawMatches(const Ptr& compPack) const;
 
     protected:
-        static void DrawFeatureTracking(const std::map<int, Feature>& ptsInLast,
-                                        const std::map<int, Feature>& ptsInCur,
+        static void DrawFeatureTracking(const FeatureMap& ptsInLast,
+                                        const FeatureMap& ptsInCur,
                                         const std::map<int, int>& matches,
                                         cv::Mat& matImg,
                                         const cv::Point2f& bias,

@@ -138,6 +138,14 @@ struct RadarModel {
 
 using RadarModelType = RadarModel::RadarModelType;
 
+struct EventModel {
+    enum class EventModelType { PROPHESEE_EVENT, DVS_EVENT };
+
+    static std::string UnsupportedEventModelMsg(const std::string &modelStr);
+};
+
+using EventModelType = EventModel::EventModelType;
+
 }  // namespace ns_ikalibr
 
 #endif  // IKALIBR_SENSOR_MODEL_H

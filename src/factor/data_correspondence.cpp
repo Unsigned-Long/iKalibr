@@ -34,6 +34,7 @@
 
 #include "factor/data_correspondence.h"
 #include "sensor/camera.h"
+#include "core/feature_tracking.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -105,6 +106,23 @@ OpticalFlowCorr::OpticalFlowCorr(const std::array<double, 3>& timeAry,
     }
 }
 
+OpticalFlowCorr::OpticalFlowCorr(const std::array<double, 3>& timeAry,
+                                 const std::array<double, 3>& xTraceAry,
+                                 const std::array<double, 3>& yTraceAry,
+                                 double depth)
+    : timeAry(timeAry),
+      xTraceAry(xTraceAry),
+      yTraceAry(yTraceAry),
+      rdFactorAry(),
+      depth(depth),
+      invDepth(depth > 1E-3 ? 1.0 / depth : -1.0),
+      frame(nullptr),
+      withDepthObservability(false) {
+    for (int i = 0; i < 3; ++i) {
+        rdFactorAry[i] = 0.0;
+    }
+}
+
 OpticalFlowCorr::Ptr OpticalFlowCorr::Create(const std::array<double, 3>& timeAry,
                                              const std::array<double, 3>& xDynamicAry,
                                              const std::array<double, 3>& yDynamicAry,
@@ -113,6 +131,13 @@ OpticalFlowCorr::Ptr OpticalFlowCorr::Create(const std::array<double, 3>& timeAr
                                              double rsExpFactor) {
     return std::make_shared<OpticalFlowCorr>(timeAry, xDynamicAry, yDynamicAry, depth, frame,
                                              rsExpFactor);
+}
+
+OpticalFlowCorr::Ptr OpticalFlowCorr::Create(const std::array<double, 3>& timeAry,
+                                             const std::array<double, 3>& xDynamicAry,
+                                             const std::array<double, 3>& yDynamicAry,
+                                             double depth) {
+    return std::make_shared<OpticalFlowCorr>(timeAry, xDynamicAry, yDynamicAry, depth);
 }
 
 Eigen::Vector2d OpticalFlowCorr::FirPoint() const { return {xTraceAry.at(FIR), yTraceAry.at(FIR)}; }
@@ -124,4 +149,150 @@ Eigen::Vector2d OpticalFlowCorr::LastPoint() const {
 }
 
 double OpticalFlowCorr::MidReadoutFactor() const { return rdFactorAry[MID]; }
+
+FeatureTrackingCurve::FeatureTrackingCurve(double s_time,
+                                           double e_time,
+                                           Eigen::Vector3d x_parm,
+                                           Eigen::Vector3d y_parm)
+    : sTime(s_time),
+      eTime(e_time),
+      xParm(std::move(x_parm)),
+      yParm(std::move(y_parm)) {}
+
+FeatureTrackingCurve::Ptr FeatureTrackingCurve::Create(double s_time,
+                                                       double e_time,
+                                                       const Eigen::Vector3d& x_parm,
+                                                       const Eigen::Vector3d& y_parm) {
+    return std::make_shared<FeatureTrackingCurve>(s_time, e_time, x_parm, y_parm);
+}
+
+FeatureTrackingCurve::Ptr FeatureTrackingCurve::CreateFrom(const FeatureVec& trackingAry,
+                                                           bool useUndistortedOnes) {
+    if (trackingAry.size() < 3) {
+        return nullptr;
+    }
+    const auto size = trackingAry.size();
+    std::vector<double> t(size), x(size), y(size);
+    double tMin = std::numeric_limits<double>::max();
+    double tMax = std::numeric_limits<double>::min();
+    for (int i = 0; i != static_cast<int>(size); ++i) {
+        const auto& track = trackingAry[i];
+        t.at(i) = track->timestamp;
+        if (useUndistortedOnes) {
+            x.at(i) = track->undistorted.x;
+            y.at(i) = track->undistorted.y;
+        } else {
+            x.at(i) = track->raw.x;
+            y.at(i) = track->raw.y;
+        }
+        if (tMin > track->timestamp) {
+            tMin = track->timestamp;
+        }
+        if (tMax < track->timestamp) {
+            tMax = track->timestamp;
+        }
+    }
+    Eigen::Vector3d xParm = FitQuadraticCurve(t, x);
+    Eigen::Vector3d yParm = FitQuadraticCurve(t, y);
+
+    return Create(tMin, tMax, xParm, yParm);
+}
+
+std::optional<Eigen::Vector2d> FeatureTrackingCurve::PositionAt(double t) const {
+    if (t < sTime || t > eTime) {
+        return std::nullopt;
+    }
+    double x = QuadraticCurveValueAt(t, xParm);
+    double y = QuadraticCurveValueAt(t, yParm);
+    return Eigen::Vector2d{x, y};
+}
+
+std::optional<Eigen::Vector2d> FeatureTrackingCurve::VelocityAt(double t) const {
+    if (t < sTime || t > eTime) {
+        return std::nullopt;
+    }
+    double vx = QuadraticCurveVelocityAt(t, xParm);
+    double vy = QuadraticCurveVelocityAt(t, yParm);
+    return Eigen::Vector2d{vx, vy};
+}
+
+std::vector<Eigen::Vector3d> FeatureTrackingCurve::DiscretePositions(double dt) const {
+    std::vector<Eigen::Vector3d> positions;
+    for (double t = this->sTime; t < this->eTime;) {
+        std::optional<Eigen::Vector2d> pos = this->PositionAt(t);
+        if (pos == std::nullopt) {
+            continue;
+        }
+        positions.emplace_back(t, (*pos)(0), (*pos)(1));
+        t += dt;
+    }
+    return positions;
+}
+
+bool FeatureTrackingCurve::IsTimeInRange(double time) const {
+    return time >= sTime && time <= eTime;
+}
+
+Eigen::Vector3d FeatureTrackingCurve::FitQuadraticCurve(const std::vector<double>& x,
+                                                        const std::vector<double>& y) {
+    int n = static_cast<int>(x.size());
+    Eigen::MatrixXd A(n, 3);
+    Eigen::VectorXd B(n);
+
+    for (int i = 0; i < n; ++i) {
+        A(i, 0) = x[i] * x[i];  // x^2
+        A(i, 1) = x[i];         // x
+        A(i, 2) = 1.0;
+        B(i) = y[i];
+    }
+
+    // A * p = B，p = (a, b, c)
+    Eigen::Vector3d p = A.colPivHouseholderQr().solve(B);
+    return p;  // a, b, c
+}
+
+OpticalFlowCurveCorr::Ptr OpticalFlowCurveCorr::Create(double midTime,
+                                                       double midDepth,
+                                                       double reprojTimePadding,
+                                                       const FeatureTrackingCurve::Ptr& trace,
+                                                       double weight) {
+    if (reprojTimePadding < 1E-3) {
+        return nullptr;
+    }
+    double firTime = midTime - reprojTimePadding;
+    double lastTime = midTime + reprojTimePadding;
+    if (!trace->IsTimeInRange(firTime) || !trace->IsTimeInRange(lastTime)) {
+        return nullptr;
+    }
+    return std::make_shared<OpticalFlowCurveCorr>(midTime, midDepth, 1.0 / midDepth, firTime,
+                                                  lastTime, trace, weight);
+}
+
+OpticalFlowCurveCorr::OpticalFlowCurveCorr(double mid_time,
+                                           double mid_depth,
+                                           double mid_inv_depth,
+                                           double fir_time,
+                                           double last_time,
+                                           const FeatureTrackingCurve::Ptr& trace,
+                                           double weight)
+    : midTime(mid_time),
+      midDepth(mid_depth),
+      midInvDepth(mid_inv_depth),
+      firTime(fir_time),
+      lastTime(last_time),
+      trace(trace),
+      weight(weight) {}
+
+NormFlow::NormFlow(double timestamp, const Eigen::Vector2i& p, const Eigen::Vector2d& nf)
+    : timestamp(timestamp),
+      p(p),
+      nf(nf),
+      nfNorm(nf.norm()),
+      nfDir(nf.normalized()) {}
+
+NormFlow::Ptr NormFlow::Create(double timestamp,
+                               const Eigen::Vector2i& p,
+                               const Eigen::Vector2d& nf) {
+    return std::make_shared<NormFlow>(timestamp, p, nf);
+}
 }  // namespace ns_ikalibr

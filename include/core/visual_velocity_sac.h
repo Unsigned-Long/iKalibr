@@ -35,7 +35,6 @@
 #ifndef IKALIBR_VISUAL_VELOCITY_SAC_H
 #define IKALIBR_VISUAL_VELOCITY_SAC_H
 
-#include <utility>
 #include "core/visual_velocity_estimator.h"
 #include "opengv/sac/SampleConsensusProblem.hpp"
 
@@ -55,10 +54,6 @@ public:
 public:
     /**
      * \brief Constructor.
-     * \param[in] adapter Visitor holding bearing vectors, world points, etc.
-     * \param[in] algorithm The algorithm we want to use.
-     * \param[in] randomSeed Whether to seed the random number generator with
-     *            the current time.
      */
     explicit VisualVelocitySacProblem(
         const std::vector<std::tuple<Eigen::Vector2d, Eigen::Vector2d, double>> &dynamics,

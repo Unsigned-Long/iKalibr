@@ -44,6 +44,11 @@
 #include "tiny-viewer/entity/arrow.h"
 #include "tiny-viewer/entity/line.h"
 #include "tiny-viewer/object/surfel.h"
+#include "core/haste_data_io.h"
+#include "veta/camera/pinhole.h"
+#include "sensor/event.h"
+#include "core/feature_tracking.h"
+#include "core/event_trace_sac.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -345,8 +350,8 @@ Viewer &Viewer::AddEntityLocal(const std::vector<ns_viewer::Entity::Ptr> &entiti
 void Viewer::SetNewSpline(const SplineBundleType::Ptr &splines) { _splines = splines; }
 
 Viewer &Viewer::FillEmptyViews(const std::string &objPath) {
-    std::array<std::map<std::string, bool>, 6> occupy;
-    std::array<bool, 6> senIntegrated{};
+    std::array<std::map<std::string, bool>, 7> occupy;
+    std::array<bool, 7> senIntegrated{};
     // imus
     occupy[0] = {
         {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, false}, {VIEW_ASSOCIATION, false}};
@@ -376,6 +381,11 @@ Viewer &Viewer::FillEmptyViews(const std::string &objPath) {
     occupy[5] = {
         {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, false}};
     senIntegrated[5] = Configor::IsRGBDIntegrated();
+
+    // event cameras
+    occupy[6] = {
+        {VIEW_SENSORS, true}, {VIEW_SPLINE, true}, {VIEW_MAP, true}, {VIEW_ASSOCIATION, false}};
+    senIntegrated[6] = Configor::IsEventIntegrated();
 
     std::map<std::string, bool> viewOccupy;
     for (int i = 0; i < static_cast<int>(occupy.size()); ++i) {
@@ -419,6 +429,144 @@ Viewer &Viewer::AddRGBDFrame(const RGBDFrame::Ptr &frame,
         cloud = RGBDFrame(INVALID_TIME_STAMP, cv::Mat(), cMat, dMat).CreatePointCloud(intri);
     }
     AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, size)}, view);
+    return *this;
+}
+
+Viewer &Viewer::AddEventFeatTracking(const std::map<int, FeatureVec> &batchTracking,
+                                     const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                     float sTime,
+                                     float eTime,
+                                     const std::string &view,
+                                     const std::pair<float, float> &ptScales) {
+    // tracking
+    for (const auto &[id, tracking] : batchTracking) {
+        AddEventFeatTracking(tracking, sTime, view, ptScales);
+    }
+
+    // image plane
+    float width = static_cast<float>(intri->imgWidth) * ptScales.first;
+    float height = static_cast<float>(intri->imgHeight) * ptScales.first;
+    float zMin = 0.0f, zMax = (eTime - sTime) * ptScales.second, dz = zMax - zMin;
+    auto arrow = ns_viewer::Arrow::Create({width * 0.5f, height * 0.5f, zMax + 0.25f * dz},
+                                          {width * 0.5f, height * 0.5f, zMin - 0.25f * dz},
+                                          ns_viewer::Colour::Red());
+    auto boxPose = ns_viewer::Posef(ns_viewer::Posef::Rotation::Identity(),
+                                    {width * 0.5f, height * 0.5f, zMin + dz * 0.5f});
+    auto b = ns_viewer::Cube::Create(boxPose, true, width, height, dz, ns_viewer::Colour::Black());
+
+    std::vector<ns_viewer::Entity::Ptr> entities;
+    entities.push_back(arrow);
+    entities.push_back(b);
+    AddEntityLocal(entities, view);
+
+    return *this;
+}
+
+Viewer &Viewer::AddEventFeatTracking(const FeatureVec &tracking,
+                                     float sTime,
+                                     const std::string &view,
+                                     const std::pair<float, float> &ptScales) {
+    // samples (raw tracked features)
+    std::vector<Eigen::Vector3d> rawTrace(tracking.size());
+    for (int i = 0; i != static_cast<int>(tracking.size()); ++i) {
+        const auto &f = tracking.at(i);
+        rawTrace.at(i) = Eigen::Vector3d(f->timestamp, f->undistorted.x, f->undistorted.y);
+    }
+    AddSpatioTemporalTrace(rawTrace, sTime, view, 1.0f, ns_viewer::Colour::Black(), ptScales);
+
+    if (auto trace = FeatureTrackingCurve::CreateFrom(tracking, true); trace != nullptr) {
+        std::vector<Eigen::Vector3d> posVec = trace->DiscretePositions();
+        // fitted curve
+        AddSpatioTemporalTrace(posVec, sTime, view, 2.0f, ns_viewer::Colour::Green(), ptScales);
+    }
+
+    return *this;
+}
+
+Viewer &Viewer::AddSpatioTemporalTrace(const std::vector<Eigen::Vector3d> &trace,
+                                       float sTime,
+                                       const std::string &view,
+                                       float size,
+                                       const ns_viewer::Colour &color,
+                                       const std::pair<float, float> &ptScales) {
+    std::vector<ns_viewer::Entity::Ptr> entities;
+    for (int i = 0; i != static_cast<int>(trace.size()) - 1; ++i) {
+        const Eigen::Vector3f &f1 = trace.at(i).cast<float>();
+        const Eigen::Vector3f &f2 = trace.at(i + 1).cast<float>();
+
+        const Eigen::Vector2f &p1 = f1.tail<2>() * ptScales.first;
+        const auto z1 = (f1(0) - sTime) * ptScales.second;
+
+        const Eigen::Vector2f &p2 = f2.tail<2>() * ptScales.first;
+        const auto z2 = (f2(0) - sTime) * ptScales.second;
+
+        auto line = ns_viewer::Line::Create({p1(0), p1(1), z1}, {p2(0), p2(1), z2}, color, size);
+        entities.push_back(line);
+    }
+    AddEntityLocal(entities, view);
+    return *this;
+}
+
+Viewer &Viewer::AddEventData(const std::vector<EventArray::Ptr>::const_iterator &sIter,
+                             const std::vector<EventArray::Ptr>::const_iterator &eIter,
+                             float sTime,
+                             const std::string &view,
+                             const std::pair<float, float> &ptScales) {
+    pcl::PointCloud<ColorPoint>::Ptr cloud(new ColorPointCloud);
+    for (auto iter = sIter; iter != eIter; ++iter) {
+        for (const auto &event : (*iter)->GetEvents()) {
+            Eigen::Vector2f p = event->GetPos().cast<float>() * ptScales.first;
+            float t = ((float)event->GetTimestamp() - sTime) * ptScales.second;
+            ColorPoint cp;
+            cp.x = p(0), cp.y = p(1), cp.z = t;
+            if (event->GetPolarity()) {
+                cp.b = 255;
+                cp.r = cp.g = 0;
+            } else {
+                cp.r = 255;
+                cp.b = cp.g = 0;
+            }
+            cp.a = 50;
+            cloud->push_back(cp);
+        }
+    }
+    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, 1.0f)}, view);
+    return *this;
+}
+
+Viewer &Viewer::AddEventData(const EventArray::Ptr &ary,
+                             float sTime,
+                             const std::string &view,
+                             const std::pair<float, float> &ptScales,
+                             const std::optional<ns_viewer::Colour> &color) {
+    if (ary == nullptr) {
+        return *this;
+    }
+    pcl::PointCloud<ColorPoint>::Ptr cloud(new ColorPointCloud);
+    const auto &events = ary->GetEvents();
+    for (const auto &event : events) {
+        Eigen::Vector2f p = event->GetPos().cast<float>() * ptScales.first;
+        float t = ((float)event->GetTimestamp() - sTime) * ptScales.second;
+        ColorPoint cp;
+        cp.x = p(0), cp.y = p(1), cp.z = t;
+        if (color == std::nullopt) {
+            if (event->GetPolarity()) {
+                cp.b = 255;
+                cp.r = cp.g = 0;
+            } else {
+                cp.r = 255;
+                cp.b = cp.g = 0;
+            }
+        } else {
+            cp.b = color->b * 255;
+            cp.r = color->r * 255;
+            cp.g = color->g * 255;
+        }
+
+        cp.a = 255;
+        cloud->push_back(cp);
+    }
+    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, 2.0f)}, view);
     return *this;
 }
 }  // namespace ns_ikalibr

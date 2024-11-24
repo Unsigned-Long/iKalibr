@@ -49,6 +49,7 @@
 #include "viewer/visual_gravity.h"
 #include "viewer/visual_lidar_covisibility.h"
 #include "viewer/visual_lin_vel_drawer.h"
+#include "core/visual_distortion.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -318,6 +319,7 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
         }
 
         const auto &intri = _solver->_parMagr->INTRI.Camera.at(topic);
+        auto undistoMapper = VisualUndistortionMap::Create(intri);
         std::vector<std::pair<ns_veta::IndexT, Sophus::SE3d>> poseVec;
         poseVec.reserve(data.size());
         bar = std::make_shared<tqdm>();
@@ -337,8 +339,7 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
 
             // undistorted gray image
             cv::Mat undistImgColor, res;
-            undistImgColor =
-                CalibParamManager::ParIntri::UndistortImage(intri, frame->GetColorImage());
+            undistImgColor = undistoMapper->RemoveDistortion(frame->GetColorImage());
 
             // depth image
             auto [depthImg, colorImg] = covisibility->CreateCovisibility(*pose, intri);
@@ -378,6 +379,7 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
         }
 
         const auto &intri = _solver->_parMagr->INTRI.RGBD.at(topic);
+        auto undistoMapper = VisualUndistortionMap::Create(intri->intri);
         std::vector<std::pair<ns_veta::IndexT, Sophus::SE3d>> poseVec;
         poseVec.reserve(data.size());
         bar = std::make_shared<tqdm>();
@@ -398,8 +400,7 @@ void CalibSolverIO::VerifyVisualLiDARConsistency() const {
 
             // undistorted gray image
             cv::Mat undistImgColor, res;
-            undistImgColor =
-                CalibParamManager::ParIntri::UndistortImage(intri->intri, frame->GetColorImage());
+            undistImgColor = undistoMapper->RemoveDistortion(frame->GetColorImage());
 
             // depth image
             auto [depthImg, colorImg] = covisibility->CreateCovisibility(*pose, intri->intri);

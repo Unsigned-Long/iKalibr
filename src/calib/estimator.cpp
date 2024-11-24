@@ -52,6 +52,7 @@
 #include "factor/visual_velocity_depth_factor.hpp"
 #include "util/utils_tpl.hpp"
 #include "factor/vel_visual_inertial_align_factor.hpp"
+#include "factor/norm_flow_pure_rot_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -696,7 +697,8 @@ void Estimator::AddRGBDInertialAlignment(
     }
     // create a cost function
     auto helper = RGBDInertialAlignHelper<Configor::Prior::SplineOrder>(
-        so3Spline, sRGBDAry, eRGBDAry, TO_DnToBr, *velVecMat);
+        so3Spline, {sRGBDAry.first->GetTimestamp(), sRGBDAry.second},
+        {eRGBDAry.first->GetTimestamp(), eRGBDAry.second}, TO_DnToBr, *velVecMat);
     auto costFunc = RGBDInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
 
     costFunc->AddParameterBlock(3);
@@ -743,6 +745,89 @@ void Estimator::AddRGBDInertialAlignment(
 
 /**
  * param blocks:
+ * [ POS_BiInBr | SO3_EsToBr | POS_EsInBr | GRAVITY | VEL_SCALE_S | VEL_SCALE_E ]
+ */
+void Estimator::AddEventInertialAlignment(const std::vector<IMUFrame::Ptr> &data,
+                                          const std::string &imuTopic,
+                                          const std::string &eventTopic,
+                                          const std::pair<double, Eigen::Vector3d> &sVelAry,
+                                          double *sVelScale,
+                                          const std::pair<double, Eigen::Vector3d> &eVelAry,
+                                          double *eVelScale,
+                                          Estimator::Opt option,
+                                          double weight) {
+    const auto &so3Spline = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+    double st = sVelAry.first, et = eVelAry.first;
+    double TO_EsToBr = parMagr->TEMPORAL.TO_EsToBr.at(eventTopic);
+
+    if (!so3Spline.TimeStampInRange(st + TO_EsToBr) ||
+        !so3Spline.TimeStampInRange(et + TO_EsToBr)) {
+        return;
+    }
+
+    double TO_EsToBi = TO_EsToBr - parMagr->TEMPORAL.TO_BiToBr.at(imuTopic);
+    auto velVecMat = InertialVelIntegration(data, imuTopic, st + TO_EsToBi, et + TO_EsToBi);
+    if (velVecMat == std::nullopt) {
+        return;
+    }
+    // create a cost function
+    auto helper = VelVisualInertialAlignHelper<Configor::Prior::SplineOrder>(
+        so3Spline, sVelAry, eVelAry, TO_EsToBr, *velVecMat);
+    auto costFunc =
+        VelVisualInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
+
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(4);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(3);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+
+    costFunc->SetNumResiduals(3);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // POS_BiInBc
+    auto POS_BiInBr = parMagr->EXTRI.POS_BiInBr.at(imuTopic).data();
+    paramBlockVec.push_back(POS_BiInBr);
+    // SO3_EsToBr
+    auto SO3_EsToBr = parMagr->EXTRI.SO3_EsToBr.at(eventTopic).data();
+    paramBlockVec.push_back(SO3_EsToBr);
+    // POS_EsInBr
+    auto POS_EsInBr = parMagr->EXTRI.POS_EsInBr.at(eventTopic).data();
+    paramBlockVec.push_back(POS_EsInBr);
+    // GRAVITY
+    auto gravity = parMagr->GRAVITY.data();
+    paramBlockVec.push_back(gravity);
+    // start velocity scale
+    paramBlockVec.push_back(sVelScale);
+    // end velocity scale
+    paramBlockVec.push_back(eVelScale);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+    this->SetManifold(gravity, GRAVITY_MANIFOLD.get());
+    this->SetManifold(SO3_EsToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_GRAVITY, option)) {
+        this->SetParameterBlockConstant(gravity);
+    }
+    if (!IsOptionWith(Opt::OPT_POS_BiInBr, option)) {
+        this->SetParameterBlockConstant(POS_BiInBr);
+    }
+    if (!IsOptionWith(Opt::OPT_SO3_EsToBr, option)) {
+        this->SetParameterBlockConstant(SO3_EsToBr);
+    }
+    if (!IsOptionWith(Opt::OPT_POS_EsInBr, option)) {
+        this->SetParameterBlockConstant(POS_EsInBr);
+    }
+    this->SetParameterLowerBound(sVelScale, 0, 1E-3);
+    this->SetParameterLowerBound(eVelScale, 0, 1E-3);
+}
+
+/**
+ * param blocks:
  * [ POS_BiInBr | SO3_CmToBr | POS_CmInBr | GRAVITY | VEL_SCALE_S | VEL_SCALE_E ]
  */
 void Estimator::AddVelVisualInertialAlignment(
@@ -771,7 +856,8 @@ void Estimator::AddVelVisualInertialAlignment(
     }
     // create a cost function
     auto helper = VelVisualInertialAlignHelper<Configor::Prior::SplineOrder>(
-        so3Spline, sVelAry, eVelAry, TO_CmToBr, *velVecMat);
+        so3Spline, {sVelAry.first->GetTimestamp(), sVelAry.second},
+        {eVelAry.first->GetTimestamp(), eVelAry.second}, TO_CmToBr, *velVecMat);
     auto costFunc =
         VelVisualInertialAlignFactor<Configor::Prior::SplineOrder>::Create(helper, weight);
 
@@ -1113,6 +1199,96 @@ void Estimator::AddHandEyeRotationAlignmentForRGBD(const std::string &rgbdTopic,
     }
 }
 
+void Estimator::AddHandEyeRotationAlignmentForEvent(const std::string &eventTopic,
+                                                    double tLastByEs,
+                                                    double tCurByEs,
+                                                    const Sophus::SO3d &so3CurToLast,
+                                                    Estimator::Opt option,
+                                                    double weight) {  // prepare metas for splines
+    SplineMetaType so3Meta;
+
+    // different relative control points finding [single vs. range]
+    if (IsOptionWith(Opt::OPT_TO_EsToBr, option)) {
+        double lastMinTime = tLastByEs - Configor::Prior::TimeOffsetPadding;
+        double lastMaxTime = tLastByEs + Configor::Prior::TimeOffsetPadding;
+        // invalid time stamp
+        if (!splines->TimeInRangeForSo3(lastMinTime, Configor::Preference::SO3_SPLINE) ||
+            !splines->TimeInRangeForSo3(lastMaxTime, Configor::Preference::SO3_SPLINE)) {
+            return;
+        }
+
+        double curMinTime = tCurByEs - Configor::Prior::TimeOffsetPadding;
+        double curMaxTime = tCurByEs + Configor::Prior::TimeOffsetPadding;
+        // invalid time stamp
+        if (!splines->TimeInRangeForSo3(curMinTime, Configor::Preference::SO3_SPLINE) ||
+            !splines->TimeInRangeForSo3(curMaxTime, Configor::Preference::SO3_SPLINE)) {
+            return;
+        }
+
+        splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE,
+                                        {{lastMinTime, lastMaxTime}, {curMinTime, curMaxTime}},
+                                        so3Meta);
+    } else {
+        double lastTime = tLastByEs + parMagr->TEMPORAL.TO_EsToBr.at(eventTopic);
+        double curTime = tCurByEs + parMagr->TEMPORAL.TO_EsToBr.at(eventTopic);
+
+        // check point time stamp
+        if (!splines->TimeInRangeForSo3(lastTime, Configor::Preference::SO3_SPLINE) ||
+            !splines->TimeInRangeForSo3(curTime, Configor::Preference::SO3_SPLINE)) {
+            return;
+        }
+        splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE,
+                                        {{lastTime, lastTime}, {curTime, curTime}}, so3Meta);
+    }
+
+    // create a cost function
+    auto costFunc = HandEyeRotationAlignFactor<Configor::Prior::SplineOrder>::Create(
+        so3Meta, tLastByEs, tCurByEs, so3CurToLast, weight);
+
+    // so3 knots param block [each has four sub params]
+    for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
+        costFunc->AddParameterBlock(4);
+    }
+
+    // SO3_EsToBr
+    costFunc->AddParameterBlock(4);
+    // TO_EsToBr
+    costFunc->AddParameterBlock(1);
+
+    // set Residuals
+    costFunc->SetNumResiduals(3);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // so3 knots param block
+    AddSo3KnotsData(paramBlockVec, splines->GetSo3Spline(Configor::Preference::SO3_SPLINE), so3Meta,
+                    !IsOptionWith(Opt::OPT_SO3_SPLINE, option));
+
+    auto SO3_EsToBr = parMagr->EXTRI.SO3_EsToBr.at(eventTopic).data();
+    paramBlockVec.push_back(SO3_EsToBr);
+
+    auto TO_EsToBr = &parMagr->TEMPORAL.TO_EsToBr.at(eventTopic);
+    paramBlockVec.push_back(TO_EsToBr);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+
+    this->SetManifold(SO3_EsToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_SO3_EsToBr, option)) {
+        this->SetParameterBlockConstant(SO3_EsToBr);
+    }
+
+    if (!IsOptionWith(Opt::OPT_TO_EsToBr, option)) {
+        this->SetParameterBlockConstant(TO_EsToBr);
+    } else {
+        // set bound
+        this->SetParameterLowerBound(TO_EsToBr, 0, -Configor::Prior::TimeOffsetPadding);
+        this->SetParameterUpperBound(TO_EsToBr, 0, Configor::Prior::TimeOffsetPadding);
+    }
+}
+
 /**
  * param blocks:
  * [ SO3 | ... | SO3 ]
@@ -1278,6 +1454,118 @@ Eigen::MatrixXd Estimator::GetHessianMatrix(const std::vector<double *> &conside
     Eigen::MatrixXd HMat = JMat.transpose() * JMat;
 
     return HMat;
+}
+
+void Estimator::PrintParameterInfo() const {
+    std::vector<double *> parameterBlocks;
+    this->GetParameterBlocks(&parameterBlocks);
+    int totalParamBlocks = parameterBlocks.size();
+
+    int numOptimizedParamBlock = 0;
+    int numOptimizedParameter = 0;
+    for (const auto &paramBlock : parameterBlocks) {
+        if (!IsParameterBlockConstant(paramBlock)) {
+            ++numOptimizedParamBlock;
+            numOptimizedParameter += this->ParameterBlockSize(paramBlock);
+        }
+    }
+    spdlog::info(
+        "Total number of parameter blocks: {}, with {} blocks ({} params) that are optimized",
+        totalParamBlocks, numOptimizedParamBlock, numOptimizedParameter);
+}
+
+/**
+ * param blocks:
+ * [ SO3 | ... | SO3 | SO3_EsToBr | TO_EsToBr | FX | FY | CX | CY ]
+ */
+void Estimator::AddEventNormFlowRotConstraint(const NormFlowPtr &nf,
+                                              const std::string &topic,
+                                              Opt option,
+                                              double weight) {
+    auto &intri = parMagr->INTRI.Camera.at(topic);
+    const double TO_PADDING = Configor::Prior::TimeOffsetPadding;
+    const double RT_PADDING = Configor::Prior::ReadoutTimePadding;
+    double *TO_EsToBr = &parMagr->TEMPORAL.TO_EsToBr.at(topic);
+
+    std::pair<double, double> timePair = ConsideredTimeRangeForCameraStamp(
+        nf->timestamp,                                       // time stamped by the camera
+        0.0, RT_PADDING, 0.0,                                // the readout factor
+        IsOptionWith(Opt::OPT_RS_CAM_READOUT_TIME, option),  // if optimize rs readout time
+        *TO_EsToBr, TO_PADDING, IsOptionWith(Opt::OPT_TO_EsToBr, option)  // if opt time offset
+    );
+
+    if (!TimeInRangeForSplines(timePair)) {
+        return;
+    }
+
+    // prepare metas for splines
+    SplineMetaType so3Meta;
+
+    splines->CalculateSo3SplineMeta(Configor::Preference::SO3_SPLINE, {timePair}, so3Meta);
+
+    // create a cost function
+    auto costFunc = NormFlowPureRotFactor<Configor::Prior::SplineOrder>::Create(so3Meta, nf, weight);
+
+    // so3 knots param block [each has four sub params]
+    for (int i = 0; i < static_cast<int>(so3Meta.NumParameters()); ++i) {
+        costFunc->AddParameterBlock(4);
+    }
+
+    costFunc->AddParameterBlock(4);
+    costFunc->AddParameterBlock(1);
+
+    // fx, fy, cx, cy
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+    costFunc->AddParameterBlock(1);
+
+    costFunc->SetNumResiduals(1);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    // so3 knots param block
+    AddSo3KnotsData(paramBlockVec, splines->GetSo3Spline(Configor::Preference::SO3_SPLINE), so3Meta,
+                    !IsOptionWith(Opt::OPT_SO3_SPLINE, option));
+
+    auto SO3_EsToBr = parMagr->EXTRI.SO3_EsToBr.at(topic).data();
+    paramBlockVec.push_back(SO3_EsToBr);
+
+    paramBlockVec.push_back(TO_EsToBr);
+
+    paramBlockVec.push_back(intri->FXAddress());
+    paramBlockVec.push_back(intri->FYAddress());
+    paramBlockVec.push_back(intri->CXAddress());
+    paramBlockVec.push_back(intri->CYAddress());
+
+    // pass to problem
+    this->AddResidualBlock(
+        costFunc, new ceres::HuberLoss(Configor::Prior::LossForOpticalFlowFactor * weight),
+        paramBlockVec);
+    this->SetManifold(SO3_EsToBr, QUATER_MANIFOLD.get());
+
+    if (!IsOptionWith(Opt::OPT_SO3_EsToBr, option)) {
+        this->SetParameterBlockConstant(SO3_EsToBr);
+    }
+
+    if (!IsOptionWith(Opt::OPT_TO_EsToBr, option)) {
+        this->SetParameterBlockConstant(TO_EsToBr);
+    } else {
+        // set bound
+        this->SetParameterLowerBound(TO_EsToBr, 0, -TO_PADDING);
+        this->SetParameterUpperBound(TO_EsToBr, 0, TO_PADDING);
+    }
+
+    if (!IsOptionWith(Opt::OPT_CAM_FOCAL_LEN, option)) {
+        this->SetParameterBlockConstant(intri->FXAddress());
+        this->SetParameterBlockConstant(intri->FYAddress());
+    }
+
+    if (!IsOptionWith(Opt::OPT_CAM_PRINCIPAL_POINT, option)) {
+        this->SetParameterBlockConstant(intri->CXAddress());
+        this->SetParameterBlockConstant(intri->CYAddress());
+    }
 }
 
 void Estimator::SetRefIMUParamsConstant() {
@@ -1559,7 +1847,10 @@ void Estimator::PrintUninvolvedKnots() const {
  * [ LIN_VEL_CmToWInCm | DEPTH ]
  */
 void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
-                                             const OpticalFlowCorr::Ptr &corr,
+                                             double timeByCam,
+                                             const Eigen::Vector2d &pos,
+                                             const Eigen::Vector2d &vel,
+                                             double *depth,
                                              double TO_CamToBr,
                                              double readout,
                                              const Sophus::SO3d &SO3_CamToBr,
@@ -1568,17 +1859,15 @@ void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
                                              bool estDepth,
                                              bool estVelDirOnly) {
     const auto &so3Spline = splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
-    const double midTime = corr->MidPointTime(readout);
 
-    if (!so3Spline.TimeStampInRange(midTime + TO_CamToBr)) {
+    if (!so3Spline.TimeStampInRange(timeByCam + TO_CamToBr)) {
         return;
     }
 
-    Eigen::Vector3d ANG_VEL_BrToWInBr = so3Spline.VelocityBody(midTime + TO_CamToBr);
+    Eigen::Vector3d ANG_VEL_BrToWInBr = so3Spline.VelocityBody(timeByCam + TO_CamToBr);
     Eigen::Vector3d ANG_VEL_CamToWInCam = SO3_CamToBr.inverse() * ANG_VEL_BrToWInBr;
 
-    auto costFunc = VisualVelocityDepthFactor::Create(corr->MidPoint(), corr->MidPointVel(readout),
-                                                      ANG_VEL_CamToWInCam, intri, weight);
+    auto costFunc = VisualVelocityDepthFactor::Create(pos, vel, ANG_VEL_CamToWInCam, intri, weight);
 
     costFunc->AddParameterBlock(3);
     costFunc->AddParameterBlock(1);
@@ -1591,7 +1880,7 @@ void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
     // LIN_VEL_CmToWInCm
     paramBlockVec.push_back(LIN_VEL_CmToWInCm->data());
     // DEPTH
-    paramBlockVec.push_back(&corr->depth);
+    paramBlockVec.push_back(depth);
 
     // pass to problem, the loss function factor is the same as
     // 'Configor::Prior::LossForRGBDFactor', as this model is the same as rgbd velocity model
@@ -1604,10 +1893,43 @@ void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
         this->SetManifold(LIN_VEL_CmToWInCm->data(), GRAVITY_MANIFOLD.get());
     }
     if (!estDepth) {
-        this->SetParameterBlockConstant(&corr->depth);
+        this->SetParameterBlockConstant(depth);
     } else {
-        this->SetParameterLowerBound(&corr->depth, 0, 1E-3);
+        this->SetParameterLowerBound(depth, 0, 1E-3);
     }
+}
+
+void Estimator::AddVisualVelocityDepthFactorForEvent(const std::string &eventTopic,
+                                                     Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                                     double timeByCam,
+                                                     const Eigen::Vector2d &pos,
+                                                     const Eigen::Vector2d &vel,
+                                                     double *depth,
+                                                     double weight,
+                                                     bool estDepth,
+                                                     bool estVelDirOnly) {
+    AddVisualVelocityDepthFactor(
+        LIN_VEL_CmToWInCm, timeByCam, pos, vel, depth, parMagr->TEMPORAL.TO_EsToBr.at(eventTopic),
+        parMagr->TEMPORAL.RS_READOUT.at(eventTopic), parMagr->EXTRI.SO3_EsToBr.at(eventTopic),
+        parMagr->INTRI.Camera.at(eventTopic), weight, estDepth, estVelDirOnly);
+}
+
+/**
+ * param blocks:
+ * [ LIN_VEL_CmToWInCm | DEPTH ]
+ */
+void Estimator::AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                             const OpticalFlowCorr::Ptr &corr,
+                                             double TO_CamToBr,
+                                             double readout,
+                                             const Sophus::SO3d &SO3_CamToBr,
+                                             const ns_veta::PinholeIntrinsic::Ptr &intri,
+                                             double weight,
+                                             bool estDepth,
+                                             bool estVelDirOnly) {
+    AddVisualVelocityDepthFactor(LIN_VEL_CmToWInCm, corr->MidPointTime(readout), corr->MidPoint(),
+                                 corr->MidPointVel(readout), &corr->depth, TO_CamToBr, readout,
+                                 SO3_CamToBr, intri, weight, estDepth, estVelDirOnly);
 }
 
 void Estimator::AddVisualVelocityDepthFactorForRGBD(Eigen::Vector3d *LIN_VEL_CmToWInCm,
@@ -1631,6 +1953,18 @@ void Estimator::AddVisualVelocityDepthFactorForVelCam(Eigen::Vector3d *LIN_VEL_C
     this->AddVisualVelocityDepthFactor(
         LIN_VEL_CmToWInCm, corr, parMagr->TEMPORAL.TO_CmToBr.at(topic),
         parMagr->TEMPORAL.RS_READOUT.at(topic), parMagr->EXTRI.SO3_CmToBr.at(topic),
+        parMagr->INTRI.Camera.at(topic), weight, estDepth, estVelDirOnly);
+}
+
+void Estimator::AddVisualVelocityDepthFactorForEvent(Eigen::Vector3d *LIN_VEL_CmToWInCm,
+                                                     const OpticalFlowCorrPtr &corr,
+                                                     const std::string &topic,
+                                                     double weight,
+                                                     bool estDepth,
+                                                     bool estVelDirOnly) {
+    this->AddVisualVelocityDepthFactor(
+        LIN_VEL_CmToWInCm, corr, parMagr->TEMPORAL.TO_EsToBr.at(topic),
+        parMagr->TEMPORAL.RS_READOUT.at(topic), parMagr->EXTRI.SO3_EsToBr.at(topic),
         parMagr->INTRI.Camera.at(topic), weight, estDepth, estVelDirOnly);
 }
 
