@@ -179,6 +179,18 @@ void CalibSolver::AddVisualOpticalFlowReprojFactor(Estimator::Ptr &estimator,
     }
 }
 
+template <TimeDeriv::ScaleSplineType type>
+void CalibSolver::AddVisualPPPTrifocalTensorFactor(EstimatorPtr &estimator,
+                                                   const std::string &camTopic,
+                                                   const std::vector<OpticalFlowCorrPtr> &corrs,
+                                                   OptOption option) {
+    double weight = 1E5 * Configor::DataStream::CameraTopics.at(camTopic).Weight;
+    for (const auto &corr : corrs) {
+        estimator->AddVisualPPPTrifocalTensorFactorForVelCam<type>(corr, camTopic, option,
+                                                                   weight * corr->weight);
+    }
+}
+
 template <TimeDeriv::ScaleSplineType type, bool IsInvDepth>
 void CalibSolver::AddRGBDOpticalFlowReprojFactor(Estimator::Ptr &estimator,
                                                  const std::string &camTopic,

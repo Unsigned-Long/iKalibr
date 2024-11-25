@@ -405,6 +405,16 @@ public:
                                               const std::string &topic,
                                               Opt option,
                                               double weight);
+    /**
+     * param blocks:
+     * [ SO3 | ... | SO3 | LIN_SCALE | ... | LIN_SCALE | SO3_CmToBr | POS_CmInBr | TO_CmToBr |
+     * READOUT_TIME | FX | FY | CX | CY ]
+     */
+    template <TimeDeriv::ScaleSplineType type>
+    void AddVisualPPPTrifocalTensorFactorForVelCam(const OpticalFlowCorrPtr &velCorr,
+                                                   const std::string &topic,
+                                                   Opt option,
+                                                   double weight);
 
     /**
      * param blocks:

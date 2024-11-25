@@ -659,6 +659,12 @@ protected:
                                                  const std::vector<OpticalFlowCorrPtr> &corrs,
                                                  OptOption option);
 
+    template <TimeDeriv::ScaleSplineType type>
+    static void AddVisualPPPTrifocalTensorFactor(EstimatorPtr &estimator,
+                                                 const std::string &camTopic,
+                                                 const std::vector<OpticalFlowCorrPtr> &corrs,
+                                                 OptOption option);
+
     /**
      * add optical flow factors for the optical camera to the estimator
      * @tparam type the linear scale spline type

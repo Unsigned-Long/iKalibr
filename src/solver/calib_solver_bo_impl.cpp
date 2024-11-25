@@ -140,6 +140,9 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddVisualOpticalFlowReprojFactor<TimeDeriv::LIN_VEL_SPLINE,
                                                        OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+
+                // this->AddVisualPPPTrifocalTensorFactor<TimeDeriv::LIN_VEL_SPLINE>(
+                //     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
             for (const auto &[topic, corrs] : eventCorrs) {
                 this->AddEventOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
@@ -188,6 +191,9 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddRGBDOpticalFlowReprojFactor<TimeDeriv::LIN_POS_SPLINE,
                                                      OPTICAL_FLOW_EST_INV_DEPTH>(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+
+                // this->AddVisualPPPTrifocalTensorFactor<TimeDeriv::LIN_VEL_SPLINE>(
+                //     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
             for (const auto &[topic, corrs] : visualVelCorrs) {
                 this->AddVisualOpticalFlowFactor<TimeDeriv::LIN_POS_SPLINE,
