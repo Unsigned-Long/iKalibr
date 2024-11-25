@@ -53,7 +53,7 @@
 #include "util/utils_tpl.hpp"
 #include "factor/vel_visual_inertial_align_factor.hpp"
 #include "factor/norm_flow_pure_rot_factor.hpp"
-#include "factor/ppp_trifocal_tensor_vel_factor.hpp"
+#include "factor/ppp_trifocal_tensor_factor.hpp"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -1987,7 +1987,7 @@ void Estimator::AddPPPTrifocalTensorVelFactorForVelCam(Eigen::Vector3d *LIN_VEL_
 
     costFunc->AddParameterBlock(3);
 
-    costFunc->SetNumResiduals(1);
+    costFunc->SetNumResiduals(4);
 
     // organize the param block vector
     std::vector<double *> paramBlockVec;

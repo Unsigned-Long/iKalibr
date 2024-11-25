@@ -153,17 +153,14 @@ public:
             m1 += bv2(i) * Ti;
         }
         Eigen::Matrix3<T> m2 = Sophus::SO3<T>::hat(bv1) * m1 * Sophus::SO3<T>::hat(bv3);
+        Eigen::Vector4<T> resVec;
+        resVec(0) = m2(0, 0);
+        resVec(1) = m2(0, 2);
+        resVec(2) = m2(2, 0);
+        resVec(3) = m2(2, 2);
 
-        // Eigen::Map<Eigen::Vector9<T>> residuals(sResiduals);
-        // residuals = Eigen::Map<Eigen::Vector9<T>>(m2.data(), 9);
-
-        Eigen::Map<Eigen::Vector1<T>> residuals(sResiduals);
-        residuals.template block<1, 1>(0, 0) =
-            T(_weight) * Eigen::Vector1<T>(ceres::sqrt((m2.array() * m2.array()).sum()));
-
-        // Eigen::Map<Eigen::Vector1<T>> residuals(sResiduals);
-        // T m2 = bv3.transpose() * m1 * bv1;
-        // residuals.template block<1, 1>(0, 0) = T(_weight) * Eigen::Vector1<T>(m2);
+        Eigen::Map<Eigen::Vector4<T>> residuals(sResiduals);
+        residuals.template block<4, 1>(0, 0) = T(_weight) * resVec;
         return true;
     }
 };
