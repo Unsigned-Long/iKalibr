@@ -11,7 +11,7 @@
 
 ---
 
-**Attention, attention!** If you are using `Ubuntu 20.04`, please directly jump to [**A Tested Install Pipeline On Ubuntu 20.04**](#A Tested Install Pipeline On Ubuntu 20.04), where you will find the tested environment dependencies and versions of third-party libraries. If you are using a different version of `Ubuntu`, you can also prepare `iKalibr` environment in a similar way, but you may need to further adapt the library versions.
+**Attention, attention!** If you are using `Ubuntu 20.04`, please directly jump to [**A Tested Install Pipeline On Ubuntu 20.04**](#A-Tested-Install-Pipeline-On-Ubuntu-20.04) section, where you will find the tested environment dependencies and versions of third-party libraries. If you are using a different version of `Ubuntu`, you can also prepare `iKalibr` environment in a similar way, but you may need to further adapt the library versions.
 
 <p align="left">
     <a><strong>Install Required Third Libraries »</strong></a>
@@ -89,7 +89,7 @@ Congratulations :clap:, if everything goes well and no error happened. At the en
 
 
 
-# A Tested Install Pipeline On Ubuntu 20.04
+## A Tested Install Pipeline On Ubuntu 20.04
 
 Considering the common issues reported by most people regarding the configuration and compilation of the `iKalibr` environment, I will provide here a step-by-step guide for setting up the `iKalibr` environment from scratch on an `Ubuntu 20.04` system. All steps have been tested and successfully compiled `iKalibr` on Ubuntu 20.04.
 Please note that `COLMAP` and `GLOMAP` are not required when compiling `iKalibr`, as they are only used to provide `SfM` results within `iKalibr` and are decoupled from it. If you need to calibrate the camera, then you should compile them (for mapping-based visual-inertial calibration in `iKalibr`); otherwise, there is no need to compile or install them.
