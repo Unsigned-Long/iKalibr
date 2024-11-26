@@ -14,6 +14,17 @@
 ---
 
 <p align="center">
+    <a><strong>Version 2.1.1 » refine code structure & add a tested installation pipeline on ubuntu 20.04</strong></a>
+</p>
+
++ Considering the common issues reported by most people regarding the configuration and compilation of the `iKalibr` environment, I have provided a step-by-step guide for setting up the `iKalibr` environment from scratch on an `Ubuntu 20.04` system. All steps have been tested and successfully compiled `iKalibr` on `Ubuntu 20.04`.
++ The code related to visual optical flow construction and related continuous-time optimization in `iKalibr` have been restructured to ensure better readability and scalability.
++ When using RANSAC for camera velocity estimation based on visual optical flow, index mismatches occurred, leading to poor initialization accuracy. This bug has now been fixed.
++ An `appendix` folder has been added to the `docs` folder to help readers better understand the implementation details of `iKalibr`.
+
+
+
+<p align="center">
     <a><strong>Version 2.1.0 » support of SfM-free calibration for optical cameras!</strong></a>
 </p>
 

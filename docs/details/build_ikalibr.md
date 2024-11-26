@@ -11,7 +11,7 @@
 
 ---
 
-**Attention, attention!** If you are using `Ubuntu 20.04`, please directly jump to [**A Tested Install Pipeline On Clean Ubuntu 20.04**](#A Tested Install Pipeline On Clean Ubuntu 20.04), where you will find the tested environment dependencies and versions of third-party libraries. If you are using a different version of `Ubuntu`, you can also prepare `iKalibr` environment in a similar way, but you may need to further adapt the library versions.
+**Attention, attention!** If you are using `Ubuntu 20.04`, please directly jump to [**A Tested Install Pipeline On Ubuntu 20.04**](#A Tested Install Pipeline On Ubuntu 20.04), where you will find the tested environment dependencies and versions of third-party libraries. If you are using a different version of `Ubuntu`, you can also prepare `iKalibr` environment in a similar way, but you may need to further adapt the library versions.
 
 <p align="left">
     <a><strong>Install Required Third Libraries »</strong></a>
