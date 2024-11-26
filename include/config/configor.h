@@ -89,7 +89,7 @@ public:
                 : Type(),
                   Intrinsics(),
                   AcceWeight(),
-                  GyroWeight(){};
+                  GyroWeight() {};
 
         public:
             template <class Archive>
@@ -106,7 +106,7 @@ public:
 
             RadarConfig()
                 : Type(),
-                  Weight(){};
+                  Weight() {};
 
         public:
             template <class Archive>
@@ -122,7 +122,7 @@ public:
 
             LiDARConfig()
                 : Type(),
-                  Weight(){};
+                  Weight() {};
 
         public:
             template <class Archive>
@@ -144,7 +144,7 @@ public:
                   Intrinsics(),
                   Weight(),
                   TrackLengthMin(),
-                  ScaleSplineType(){};
+                  ScaleSplineType() {};
 
         public:
             template <class Archive>
@@ -169,7 +169,7 @@ public:
                   DepthTopic(),
                   DepthFactor(),
                   Weight(),
-                  TrackLengthMin(){};
+                  TrackLengthMin() {};
 
         public:
             template <class Archive>
@@ -188,7 +188,7 @@ public:
             EventConfig()
                 : Type(),
                   Intrinsics(),
-                  Weight(){};
+                  Weight() {};
 
         public:
             template <class Archive>
@@ -244,7 +244,9 @@ public:
         template <class Archive>
         void serialize(Archive &ar) {
             ar(CEREAL_NVP(IMUTopics), CEREAL_NVP(RadarTopics), CEREAL_NVP(LiDARTopics),
-               CEREAL_NVP(CameraTopics), CEREAL_NVP(RGBDTopics), CEREAL_NVP(EventTopics),
+               CEREAL_NVP(CameraTopics), CEREAL_NVP(RGBDTopics),
+               // the calibration of event cameras have not been supported yet in iKalibr!!!
+               // CEREAL_NVP(EventTopics),
                CEREAL_NVP(ReferIMU), CEREAL_NVP(BagPath), CEREAL_NVP(BeginTime),
                CEREAL_NVP(Duration), CEREAL_NVP(OutputPath));
         }
