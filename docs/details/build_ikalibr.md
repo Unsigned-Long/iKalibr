@@ -11,6 +11,8 @@
 
 ---
 
+**Attention, attention!** If you are using `Ubuntu 20.04`, please directly jump to [**A Tested Install Pipeline On Clean Ubuntu 20.04**](#A Tested Install Pipeline On Clean Ubuntu 20.04), where you will find the tested environment dependencies and versions of third-party libraries. If you are using a different version of `Ubuntu`, you can also prepare `iKalibr` environment in a similar way, but you may need to further adapt the library versions.
+
 <p align="left">
     <a><strong>Install Required Third Libraries »</strong></a>
 </p> 
@@ -19,13 +21,7 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
 + install `ROS1` (Ubuntu **20.04** is suggested, Ubuntu **18.04** (ros melodic) is also available), requirements: **ROS1** & **C++17** support.
 
-  ```bash
-  sudo apt install ros-noetic-desktop-full
-  echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
-  source ~/.bashrc
-  ```
-
-+ install `Ceres`: see the `GitHub` Profile of **[Ceres](https://github.com/ceres-solver/ceres-solver.git)** library, clone it, compile it, and install it. Make sure that the version of `Ceres` contains the `Manifold` module and `Cuda` support. **`Ceres` version equals to 2.2.0 or higher.**
++ install `Ceres`: see the `GitHub` Profile of **[Ceres](https://github.com/ceres-solver/ceres-solver.git)** library, clone it, compile it, and install it. Make sure that the version of `Ceres` contains the `Manifold` module and `Cuda` support. **`Ceres` version equals to 2.2.0.**
 
 + install `Sophus`: see the `GitHub` Profile of **[Sophus](https://github.com/strasdat/Sophus.git)** library, clone it, compile it, and install it. Set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`!
 
@@ -33,24 +29,12 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
 + install `Pangolin`: see the `GitHub` Profile of **[Pangolin](https://github.com/stevenlovegrove/Pangolin.git)** library, clone it, compile it, and install it.
 
-+ install `cereal`, `yaml-cpp`, `spdlog`, and `colmap`. If possible, installing `colmap` from the [source](https://github.com/colmap/colmap.git) is recommend.
++ install `spdlog`: see the `GitHub` Profile of **[spdlog](https://github.com/gabime/spdlog.git)** library, clone it, compile it, and install it.
 
-  ```bash
-  sudo apt-get install libcereal-dev
-  sudo apt-get install libyaml-cpp-dev
-  # installing spdlog from source is a better way, to avoid fmt conflict
-  sudo apt-get install libspdlog-dev
-  # installing colmap from source is a better way, If the sensor suite you want to calibrate does not include optical cameras, you do not need to install colmap or glomap.
-  sudo apt-get install colmap
-  # if you want to use glomap to perform SfM, than clone it at (https://github.com/colmap/glomap.git), then build and install it. Generally speaking, glomap is recommanded for SfM (faster than colmap).
-  ```
++ install `cereal`, `yaml-cpp`, and `colmap`. If possible, installing `colmap` from the [source](https://github.com/colmap/colmap.git) is recommend.
 
-+ install ros packages:
++ install required ros packages.
 
-  ```sh
-  sudo apt-get install ros-noetic-cv-bridge
-  sudo apt-get install ros-noetic-velodyne
-  ```
 
 **Key point** (you can't skip this part): 
 
@@ -103,3 +87,83 @@ The following libraries need to be installed to support `iKalibr`. If you have a
 
 Congratulations :clap:, if everything goes well and no error happened. At the end, you would obtain several binary programs, such as `ikalibr_prog`, `ikalibr_imu_intri_calib`, etc. Each program is exactly an executable ros node, and can be launched by `rosrun` or provided `roslaunch` (recommend).
 
+
+
+# A Tested Install Pipeline On Ubuntu 20.04
+
+Considering the common issues reported by most people regarding the configuration and compilation of the `iKalibr` environment, I will provide here a step-by-step guide for setting up the `iKalibr` environment from scratch on an `Ubuntu 20.04` system. All steps have been tested and successfully compiled `iKalibr` on Ubuntu 20.04.
+Please note that `COLMAP` and `GLOMAP` are not required when compiling `iKalibr`, as they are only used to provide `SfM` results within `iKalibr` and are decoupled from it. If you need to calibrate the camera, then you should compile them (for mapping-based visual-inertial calibration in `iKalibr`); otherwise, there is no need to compile or install them.
+
+**Attention:** This install pipeline has already been, and only been tested on `Ubuntu 20.04`.
+
+```sh
+# ros 1 (noetic), add install source and key first, see https://wiki.ros.org/noetic/Installation/Ubuntu
+sudo apt install ros-noetic-desktop-full
+echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+
+# cmake (3.27)
+wget https://github.com/Kitware/CMake/releases/download/v3.27.0/cmake-3.27.0.tar.gz && \
+    tar -zxvf cmake-3.27.0.tar.gz && \
+    cd cmake-3.27.0 && \
+    ./bootstrap && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf cmake-3.27.0 cmake-3.27.0.tar.gz
+
+# eigen (use default one in ubuntu 20.04)
+
+# ceres (2.2.0)
+git clone --branch 2.2.0 --single-branch --recurse-submodules https://github.com/ceres-solver/ceres-solver
+# then cmake, make, and install
+
+# Sophus (1.22.10)
+git clone --branch 1.22.10 --single-branch  https://github.com/strasdat/Sophus.git
+cmake .. -DSOPHUS_USE_BASIC_LOGGING=ON
+# then make and install
+
+# magic_enum (v0.9.6)
+git clone --branch v0.9.6 --single-branch https://github.com/Neargye/magic_enum.git
+# then cmake, make, and install
+
+# pangolin (v0.8)
+git clone --branch v0.8 --single-branch --recursive https://github.com/stevenlovegrove/Pangolin.git
+# then cmake, make, and install
+
+# spdlog (the newest, use internal fmt)
+git clone https://github.com/gabime/spdlog.git
+# then cmake, make, and install
+
+# install cereal and yaml-cpp
+sudo apt-get install libcereal-dev
+sudo apt-get install libyaml-cpp-dev
+
+# ros packages
+sudo apt-get install ros-noetic-cv-bridge
+sudo apt-get install ros-noetic-velodyne
+
+# install colmap and glomap from source, if you want to calibrate your optical cameras using mapping-based visual-inertial calibration (for mapping-free visual-inertial calibration, colmap and glomap are not required)
+https://github.com/colmap/glomap.git
+https://github.com/colmap/colmap.git
+# then cmake, make, and install
+
+# clone iKalibr
+mkdir -p ~/iKalibr/src
+cd ~/iKalibr/src
+git clone --recursive https://github.com/Unsigned-Long/iKalibr.git ikalibr
+
+# build thirdparty
+cd ikalibr
+chmod +x build_thirdparty.sh
+./build_thirdparty.sh
+
+# build iKalibr
+cd ../..
+catkin_make ikalibr_generate_messages
+catkin_make -j8 -DUSE_CMAKE_UNITY_BUILD=ON
+
+# test
+source ./devel/setup.bash
+roslaunch ikalibr ikalibr-learn.launch
+```
