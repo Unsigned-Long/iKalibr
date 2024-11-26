@@ -141,19 +141,19 @@ public:
         Eigen::Vector3<T> bv2 = _helper.bvs[TWO].template cast<T>();
         Eigen::Vector3<T> bv3 = _helper.bvs[THREE].template cast<T>();
 
-        Eigen::Matrix3<T> m1 = Eigen::Matrix3<T>::Zero();
+        Eigen::Matrix33<T> m1 = Eigen::Matrix33<T>::Zero();
 
         for (int i = 0; i < 3; ++i) {
-            Eigen::Matrix3<T> v1 =
+            Eigen::Matrix33<T> v1 =
                 _helper.ROT_VEC_Cam2ToCam1[i] *
                 (_helper.ROT_Cam2ToCam3 * LIN_VEL_DIR_CmToWInCm * (-_helper.dt32)).transpose();
-            Eigen::Matrix3<T> v2 =
+            Eigen::Matrix33<T> v2 =
                 (_helper.ROT_Cam2ToCam1 * LIN_VEL_DIR_CmToWInCm * (-_helper.dt12)) *
                 _helper.ROT_VEC_Cam2ToCam3[i].transpose();
-            Eigen::Matrix3<T> Ti = v1 - v2;
+            Eigen::Matrix33<T> Ti = v1 - v2;
             m1 += bv2(i) * Ti;
         }
-        Eigen::Matrix3<T> m2 = Sophus::SO3<T>::hat(bv1) * m1 * Sophus::SO3<T>::hat(bv3);
+        Eigen::Matrix33<T> m2 = Sophus::SO3<T>::hat(bv1) * m1 * Sophus::SO3<T>::hat(bv3);
         Eigen::Vector4<T> resVec;
         resVec(0) = m2(0, 0);
         resVec(1) = m2(0, 2);
@@ -289,8 +289,8 @@ public:
         Sophus::SE3<T> SE3_CmMidToCmFir = SE3_CmToBr.inverse() * SE3_BrMidToBrFir * SE3_CmToBr;
         Sophus::SE3<T> SE3_CmMidToCmLast = SE3_CmToBr.inverse() * SE3_BrMidToBrLast * SE3_CmToBr;
 
-        Eigen::Matrix3<T> SO3_CmMidToCmFir = SE3_CmMidToCmFir.so3().matrix();
-        Eigen::Matrix3<T> SO3_CmMidToCmLast = SE3_CmMidToCmLast.so3().matrix();
+        Eigen::Matrix33<T> SO3_CmMidToCmFir = SE3_CmMidToCmFir.so3().matrix();
+        Eigen::Matrix33<T> SO3_CmMidToCmLast = SE3_CmMidToCmLast.so3().matrix();
 
         Eigen::Vector3<T> POS_CmMidInCmFir = SE3_CmMidToCmFir.translation();
         Eigen::Vector3<T> POS_CmMidInCmLast = SE3_CmMidToCmLast.translation();
@@ -305,16 +305,17 @@ public:
             bvs[i] = p.normalized();
         }
 
-        Eigen::Matrix3<T> m1 = Eigen::Matrix3<T>::Zero();
+        Eigen::Matrix33<T> m1 = Eigen::Matrix33<T>::Zero();
 
         for (int i = 0; i < 3; ++i) {
-            Eigen::Matrix3<T> v1 = SO3_CmMidToCmFir.col(i) * POS_CmMidInCmLast.transpose();
-            Eigen::Matrix3<T> v2 = POS_CmMidInCmFir * SO3_CmMidToCmLast.col(i).transpose();
-            Eigen::Matrix3<T> Ti = v1 - v2;
+            Eigen::Matrix33<T> v1 = SO3_CmMidToCmFir.col(i) * POS_CmMidInCmLast.transpose();
+            Eigen::Matrix33<T> v2 = POS_CmMidInCmFir * SO3_CmMidToCmLast.col(i).transpose();
+            Eigen::Matrix33<T> Ti = v1 - v2;
             m1 += bvs.at(1)(i) * Ti;
         }
 
-        Eigen::Matrix3<T> m2 = Sophus::SO3<T>::hat(bvs.at(0)) * m1 * Sophus::SO3<T>::hat(bvs.at(2));
+        Eigen::Matrix33<T> m2 =
+            Sophus::SO3<T>::hat(bvs.at(0)) * m1 * Sophus::SO3<T>::hat(bvs.at(2));
 
         Eigen::Vector4<T> resVec;
         resVec(0) = m2(0, 0);
