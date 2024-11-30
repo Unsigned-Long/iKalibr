@@ -95,6 +95,8 @@ public:
     using Ptr = std::shared_ptr<EventNormFlow>;
 
     struct NormFlowPack {
+        using Ptr = std::shared_ptr<NormFlowPack>;
+
     public:
         std::list<NormFlowPtr> nfs;
         cv::Mat rawTimeSurfaceMap;  // ex, ey, et
@@ -120,12 +122,12 @@ public:
     explicit EventNormFlow(const ActiveEventSurface::Ptr &sea)
         : _sea(sea) {}
 
-    NormFlowPack ExtractNormFlows(double decaySec = 0.02,
-                                  int winSize = 2,
-                                  int neighborDist = 2,
-                                  double goodRatioThd = 0.9,
-                                  double timeDistEventToPlaneThd = 2E-3,
-                                  int ransacMaxIter = 3) const;
+    NormFlowPack::Ptr ExtractNormFlows(double decaySec = 0.02,
+                                       int winSize = 2,
+                                       int neighborDist = 2,
+                                       double goodRatioThd = 0.9,
+                                       double timeDistEventToPlaneThd = 2E-3,
+                                       int ransacMaxIter = 3) const;
 
 protected:
     static std::vector<std::tuple<double, double, double>> Centralization(
@@ -164,6 +166,78 @@ public:
 protected:
     /** The adapter holding all input data */
     const std::vector<std::tuple<double, double, double>> &_data;
+};
+
+class EventLineTracking {
+public:
+    using Ptr = std::shared_ptr<EventLineTracking>;
+
+    struct EventLine {
+        using Ptr = std::shared_ptr<EventLine>;
+
+    public:
+        static std::uint32_t idCounter;
+
+        std::uint32_t id;
+        double timestamp;
+        double activity;
+        // norm (n: cos, sin) and the distance from the line to the origin (rho)
+        Eigen::Vector3d param;
+
+    public:
+        EventLine(const NormFlowPtr &nf);
+
+        static Ptr Create(const NormFlowPtr &nf);
+
+        double PointToLine(const Eigen::Vector2d &p) const;
+
+        double DirectionDifferenceCos(const Eigen::Vector2d &nfDir) const;
+
+        void Normalize();
+    };
+
+    struct LineParamUpdate {
+    public:
+        using Ptr = std::shared_ptr<LineParamUpdate>;
+
+        double x;
+        double y;
+        double xx;
+        double yy;
+        double xy;
+
+        LineParamUpdate(double x, double y);
+
+        static Ptr Create(double x, double y);
+
+        void Update(double x, double y, double delta);
+
+        std::array<Eigen::Vector3d, 2> ObtainLine(double omega) const;
+    };
+
+public:
+    constexpr static double DEG2RAD = M_PI / 180.0;
+    constexpr static double P2L_DISTANCE_THD = 5.0 /*pixel*/;
+    constexpr static double P2L_ORIENTATION_THD = std::cos(1.0 /*degree*/ * DEG2RAD);
+    constexpr static int MAX_LINE_COUNT = 20;
+
+public:
+    EventLineTracking() {}
+
+    static Ptr Create() { return std::make_shared<EventLineTracking>(); }
+
+    void TrackingUsingNormFlow(const EventNormFlow::NormFlowPack::Ptr &nfPack);
+
+protected:
+    static void DrawLine(cv::Mat &m,
+                         const EventLine::Ptr &el,
+                         const cv::Scalar &color = cv::Scalar(0, 255, 0));
+
+    static void DrawLine(cv::Mat &m,
+                         const double a,
+                         const double b,
+                         const double c,
+                         const cv::Scalar &color = cv::Scalar(0, 255, 0));
 };
 
 }  // namespace ns_ikalibr

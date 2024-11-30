@@ -40,6 +40,8 @@
 #include "cereal/types/utility.hpp"
 #include "factor/data_correspondence.h"
 
+#include <opencv2/highgui.hpp>
+
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
@@ -258,12 +260,12 @@ cv::Mat EventNormFlow::NormFlowPack::Visualization(double dt) const {
     return m3;
 }
 
-EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(double decaySec,
-                                                            int winSize,
-                                                            int neighborDist,
-                                                            double goodRatioThd,
-                                                            double timeDistEventToPlaneThd,
-                                                            int ransacMaxIter) const {
+EventNormFlow::NormFlowPack::Ptr EventNormFlow::ExtractNormFlows(double decaySec,
+                                                                 int winSize,
+                                                                 int neighborDist,
+                                                                 double goodRatioThd,
+                                                                 double timeDistEventToPlaneThd,
+                                                                 int ransacMaxIter) const {
     // CV_64FC1
     auto [rtsMat, pMat] = _sea->RawTimeSurface(true, true /*todo: undistorted*/);
     // CV_8UC1
@@ -403,15 +405,15 @@ EventNormFlow::NormFlowPack EventNormFlow::ExtractNormFlows(double decaySec,
     }
 #endif
 
-    NormFlowPack pack;
-    pack.nfs = nfs;
-    pack.inliersOccupy = inliersOccupy;
-    pack.polarityMap = pMat;
-    pack.rawTimeSurfaceMap = rtsMat;
-    pack.timestamp = _sea->GetTimeLatest();
+    auto pack = std::make_shared<NormFlowPack>();
+    pack->nfs = nfs;
+    pack->inliersOccupy = inliersOccupy;
+    pack->polarityMap = pMat;
+    pack->rawTimeSurfaceMap = rtsMat;
+    pack->timestamp = _sea->GetTimeLatest();
     // for visualization
-    pack.nfsImg = tsImgNfs;
-    pack.nfSeedsImg = tsImg;
+    pack->nfsImg = tsImgNfs;
+    pack->nfSeedsImg = tsImg;
     return pack;
 }
 
@@ -487,4 +489,274 @@ void EventLocalPlaneSacProblem::optimizeModelCoefficients(const std::vector<int>
                                                           model_t &optimized_model) {
     computeModelCoefficients(inliers, optimized_model);
 }
+
+/**
+ * EventLineTracking::EventLine
+ */
+std::uint32_t EventLineTracking::EventLine::idCounter = 0;
+
+EventLineTracking::EventLine::EventLine(const NormFlowPtr &nf)
+    : id(idCounter++),
+      timestamp(nf->timestamp),
+      activity(1.0) {
+    param.head<2>() = nf->nfDir;
+    param.tail<1>() = nf->p.cast<double>().transpose() * nf->nfDir;
+}
+
+EventLineTracking::EventLine::Ptr EventLineTracking::EventLine::Create(const NormFlowPtr &nf) {
+    return std::make_shared<EventLine>(nf);
+}
+
+double EventLineTracking::EventLine::PointToLine(const Eigen::Vector2d &p) const {
+    return (p.transpose() * param.head<2>() - param.tail<1>())(0);
+}
+
+double EventLineTracking::EventLine::DirectionDifferenceCos(const Eigen::Vector2d &nfDir) const {
+    return (param.head<2>().transpose() * nfDir)(0);
+}
+
+void EventLineTracking::EventLine::Normalize() { param /= param.head<2>().norm(); }
+
+/**
+ * EventLineTracking::LineParamUpdate
+ */
+EventLineTracking::LineParamUpdate::LineParamUpdate(double x, double y)
+    : x(x),
+      y(y),
+      xx(x * x),
+      yy(y * y),
+      xy(x * y) {}
+
+EventLineTracking::LineParamUpdate::Ptr EventLineTracking::LineParamUpdate::Create(double x,
+                                                                                   double y) {
+    return std::make_shared<LineParamUpdate>(x, y);
+}
+
+void EventLineTracking::LineParamUpdate::Update(double x, double y, double delta) {
+    this->xy = delta * this->xy + x * y;
+    this->yy = delta * this->yy + y * y;
+    this->xx = delta * this->xx + x * x;
+    this->x = delta * this->x + x;
+    this->y = delta * this->y + y;
+}
+
+std::array<Eigen::Vector3d, 2> EventLineTracking::LineParamUpdate::ObtainLine(double omega) const {
+    const double a = omega * (yy - xx) + x * x - y * y;
+    const double a2 = a * a;
+
+    const double b = 2.0 * (omega * xy - x * y);
+    const double b2 = b * b;
+
+    const double beta = std::sqrt(a2 / (a2 + b2));
+
+    const double gamma1 = std::sqrt((1.0 - beta) * 0.5);
+    const double gamma2 = std::sqrt((1.0 + beta) * 0.5);
+
+    constexpr double cospi4 = M_SQRT2 * 0.5;
+    // cos, sin (norm dir)
+    std::array<std::pair<double, double>, 2> solutions;
+    {
+        // case 1
+        double cos = gamma2, sin = gamma1;
+        if (-b / a /* tan(2 * theta) */ > 0) {
+            if (cos < cospi4) {
+                sin *= -1.0;
+            }
+        } else {
+            if (cos > cospi4) {
+                sin *= -1.0;
+            }
+        }
+        solutions[0] = {cos, sin};
+    }
+    {
+        // case 2
+        double cos = gamma1, sin = gamma2;
+        if (-b / a /* tan(2 * theta) */ > 0) {
+            if (cos < cospi4) {
+                sin *= -1.0;
+            }
+        } else {
+            if (cos > cospi4) {
+                sin *= -1.0;
+            }
+        }
+        solutions[1] = {cos, sin};
+    }
+    std::array<Eigen::Vector3d, 2> results;
+    for (size_t i = 0; i < 2; ++i) {
+        const auto &[cos, sin] = solutions[i];
+        const double rho = (x * cos + y * sin) / omega;
+        results[i] = Eigen::Vector3d(cos, sin, rho);
+    }
+    return results;
+}
+
+/**
+ * EventLineTracking
+ */
+void EventLineTracking::TrackingUsingNormFlow(const EventNormFlow::NormFlowPack::Ptr &nfPack) {
+    // sort norm flow data
+    nfPack->nfs.sort([&](const NormFlow::Ptr &a, const NormFlow::Ptr &b) {
+        return a->timestamp < b->timestamp;
+    });
+
+#define SHOW_DETAILS 0
+
+    std::list<EventLine::Ptr> lines;
+    std::map<EventLine::Ptr, std::list<NormFlow::Ptr>> lineWithNFs;
+    std::map<EventLine::Ptr, LineParamUpdate::Ptr> lineParamUpdate;
+
+    double lastTime = nfPack->nfs.front()->timestamp;
+    for (const auto &nf : nfPack->nfs) {
+        // compute the delta time, update last time stamp
+        double dt = nf->timestamp - lastTime;
+        const double decay = std::exp(-nf->nfNorm * dt);
+        lastTime = nf->timestamp;
+
+        // spdlog::info("p: ({}, {}), t: {:.5f} (sec), dt: {:.3f}, nf: ({:.3f}, {:.3f})", nf->p(0),
+        //              nf->p(1), nf->timestamp, dt, nf->nf(0), nf->nf(1));
+
+        EventLine::Ptr ml = nullptr;
+        for (auto &el : lines) {
+            // apply the decay
+            el->activity *= decay;
+            el->timestamp = nf->timestamp;
+
+            // association
+            const double dist = std::abs(el->PointToLine(nf->p.cast<double>()));
+            const double dirDiffCos = el->DirectionDifferenceCos(nf->nfDir);
+            // too far
+            if (dist > P2L_DISTANCE_THD) {
+#if SHOW_DETAILS
+                spdlog::warn("distance too far!!! Jump it!!!");
+#endif
+                continue;
+            }
+            // not same direction
+            if (dirDiffCos < P2L_ORIENTATION_THD) {
+#if SHOW_DETAILS
+                spdlog::warn("orientation difference too large!!! Jump it!!!");
+#endif
+                continue;
+            }
+            // find the line whose activity is the largest, i.e., matched (associated) line
+            if (ml == nullptr) {
+                ml = el;
+            } else {
+                if (ml->activity < el->activity) {
+                    ml = el;
+                }
+            }
+#if SHOW_DETAILS
+            spdlog::info("associate line!!!");
+            auto mat = nfPack->nfSeedsImg.clone();
+            DrawLine(mat, el);
+            DrawKeypointOnCVMat(mat, nf->p.cast<double>(), true, cv::Scalar(255, 0, 0));
+            cv::imshow("Associate To Event Line", mat);
+            cv::waitKey(0);
+#endif
+        }
+
+        // initialize a new line
+        if (ml == nullptr) {
+            if (lines.size() >= MAX_LINE_COUNT) {
+                // find the one with the lowest activity
+                auto i = std::min_element(lines.begin(), lines.end(),
+                                          [](const EventLine::Ptr &el1, const EventLine::Ptr &el2) {
+                                              return el1->activity < el2->activity;
+                                          });
+                lines.erase(i);
+            }
+            auto newLine = EventLine::Create(nf);
+            lines.push_back(newLine);
+            lineWithNFs[newLine].push_back(nf);
+            lineParamUpdate[newLine] = LineParamUpdate::Create(nf->p(0), nf->p(1));
+#if SHOW_DETAILS
+            // visualization
+            auto mat = nfPack->nfSeedsImg.clone();
+            DrawLine(mat, newLine);
+            // yellow, new associated norm flow
+            DrawKeypointOnCVMat(mat, nf->p.cast<double>(), true, cv::Scalar(0, 255, 255));
+            cv::imshow("Newly Initialized Event Line", mat);
+            cv::waitKey(0);
+#endif
+            continue;
+        }
+        spdlog::info("update line using associated norm flow (blue old, yellow new)");
+        spdlog::info("line id: {}, associated nfs count: {}, activity: {:.3f}", ml->id,
+                     lineWithNFs[ml].size(), ml->activity);
+
+        // update activity of this matched line
+        ml->activity += 1.0;
+
+        // add current norm flow to nf container of this matched line
+        auto &curLineWithNFs = lineWithNFs[ml];
+        curLineWithNFs.push_back(nf);
+
+        // update implicit line parameters
+        auto &lParam = lineParamUpdate[ml];
+        lParam->Update(nf->p(0), nf->p(1), decay);
+
+        // cos, sin, rho, two possible solutions (candidates)
+        auto res = lParam->ObtainLine(ml->activity);
+
+        // choose the best match line
+        Eigen::Vector3d nl;
+        if (std::abs(ml->param(0) /*old cos*/ - res.at(0)(0) /*new cos 1*/) <
+            std::abs(ml->param(0) /*old cos*/ - res.at(1)(0) /*new cos 2*/)) {
+            nl = res.at(0);
+        } else {
+            nl = res.at(1);
+        }
+
+        // visualization
+        auto mat = nfPack->nfsImg.clone();
+        DrawLine(mat, ml, cv::Scalar(255, 0, 0));
+        for (const auto &oldNF : curLineWithNFs) {
+            // blue, old associated norm flow
+            DrawKeypointOnCVMat(mat, oldNF->p.cast<double>(), true, cv::Scalar(255, 0, 0));
+        }
+        for (const auto &r : res) {
+            DrawLine(mat, r(0), r(1), -r(2), cv::Scalar(0, 0, 255));
+        }
+        DrawLine(mat, nl(0), nl(1), -nl(2), cv::Scalar(0, 255, 255));
+        // yellow, new associated norm flow
+        DrawKeypointOnCVMat(mat, nf->p.cast<double>(), true, cv::Scalar(0, 255, 255));
+        cv::imshow("Newly Associated Event Norm Flow", mat);
+        cv::waitKey(0);
+
+        // update
+        ml->param = nl;
+    }
+}
+
+void EventLineTracking::DrawLine(cv::Mat &m, const EventLine::Ptr &el, const cv::Scalar &color) {
+    const float a = el->param(0), b = el->param(1), c = -el->param(2);
+    DrawLine(m, a, b, c, color);
+}
+
+void EventLineTracking::DrawLine(
+    cv::Mat &m, const double a, const double b, const double c, const cv::Scalar &color) {
+    const int width = m.cols, height = m.rows;
+    cv::Point2f p1, p2;
+    if (b == 0) {
+        p1.x = 0;
+        p1.y = -c / a;
+        p2.x = width;
+        p2.y = -c / a;
+    } else if (a == 0) {
+        p1.x = -c / b;
+        p1.y = 0;
+        p2.x = -c / b;
+        p2.y = height;
+    } else {
+        p1.x = -c / a;
+        p1.y = 0;
+        p2.x = -(c + b * height) / a;
+        p2.y = height;
+    }
+    DrawLineOnCVMat(m, p1, p2, color);
+}
+
 }  // namespace ns_ikalibr

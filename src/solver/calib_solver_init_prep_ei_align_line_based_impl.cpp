@@ -55,7 +55,7 @@ void CalibSolver::InitPrepEventInertialAlignLineBased() const {
      * estimate norm flows and recover extrinsic rotations and time offsets of cameras under the
      * pure rotation motion assumption
      */
-    constexpr double TIME_SURFACE_DECAY_TIME = 0.03;
+    constexpr double TIME_SURFACE_DECAY_TIME = 0.01;
     std::map<std::string, std::list<std::list<NormFlow::Ptr>>> nfsForEventCams;
     for (const auto &[topic, eventMes] : _dataMagr->GetEventMeasurements()) {
         spdlog::info("perform norm flow estimation for event camera '{}'...", topic);
@@ -79,25 +79,27 @@ void CalibSolver::InitPrepEventInertialAlignLineBased() const {
             auto res = nfCreator.ExtractNormFlows(
                 TIME_SURFACE_DECAY_TIME,  // decay seconds for time surface
                 2,                        // window size to fit local planes
-                4,                        // distance between neighbor norm flows
+                1,                        // distance between neighbor norm flows
                 0.9,                      // the ratio, for ransac and in-range candidates
                 2E-3,  // the point to plane threshold in temporal domain, unit (s)
                 2);    // ransac iteration count
-            lastNfEventTime = res.timestamp;
+            lastNfEventTime = res->timestamp;
 
-            if (res.nfs.empty()) {
+            if (res->nfs.empty()) {
                 continue;
             }
 
-            nfsCurCam.push_back(res.nfs);
+            nfsCurCam.push_back(res->nfs);
 
-            cv::imshow("Time Surface & Norm Flow", res.Visualization(0.02));
+            EventLineTracking::Create()->TrackingUsingNormFlow(res);
+
+            cv::imshow("Time Surface & Norm Flow", res->Visualization(0.02));
             // _viewer->AddEventData(res.ActiveEvents(0.02), res.timestamp, Viewer::VIEW_MAP,
             //                       {0.01, 100});
             // _viewer->AddEventData(res.NormFlowEvents(), res.timestamp, Viewer::VIEW_MAP,
             //                       {0.01, 100}, ns_viewer::Colour::Green());
             // _viewer->ClearViewer(Viewer::VIEW_MAP);
-            cv::waitKey(1);
+            cv::waitKey(0);
         }
         bar->finish();
     }

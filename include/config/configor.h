@@ -244,9 +244,7 @@ public:
         template <class Archive>
         void serialize(Archive &ar) {
             ar(CEREAL_NVP(IMUTopics), CEREAL_NVP(RadarTopics), CEREAL_NVP(LiDARTopics),
-               CEREAL_NVP(CameraTopics), CEREAL_NVP(RGBDTopics),
-               // the calibration of event cameras have not been supported yet in iKalibr!!!
-               // CEREAL_NVP(EventTopics),
+               CEREAL_NVP(CameraTopics), CEREAL_NVP(RGBDTopics), CEREAL_NVP(EventTopics),
                CEREAL_NVP(ReferIMU), CEREAL_NVP(BagPath), CEREAL_NVP(BeginTime),
                CEREAL_NVP(Duration), CEREAL_NVP(OutputPath));
         }
