@@ -79,7 +79,7 @@ void CalibSolver::InitPrepEventInertialAlignLineBased() const {
             auto res = nfCreator.ExtractNormFlows(
                 TIME_SURFACE_DECAY_TIME,  // decay seconds for time surface
                 2,                        // window size to fit local planes
-                1,                        // distance between neighbor norm flows
+                0,                        // distance between neighbor norm flows
                 0.9,                      // the ratio, for ransac and in-range candidates
                 2E-3,  // the point to plane threshold in temporal domain, unit (s)
                 2);    // ransac iteration count

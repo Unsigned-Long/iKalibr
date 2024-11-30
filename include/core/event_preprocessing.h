@@ -176,9 +176,6 @@ public:
         using Ptr = std::shared_ptr<EventLine>;
 
     public:
-        static std::uint32_t idCounter;
-
-        std::uint32_t id;
         double timestamp;
         double activity;
         // norm (n: cos, sin) and the distance from the line to the origin (rho)
@@ -220,6 +217,11 @@ public:
     constexpr static double P2L_DISTANCE_THD = 5.0 /*pixel*/;
     constexpr static double P2L_ORIENTATION_THD = std::cos(1.0 /*degree*/ * DEG2RAD);
     constexpr static int MAX_LINE_COUNT = 20;
+    constexpr static double VISIBLE_LINE_ACTIVITY_THD = 3.0;
+
+private:
+    std::set<EventLine::Ptr> visibleLines;
+    std::map<EventLine::Ptr, cv::Scalar> visibleLineColors;
 
 public:
     EventLineTracking() {}
@@ -238,6 +240,16 @@ protected:
                          const double b,
                          const double c,
                          const cv::Scalar &color = cv::Scalar(0, 255, 0));
+
+    static Eigen::Vector3d EstimateLine(const EventLine::Ptr &ol,
+                                        const std::list<NormFlowPtr> &data,
+                                        double lambda);
+
+    static EventLine::Ptr FindPossibleSameLine(const std::set<EventLine::Ptr> &lines,
+                                               const EventLine::Ptr &ml);
+
+    static std::list<std::pair<EventLine::Ptr, EventLine::Ptr>> FilterSameLines(
+        std::set<EventLine::Ptr> &lines);
 };
 
 }  // namespace ns_ikalibr

@@ -39,8 +39,12 @@
 #include "cereal/types/list.hpp"
 #include "cereal/types/utility.hpp"
 #include "factor/data_correspondence.h"
-
+#include "factor/line_2d_fitting.hpp"
+#include <ceres/problem.h>
+#include <ceres/solver.h>
+#include <ceres/sphere_manifold.h>
 #include <opencv2/highgui.hpp>
+#include <tiny-viewer/entity/entity.h>
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -493,11 +497,8 @@ void EventLocalPlaneSacProblem::optimizeModelCoefficients(const std::vector<int>
 /**
  * EventLineTracking::EventLine
  */
-std::uint32_t EventLineTracking::EventLine::idCounter = 0;
-
 EventLineTracking::EventLine::EventLine(const NormFlowPtr &nf)
-    : id(idCounter++),
-      timestamp(nf->timestamp),
+    : timestamp(nf->timestamp),
       activity(1.0) {
     param.head<2>() = nf->nfDir;
     param.tail<1>() = nf->p.cast<double>().transpose() * nf->nfDir;
@@ -603,9 +604,17 @@ void EventLineTracking::TrackingUsingNormFlow(const EventNormFlow::NormFlowPack:
 
 #define SHOW_DETAILS 0
 
-    std::list<EventLine::Ptr> lines;
+    std::set<EventLine::Ptr> linesCandidates;
     std::map<EventLine::Ptr, std::list<NormFlow::Ptr>> lineWithNFs;
-    std::map<EventLine::Ptr, LineParamUpdate::Ptr> lineParamUpdate;
+    // std::map<EventLine::Ptr, LineParamUpdate::Ptr> lineParamUpdate;
+    auto MergeLine1ToLine2 = [&linesCandidates, &lineWithNFs](const EventLine::Ptr &line1,
+                                                              const EventLine::Ptr &line2) {
+        const auto &nfsOfLine1 = lineWithNFs[line1];
+        auto &nfsOfLine2 = lineWithNFs[line2];
+        nfsOfLine2.insert(nfsOfLine2.end(), nfsOfLine1.begin(), nfsOfLine1.end());
+        linesCandidates.erase(line1);
+        lineWithNFs.erase(line1);
+    };
 
     double lastTime = nfPack->nfs.front()->timestamp;
     for (const auto &nf : nfPack->nfs) {
@@ -618,7 +627,7 @@ void EventLineTracking::TrackingUsingNormFlow(const EventNormFlow::NormFlowPack:
         //              nf->p(1), nf->timestamp, dt, nf->nf(0), nf->nf(1));
 
         EventLine::Ptr ml = nullptr;
-        for (auto &el : lines) {
+        for (auto &el : linesCandidates) {
             // apply the decay
             el->activity *= decay;
             el->timestamp = nf->timestamp;
@@ -660,18 +669,18 @@ void EventLineTracking::TrackingUsingNormFlow(const EventNormFlow::NormFlowPack:
 
         // initialize a new line
         if (ml == nullptr) {
-            if (lines.size() >= MAX_LINE_COUNT) {
+            if (linesCandidates.size() >= MAX_LINE_COUNT) {
                 // find the one with the lowest activity
-                auto i = std::min_element(lines.begin(), lines.end(),
+                auto i = std::min_element(linesCandidates.begin(), linesCandidates.end(),
                                           [](const EventLine::Ptr &el1, const EventLine::Ptr &el2) {
                                               return el1->activity < el2->activity;
                                           });
-                lines.erase(i);
+                linesCandidates.erase(i);
             }
             auto newLine = EventLine::Create(nf);
-            lines.push_back(newLine);
+            linesCandidates.insert(newLine);
             lineWithNFs[newLine].push_back(nf);
-            lineParamUpdate[newLine] = LineParamUpdate::Create(nf->p(0), nf->p(1));
+            // lineParamUpdate[newLine] = LineParamUpdate::Create(nf->p(0), nf->p(1));
 #if SHOW_DETAILS
             // visualization
             auto mat = nfPack->nfSeedsImg.clone();
@@ -683,9 +692,6 @@ void EventLineTracking::TrackingUsingNormFlow(const EventNormFlow::NormFlowPack:
 #endif
             continue;
         }
-        spdlog::info("update line using associated norm flow (blue old, yellow new)");
-        spdlog::info("line id: {}, associated nfs count: {}, activity: {:.3f}", ml->id,
-                     lineWithNFs[ml].size(), ml->activity);
 
         // update activity of this matched line
         ml->activity += 1.0;
@@ -694,40 +700,82 @@ void EventLineTracking::TrackingUsingNormFlow(const EventNormFlow::NormFlowPack:
         auto &curLineWithNFs = lineWithNFs[ml];
         curLineWithNFs.push_back(nf);
 
+        spdlog::info("associated nfs count: {}, activity: {:.3f}", lineWithNFs[ml].size(),
+                     ml->activity);
+
         // update implicit line parameters
-        auto &lParam = lineParamUpdate[ml];
-        lParam->Update(nf->p(0), nf->p(1), decay);
+        // auto &lParam = lineParamUpdate[ml];
+        // lParam->Update(nf->p(0), nf->p(1), decay);
 
         // cos, sin, rho, two possible solutions (candidates)
-        auto res = lParam->ObtainLine(ml->activity);
+        // auto res = lParam->ObtainLine(ml->activity);
 
         // choose the best match line
-        Eigen::Vector3d nl;
-        if (std::abs(ml->param(0) /*old cos*/ - res.at(0)(0) /*new cos 1*/) <
-            std::abs(ml->param(0) /*old cos*/ - res.at(1)(0) /*new cos 2*/)) {
-            nl = res.at(0);
-        } else {
-            nl = res.at(1);
-        }
+        // Eigen::Vector3d nl;
+        // if (std::abs(ml->param(0) /*old cos*/ - res.at(0)(0) /*new cos 1*/) <
+        //     std::abs(ml->param(0) /*old cos*/ - res.at(1)(0) /*new cos 2*/)) {
+        //     nl = res.at(0);
+        // } else {
+        //     nl = res.at(1);
+        // }
+
+        Eigen::Vector3d nl = EstimateLine(ml, curLineWithNFs, 0.1);
 
         // visualization
-        auto mat = nfPack->nfsImg.clone();
-        DrawLine(mat, ml, cv::Scalar(255, 0, 0));
-        for (const auto &oldNF : curLineWithNFs) {
-            // blue, old associated norm flow
-            DrawKeypointOnCVMat(mat, oldNF->p.cast<double>(), true, cv::Scalar(255, 0, 0));
-        }
-        for (const auto &r : res) {
-            DrawLine(mat, r(0), r(1), -r(2), cv::Scalar(0, 0, 255));
-        }
-        DrawLine(mat, nl(0), nl(1), -nl(2), cv::Scalar(0, 255, 255));
-        // yellow, new associated norm flow
-        DrawKeypointOnCVMat(mat, nf->p.cast<double>(), true, cv::Scalar(0, 255, 255));
-        cv::imshow("Newly Associated Event Norm Flow", mat);
-        cv::waitKey(0);
+        // auto mat = nfPack->nfsImg.clone();
+        // DrawLine(mat, ml, cv::Scalar(255, 0, 0));
+        // for (const auto &oldNF : curLineWithNFs) {
+        //     // blue, old associated norm flow
+        //     DrawKeypointOnCVMat(mat, oldNF->p.cast<double>(), true, cv::Scalar(255, 0, 0));
+        // }
+        // DrawLine(mat, nl(0), nl(1), -nl(2), cv::Scalar(0, 255, 255));
+        // // yellow, new associated norm flow
+        // DrawKeypointOnCVMat(mat, nf->p.cast<double>(), true, cv::Scalar(0, 255, 255));
+        // cv::imshow("Newly Associated Event Norm Flow", mat);
 
         // update
         ml->param = nl;
+
+        if (ml->activity > VISIBLE_LINE_ACTIVITY_THD) {
+            if (visibleLines.empty()) {
+                visibleLines.insert(ml);
+            } else if (visibleLines.find(ml) != visibleLines.end()) {
+                // this line had existed, do nothing
+            } else {
+                if (auto sameLine = FindPossibleSameLine(visibleLines, ml); sameLine == nullptr) {
+                    // find no same line
+                    visibleLines.insert(ml);
+                } else {
+                    spdlog::info("merge new visible to existing visible line!!!");
+                    // find the same line
+                    MergeLine1ToLine2(ml, sameLine);
+                }
+            }
+            for (const auto &[l1, l2] : FilterSameLines(visibleLines)) {
+                // pay attention to the order!!!
+                MergeLine1ToLine2(l2, l1);
+                spdlog::warn("merge two same visible lines!!!");
+            }
+        }
+
+        // draw visible lines
+        auto lMat = nfPack->nfsImg.clone();
+        for (const auto &vl : visibleLines) {
+            auto iter = visibleLineColors.find(vl);
+            if (iter == visibleLineColors.end()) {
+                auto c = ns_viewer::Entity::GetUniqueColour();
+                auto color = cv::Scalar(c.r * 255.0, c.g * 255.0, c.b * 255.0, c.a * 255.0);
+                iter = visibleLineColors.insert({vl, color}).first;
+            }
+            DrawLine(lMat, vl, iter->second);
+            for (const auto &anf : lineWithNFs[vl]) {
+                DrawKeypointOnCVMat(lMat, anf->p.cast<double>(), true, iter->second);
+            }
+        }
+        if (!visibleLines.empty()) {
+            cv::imshow("Visible Event Lines", lMat);
+            cv::waitKey(0);
+        }
     }
 }
 
@@ -757,6 +805,75 @@ void EventLineTracking::DrawLine(
         p2.y = height;
     }
     DrawLineOnCVMat(m, p1, p2, color);
+}
+
+Eigen::Vector3d EventLineTracking::EstimateLine(const EventLine::Ptr &ol,
+                                                const std::list<NormFlowPtr> &data,
+                                                double lambda) {
+    ceres::Problem problem;
+    Eigen::Vector2d n = ol->param.head<2>();
+    double rho = ol->param(2);
+    for (const auto &nf : data) {
+        const double decay = std::exp(-nf->nfNorm * (ol->timestamp - nf->timestamp));
+        auto cf = Line2DFittingFactor::Create(nf->p.cast<double>(), nf->nfDir, lambda, decay);
+        cf->AddParameterBlock(2);
+        cf->AddParameterBlock(1);
+
+        cf->SetNumResiduals(2);
+
+        problem.AddResidualBlock(cf, nullptr, {n.data(), &rho});
+    }
+    problem.SetManifold(n.data(), new ceres::SphereManifold<Eigen::Dynamic>(2));
+    ceres::Solver::Options opt;
+    // opt.minimizer_progress_to_stdout = true;
+    ceres::Solver::Summary sum;
+    ceres::Solve(opt, &problem, &sum);
+    Eigen::Vector3d nl;
+    nl.head<2>() = n;
+    nl(2) = rho;
+
+    return nl;
+}
+
+EventLineTracking::EventLine::Ptr EventLineTracking::FindPossibleSameLine(
+    const std::set<EventLine::Ptr> &lines, const EventLine::Ptr &ml) {
+    // try to find a same line first
+    EventLine::Ptr sameLine = nullptr;
+    for (const auto &vl : lines) {
+        const double dirDiffCos = vl->DirectionDifferenceCos(ml->param.head<2>());
+        const double dist = std::abs(vl->param(2) - ml->param(2));
+        if (dist < P2L_DISTANCE_THD && dirDiffCos > P2L_ORIENTATION_THD) {
+            // find the same line
+            sameLine = vl;
+            break;
+        }
+    }
+    return sameLine;
+}
+
+std::list<std::pair<EventLineTracking::EventLine::Ptr, EventLineTracking::EventLine::Ptr>>
+EventLineTracking::FilterSameLines(std::set<EventLine::Ptr> &lines) {
+    if (lines.size() < 2) {
+        return {};
+    }
+    // line1, line2 are same lines, line2 is fused (removed) into line1
+    std::list<std::pair<EventLine::Ptr, EventLine::Ptr>> filteredLines;
+    for (auto iter1 = lines.begin(); iter1 != lines.end(); ++iter1) {
+        for (auto iter2 = std::next(iter1);
+             iter2 != lines.end();) {  // Use std::next to keep iter1 unchanged
+            const auto l1 = *iter1, l2 = *iter2;
+            const double dirDiffCos = l1->DirectionDifferenceCos(l2->param.head<2>());
+            const double dist = std::abs(l1->param(2) - l2->param(2));
+            if (dist < P2L_DISTANCE_THD && dirDiffCos > P2L_ORIENTATION_THD) {
+                // find the same line
+                filteredLines.push_back({l1, l2});
+                iter2 = lines.erase(iter2);  // erase will return the next valid iterator
+            } else {
+                ++iter2;
+            }
+        }
+    }
+    return filteredLines;
 }
 
 }  // namespace ns_ikalibr
