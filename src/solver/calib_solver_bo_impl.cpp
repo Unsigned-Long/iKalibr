@@ -115,9 +115,15 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                 this->AddGyroFactor(estimator, topic, optOption);
             }
             for (const auto &[topic, corrs] : rgbdCorrs) {
-                this->AddRGBDOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
-                                               OPTICAL_FLOW_EST_INV_DEPTH>(
-                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+                /**
+                 * We have directly removed 'AddRGBDOpticalFlowFactor' in the new version and
+                 * replaced it with 'AddRGBDOpticalFlowReprojFactor' to avoid the introduction of
+                 * prior model errors from 'AddRGBDOpticalFlowFactor'.
+                 */
+                // this->AddRGBDOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
+                //                                OPTICAL_FLOW_EST_INV_DEPTH>(
+                //     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+
                 /**
                  * when vel spline is maintained, we add additional reprojection constraints for
                  * optical flow tracking correspondence, under the assumption of uniform velocity
@@ -128,9 +134,14 @@ CalibSolver::BackUp::Ptr CalibSolver::BatchOptimization(
                     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
             }
             for (const auto &[topic, corrs] : visualVelCorrs) {
-                this->AddVisualOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
-                                                 OPTICAL_FLOW_EST_INV_DEPTH>(
-                    estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
+                /**
+                 * We have directly removed 'AddVisualOpticalFlowFactor' in the new version and
+                 * replaced it with 'AddVisualOpticalFlowReprojFactor' to avoid the introduction of
+                 * prior model errors from 'AddVisualOpticalFlowFactor'.
+                 */
+                // this->AddVisualOpticalFlowFactor<TimeDeriv::LIN_VEL_SPLINE,
+                //                                  OPTICAL_FLOW_EST_INV_DEPTH>(
+                //     estimator, topic, corrs, RefineReadoutTimeOptForCameras(topic, optOption));
 
                 /**
                  * when vel spline is maintained, we add additional reprojection constraints for
