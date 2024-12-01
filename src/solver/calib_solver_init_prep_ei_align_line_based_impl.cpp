@@ -79,10 +79,10 @@ void CalibSolver::InitPrepEventInertialAlignLineBased() const {
             auto res = nfCreator.ExtractNormFlows(
                 TIME_SURFACE_DECAY_TIME,  // decay seconds for time surface
                 2,                        // window size to fit local planes
-                0,                        // distance between neighbor norm flows
-                0.9,                      // the ratio, for ransac and in-range candidates
+                2,                        // distance between neighbor norm flows
+                0.8,                      // the ratio, for ransac and in-range candidates
                 2E-3,  // the point to plane threshold in temporal domain, unit (s)
-                2);    // ransac iteration count
+                3);    // ransac iteration count
             lastNfEventTime = res->timestamp;
 
             if (res->nfs.empty()) {
@@ -91,11 +91,11 @@ void CalibSolver::InitPrepEventInertialAlignLineBased() const {
 
             nfsCurCam.push_back(res->nfs);
 
-            EventLineTracking::Create()->TrackingUsingNormFlow(res);
+            // EventLineTracking::Create()->TrackingUsingNormFlow(res);
 
-            cv::imshow("Time Surface & Norm Flow", res->Visualization(0.02));
-            // _viewer->AddEventData(res.ActiveEvents(0.02), res.timestamp, Viewer::VIEW_MAP,
-            //                       {0.01, 100});
+            cv::imshow("Time Surface & Norm Flow", res->Visualization(TIME_SURFACE_DECAY_TIME));
+            // _viewer->AddEventData(res.ActiveEvents(TIME_SURFACE_DECAY_TIME), res.timestamp,
+            //                       Viewer::VIEW_MAP, {0.01, 100});
             // _viewer->AddEventData(res.NormFlowEvents(), res.timestamp, Viewer::VIEW_MAP,
             //                       {0.01, 100}, ns_viewer::Colour::Green());
             // _viewer->ClearViewer(Viewer::VIEW_MAP);

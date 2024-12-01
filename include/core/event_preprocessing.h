@@ -169,30 +169,30 @@ protected:
     const std::vector<std::tuple<double, double, double>> &_data;
 };
 
+struct EventLine {
+    using Ptr = std::shared_ptr<EventLine>;
+
+public:
+    double timestamp;
+    double activity;
+    // norm (n: cos, sin) and the distance from the line to the origin (rho)
+    Eigen::Vector3d param;
+
+public:
+    EventLine(const NormFlowPtr &nf);
+
+    static Ptr Create(const NormFlowPtr &nf);
+
+    double PointToLine(const Eigen::Vector2d &p) const;
+
+    double DirectionDifferenceCos(const Eigen::Vector2d &nfDir) const;
+
+    void Normalize();
+};
+
 class EventLineTracking {
 public:
     using Ptr = std::shared_ptr<EventLineTracking>;
-
-    struct EventLine {
-        using Ptr = std::shared_ptr<EventLine>;
-
-    public:
-        double timestamp;
-        double activity;
-        // norm (n: cos, sin) and the distance from the line to the origin (rho)
-        Eigen::Vector3d param;
-
-    public:
-        EventLine(const NormFlowPtr &nf);
-
-        static Ptr Create(const NormFlowPtr &nf);
-
-        double PointToLine(const Eigen::Vector2d &p) const;
-
-        double DirectionDifferenceCos(const Eigen::Vector2d &nfDir) const;
-
-        void Normalize();
-    };
 
     struct LineParamUpdate {
     public:

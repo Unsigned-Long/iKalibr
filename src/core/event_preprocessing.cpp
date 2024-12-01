@@ -215,12 +215,12 @@ EventArray::Ptr EventNormFlow::NormFlowPack::NormFlowEvents() const {
     const int cols = rawTimeSurfaceMap.cols;
     for (int ey = 0; ey < rows; ey++) {
         for (int ex = 0; ex < cols; ex++) {
+            if (inliersOccupy.at<uchar>(ey, ex) == 0) {
+                continue;
+            }
             const auto &et = rawTimeSurfaceMap.at<double>(ey, ex);
             // whether this pixel is assigned
             if (et < 1E-3) {
-                continue;
-            }
-            if (inliersOccupy.at<uchar>(ey, ex) == 0) {
                 continue;
             }
             const auto &ep = polarityMap.at<uchar>(ey, ex);
@@ -239,20 +239,18 @@ cv::Mat EventNormFlow::NormFlowPack::Visualization(double dt) const {
     cv::Mat m1;
     cv::hconcat(nfSeedsImg, nfsImg, m1);
 
+    const cv::Vec3b blue(255, 0, 0), red(0, 0, 255);
     cv::Mat actEventMat(nfSeedsImg.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+
     for (const auto &event : this->ActiveEvents(dt)->GetEvents()) {
-        auto ex = event->GetPos()(0), ey = event->GetPos()(1);
-        auto ep = event->GetPolarity();
-        actEventMat.at<cv::Vec3b>(cv::Point2d(ex, ey)) =
-            ep ? cv::Vec3b(255, 0, 0) : cv::Vec3b(0, 0, 255);
+        Event::PosType::Scalar ex = event->GetPos()(0), ey = event->GetPos()(1);
+        actEventMat.at<cv::Vec3b>(ey, ex) = event->GetPolarity() ? blue : red;
     }
 
     cv::Mat nfEventMat(nfSeedsImg.size(), CV_8UC3, cv::Scalar(0, 0, 0));
     for (const auto &event : this->NormFlowEvents()->GetEvents()) {
-        auto ex = event->GetPos()(0), ey = event->GetPos()(1);
-        auto ep = event->GetPolarity();
-        nfEventMat.at<cv::Vec3b>(cv::Point2d(ex, ey)) =
-            ep ? cv::Vec3b(255, 0, 0) : cv::Vec3b(0, 0, 255);
+        Event::PosType::Scalar ex = event->GetPos()(0), ey = event->GetPos()(1);
+        nfEventMat.at<cv::Vec3b>(ey, ex) = event->GetPolarity() ? blue : red;
     }
 
     cv::Mat m2;
@@ -497,28 +495,26 @@ void EventLocalPlaneSacProblem::optimizeModelCoefficients(const std::vector<int>
 }
 
 /**
- * EventLineTracking::EventLine
+ * EventLine
  */
-EventLineTracking::EventLine::EventLine(const NormFlowPtr &nf)
+EventLine::EventLine(const NormFlowPtr &nf)
     : timestamp(nf->timestamp),
       activity(1.0) {
     param.head<2>() = nf->nfDir;
     param.tail<1>() = nf->p.cast<double>().transpose() * nf->nfDir;
 }
 
-EventLineTracking::EventLine::Ptr EventLineTracking::EventLine::Create(const NormFlowPtr &nf) {
-    return std::make_shared<EventLine>(nf);
-}
+EventLine::Ptr EventLine::Create(const NormFlowPtr &nf) { return std::make_shared<EventLine>(nf); }
 
-double EventLineTracking::EventLine::PointToLine(const Eigen::Vector2d &p) const {
+double EventLine::PointToLine(const Eigen::Vector2d &p) const {
     return (p.transpose() * param.head<2>() - param.tail<1>())(0);
 }
 
-double EventLineTracking::EventLine::DirectionDifferenceCos(const Eigen::Vector2d &nfDir) const {
+double EventLine::DirectionDifferenceCos(const Eigen::Vector2d &nfDir) const {
     return (param.head<2>().transpose() * nfDir)(0);
 }
 
-void EventLineTracking::EventLine::Normalize() { param /= param.head<2>().norm(); }
+void EventLine::Normalize() { param /= param.head<2>().norm(); }
 
 /**
  * EventLineTracking::LineParamUpdate
@@ -838,8 +834,8 @@ Eigen::Vector3d EventLineTracking::EstimateLine(const EventLine::Ptr &ol,
     return nl;
 }
 
-EventLineTracking::EventLine::Ptr EventLineTracking::FindPossibleSameLine(
-    const std::set<EventLine::Ptr> &lines, const EventLine::Ptr &ml) {
+EventLine::Ptr EventLineTracking::FindPossibleSameLine(const std::set<EventLine::Ptr> &lines,
+                                                       const EventLine::Ptr &ml) {
     // try to find a same line first
     EventLine::Ptr sameLine = nullptr;
     for (const auto &vl : lines) {
@@ -854,8 +850,8 @@ EventLineTracking::EventLine::Ptr EventLineTracking::FindPossibleSameLine(
     return sameLine;
 }
 
-std::list<std::pair<EventLineTracking::EventLine::Ptr, EventLineTracking::EventLine::Ptr>>
-EventLineTracking::FilterSameLines(std::set<EventLine::Ptr> &lines) {
+std::list<std::pair<EventLine::Ptr, EventLine::Ptr>> EventLineTracking::FilterSameLines(
+    std::set<EventLine::Ptr> &lines) {
     if (lines.size() < 2) {
         return {};
     }
