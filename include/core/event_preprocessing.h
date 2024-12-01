@@ -106,6 +106,7 @@ public:
         // for visualization
         cv::Mat nfSeedsImg;
         cv::Mat nfsImg;
+        cv::Mat tsImg;
 
     public:
         EventArray::Ptr ActiveEvents(double dt = 0.02) const;
@@ -214,8 +215,10 @@ public:
 
 public:
     constexpr static double DEG2RAD = M_PI / 180.0;
-    constexpr static double P2L_DISTANCE_THD = 5.0 /*pixel*/;
+    constexpr static double P2L_DISTANCE_THD = 2.0 /*pixel*/;
+    constexpr static double L2L_DISTANCE_THD = 5.0 /*pixel*/;
     constexpr static double P2L_ORIENTATION_THD = std::cos(1.0 /*degree*/ * DEG2RAD);
+    constexpr static double L2L_ORIENTATION_THD = std::cos(3.0 /*degree*/ * DEG2RAD);
     constexpr static int MAX_LINE_COUNT = 20;
     constexpr static double VISIBLE_LINE_ACTIVITY_THD = 3.0;
 

@@ -279,7 +279,8 @@ EventNormFlow::NormFlowPack::Ptr EventNormFlow::ExtractNormFlows(double decaySec
     cv::inRange(rtsMat, std::max(1E-3, timeLast - 1.5 * decaySec), timeLast, mask);
 
     cv::cvtColor(tsImg, tsImg, cv::COLOR_GRAY2BGR);
-    auto tsImgNfs = tsImg.clone();
+    auto nfsImg = tsImg.clone();
+    auto nfSeedsImg = tsImg.clone();
 
     const int ws = winSize;
     const int subTravSize = std::max(winSize, neighborDist);
@@ -346,7 +347,7 @@ EventNormFlow::NormFlowPack::Ptr EventNormFlow::ExtractNormFlows(double decaySec
             /**
              * drawing
              */
-            tsImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);  // selected but not verified
+            nfSeedsImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);  // selected but not verified
             occupy.at<uchar>(y /*row*/, x /*col*/) = 255;
 
             // try fit planes using ransac
@@ -386,8 +387,8 @@ EventNormFlow::NormFlowPack::Ptr EventNormFlow::ExtractNormFlows(double decaySec
             /**
              * drawing
              */
-            tsImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 255, 0);  // selected and verified
-            DrawLineOnCVMat(tsImgNfs, Eigen::Vector2d{x, y} + 0.01 * nf, {x, y});
+            nfSeedsImg.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 255, 0);  // selected and verified
+            DrawLineOnCVMat(nfsImg, Eigen::Vector2d{x, y} + 0.01 * nf, {x, y});
 
 #if OUTPUT_PLANE_FIT
             std::list<std::tuple<double, double, double>> centeredInliers;
@@ -416,8 +417,9 @@ EventNormFlow::NormFlowPack::Ptr EventNormFlow::ExtractNormFlows(double decaySec
     pack->rawTimeSurfaceMap = rtsMat;
     pack->timestamp = _sea->GetTimeLatest();
     // for visualization
-    pack->nfsImg = tsImgNfs;
-    pack->nfSeedsImg = tsImg;
+    pack->nfsImg = nfsImg;
+    pack->nfSeedsImg = nfSeedsImg;
+    pack->tsImg = tsImg.clone();
     return pack;
 }
 
@@ -700,8 +702,8 @@ void EventLineTracking::TrackingUsingNormFlow(const EventNormFlow::NormFlowPack:
         auto &curLineWithNFs = lineWithNFs[ml];
         curLineWithNFs.push_back(nf);
 
-        spdlog::info("associated nfs count: {}, activity: {:.3f}", lineWithNFs[ml].size(),
-                     ml->activity);
+        // spdlog::info("associated nfs count: {}, activity: {:.3f}", lineWithNFs[ml].size(),
+        //              ml->activity);
 
         // update implicit line parameters
         // auto &lParam = lineParamUpdate[ml];
@@ -757,25 +759,26 @@ void EventLineTracking::TrackingUsingNormFlow(const EventNormFlow::NormFlowPack:
                 spdlog::warn("merge two same visible lines!!!");
             }
         }
-
-        // draw visible lines
-        auto lMat = nfPack->nfsImg.clone();
-        for (const auto &vl : visibleLines) {
-            auto iter = visibleLineColors.find(vl);
-            if (iter == visibleLineColors.end()) {
-                auto c = ns_viewer::Entity::GetUniqueColour();
-                auto color = cv::Scalar(c.r * 255.0, c.g * 255.0, c.b * 255.0, c.a * 255.0);
-                iter = visibleLineColors.insert({vl, color}).first;
-            }
-            DrawLine(lMat, vl, iter->second);
-            for (const auto &anf : lineWithNFs[vl]) {
-                DrawKeypointOnCVMat(lMat, anf->p.cast<double>(), true, iter->second);
-            }
+    }
+    // draw visible lines
+    auto lMat = nfPack->tsImg.clone();
+    for (const auto &vl : visibleLines) {
+        auto iter = visibleLineColors.find(vl);
+        if (iter == visibleLineColors.end()) {
+            auto c = ns_viewer::Entity::GetUniqueColour();
+            auto color = cv::Scalar(c.r * 255.0, c.g * 255.0, c.b * 255.0, c.a * 255.0);
+            iter = visibleLineColors.insert({vl, color}).first;
         }
-        if (!visibleLines.empty()) {
-            cv::imshow("Visible Event Lines", lMat);
-            cv::waitKey(0);
+        DrawLine(lMat, vl, iter->second);
+        for (const auto &anf : lineWithNFs[vl]) {
+            // lMat.at<cv::Vec3b>(anf->p(1), anf->p(0)) =
+            //     cv::Vec3b(iter->second(0), iter->second(1), iter->second(2));
+            DrawKeypointOnCVMat(lMat, anf->p.cast<double>(), true, iter->second);
         }
+    }
+    if (!visibleLines.empty()) {
+        cv::imshow("Visible Event Lines", lMat);
+        // cv::waitKey(0);
     }
 }
 
@@ -842,7 +845,7 @@ EventLineTracking::EventLine::Ptr EventLineTracking::FindPossibleSameLine(
     for (const auto &vl : lines) {
         const double dirDiffCos = vl->DirectionDifferenceCos(ml->param.head<2>());
         const double dist = std::abs(vl->param(2) - ml->param(2));
-        if (dist < P2L_DISTANCE_THD && dirDiffCos > P2L_ORIENTATION_THD) {
+        if (dist < L2L_DISTANCE_THD && dirDiffCos > L2L_ORIENTATION_THD) {
             // find the same line
             sameLine = vl;
             break;
@@ -864,7 +867,7 @@ EventLineTracking::FilterSameLines(std::set<EventLine::Ptr> &lines) {
             const auto l1 = *iter1, l2 = *iter2;
             const double dirDiffCos = l1->DirectionDifferenceCos(l2->param.head<2>());
             const double dist = std::abs(l1->param(2) - l2->param(2));
-            if (dist < P2L_DISTANCE_THD && dirDiffCos > P2L_ORIENTATION_THD) {
+            if (dist < L2L_DISTANCE_THD && dirDiffCos > L2L_ORIENTATION_THD) {
                 // find the same line
                 filteredLines.push_back({l1, l2});
                 iter2 = lines.erase(iter2);  // erase will return the next valid iterator
