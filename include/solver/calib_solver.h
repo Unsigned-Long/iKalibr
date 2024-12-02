@@ -312,6 +312,8 @@ protected:
      */
     void InitPrepEventInertialAlignLineBased() const;
 
+    void InitPrepEventInertialAlignCircleBased() const;
+
     /**
      * initialize the linear scale spline using by-products from sensor-inertial alignment
      * one of three kinds of linear scale spline, i.e., linear acceleration, linear velocity, and

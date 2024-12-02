@@ -37,6 +37,7 @@
 #include "sensor/camera.h"
 #include "calib/calib_param_manager.h"
 #include "factor/data_correspondence.h"
+#include "core/visual_distortion.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
