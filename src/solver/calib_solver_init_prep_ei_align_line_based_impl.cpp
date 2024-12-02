@@ -93,7 +93,7 @@ void CalibSolver::InitPrepEventInertialAlignLineBased() const {
                 continue;
             }
 
-            nfsCurCam.push_back(res->nfs);
+            nfsCurCam.push_back(res->NormFlows());
 
             // EventLineTracking::Create()->TrackingUsingNormFlow(res);
 

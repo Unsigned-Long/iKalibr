@@ -186,7 +186,7 @@ std::pair<cv::Mat, cv::Mat> ActiveEventSurface::RawTimeSurface(bool ignorePolari
 
 double ActiveEventSurface::GetTimeLatest() const { return _timeLatest; }
 
-EventArray::Ptr EventNormFlow::NormFlowPack::ActiveEvents(double dt) const {
+std::list<Event::Ptr> EventNormFlow::NormFlowPack::ActiveEvents(double dt) const {
     std::list<Event::Ptr> events;
     const int rows = rawTimeSurfaceMap.rows;
     const int cols = rawTimeSurfaceMap.cols;
@@ -201,38 +201,19 @@ EventArray::Ptr EventNormFlow::NormFlowPack::ActiveEvents(double dt) const {
             events.push_back(Event::Create(et, {ex, ey}, ep));
         }
     }
-    if (events.size() > 0) {
-        std::vector<Event::Ptr> eventsVec(events.cbegin(), events.cend());
-        return EventArray::Create(eventsVec.back()->GetTimestamp(), eventsVec);
-    } else {
-        return nullptr;
-    }
+    return events;
 }
 
-EventArray::Ptr EventNormFlow::NormFlowPack::NormFlowEvents() const {
+std::list<Event::Ptr> EventNormFlow::NormFlowPack::NormFlowInlierEvents() const {
     std::list<Event::Ptr> events;
-    const int rows = rawTimeSurfaceMap.rows;
-    const int cols = rawTimeSurfaceMap.cols;
-    for (int ey = 0; ey < rows; ey++) {
-        for (int ex = 0; ex < cols; ex++) {
-            if (inliersOccupy.at<uchar>(ey, ex) == 0) {
-                continue;
-            }
-            const auto &et = rawTimeSurfaceMap.at<double>(ey, ex);
-            // whether this pixel is assigned
-            if (et < 1E-3) {
-                continue;
-            }
+    for (const auto &[nf, inliers] : this->nfs) {
+        for (const auto &[ex, ey, et] : inliers) {
             const auto &ep = polarityMap.at<uchar>(ey, ex);
             events.push_back(Event::Create(et, {ex, ey}, ep));
         }
     }
-    if (events.size() > 0) {
-        std::vector<Event::Ptr> eventsVec(events.cbegin(), events.cend());
-        return EventArray::Create(eventsVec.back()->GetTimestamp(), eventsVec);
-    } else {
-        return nullptr;
-    }
+
+    return events;
 }
 
 cv::Mat EventNormFlow::NormFlowPack::Visualization(double dt) const {
@@ -242,13 +223,13 @@ cv::Mat EventNormFlow::NormFlowPack::Visualization(double dt) const {
     const cv::Vec3b blue(255, 0, 0), red(0, 0, 255);
     cv::Mat actEventMat(nfSeedsImg.size(), CV_8UC3, cv::Scalar(0, 0, 0));
 
-    for (const auto &event : this->ActiveEvents(dt)->GetEvents()) {
+    for (const auto &event : this->ActiveEvents(dt)) {
         Event::PosType::Scalar ex = event->GetPos()(0), ey = event->GetPos()(1);
         actEventMat.at<cv::Vec3b>(ey, ex) = event->GetPolarity() ? blue : red;
     }
 
     cv::Mat nfEventMat(nfSeedsImg.size(), CV_8UC3, cv::Scalar(0, 0, 0));
-    for (const auto &event : this->NormFlowEvents()->GetEvents()) {
+    for (const auto &event : this->NormFlowInlierEvents()) {
         Event::PosType::Scalar ex = event->GetPos()(0), ey = event->GetPos()(1);
         nfEventMat.at<cv::Vec3b>(ey, ex) = event->GetPolarity() ? blue : red;
     }
@@ -261,6 +242,38 @@ cv::Mat EventNormFlow::NormFlowPack::Visualization(double dt) const {
 
     return m3;
 }
+
+cv::Mat EventNormFlow::NormFlowPack::InliersOccupyMat() const {
+    const int rows = rawTimeSurfaceMap.rows;
+    const int cols = rawTimeSurfaceMap.cols;
+    cv::Mat inliersOccupy = cv::Mat::zeros(rows, cols, CV_8UC1);
+    for (const auto &[nf, inliers] : this->nfs) {
+        for (const auto &[ex, ey, et] : inliers) {
+            inliersOccupy.at<uchar>(ey /*row*/, ex /*col*/) = 255;
+        }
+    }
+    return inliersOccupy;
+}
+
+std::list<NormFlowPtr> EventNormFlow::NormFlowPack::TemporallySortedNormFlows() const {
+    std::list<NormFlow::Ptr> nfsList = NormFlows();
+    nfsList.sort([&](const NormFlow::Ptr &a, const NormFlow::Ptr &b) {
+        return a->timestamp < b->timestamp;
+    });
+    return nfsList;
+}
+
+std::list<NormFlowPtr> EventNormFlow::NormFlowPack::NormFlows() const {
+    std::list<NormFlow::Ptr> nfsList;
+    for (const auto &[nf, inliers] : this->nfs) {
+        nfsList.push_back(nf);
+    }
+    return nfsList;
+}
+
+int EventNormFlow::NormFlowPack::Rows() const { return rawTimeSurfaceMap.rows; }
+
+int EventNormFlow::NormFlowPack::Cols() const { return rawTimeSurfaceMap.cols; }
 
 EventNormFlow::NormFlowPack::Ptr EventNormFlow::ExtractNormFlows(double decaySec,
                                                                  int winSize,
@@ -288,8 +301,8 @@ EventNormFlow::NormFlowPack::Ptr EventNormFlow::ExtractNormFlows(double decaySec
     const int rows = mask.rows;
     const int cols = mask.cols;
     cv::Mat occupy = cv::Mat::zeros(rows, cols, CV_8UC1);
-    cv::Mat inliersOccupy = cv::Mat::zeros(rows, cols, CV_8UC1);
-    std::list<NormFlow::Ptr> nfs;
+    std::map<NormFlow::Ptr, std::vector<std::tuple<int, int, double>>> nfsInliers;
+
 #define OUTPUT_PLANE_FIT 0
 #if OUTPUT_PLANE_FIT
     std::list<std::pair<Eigen::Vector3d, std::list<std::tuple<double, double, double>>>> drawData;
@@ -376,12 +389,14 @@ EventNormFlow::NormFlowPack::Ptr EventNormFlow::ExtractNormFlows(double decaySec
                 continue;
             }
 
-            nfs.push_back(NormFlow::Create(timeCen, Eigen::Vector2i{x, y}, nf));
-
+            // inliers of the norm flow
+            std::vector<std::tuple<int, int, double>> inlierData;
+            inlierData.reserve(ransac.inliers_.size());
             for (int idx : ransac.inliers_) {
-                const auto &[ex, ey, et] = inRangeData.at(idx);
-                inliersOccupy.at<uchar>(ey /*row*/, ex /*col*/) = 255;
+                inlierData.emplace_back(inRangeData.at(idx));
             }
+            auto newNormFlow = NormFlow::Create(timeCen, Eigen::Vector2i{x, y}, nf);
+            nfsInliers[newNormFlow] = inlierData;
 
             /**
              * drawing
@@ -410,8 +425,7 @@ EventNormFlow::NormFlowPack::Ptr EventNormFlow::ExtractNormFlows(double decaySec
 #endif
 
     auto pack = std::make_shared<NormFlowPack>();
-    pack->nfs = nfs;
-    pack->inliersOccupy = inliersOccupy;
+    pack->nfs = nfsInliers;
     pack->polarityMap = pMat;
     pack->rawTimeSurfaceMap = rtsMat;
     pack->timestamp = _sea->GetTimeLatest();
@@ -597,9 +611,7 @@ std::array<Eigen::Vector3d, 2> EventLineTracking::LineParamUpdate::ObtainLine(do
  */
 void EventLineTracking::TrackingUsingNormFlow(const EventNormFlow::NormFlowPack::Ptr &nfPack) {
     // sort norm flow data
-    nfPack->nfs.sort([&](const NormFlow::Ptr &a, const NormFlow::Ptr &b) {
-        return a->timestamp < b->timestamp;
-    });
+    std::list<NormFlow::Ptr> nfs = nfPack->TemporallySortedNormFlows();
 
 #define SHOW_DETAILS 0
 
@@ -615,8 +627,8 @@ void EventLineTracking::TrackingUsingNormFlow(const EventNormFlow::NormFlowPack:
         lineWithNFs.erase(line1);
     };
 
-    double lastTime = nfPack->nfs.front()->timestamp;
-    for (const auto &nf : nfPack->nfs) {
+    double lastTime = nfs.front()->timestamp;
+    for (const auto &nf : nfs) {
         // compute the delta time, update last time stamp
         double dt = nf->timestamp - lastTime;
         const double decay = std::exp(-nf->nfNorm * dt);

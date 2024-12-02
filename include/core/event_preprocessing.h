@@ -98,9 +98,9 @@ public:
         using Ptr = std::shared_ptr<NormFlowPack>;
 
     public:
-        std::list<NormFlowPtr> nfs;
+        // norm flow, [x, y, timestamp]
+        std::map<NormFlowPtr, std::vector<std::tuple<int, int, double>>> nfs;
         cv::Mat rawTimeSurfaceMap;  // ex, ey, et
-        cv::Mat inliersOccupy;      // is inlier in norm flow estimation
         cv::Mat polarityMap;        // the polarity map
         double timestamp;
         // for visualization
@@ -109,11 +109,21 @@ public:
         cv::Mat tsImg;
 
     public:
-        EventArray::Ptr ActiveEvents(double dt = 0.02) const;
+        std::list<Event::Ptr> ActiveEvents(double dt = 0.02) const;
 
-        EventArray::Ptr NormFlowEvents() const;
+        std::list<Event::Ptr> NormFlowInlierEvents() const;
 
         cv::Mat Visualization(double dt = 0.02) const;
+
+        cv::Mat InliersOccupyMat() const;
+
+        std::list<NormFlowPtr> TemporallySortedNormFlows() const;
+
+        std::list<NormFlowPtr> NormFlows() const;
+
+        int Rows() const;
+
+        int Cols() const;
     };
 
 private:
