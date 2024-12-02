@@ -127,6 +127,7 @@ public:
                                        int winSize = 2,
                                        int neighborDist = 2,
                                        double goodRatioThd = 0.9,
+                                       bool undistorted = true,
                                        double timeDistEventToPlaneThd = 2E-3,
                                        int ransacMaxIter = 3) const;
 

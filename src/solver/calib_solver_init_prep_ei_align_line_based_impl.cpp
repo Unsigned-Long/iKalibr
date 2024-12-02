@@ -47,6 +47,9 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 void CalibSolver::InitPrepEventInertialAlignLineBased() const {
+    throw Status(Status::WARNING,
+                 "Line-based event-inertial calibration is still being developed in iKalibr!!!");
+
     if (!Configor::IsEventIntegrated()) {
         return;
     }
@@ -81,6 +84,7 @@ void CalibSolver::InitPrepEventInertialAlignLineBased() const {
                 2,                        // window size to fit local planes
                 2,                        // distance between neighbor norm flows
                 0.8,                      // the ratio, for ransac and in-range candidates
+                true,                     // whether undistort images
                 2E-3,  // the point to plane threshold in temporal domain, unit (s)
                 3);    // ransac iteration count
             lastNfEventTime = res->timestamp;

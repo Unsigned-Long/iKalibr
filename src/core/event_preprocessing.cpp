@@ -266,12 +266,13 @@ EventNormFlow::NormFlowPack::Ptr EventNormFlow::ExtractNormFlows(double decaySec
                                                                  int winSize,
                                                                  int neighborDist,
                                                                  double goodRatioThd,
+                                                                 bool undistorted,
                                                                  double timeDistEventToPlaneThd,
                                                                  int ransacMaxIter) const {
     // CV_64FC1
-    auto [rtsMat, pMat] = _sea->RawTimeSurface(true, true /*todo: undistorted*/);
+    auto [rtsMat, pMat] = _sea->RawTimeSurface(true, undistorted);
     // CV_8UC1
-    auto tsImg = _sea->TimeSurface(true, true /*todo: undistorted*/, 0, decaySec);
+    auto tsImg = _sea->TimeSurface(true, undistorted, 0, decaySec);
     const double timeLast = _sea->GetTimeLatest();
     cv::Mat mask;
     cv::inRange(rtsMat, std::max(1E-3, timeLast - 1.5 * decaySec), timeLast, mask);
