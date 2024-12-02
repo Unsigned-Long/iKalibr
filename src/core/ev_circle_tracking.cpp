@@ -38,26 +38,46 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack) {
-    auto [pNormFlowCluster, ncNormFlowCluster] = this->ClusterNormFlowEvents(nfPack);
+    auto [pNormFlowCluster, nNormFlowCluster] = this->ClusterNormFlowEvents(nfPack);
+    auto pCenDir = ComputeCenterDir(pNormFlowCluster, nfPack);
+    auto nCenDir = ComputeCenterDir(nNormFlowCluster, nfPack);
 
     auto mat = nfPack->tsImg.clone();
     DrawCluster(mat, pNormFlowCluster, nfPack);
-    DrawCluster(mat, ncNormFlowCluster, nfPack);
+    DrawCluster(mat, nNormFlowCluster, nfPack);
+    DrawCenterDir(mat, pCenDir, 10);
+    DrawCenterDir(mat, nCenDir, 10);
     cv::imshow("Circle-Oriented Cluster Results", mat);
 }
 
-void EventCircleTracking::DrawCluster(cv::Mat& mat,
-                                      const std::vector<std::list<NormFlow::Ptr>>& clusters,
-                                      const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> EventCircleTracking::ComputeCenterDir(
+    const std::vector<std::list<NormFlowPtr>>& clusters,
+    const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+    std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> results;
+    results.reserve(clusters.size());
     for (const auto& cluster : clusters) {
-        auto color = ns_viewer::Entity::GetUniqueColour();
-        cv::Vec3b c(color.b * 255, color.g * 255, color.r * 255);
-        for (const auto& nf : cluster) {
-            for (const auto& [ex, ey, et] : nfPack->nfs.at(nf)) {
-                mat.at<cv::Vec3b>(ey, ex) = c;
-            }
-        }
+        results.emplace_back(ComputeCenterDir(cluster, nfPack));
     }
+    return results;
+}
+
+std::pair<Eigen::Vector2d, Eigen::Vector2d> EventCircleTracking::ComputeCenterDir(
+    const std::list<NormFlowPtr>& cluster, const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+    Eigen::Vector2d center(0.0, 0.0), dir(0.0, 0.0);
+    int size = 0;
+    for (const auto& nf : cluster) {
+        auto inliers = nfPack->nfs.at(nf);
+        // There is spatial overlap between inliers of norm flows, but it is not a big problem
+        for (const auto& [ex, ey, et] : inliers) {
+            center(0) += ex, center(1) += ey;
+        }
+        size += inliers.size();
+        dir += inliers.size() * nf->nfDir.normalized();
+    }
+    center /= size;
+    dir /= size;
+    dir.normalize();
+    return {center, dir};
 }
 
 std::pair<std::vector<std::list<NormFlow::Ptr>>, std::vector<std::list<NormFlow::Ptr>>>
@@ -108,10 +128,43 @@ EventCircleTracking::ClusterNormFlowEvents(const EventNormFlow::NormFlowPack::Pt
     return {pNormFlowCluster, ncNormFlowCluster};
 }
 
+void EventCircleTracking::FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours,
+                                                  int areaThd) {
+    contours.erase(std::remove_if(contours.begin(), contours.end(),
+                                  [areaThd](const std::vector<cv::Point>& contour) {
+                                      return cv::contourArea(contour) < areaThd;
+                                  }),
+                   contours.end());
+}
+
 std::vector<std::vector<cv::Point>> EventCircleTracking::FindContours(const cv::Mat& binaryImg) {
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(binaryImg, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
     return contours;
+}
+
+void EventCircleTracking::DrawCenterDir(
+    cv::Mat& mat,
+    const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
+    double scale) {
+    for (const auto& [c, d] : cenDirVec) {
+        DrawKeypointOnCVMat(mat, c, false, cv::Scalar(255, 255, 255));
+        DrawLineOnCVMat(mat, c, c + scale * d, cv::Scalar(255, 255, 255));
+    }
+}
+
+void EventCircleTracking::DrawCluster(cv::Mat& mat,
+                                      const std::vector<std::list<NormFlow::Ptr>>& clusters,
+                                      const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+    for (const auto& cluster : clusters) {
+        auto color = ns_viewer::Entity::GetUniqueColour();
+        cv::Vec3b c(color.b * 255, color.g * 255, color.r * 255);
+        for (const auto& nf : cluster) {
+            for (const auto& [ex, ey, et] : nfPack->nfs.at(nf)) {
+                mat.at<cv::Vec3b>(ey, ex) = c;
+            }
+        }
+    }
 }
 
 void EventCircleTracking::DrawContours(cv::Mat& mat,
@@ -124,12 +177,4 @@ void EventCircleTracking::DrawContours(cv::Mat& mat,
     }
 }
 
-void EventCircleTracking::FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours,
-                                                  int areaThd) {
-    contours.erase(std::remove_if(contours.begin(), contours.end(),
-                                  [areaThd](const std::vector<cv::Point>& contour) {
-                                      return cv::contourArea(contour) < areaThd;
-                                  }),
-                   contours.end());
-}
 }  // namespace ns_ikalibr

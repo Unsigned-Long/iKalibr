@@ -55,20 +55,33 @@ public:
     void ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
 protected:
+    static std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> ComputeCenterDir(
+        const std::vector<std::list<NormFlowPtr>>& clusters,
+        const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+    static std::pair<Eigen::Vector2d, Eigen::Vector2d> ComputeCenterDir(
+        const std::list<NormFlowPtr>& cluster, const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
     static std::pair<std::vector<std::list<NormFlowPtr>>, std::vector<std::list<NormFlowPtr>>>
     ClusterNormFlowEvents(const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+    static void FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours, int areaThd);
+
+    static std::vector<std::vector<cv::Point>> FindContours(const cv::Mat& binaryImg);
+
+protected:
+    static void DrawCenterDir(
+        cv::Mat& mat,
+        const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
+        double scale);
 
     static void DrawCluster(cv::Mat& mat,
                             const std::vector<std::list<NormFlowPtr>>& clusters,
                             const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
-    static std::vector<std::vector<cv::Point>> FindContours(const cv::Mat& binaryImg);
-
     static void DrawContours(cv::Mat& mat,
                              const std::vector<std::vector<cv::Point>>& contours,
                              const cv::Vec3b& color = {255, 255, 255});
-
-    static void FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours, int areaThd);
 };
 }  // namespace ns_ikalibr
 
