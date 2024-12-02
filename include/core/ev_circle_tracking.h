@@ -31,11 +31,45 @@
 #define EV_CIRCLE_TRACKING_H
 
 #include "util/utils.h"
+#include "core/event_preprocessing.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-namespace ns_ikalibr {}
+namespace ns_ikalibr {
+struct NormFlow;
+using NormFlowPtr = std::shared_ptr<NormFlow>;
+
+class EventCircleTracking {
+public:
+    using Ptr = std::shared_ptr<EventCircleTracking>;
+
+    constexpr static int CLUSTER_AREA_THD = 10;
+
+public:
+    EventCircleTracking() = default;
+
+    static Ptr Create() { return std::make_shared<EventCircleTracking>(); }
+
+    void ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+protected:
+    static std::pair<std::vector<std::list<NormFlowPtr>>, std::vector<std::list<NormFlowPtr>>>
+    ClusterNormFlowEvents(const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+    static void DrawCluster(cv::Mat& mat,
+                            const std::vector<std::list<NormFlowPtr>>& clusters,
+                            const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+    static std::vector<std::vector<cv::Point>> FindContours(const cv::Mat& binaryImg);
+
+    static void DrawContours(cv::Mat& mat,
+                             const std::vector<std::vector<cv::Point>>& contours,
+                             const cv::Vec3b& color = {255, 255, 255});
+
+    static void FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours, int areaThd);
+};
+}  // namespace ns_ikalibr
 
 #endif  // EV_CIRCLE_TRACKING_H

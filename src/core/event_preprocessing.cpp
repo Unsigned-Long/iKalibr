@@ -220,22 +220,8 @@ cv::Mat EventNormFlow::NormFlowPack::Visualization(double dt) const {
     cv::Mat m1;
     cv::hconcat(nfSeedsImg, nfsImg, m1);
 
-    const cv::Vec3b blue(255, 0, 0), red(0, 0, 255);
-    cv::Mat actEventMat(nfSeedsImg.size(), CV_8UC3, cv::Scalar(0, 0, 0));
-
-    for (const auto &event : this->ActiveEvents(dt)) {
-        Event::PosType::Scalar ex = event->GetPos()(0), ey = event->GetPos()(1);
-        actEventMat.at<cv::Vec3b>(ey, ex) = event->GetPolarity() ? blue : red;
-    }
-
-    cv::Mat nfEventMat(nfSeedsImg.size(), CV_8UC3, cv::Scalar(0, 0, 0));
-    for (const auto &event : this->NormFlowInlierEvents()) {
-        Event::PosType::Scalar ex = event->GetPos()(0), ey = event->GetPos()(1);
-        nfEventMat.at<cv::Vec3b>(ey, ex) = event->GetPolarity() ? blue : red;
-    }
-
     cv::Mat m2;
-    cv::hconcat(actEventMat, nfEventMat, m2);
+    cv::hconcat(AccumulativeEventMat(dt), NormFlowInlierEventMat(), m2);
 
     cv::Mat m3;
     cv::vconcat(m1, m2, m3);
@@ -253,6 +239,27 @@ cv::Mat EventNormFlow::NormFlowPack::InliersOccupyMat() const {
         }
     }
     return inliersOccupy;
+}
+
+cv::Mat EventNormFlow::NormFlowPack::NormFlowInlierEventMat() const {
+    cv::Mat nfEventMat(nfSeedsImg.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+    const cv::Vec3b blue(255, 0, 0), red(0, 0, 255);
+    for (const auto &event : this->NormFlowInlierEvents()) {
+        Event::PosType::Scalar ex = event->GetPos()(0), ey = event->GetPos()(1);
+        nfEventMat.at<cv::Vec3b>(ey, ex) = event->GetPolarity() ? blue : red;
+    }
+    return nfEventMat;
+}
+
+cv::Mat EventNormFlow::NormFlowPack::AccumulativeEventMat(double dt) const {
+    const cv::Vec3b blue(255, 0, 0), red(0, 0, 255);
+    cv::Mat actEventMat(nfSeedsImg.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+
+    for (const auto &event : this->ActiveEvents(dt)) {
+        Event::PosType::Scalar ex = event->GetPos()(0), ey = event->GetPos()(1);
+        actEventMat.at<cv::Vec3b>(ey, ex) = event->GetPolarity() ? blue : red;
+    }
+    return actEventMat;
 }
 
 std::list<NormFlowPtr> EventNormFlow::NormFlowPack::TemporallySortedNormFlows() const {

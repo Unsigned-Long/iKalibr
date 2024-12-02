@@ -96,6 +96,7 @@ public:
 
     struct NormFlowPack {
         using Ptr = std::shared_ptr<NormFlowPack>;
+        using NormFlowContainer = std::map<NormFlowPtr, std::vector<std::tuple<int, int, double>>>;
 
     public:
         // norm flow, [x, y, timestamp]
@@ -116,6 +117,10 @@ public:
         cv::Mat Visualization(double dt = 0.02) const;
 
         cv::Mat InliersOccupyMat() const;
+
+        cv::Mat NormFlowInlierEventMat() const;
+
+        cv::Mat AccumulativeEventMat(double dt = 0.02) const;
 
         std::list<NormFlowPtr> TemporallySortedNormFlows() const;
 

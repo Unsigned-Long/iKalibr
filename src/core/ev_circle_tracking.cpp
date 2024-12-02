@@ -28,9 +28,108 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "core/ev_circle_tracking.h"
+#include "factor/data_correspondence.h"
+#include <opencv2/highgui.hpp>
+#include <tiny-viewer/entity/entity.h>
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
-namespace ns_ikalibr {}
+namespace ns_ikalibr {
+void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+    auto [pNormFlowCluster, ncNormFlowCluster] = this->ClusterNormFlowEvents(nfPack);
+
+    auto mat = nfPack->tsImg.clone();
+    DrawCluster(mat, pNormFlowCluster, nfPack);
+    DrawCluster(mat, ncNormFlowCluster, nfPack);
+    cv::imshow("Circle-Oriented Cluster Results", mat);
+}
+
+void EventCircleTracking::DrawCluster(cv::Mat& mat,
+                                      const std::vector<std::list<NormFlow::Ptr>>& clusters,
+                                      const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+    for (const auto& cluster : clusters) {
+        auto color = ns_viewer::Entity::GetUniqueColour();
+        cv::Vec3b c(color.b * 255, color.g * 255, color.r * 255);
+        for (const auto& nf : cluster) {
+            for (const auto& [ex, ey, et] : nfPack->nfs.at(nf)) {
+                mat.at<cv::Vec3b>(ey, ex) = c;
+            }
+        }
+    }
+}
+
+std::pair<std::vector<std::list<NormFlow::Ptr>>, std::vector<std::list<NormFlow::Ptr>>>
+EventCircleTracking::ClusterNormFlowEvents(const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+    cv::Mat pMat(nfPack->rawTimeSurfaceMap.size(), CV_8UC1, cv::Scalar(0));
+    cv::Mat nMat(nfPack->rawTimeSurfaceMap.size(), CV_8UC1, cv::Scalar(0));
+    for (const auto& event : nfPack->NormFlowInlierEvents()) {
+        Event::PosType::Scalar ex = event->GetPos()(0), ey = event->GetPos()(1);
+        if (event->GetPolarity()) {
+            pMat.at<uchar>(ey, ex) = 255;
+        } else {
+            nMat.at<uchar>(ey, ex) = 255;
+        }
+    }
+
+    auto pContours = FindContours(pMat), nContours = FindContours(nMat);
+    FilterContoursUsingArea(pContours, CLUSTER_AREA_THD);
+    FilterContoursUsingArea(nContours, CLUSTER_AREA_THD);
+
+    std::vector<std::list<NormFlow::Ptr>> pNormFlowCluster, ncNormFlowCluster;
+    pNormFlowCluster.resize(pContours.size()), ncNormFlowCluster.resize(nContours.size());
+    for (const auto& [nf, inliers] : nfPack->nfs) {
+        const auto &x = nf->p(0), y = nf->p(1);
+        std::vector<std::list<NormFlow::Ptr>>* nfCluster;
+        std::vector<std::vector<cv::Point>>* contours;
+        if (nfPack->polarityMap.at<uchar>(y, x)) {
+            nfCluster = &pNormFlowCluster;
+            contours = &pContours;
+        } else {
+            nfCluster = &ncNormFlowCluster;
+            contours = &nContours;
+        }
+        for (int i = 0; i != static_cast<int>(contours->size()); ++i) {
+            if (cv::pointPolygonTest(contours->at(i), cv::Point(x, y), false) < 0) {
+                // out of contours
+                continue;
+            }
+            nfCluster->at(i).push_back(nf);
+        }
+    }
+
+    // auto mat = nfPack->NormFlowInlierEventMat();
+    // DrawContours(mat, pContours, {255, 255, 255}), DrawContours(mat, nContours, {0, 255, 0});
+    // cv::imshow("Cluster Contours", mat);
+    // cv::imshow("pMat", pMat);
+    // cv::imshow("nMat", nMat);
+
+    return {pNormFlowCluster, ncNormFlowCluster};
+}
+
+std::vector<std::vector<cv::Point>> EventCircleTracking::FindContours(const cv::Mat& binaryImg) {
+    std::vector<std::vector<cv::Point>> contours;
+    cv::findContours(binaryImg, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+    return contours;
+}
+
+void EventCircleTracking::DrawContours(cv::Mat& mat,
+                                       const std::vector<std::vector<cv::Point>>& contours,
+                                       const cv::Vec3b& color) {
+    for (const auto& cVec : contours) {
+        for (const auto& p : cVec) {
+            mat.at<cv::Vec3b>(p) = color;
+        }
+    }
+}
+
+void EventCircleTracking::FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours,
+                                                  int areaThd) {
+    contours.erase(std::remove_if(contours.begin(), contours.end(),
+                                  [areaThd](const std::vector<cv::Point>& contour) {
+                                      return cv::contourArea(contour) < areaThd;
+                                  }),
+                   contours.end());
+}
+}  // namespace ns_ikalibr
