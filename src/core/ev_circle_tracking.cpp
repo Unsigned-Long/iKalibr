@@ -66,12 +66,17 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
     auto pCenDir = ComputeCenterDir(pNormFlowCluster, nfPack);
     auto nCenDir = ComputeCenterDir(nNormFlowCluster, nfPack);
 
+    auto mat0 = nfPack->tsImg.clone();
+    DrawCluster(mat0, pNormFlowCluster, nfPack);
+    DrawCluster(mat0, nNormFlowCluster, nfPack);
+    // cv::imshow("Cluster Results Before Identification", mat0);
+
     auto pClusterType = IdentifyCategory(pNormFlowCluster, pCenDir, nfPack);
     auto nClusterType = IdentifyCategory(nNormFlowCluster, nCenDir, nfPack);
 
     // clean 'NormFlowCluster' and 'CenDir' using 'ClusterType'
-    RemoveClusterTypes(pClusterType, pNormFlowCluster, pCenDir, CircleClusterType::OTHER);
-    RemoveClusterTypes(nClusterType, nNormFlowCluster, nCenDir, CircleClusterType::OTHER);
+    // RemoveClusterTypes(pClusterType, pNormFlowCluster, pCenDir, CircleClusterType::OTHER);
+    // RemoveClusterTypes(nClusterType, nNormFlowCluster, nCenDir, CircleClusterType::OTHER);
 
     std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>> clusters;
     for (int i = 0; i < static_cast<int>(pClusterType.size()); i++) {
@@ -87,15 +92,19 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
 
     auto mat1 = nfPack->tsImg.clone();
     DrawCircleCluster(mat1, clusters, nfPack, 10);
-    cv::imshow("Circle Cluster Results", mat1);
+    // cv::imshow("Circle Cluster Results", mat1);
 
     // chase, run
+    clusters.erase(CircleClusterType::OTHER);
     auto pairs = MatchCircleClusterPair(clusters, std::cos(30.0 /*degree*/ * DEG2RAD));
     RemovingAmbiguousMatches(pairs);
 
     auto mat2 = nfPack->tsImg.clone();
     DrawCircleClusterPair(mat2, clusters, pairs, nfPack);
-    cv::imshow("Circle Cluster Matching Results", mat2);
+    cv::Mat mat3;
+    cv::hconcat(mat0, mat1, mat3);
+    cv::hconcat(mat3, mat2, mat3);
+    cv::imshow("Initial Cluster | Identification | Matching Results", mat3);
 }
 
 std::map<EventCircleTracking::CircleClusterInfo::Ptr, EventCircleTracking::CircleClusterInfo::Ptr>
@@ -215,7 +224,7 @@ EventCircleTracking::CircleClusterType EventCircleTracking::IdentifyCategory(
     };
 
     // row: (avgDir, nfDir), col: (line, point)
-    Eigen::Matrix2i typeCount = Eigen::Matrix2i::Zero();
+    Eigen::Matrix2d weightTypeCount = Eigen::Matrix2d::Zero();
     for (const auto& nf : clusters) {
         // row: (avgDir, nfDir)
         auto dirPosition = CheckDirectionPosition(dir, nf->nfDir);
@@ -228,14 +237,36 @@ EventCircleTracking::CircleClusterType EventCircleTracking::IdentifyCategory(
             if (ptPosition == ON_LINE) {
                 continue;
             }
-            typeCount(dirPosition, ptPosition) += 1;
+            const double weight = std::exp(-nf->nfNorm * std::abs(nfPack->timestamp - et));
+            weightTypeCount(dirPosition, ptPosition) += weight;
         }
     }
 
-    Eigen::Matrix2d featMatrix = typeCount.cast<double>().normalized();
+    /**
+     * CircleClusterType::RUN
+     * [ 0.7, 0.;
+     *   0.,  0.7 ]
+     *
+     * CircleClusterType::CHASE
+     * [ 0.,  0.7;
+     *   0.7, 0.  ]
+     */
+
+    // todo: How to better identify categories
+    Eigen::Matrix2d featMatrix = weightTypeCount.normalized();
+
+    // const double t1 = featMatrix(0, 0) + featMatrix(1, 1);
+    // const double t2 = featMatrix(0, 1) + featMatrix(1, 0);
+    // if (t1 > 2.0 * t2) {
+    //     return CircleClusterType::RUN;
+    // } else if (t2 > 2.0 * t1) {
+    //     return CircleClusterType::CHASE;
+    // } else {
+    //     return CircleClusterType::OTHER;
+    // }
+
     Eigen::EigenSolver<Eigen::Matrix2d> solver(featMatrix);
     Eigen::Vector2d eigenvalues = solver.eigenvalues().real();
-
     double eigenValAbsDiff = std::abs(std::abs(eigenvalues(0)) - std::abs(eigenvalues(1)));
     if (eigenValAbsDiff < 0.5) {
         return (eigenvalues(0) * eigenvalues(1)) > 0 ? CircleClusterType::RUN
@@ -385,7 +416,11 @@ void EventCircleTracking::DrawCircleCluster(cv::Mat& mat,
     }
 
     for (const auto& c : clusters) {
-        DrawCluster(mat, c->nfCluster, nfPack);
+        if (type == CircleClusterType::OTHER) {
+            DrawCluster(mat, c->nfCluster, nfPack, ns_viewer::Colour(1.0f, 1.0f, 1.0f));
+        } else {
+            DrawCluster(mat, c->nfCluster, nfPack);
+        }
 
         DrawLineOnCVMat(mat, c->center, c->center + scale * c->dir, color);
 

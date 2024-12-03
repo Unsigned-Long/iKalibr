@@ -77,7 +77,7 @@ void CalibSolver::InitPrepEventInertialAlignCircleBased() const {
             auto res = nfCreator.ExtractNormFlows(
                 TIME_SURFACE_DECAY_TIME,  // decay seconds for time surface
                 1,                        // window size to fit local planes
-                0,                        // distance between neighbor norm flows
+                1,                        // distance between neighbor norm flows
                 0.8,                      // the ratio, for ransac and in-range candidates
                 false,                    // whether undistort images
                 2E-3,  // the point to plane threshold in temporal domain, unit (s)
