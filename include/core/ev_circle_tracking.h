@@ -46,8 +46,9 @@ public:
     using Ptr = std::shared_ptr<EventCircleTracking>;
 
     constexpr static int CLUSTER_AREA_THD = 10;
+    constexpr static double DEG2RAD = M_PI / 180.0;
 
-    enum class ClusterType : int { CHASE = 0, RUN = 1, OTHER = 2 };
+    enum class CircleClusterType : int { CHASE = 0, RUN = 1, OTHER = 2 };
 
     struct CircleClusterInfo {
         using Ptr = std::shared_ptr<CircleClusterInfo>;
@@ -76,39 +77,22 @@ public:
     void ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
 protected:
-    static std::vector<ClusterType> IdentifyCategory(
-        const std::vector<std::list<NormFlowPtr>>& clusters,
-        const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirs,
-        const EventNormFlow::NormFlowPack::Ptr& nfPack);
+    static std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr> MatchCircleClusterPair(
+        const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
+        double DIR_DIFF_COS_THD);
 
-    static ClusterType IdentifyCategory(const std::list<NormFlowPtr>& clusters,
-                                        const std::pair<Eigen::Vector2d, Eigen::Vector2d>& cenDir,
-                                        const EventNormFlow::NormFlowPack::Ptr& nfPack);
+    static void RemovingAmbiguousMatches(
+        std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr>& pairs);
 
-    static std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> ComputeCenterDir(
-        const std::vector<std::list<NormFlowPtr>>& clusters,
-        const EventNormFlow::NormFlowPack::Ptr& nfPack);
-
-    static std::pair<Eigen::Vector2d, Eigen::Vector2d> ComputeCenterDir(
-        const std::list<NormFlowPtr>& cluster, const EventNormFlow::NormFlowPack::Ptr& nfPack);
-
-    static std::pair<std::vector<std::list<NormFlowPtr>>, std::vector<std::list<NormFlowPtr>>>
-    ClusterNormFlowEvents(const EventNormFlow::NormFlowPack::Ptr& nfPack);
-
-    static void FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours, int areaThd);
-
-    static std::vector<std::vector<cv::Point>> FindContours(const cv::Mat& binaryImg);
-
-protected:
     template <typename Type1, typename Type2>
-    static void RemoveClusterTypes(std::vector<ClusterType>& pClusterType,
+    static void RemoveClusterTypes(std::vector<CircleClusterType>& pClusterType,
                                    std::vector<Type1>& seq1,
                                    std::vector<Type2>& seq2,
-                                   ClusterType typeToRemove) {
+                                   CircleClusterType typeToRemove) {
         assert(pClusterType.size() == seq.size());
         const auto size = pClusterType.size();
 
-        std::vector<ClusterType> newPClusterType;
+        std::vector<CircleClusterType> newPClusterType;
         newPClusterType.reserve(size);
         std::vector<Type1> newSeq1;
         newSeq1.reserve(size);
@@ -128,22 +112,48 @@ protected:
         seq2 = std::move(newSeq2);
     }
 
+    static std::vector<CircleClusterType> IdentifyCategory(
+        const std::vector<std::list<NormFlowPtr>>& clusters,
+        const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirs,
+        const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+    static CircleClusterType IdentifyCategory(
+        const std::list<NormFlowPtr>& clusters,
+        const std::pair<Eigen::Vector2d, Eigen::Vector2d>& cenDir,
+        const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+    static std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> ComputeCenterDir(
+        const std::vector<std::list<NormFlowPtr>>& clusters,
+        const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+    static std::pair<Eigen::Vector2d, Eigen::Vector2d> ComputeCenterDir(
+        const std::list<NormFlowPtr>& cluster, const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+    static std::pair<std::vector<std::list<NormFlowPtr>>, std::vector<std::list<NormFlowPtr>>>
+    ClusterNormFlowEvents(const EventNormFlow::NormFlowPack::Ptr& nfPack, double clusterAreaThd);
+
+    static void FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours, int areaThd);
+
+    static std::vector<std::vector<cv::Point>> FindContours(const cv::Mat& binaryImg);
+
+protected:
     static void DrawCircleCluster(
         cv::Mat& mat,
-        const std::map<ClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
+        const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
         const EventNormFlow::NormFlowPack::Ptr& nfPack,
         double scale);
 
-    static void DrawCenterDir(
+    static void DrawCircleClusterPair(
         cv::Mat& mat,
-        const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
-        double scale);
+        const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
+        const std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr>& pair,
+        const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
-    static void DrawCenterDir(
-        cv::Mat& mat,
-        const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
-        const std::vector<ClusterType>& types,
-        double scale);
+    static void DrawCircleCluster(cv::Mat& mat,
+                                  const std::vector<CircleClusterInfo::Ptr>& clusters,
+                                  CircleClusterType type,
+                                  const EventNormFlow::NormFlowPack::Ptr& nfPack,
+                                  double scale);
 
     static void DrawCluster(cv::Mat& mat,
                             const std::vector<std::list<NormFlowPtr>>& clusters,
@@ -151,7 +161,8 @@ protected:
 
     static void DrawCluster(cv::Mat& mat,
                             const std::list<NormFlowPtr>& clusters,
-                            const EventNormFlow::NormFlowPack::Ptr& nfPack);
+                            const EventNormFlow::NormFlowPack::Ptr& nfPack,
+                            std::optional<ns_viewer::Colour> color = std::nullopt);
 
     static void DrawContours(cv::Mat& mat,
                              const std::vector<std::vector<cv::Point>>& contours,
