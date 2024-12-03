@@ -69,14 +69,9 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
     auto mat0 = nfPack->tsImg.clone();
     DrawCluster(mat0, pNormFlowCluster, nfPack);
     DrawCluster(mat0, nNormFlowCluster, nfPack);
-    // cv::imshow("Cluster Results Before Identification", mat0);
 
     auto pClusterType = IdentifyCategory(pNormFlowCluster, pCenDir, nfPack);
     auto nClusterType = IdentifyCategory(nNormFlowCluster, nCenDir, nfPack);
-
-    // clean 'NormFlowCluster' and 'CenDir' using 'ClusterType'
-    // RemoveClusterTypes(pClusterType, pNormFlowCluster, pCenDir, CircleClusterType::OTHER);
-    // RemoveClusterTypes(nClusterType, nNormFlowCluster, nCenDir, CircleClusterType::OTHER);
 
     std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>> clusters;
     for (int i = 0; i < static_cast<int>(pClusterType.size()); i++) {
@@ -95,12 +90,29 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
     // cv::imshow("Circle Cluster Results", mat1);
 
     // chase, run
-    clusters.erase(CircleClusterType::OTHER);
-    auto pairs = MatchCircleClusterPair(clusters, std::cos(30.0 /*degree*/ * DEG2RAD));
+    /**
+     * First, we search for potential matching pairs within the clusters that are already registered
+     * as 'RUN' or 'CHASE' types.
+     */
+    auto pairs = SearchMatchesInRunChasePair(clusters, std::cos(30.0 /*degree*/ * DEG2RAD));
     RemovingAmbiguousMatches(pairs);
 
+    /**
+     * Next, we re-pair those clusters that are already registered as 'RUN' or 'CHASE' types but
+     * were not paired in the previous step, attempting to match them with the unregistered
+     * clusters.
+     */
+    std::set<CircleClusterInfo::Ptr> alreadyMatched;
+    for (const auto& [c1, c2] : pairs) {
+        alreadyMatched.insert(c1), alreadyMatched.insert(c2);
+    }
+    auto newPairs = ReSearchMatchesCirclesOtherPair(clusters, alreadyMatched,
+                                                    std::cos(30.0 /*degree*/ * DEG2RAD));
+    RemovingAmbiguousMatches(newPairs);
+    pairs.insert(newPairs.begin(), newPairs.end());
+
     auto mat2 = nfPack->tsImg.clone();
-    DrawCircleClusterPair(mat2, clusters, pairs, nfPack);
+    DrawCircleClusterPair(mat2, pairs, nfPack);
     cv::Mat mat3;
     cv::hconcat(mat0, mat1, mat3);
     cv::hconcat(mat3, mat2, mat3);
@@ -108,7 +120,7 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
 }
 
 std::map<EventCircleTracking::CircleClusterInfo::Ptr, EventCircleTracking::CircleClusterInfo::Ptr>
-EventCircleTracking::MatchCircleClusterPair(
+EventCircleTracking::SearchMatchesInRunChasePair(
     const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
     double DIR_DIFF_COS_THD) {
     if (clusters.find(CircleClusterType::CHASE) == clusters.end() ||
@@ -122,21 +134,10 @@ EventCircleTracking::MatchCircleClusterPair(
         double bestDist = std::numeric_limits<double>::max();
 
         for (const auto& rCluster : clusters.at(CircleClusterType::RUN)) {
-            // different polarity
-            if (cCluster->polarity == rCluster->polarity) {
+            double dist = TryMatchRunChaseCircleClusterPair(rCluster, cCluster, DIR_DIFF_COS_THD);
+            if (dist < 0.0) {
                 continue;
             }
-            // small direction difference
-            const double dirDiffCos = cCluster->dir.dot(rCluster->dir);
-            if (dirDiffCos < DIR_DIFF_COS_THD) {
-                continue;
-            }
-            Eigen::Vector2d c2r = (rCluster->center - cCluster->center).normalized();
-            if (c2r.dot(cCluster->dir) < DIR_DIFF_COS_THD ||
-                c2r.dot(rCluster->dir) < DIR_DIFF_COS_THD) {
-                continue;
-            }
-            double dist = (cCluster->center - rCluster->center).norm();
             if (dist < bestDist) {
                 bestRunCluster = rCluster;
                 bestDist = dist;
@@ -148,6 +149,80 @@ EventCircleTracking::MatchCircleClusterPair(
         }
     }
     return pairs;
+}
+
+std::map<EventCircleTracking::CircleClusterInfo::Ptr, EventCircleTracking::CircleClusterInfo::Ptr>
+EventCircleTracking::ReSearchMatchesCirclesOtherPair(
+    const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
+    const std::set<CircleClusterInfo::Ptr>& alreadyMatched,
+    double DIR_DIFF_COS_THD) {
+    if (clusters.find(CircleClusterType::OTHER) == clusters.end() ||
+        clusters.find(CircleClusterType::CHASE) == clusters.end() ||
+        clusters.find(CircleClusterType::RUN) == clusters.end()) {
+        return {};
+    }
+    // chase, run
+    std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr> pairs;
+    for (const auto& [type, clusterVec] : clusters) {
+        if (type == CircleClusterType::OTHER) {
+            continue;
+        }
+        for (const auto& cluster : clusterVec) {
+            if (alreadyMatched.find(cluster) != alreadyMatched.end()) {
+                // already been matched
+                continue;
+            }
+            CircleClusterInfo::Ptr bestCluster = nullptr;
+            double bestDist = std::numeric_limits<double>::max();
+
+            for (const auto& oCluster : clusters.at(CircleClusterType::OTHER)) {
+                double dist = -1.0;
+                if (type == CircleClusterType::CHASE) {
+                    // leftCluster as 'CircleClusterType::CHASE' one
+                    dist = TryMatchRunChaseCircleClusterPair(oCluster, cluster, DIR_DIFF_COS_THD);
+                } else if (type == CircleClusterType::RUN) {
+                    // leftCluster as 'CircleClusterType::RUN' one
+                    dist = TryMatchRunChaseCircleClusterPair(cluster, oCluster, DIR_DIFF_COS_THD);
+                }
+                if (dist < 0.0) {
+                    continue;
+                }
+                if (dist < bestDist) {
+                    bestCluster = oCluster;
+                    bestDist = dist;
+                }
+            }
+            if (bestCluster != nullptr) {
+                if (type == CircleClusterType::CHASE) {
+                    pairs[cluster] = bestCluster;
+                } else if (type == CircleClusterType::RUN) {
+                    pairs[bestCluster] = cluster;
+                }
+            }
+        }
+    }
+    return pairs;
+}
+
+double EventCircleTracking::TryMatchRunChaseCircleClusterPair(
+    const CircleClusterInfo::Ptr& rCluster,
+    const CircleClusterInfo::Ptr& cCluster,
+    double DIR_DIFF_COS_THD) {
+    // different polarity
+    if (cCluster->polarity == rCluster->polarity) {
+        return -1.0;
+    }
+    // small direction difference
+    const double dirDiffCos = cCluster->dir.dot(rCluster->dir);
+    if (dirDiffCos < DIR_DIFF_COS_THD) {
+        return -1.0;
+    }
+    Eigen::Vector2d c2r = (rCluster->center - cCluster->center).normalized();
+    if (c2r.dot(cCluster->dir) < DIR_DIFF_COS_THD || c2r.dot(rCluster->dir) < DIR_DIFF_COS_THD) {
+        return -1.0;
+    }
+    double dist = (cCluster->center - rCluster->center).norm();
+    return dist;
 }
 
 void EventCircleTracking::RemovingAmbiguousMatches(
@@ -237,7 +312,8 @@ EventCircleTracking::CircleClusterType EventCircleTracking::IdentifyCategory(
             if (ptPosition == ON_LINE) {
                 continue;
             }
-            const double weight = std::exp(-nf->nfNorm * std::abs(nfPack->timestamp - et));
+            // const double weight = std::exp(-nf->nfNorm * std::abs(nfPack->timestamp - et));
+            const double weight = 1.0;
             weightTypeCount(dirPosition, ptPosition) += weight;
         }
     }
@@ -382,17 +458,16 @@ void EventCircleTracking::DrawCircleCluster(
 
 void EventCircleTracking::DrawCircleClusterPair(
     cv::Mat& mat,
-    const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
     const std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr>& pair,
     const EventNormFlow::NormFlowPack::Ptr& nfPack) {
-    for (const auto& [type, cluster] : clusters) {
-        for (const auto& c : cluster) {
-            DrawCluster(mat, c->nfCluster, nfPack);
-        }
+    for (const auto& [chase, run] : pair) {
+        DrawCluster(mat, chase->nfCluster, nfPack);
+        DrawCluster(mat, run->nfCluster, nfPack);
     }
     for (const auto& [chase, run] : pair) {
-        DrawKeypointOnCVMat(mat, run->center, false, cv::Scalar(255, 255, 255));
         DrawLineOnCVMat(mat, chase->center, run->center, cv::Scalar(255, 255, 255));
+
+        DrawKeypointOnCVMat(mat, run->center, false, cv::Scalar(255, 255, 255));
         DrawKeypointOnCVMat(mat, chase->center, false, cv::Scalar(127, 127, 127));
     }
 }

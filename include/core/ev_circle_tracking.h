@@ -77,9 +77,18 @@ public:
     void ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
 protected:
-    static std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr> MatchCircleClusterPair(
+    static std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr> SearchMatchesInRunChasePair(
         const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
         double DIR_DIFF_COS_THD);
+
+    static std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr> ReSearchMatchesCirclesOtherPair(
+        const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
+        const std::set<CircleClusterInfo::Ptr>& alreadyMatched,
+        double DIR_DIFF_COS_THD);
+
+    static double TryMatchRunChaseCircleClusterPair(const CircleClusterInfo::Ptr& rCluster,
+                                                    const CircleClusterInfo::Ptr& cCluster,
+                                                    double DIR_DIFF_COS_THD);
 
     static void RemovingAmbiguousMatches(
         std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr>& pairs);
@@ -145,7 +154,6 @@ protected:
 
     static void DrawCircleClusterPair(
         cv::Mat& mat,
-        const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
         const std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr>& pair,
         const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
