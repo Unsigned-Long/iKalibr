@@ -42,12 +42,94 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
     auto pCenDir = ComputeCenterDir(pNormFlowCluster, nfPack);
     auto nCenDir = ComputeCenterDir(nNormFlowCluster, nfPack);
 
+    auto pClusterType = IdentifyCategory(pNormFlowCluster, pCenDir, nfPack);
+    auto nClusterType = IdentifyCategory(nNormFlowCluster, nCenDir, nfPack);
+
     auto mat = nfPack->tsImg.clone();
     DrawCluster(mat, pNormFlowCluster, nfPack);
     DrawCluster(mat, nNormFlowCluster, nfPack);
-    DrawCenterDir(mat, pCenDir, 10);
-    DrawCenterDir(mat, nCenDir, 10);
+    // 1: white, running, 0: black, chasing
+    DrawCenterDir(mat, pCenDir, pClusterType, 10);
+    DrawCenterDir(mat, nCenDir, nClusterType, 10);
     cv::imshow("Circle-Oriented Cluster Results", mat);
+}
+
+std::vector<int> EventCircleTracking::IdentifyCategory(
+    const std::vector<std::list<NormFlowPtr>>& clusters,
+    const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirs,
+    const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+    assert(clusters.size() == cenDirs.size());
+    const auto size = static_cast<int>(clusters.size());
+    std::vector<int> types(size, -1);
+    for (int i = 0; i < size; ++i) {
+        types.at(i) = IdentifyCategory(clusters[i], cenDirs[i], nfPack);
+    }
+    return types;
+}
+
+int EventCircleTracking::IdentifyCategory(const std::list<NormFlowPtr>& clusters,
+                                          const std::pair<Eigen::Vector2d, Eigen::Vector2d>& cenDir,
+                                          const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+    const Eigen::Vector2d &cen = cenDir.first, dir = cenDir.second;
+
+    enum Side : int { LEFT = 0, RIGHT = 1, ON_LINE = 2 };
+
+    auto CheckPointPosition = [](const Eigen::Vector2d& cen, const Eigen::Vector2d& dir,
+                                 const Eigen::Vector2d& p) {
+        Eigen::Vector2d A = p - cen;
+        Eigen::Vector2d B = dir;
+
+        double crossProduct = A.x() * B.y() - A.y() * B.x();
+
+        if (crossProduct > 0) {
+            return LEFT;
+        } else if (crossProduct < 0) {
+            return RIGHT;
+        } else {
+            return ON_LINE;
+        }
+    };
+    auto CheckDirectionPosition = [](const Eigen::Vector2d& dir, const Eigen::Vector2d& v) {
+        double crossProduct = v.x() * dir.y() - v.y() * dir.x();
+
+        if (crossProduct > 0) {
+            return LEFT;
+        } else if (crossProduct < 0) {
+            return RIGHT;
+        } else {
+            return ON_LINE;
+        }
+    };
+
+    // row: (avgDir, nfDir), col: (line, point)
+    Eigen::Matrix2i typeCount = Eigen::Matrix2i::Zero();
+    for (const auto& nf : clusters) {
+        // row: (avgDir, nfDir)
+        auto dirPosition = CheckDirectionPosition(dir, nf->nfDir);
+        if (dirPosition == ON_LINE) {
+            continue;
+        }
+        for (const auto& [ex, ey, et] : nfPack->nfs.at(nf)) {
+            // col: (line, point)
+            auto ptPosition = CheckPointPosition(cen, dir, Eigen::Vector2d(ex, ey));
+            if (ptPosition == ON_LINE) {
+                continue;
+            }
+            typeCount(dirPosition, ptPosition) += 1;
+        }
+    }
+
+    Eigen::Matrix2d featMatrix = typeCount.cast<double>().normalized();
+    Eigen::EigenSolver<Eigen::Matrix2d> solver(featMatrix);
+    Eigen::Vector2d eigenvalues = solver.eigenvalues().real();
+
+    double eigenValAbsDiff = std::abs(std::abs(eigenvalues(0)) - std::abs(eigenvalues(1)));
+    if (eigenValAbsDiff < 0.5) {
+        // 1: running, 0: chasing
+        return (eigenvalues(0) * eigenvalues(1)) > 0 ? 1 : 0;
+    } else {
+        return -1;
+    }
 }
 
 std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> EventCircleTracking::ComputeCenterDir(
@@ -150,6 +232,27 @@ void EventCircleTracking::DrawCenterDir(
     for (const auto& [c, d] : cenDirVec) {
         DrawKeypointOnCVMat(mat, c, false, cv::Scalar(255, 255, 255));
         DrawLineOnCVMat(mat, c, c + scale * d, cv::Scalar(255, 255, 255));
+    }
+}
+
+void EventCircleTracking::DrawCenterDir(
+    cv::Mat& mat,
+    const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
+    const std::vector<int>& types,
+    double scale) {
+    assert(cenDirVec.size() == types.size());
+    const int size = static_cast<int>(cenDirVec.size());
+    for (int i = 0; i < size; ++i) {
+        const auto& [c, d] = cenDirVec[i];
+        DrawLineOnCVMat(mat, c, c + scale * d, cv::Scalar(255, 255, 255));
+        // 1: white, running, 0: black, chasing
+        if (types[i] == 1) {
+            DrawKeypointOnCVMat(mat, c, false, cv::Scalar(255, 255, 255));
+        } else if (types[i] == 0) {
+            DrawKeypointOnCVMat(mat, c, false, cv::Scalar(0, 0, 0));
+        } else {
+            DrawKeypointOnCVMat(mat, c, false, cv::Scalar(127, 127, 127));
+        }
     }
 }
 

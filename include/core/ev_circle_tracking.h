@@ -55,6 +55,15 @@ public:
     void ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
 protected:
+    static std::vector<int> IdentifyCategory(
+        const std::vector<std::list<NormFlowPtr>>& clusters,
+        const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirs,
+        const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+    static int IdentifyCategory(const std::list<NormFlowPtr>& clusters,
+                                const std::pair<Eigen::Vector2d, Eigen::Vector2d>& cenDir,
+                                const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
     static std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> ComputeCenterDir(
         const std::vector<std::list<NormFlowPtr>>& clusters,
         const EventNormFlow::NormFlowPack::Ptr& nfPack);
@@ -73,6 +82,12 @@ protected:
     static void DrawCenterDir(
         cv::Mat& mat,
         const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
+        double scale);
+
+    static void DrawCenterDir(
+        cv::Mat& mat,
+        const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
+        const std::vector<int>& types,
         double scale);
 
     static void DrawCluster(cv::Mat& mat,
