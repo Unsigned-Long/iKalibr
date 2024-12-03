@@ -47,6 +47,8 @@ public:
 
     constexpr static int CLUSTER_AREA_THD = 10;
 
+    enum class ClusterType : int { CHASE = 0, RUN = 1, OTHER = 2 };
+
 public:
     EventCircleTracking() = default;
 
@@ -55,14 +57,14 @@ public:
     void ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
 protected:
-    static std::vector<int> IdentifyCategory(
+    static std::vector<ClusterType> IdentifyCategory(
         const std::vector<std::list<NormFlowPtr>>& clusters,
         const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirs,
         const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
-    static int IdentifyCategory(const std::list<NormFlowPtr>& clusters,
-                                const std::pair<Eigen::Vector2d, Eigen::Vector2d>& cenDir,
-                                const EventNormFlow::NormFlowPack::Ptr& nfPack);
+    static ClusterType IdentifyCategory(const std::list<NormFlowPtr>& clusters,
+                                        const std::pair<Eigen::Vector2d, Eigen::Vector2d>& cenDir,
+                                        const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
     static std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> ComputeCenterDir(
         const std::vector<std::list<NormFlowPtr>>& clusters,
@@ -79,6 +81,34 @@ protected:
     static std::vector<std::vector<cv::Point>> FindContours(const cv::Mat& binaryImg);
 
 protected:
+    template <typename Type1, typename Type2>
+    static void RemoveClusterTypes(std::vector<ClusterType>& pClusterType,
+                                   std::vector<Type1>& seq1,
+                                   std::vector<Type2>& seq2,
+                                   ClusterType typeToRemove) {
+        assert(pClusterType.size() == seq.size());
+        const auto size = pClusterType.size();
+
+        std::vector<ClusterType> newPClusterType;
+        newPClusterType.reserve(size);
+        std::vector<Type1> newSeq1;
+        newSeq1.reserve(size);
+        std::vector<Type2> newSeq2;
+        newSeq2.reserve(size);
+
+        for (size_t i = 0; i < pClusterType.size(); ++i) {
+            if (pClusterType[i] != typeToRemove) {
+                newPClusterType.push_back(pClusterType[i]);
+                newSeq1.push_back(seq1[i]);
+                newSeq2.push_back(seq2[i]);
+            }
+        }
+
+        pClusterType = std::move(newPClusterType);
+        seq1 = std::move(newSeq1);
+        seq2 = std::move(newSeq2);
+    }
+
     static void DrawCenterDir(
         cv::Mat& mat,
         const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
@@ -87,7 +117,7 @@ protected:
     static void DrawCenterDir(
         cv::Mat& mat,
         const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
-        const std::vector<int>& types,
+        const std::vector<ClusterType>& types,
         double scale);
 
     static void DrawCluster(cv::Mat& mat,

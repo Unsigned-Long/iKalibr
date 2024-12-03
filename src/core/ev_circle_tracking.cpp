@@ -45,31 +45,36 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
     auto pClusterType = IdentifyCategory(pNormFlowCluster, pCenDir, nfPack);
     auto nClusterType = IdentifyCategory(nNormFlowCluster, nCenDir, nfPack);
 
+    // clean 'NormFlowCluster' and 'CenDir' using 'ClusterType'
+    RemoveClusterTypes(pClusterType, pNormFlowCluster, pCenDir, ClusterType::OTHER);
+    RemoveClusterTypes(nClusterType, nNormFlowCluster, nCenDir, ClusterType::OTHER);
+
     auto mat = nfPack->tsImg.clone();
     DrawCluster(mat, pNormFlowCluster, nfPack);
     DrawCluster(mat, nNormFlowCluster, nfPack);
-    // 1: white, running, 0: black, chasing
+    // 1: white, running, 0: gray, chasing
     DrawCenterDir(mat, pCenDir, pClusterType, 10);
     DrawCenterDir(mat, nCenDir, nClusterType, 10);
     cv::imshow("Circle-Oriented Cluster Results", mat);
 }
 
-std::vector<int> EventCircleTracking::IdentifyCategory(
+std::vector<EventCircleTracking::ClusterType> EventCircleTracking::IdentifyCategory(
     const std::vector<std::list<NormFlowPtr>>& clusters,
     const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirs,
     const EventNormFlow::NormFlowPack::Ptr& nfPack) {
     assert(clusters.size() == cenDirs.size());
     const auto size = static_cast<int>(clusters.size());
-    std::vector<int> types(size, -1);
+    std::vector<ClusterType> types(size, ClusterType::OTHER);
     for (int i = 0; i < size; ++i) {
         types.at(i) = IdentifyCategory(clusters[i], cenDirs[i], nfPack);
     }
     return types;
 }
 
-int EventCircleTracking::IdentifyCategory(const std::list<NormFlowPtr>& clusters,
-                                          const std::pair<Eigen::Vector2d, Eigen::Vector2d>& cenDir,
-                                          const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+EventCircleTracking::ClusterType EventCircleTracking::IdentifyCategory(
+    const std::list<NormFlowPtr>& clusters,
+    const std::pair<Eigen::Vector2d, Eigen::Vector2d>& cenDir,
+    const EventNormFlow::NormFlowPack::Ptr& nfPack) {
     const Eigen::Vector2d &cen = cenDir.first, dir = cenDir.second;
 
     enum Side : int { LEFT = 0, RIGHT = 1, ON_LINE = 2 };
@@ -125,10 +130,9 @@ int EventCircleTracking::IdentifyCategory(const std::list<NormFlowPtr>& clusters
 
     double eigenValAbsDiff = std::abs(std::abs(eigenvalues(0)) - std::abs(eigenvalues(1)));
     if (eigenValAbsDiff < 0.5) {
-        // 1: running, 0: chasing
-        return (eigenvalues(0) * eigenvalues(1)) > 0 ? 1 : 0;
+        return (eigenvalues(0) * eigenvalues(1)) > 0 ? ClusterType::RUN : ClusterType::CHASE;
     } else {
-        return -1;
+        return ClusterType::OTHER;
     }
 }
 
@@ -238,21 +242,26 @@ void EventCircleTracking::DrawCenterDir(
 void EventCircleTracking::DrawCenterDir(
     cv::Mat& mat,
     const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
-    const std::vector<int>& types,
+    const std::vector<ClusterType>& types,
     double scale) {
     assert(cenDirVec.size() == types.size());
     const int size = static_cast<int>(cenDirVec.size());
     for (int i = 0; i < size; ++i) {
         const auto& [c, d] = cenDirVec[i];
-        DrawLineOnCVMat(mat, c, c + scale * d, cv::Scalar(255, 255, 255));
-        // 1: white, running, 0: black, chasing
-        if (types[i] == 1) {
-            DrawKeypointOnCVMat(mat, c, false, cv::Scalar(255, 255, 255));
-        } else if (types[i] == 0) {
-            DrawKeypointOnCVMat(mat, c, false, cv::Scalar(0, 0, 0));
-        } else {
-            DrawKeypointOnCVMat(mat, c, false, cv::Scalar(127, 127, 127));
+        cv::Scalar color;
+        switch (types[i]) {
+            case ClusterType::CHASE:
+                color = cv::Scalar(127, 127, 127);
+                break;
+            case ClusterType::RUN:
+                color = cv::Scalar(255, 255, 255);
+                break;
+            case ClusterType::OTHER:
+                color = cv::Scalar(0, 0, 0);
+                break;
         }
+        DrawLineOnCVMat(mat, c, c + scale * d, color);
+        DrawKeypointOnCVMat(mat, c, false, color);
     }
 }
 
