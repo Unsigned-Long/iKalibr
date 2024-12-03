@@ -49,6 +49,25 @@ public:
 
     enum class ClusterType : int { CHASE = 0, RUN = 1, OTHER = 2 };
 
+    struct CircleClusterInfo {
+        using Ptr = std::shared_ptr<CircleClusterInfo>;
+
+        std::list<NormFlowPtr> nfCluster;
+        bool polarity;
+        Eigen::Vector2d center;
+        Eigen::Vector2d dir;
+
+        CircleClusterInfo(const std::list<NormFlowPtr>& nf_cluster,
+                          bool polarity,
+                          const Eigen::Vector2d& center,
+                          const Eigen::Vector2d& dir);
+
+        static Ptr Create(const std::list<NormFlowPtr>& nf_cluster,
+                          bool polarity,
+                          const Eigen::Vector2d& center,
+                          const Eigen::Vector2d& dir);
+    };
+
 public:
     EventCircleTracking() = default;
 
@@ -109,6 +128,12 @@ protected:
         seq2 = std::move(newSeq2);
     }
 
+    static void DrawCircleCluster(
+        cv::Mat& mat,
+        const std::map<ClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
+        const EventNormFlow::NormFlowPack::Ptr& nfPack,
+        double scale);
+
     static void DrawCenterDir(
         cv::Mat& mat,
         const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
@@ -122,6 +147,10 @@ protected:
 
     static void DrawCluster(cv::Mat& mat,
                             const std::vector<std::list<NormFlowPtr>>& clusters,
+                            const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+    static void DrawCluster(cv::Mat& mat,
+                            const std::list<NormFlowPtr>& clusters,
                             const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
     static void DrawContours(cv::Mat& mat,

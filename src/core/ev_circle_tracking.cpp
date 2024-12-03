@@ -37,6 +37,29 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
+/**
+ * EventCircleTracking::CircleClusterInfo
+ */
+EventCircleTracking::CircleClusterInfo::CircleClusterInfo(const std::list<NormFlowPtr>& nf_cluster,
+                                                          bool polarity,
+                                                          const Eigen::Vector2d& center,
+                                                          const Eigen::Vector2d& dir)
+    : nfCluster(nf_cluster),
+      polarity(polarity),
+      center(center),
+      dir(dir) {}
+
+EventCircleTracking::CircleClusterInfo::Ptr EventCircleTracking::CircleClusterInfo::Create(
+    const std::list<NormFlowPtr>& nf_cluster,
+    bool polarity,
+    const Eigen::Vector2d& center,
+    const Eigen::Vector2d& dir) {
+    return std::make_shared<CircleClusterInfo>(nf_cluster, polarity, center, dir);
+}
+
+/**
+ * EventCircleTracking
+ */
 void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack) {
     auto [pNormFlowCluster, nNormFlowCluster] = this->ClusterNormFlowEvents(nfPack);
     auto pCenDir = ComputeCenterDir(pNormFlowCluster, nfPack);
@@ -49,12 +72,20 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
     RemoveClusterTypes(pClusterType, pNormFlowCluster, pCenDir, ClusterType::OTHER);
     RemoveClusterTypes(nClusterType, nNormFlowCluster, nCenDir, ClusterType::OTHER);
 
+    std::map<ClusterType, std::vector<CircleClusterInfo::Ptr>> clusters;
+    for (int i = 0; i < static_cast<int>(pClusterType.size()); i++) {
+        const auto& cenDir = pCenDir[i];
+        clusters[pClusterType[i]].push_back(std::make_shared<CircleClusterInfo>(
+            pNormFlowCluster[i], true, cenDir.first, cenDir.second));
+    }
+    for (int i = 0; i < static_cast<int>(nClusterType.size()); i++) {
+        const auto& cenDir = nCenDir[i];
+        clusters[nClusterType[i]].push_back(std::make_shared<CircleClusterInfo>(
+            nNormFlowCluster[i], false, cenDir.first, cenDir.second));
+    }
+
     auto mat = nfPack->tsImg.clone();
-    DrawCluster(mat, pNormFlowCluster, nfPack);
-    DrawCluster(mat, nNormFlowCluster, nfPack);
-    // 1: white, running, 0: gray, chasing
-    DrawCenterDir(mat, pCenDir, pClusterType, 10);
-    DrawCenterDir(mat, nCenDir, nClusterType, 10);
+    DrawCircleCluster(mat, clusters, nfPack, 10);
     cv::imshow("Circle-Oriented Cluster Results", mat);
 }
 
@@ -229,6 +260,39 @@ std::vector<std::vector<cv::Point>> EventCircleTracking::FindContours(const cv::
     return contours;
 }
 
+void EventCircleTracking::DrawCircleCluster(
+    cv::Mat& mat,
+    const std::map<ClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
+    const EventNormFlow::NormFlowPack::Ptr& nfPack,
+    double scale) {
+    for (const auto& [type, cluster] : clusters) {
+        cv::Scalar color;
+        switch (type) {
+            case ClusterType::CHASE:
+                color = cv::Scalar(127, 127, 127);
+                break;
+            case ClusterType::RUN:
+                color = cv::Scalar(255, 255, 255);
+                break;
+            case ClusterType::OTHER:
+                color = cv::Scalar(0, 0, 0);
+                break;
+        }
+
+        for (const auto& c : cluster) {
+            DrawCluster(mat, c->nfCluster, nfPack);
+
+            DrawLineOnCVMat(mat, c->center, c->center + scale * c->dir, color);
+
+            const double f = c->polarity ? 1 : -1;
+            Eigen::Vector2d p = c->center + f * scale * Eigen::Vector2d(-c->dir(1), c->dir(0));
+            DrawLineOnCVMat(mat, c->center, p, color);
+
+            DrawKeypointOnCVMat(mat, c->center, false, color);
+        }
+    }
+}
+
 void EventCircleTracking::DrawCenterDir(
     cv::Mat& mat,
     const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirVec,
@@ -269,12 +333,18 @@ void EventCircleTracking::DrawCluster(cv::Mat& mat,
                                       const std::vector<std::list<NormFlow::Ptr>>& clusters,
                                       const EventNormFlow::NormFlowPack::Ptr& nfPack) {
     for (const auto& cluster : clusters) {
-        auto color = ns_viewer::Entity::GetUniqueColour();
-        cv::Vec3b c(color.b * 255, color.g * 255, color.r * 255);
-        for (const auto& nf : cluster) {
-            for (const auto& [ex, ey, et] : nfPack->nfs.at(nf)) {
-                mat.at<cv::Vec3b>(ey, ex) = c;
-            }
+        DrawCluster(mat, cluster, nfPack);
+    }
+}
+
+void EventCircleTracking::DrawCluster(cv::Mat& mat,
+                                      const std::list<NormFlowPtr>& clusters,
+                                      const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+    auto color = ns_viewer::Entity::GetUniqueColour();
+    cv::Vec3b c(color.b * 255, color.g * 255, color.r * 255);
+    for (const auto& nf : clusters) {
+        for (const auto& [ex, ey, et] : nfPack->nfs.at(nf)) {
+            mat.at<cv::Vec3b>(ey, ex) = c;
         }
     }
 }
