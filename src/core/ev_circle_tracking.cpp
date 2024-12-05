@@ -420,6 +420,8 @@ EventCircleTracking::ClusterNormFlowEvents(const EventNormFlow::NormFlowPack::Pt
             nMat.at<uchar>(ey, ex) = 255;
         }
     }
+    InterruptionInTimeDomain(pMat, nfPack->rawTimeSurfaceMap, 7E-3);
+    InterruptionInTimeDomain(nMat, nfPack->rawTimeSurfaceMap, 7E-3);
 
     auto pContours = FindContours(pMat), nContours = FindContours(nMat);
     FilterContoursUsingArea(pContours, clusterAreaThd);
@@ -454,6 +456,42 @@ EventCircleTracking::ClusterNormFlowEvents(const EventNormFlow::NormFlowPack::Pt
     // cv::imshow("nMat", nMat);
 
     return {pNormFlowCluster, ncNormFlowCluster};
+}
+
+void EventCircleTracking::InterruptionInTimeDomain(cv::Mat& pMat, const cv::Mat& tMat, double thd) {
+    assert(pMat.type() == CV_8UC1);
+    assert(tMat.type() == CV_64FC1);
+    assert(pMat.size() == tMat.size());
+
+    int rows = pMat.rows;
+    int cols = pMat.cols;
+    auto LargerThanThd = [&pMat, &tMat, &thd](const double ct, int r, int c) {
+        if (pMat.at<uchar>(r, c) != 255) {
+            return false;
+        }
+        const double t = tMat.at<double>(r, c);
+        if (std::abs(ct - t) < thd) {
+            return false;
+        }
+        return true;
+    };
+    cv::Mat pMatNew = pMat.clone();
+    for (int i = 1; i < rows - 1; ++i) {
+        for (int j = 1; j < cols - 1; ++j) {
+            if (pMat.at<uchar>(i, j) != 255) {
+                continue;
+            }
+            const double ct = tMat.at<double>(i, j);
+
+            if (LargerThanThd(ct, i - 1, j) || LargerThanThd(ct, i + 1, j) ||  // top and bottom
+                LargerThanThd(ct, i, j - 1) || LargerThanThd(ct, i, j + 1) ||  // left and right
+                LargerThanThd(ct, i - 1, j - 1) || LargerThanThd(ct, i + 1, j + 1) ||
+                LargerThanThd(ct, i - 1, j + 1) || LargerThanThd(ct, i + 1, j - 1)) {
+                pMatNew.at<uchar>(i, j) = 0;
+            }
+        }
+    }
+    pMat = pMatNew;
 }
 
 void EventCircleTracking::FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours,

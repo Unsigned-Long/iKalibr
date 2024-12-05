@@ -147,6 +147,8 @@ protected:
     static std::pair<std::vector<std::list<NormFlowPtr>>, std::vector<std::list<NormFlowPtr>>>
     ClusterNormFlowEvents(const EventNormFlow::NormFlowPack::Ptr& nfPack, double clusterAreaThd);
 
+    static void InterruptionInTimeDomain(cv::Mat& pMat, const cv::Mat& tMat, double thd);
+
     static void FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours, int areaThd);
 
     static std::vector<std::vector<cv::Point>> FindContours(const cv::Mat& binaryImg);
