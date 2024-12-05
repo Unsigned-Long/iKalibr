@@ -61,8 +61,6 @@ EventCircleTracking::CircleClusterInfo::Ptr EventCircleTracking::CircleClusterIn
  * EventCircleTracking
  */
 void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack) {
-    // todo: Two adjacent circular triggered event clusters may stick together, leading to
-    // clustering errors!!!
     auto [pNormFlowCluster, nNormFlowCluster] =
         this->ClusterNormFlowEvents(nfPack, CLUSTER_AREA_THD);
     auto pCenDir = ComputeCenterDir(pNormFlowCluster, nfPack);
@@ -378,6 +376,31 @@ void EventCircleTracking::RemovingAmbiguousMatches(
     pairs.clear();
     for (auto& entry : reversedPairs) {
         pairs[entry.second] = entry.first;
+    }
+
+    // Next, we remove the singular relationships (non-inverse relationships) from the current
+    // 'pairs' and 'reversedPairs'.
+    for (auto it = pairs.begin(); it != pairs.end();) {
+        auto it2 = pairs.find(it->second);
+        if (it2 == pairs.cend()) {
+            // it's reversible
+            ++it;
+            continue;
+        }
+        if (it2->second == it->first) {
+            it = pairs.erase(it);
+            continue;
+        }
+
+        const double d1 = (it->first->center - it->second->center).squaredNorm();
+        const double d2 = (it2->first->center - it2->second->center).squaredNorm();
+        if (d1 > d2) {
+            it = pairs.erase(it);
+            continue;
+        } else {
+            it = pairs.erase(it2);
+            continue;
+        }
     }
 }
 
