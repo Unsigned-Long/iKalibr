@@ -61,6 +61,8 @@ EventCircleTracking::CircleClusterInfo::Ptr EventCircleTracking::CircleClusterIn
  * EventCircleTracking
  */
 void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+    // todo: Two adjacent circular triggered event clusters may stick together, leading to
+    // clustering errors!!!
     auto [pNormFlowCluster, nNormFlowCluster] =
         this->ClusterNormFlowEvents(nfPack, CLUSTER_AREA_THD);
     auto pCenDir = ComputeCenterDir(pNormFlowCluster, nfPack);
@@ -89,7 +91,6 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
     DrawCircleCluster(mat1, clusters, nfPack, 10);
     // cv::imshow("Circle Cluster Results", mat1);
 
-    // chase, run
     /**
      * First, we search for potential matching pairs within the clusters that are already registered
      * as 'RUN' or 'CHASE' types.
@@ -138,7 +139,7 @@ EventCircleTracking::SearchMatchesInRunChasePair(
             if (dist < 0.0) {
                 continue;
             }
-            if (dist < bestDist) {
+            if (dist < bestDist && !ClusterExistsInCurCircle(clusters, rCluster, cCluster)) {
                 bestRunCluster = rCluster;
                 bestDist = dist;
             }
@@ -172,6 +173,10 @@ EventCircleTracking::ReSearchMatchesCirclesOtherPair(
                 // already been matched
                 continue;
             }
+            /**
+             * For those clusters that have been assigned a category but haven't been matched yet,
+             * we search for possible matching candidates in the unassigned clusters.
+             */
             CircleClusterInfo::Ptr bestCluster = nullptr;
             double bestDist = std::numeric_limits<double>::max();
 
@@ -187,7 +192,7 @@ EventCircleTracking::ReSearchMatchesCirclesOtherPair(
                 if (dist < 0.0) {
                     continue;
                 }
-                if (dist < bestDist) {
+                if (dist < bestDist && !ClusterExistsInCurCircle(clusters, oCluster, cluster)) {
                     bestCluster = oCluster;
                     bestDist = dist;
                 }
@@ -223,6 +228,26 @@ double EventCircleTracking::TryMatchRunChaseCircleClusterPair(
     }
     double dist = (cCluster->center - rCluster->center).norm();
     return dist;
+}
+
+bool EventCircleTracking::ClusterExistsInCurCircle(
+    const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
+    const CircleClusterInfo::Ptr& p1,
+    const CircleClusterInfo::Ptr& p2) {
+    Eigen::Vector2d c = (p1->center + p2->center) * 0.5;
+    double r2 = (0.5 * (p1->center - p2->center)).squaredNorm();
+
+    for (const auto& [type, cluster] : clusters) {
+        for (const auto& p : cluster) {
+            if (p == p2 || p == p1) {
+                continue;
+            }
+            if ((p->center - c).squaredNorm() < r2) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void EventCircleTracking::RemovingAmbiguousMatches(

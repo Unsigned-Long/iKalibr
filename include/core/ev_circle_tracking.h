@@ -90,6 +90,12 @@ protected:
                                                     const CircleClusterInfo::Ptr& cCluster,
                                                     double DIR_DIFF_COS_THD);
 
+    static bool ClusterExistsInCurCircle(
+        const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
+        const CircleClusterInfo::Ptr& p1,
+        const CircleClusterInfo::Ptr& p2);
+    ;
+
     static void RemovingAmbiguousMatches(
         std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr>& pairs);
 
