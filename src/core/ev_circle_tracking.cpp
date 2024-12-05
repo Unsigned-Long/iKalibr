@@ -112,6 +112,18 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
     RemovingAmbiguousMatches(newPairs);
     pairs.insert(newPairs.begin(), newPairs.end());
 
+    /**
+     * Finally, we attempt to build new potential matching relationships within clusters that have
+     * neither been registered nor matched.
+     */
+    for (const auto& [c1, c2] : newPairs) {
+        alreadyMatched.insert(c1), alreadyMatched.insert(c2);
+    }
+    auto newPairs2 = ReSearchMatchesOtherOtherPair(clusters, alreadyMatched,
+                                                   std::cos(30.0 /*degree*/ * DEG2RAD));
+    RemovingAmbiguousMatches(newPairs2);
+    pairs.insert(newPairs2.begin(), newPairs2.end());
+
     auto mat2 = nfPack->tsImg.clone();
     DrawCircleClusterPair(mat2, pairs, nfPack);
     cv::Mat mat3;
@@ -201,8 +213,100 @@ EventCircleTracking::ReSearchMatchesCirclesOtherPair(
                 if (type == CircleClusterType::CHASE) {
                     pairs[cluster] = bestCluster;
                 } else if (type == CircleClusterType::RUN) {
-                    pairs[bestCluster] = cluster;
+                    // if 'bestCluster' already exists
+                    auto iter = pairs.find(bestCluster);
+                    if (iter == pairs.end()) {
+                        pairs[bestCluster] = cluster;
+                    } else {
+                        const double oldDist = (iter->first->center - iter->second->center).norm();
+                        if (bestDist < oldDist) {
+                            iter->second = cluster;
+                        }
+                    }
                 }
+            }
+        }
+    }
+    return pairs;
+}
+
+std::map<EventCircleTracking::CircleClusterInfo::Ptr, EventCircleTracking::CircleClusterInfo::Ptr>
+EventCircleTracking::ReSearchMatchesOtherOtherPair(
+    const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
+    const std::set<CircleClusterInfo::Ptr>& alreadyMatched,
+    double DIR_DIFF_COS_THD) {
+    if (clusters.find(CircleClusterType::OTHER) == clusters.end()) {
+        return {};
+    }
+    // chase, run
+    std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr> pairs;
+    for (const auto& c1 : clusters.at(CircleClusterType::OTHER)) {
+        if (alreadyMatched.find(c1) != alreadyMatched.end()) {
+            // already been matched
+            continue;
+        }
+        CircleClusterInfo::Ptr bestCluster = nullptr;
+        double bestDist = std::numeric_limits<double>::max();
+        CircleClusterType bestClusterType = CircleClusterType::OTHER;
+
+        for (const auto& c2 : clusters.at(CircleClusterType::OTHER)) {
+            // same
+            if (c1 == c2) {
+                continue;
+            }
+            if (alreadyMatched.find(c2) != alreadyMatched.end()) {
+                // already been matched
+                continue;
+            }
+            double dist = -1.0;
+            const double d1 = TryMatchRunChaseCircleClusterPair(c1, c2, DIR_DIFF_COS_THD);
+            const double d2 = TryMatchRunChaseCircleClusterPair(c2, c1, DIR_DIFF_COS_THD);
+            if (d1 < 0.0 && d2 < 0.0) {
+                // do nothing
+            } else if (d1 < 0.0 && d2 > 0.0) {
+                // c2: run, c1: chase
+                dist = d2;
+                bestClusterType = CircleClusterType::RUN;
+            } else if (d2 < 0.0 && d1 > 0.0) {
+                // c1: run, c2: chase
+                dist = d1;
+                bestClusterType = CircleClusterType::CHASE;
+            } else {
+                if (d1 < d2) {
+                    // c1: run, c2: chase
+                    dist = d1;
+                    bestClusterType = CircleClusterType::CHASE;
+                } else {
+                    // c2: run, c1: chase
+                    dist = d2;
+                    bestClusterType = CircleClusterType::RUN;
+                }
+            }
+            if (dist < 0.0) {
+                continue;
+            }
+            if (dist < bestDist && !ClusterExistsInCurCircle(clusters, c1, c2)) {
+                bestCluster = c2;
+                bestDist = dist;
+            }
+        }
+
+        if (bestCluster != nullptr) {
+            if (bestClusterType == CircleClusterType::CHASE) {
+                // c1: run, c2: chase
+                // if 'bestCluster' already exists
+                auto iter = pairs.find(bestCluster);
+                if (iter == pairs.end()) {
+                    pairs[bestCluster] = c1;
+                } else {
+                    const double oldDist = (iter->first->center - iter->second->center).norm();
+                    if (bestDist < oldDist) {
+                        iter->second = c1;
+                    }
+                }
+            } else if (bestClusterType == CircleClusterType::RUN) {
+                // c2: run, c1: chase
+                pairs[c1] = bestCluster;
             }
         }
     }
@@ -258,13 +362,15 @@ void EventCircleTracking::RemovingAmbiguousMatches(
         CircleClusterInfo::Ptr type1 = it->first;
         CircleClusterInfo::Ptr type2 = it->second;
 
-        if (reversedPairs.find(type2) == reversedPairs.end()) {
+        auto iter = reversedPairs.find(type2);
+
+        if (iter == reversedPairs.end()) {
             reversedPairs[type2] = type1;
         } else {
-            CircleClusterInfo::Ptr prevType1 = reversedPairs[type2];
-            if ((type1->center - type2->center).norm() <
-                (prevType1->center - type2->center).norm()) {
-                reversedPairs[type2] = type1;
+            CircleClusterInfo::Ptr prevType1 = iter->second;
+            if ((type1->center - type2->center).squaredNorm() <
+                (prevType1->center - type2->center).squaredNorm()) {
+                iter->second = type1;
             }
         }
     }

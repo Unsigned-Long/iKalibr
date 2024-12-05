@@ -86,6 +86,11 @@ protected:
         const std::set<CircleClusterInfo::Ptr>& alreadyMatched,
         double DIR_DIFF_COS_THD);
 
+    static std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr> ReSearchMatchesOtherOtherPair(
+        const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
+        const std::set<CircleClusterInfo::Ptr>& alreadyMatched,
+        double DIR_DIFF_COS_THD);
+
     static double TryMatchRunChaseCircleClusterPair(const CircleClusterInfo::Ptr& rCluster,
                                                     const CircleClusterInfo::Ptr& cCluster,
                                                     double DIR_DIFF_COS_THD);
