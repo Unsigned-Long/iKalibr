@@ -32,9 +32,7 @@
 #include <opencv2/highgui.hpp>
 #include <tiny-viewer/entity/entity.h>
 #include "viewer/viewer.h"
-#include "factor/ellipse_fitting.hpp"
-
-#include <ostream>
+#include "factor/time_varying_circle_fitting.hpp"
 #include <ceres/problem.h>
 #include <ceres/solver.h>
 #include <tiny-viewer/entity/line.h>
@@ -73,10 +71,10 @@ void EventCircleTracking::Process(const EventNormFlow::NormFlowPack::Ptr& nfPack
         nfPack, this->CLUSTER_AREA_THD, this->DIR_DIFF_DEG_THD);
 
     // todo: find acricle center points...
-    std::vector<TimeVaryingEllipse::Ptr> ellipses;
+    std::vector<TimeVaryingCircle::Ptr> ellipses;
     ellipses.reserve(evsInEachCircleClusterPair.size());
     for (const auto& [evs1, evs2] : evsInEachCircleClusterPair) {
-        ellipses.push_back(FitTimeVaryingEllipse(evs1, evs2));
+        ellipses.push_back(FitTimeVaryingCircle(evs1, evs2));
     }
 
     if (viewer != nullptr) {
@@ -176,7 +174,7 @@ EventCircleTracking::ExtractPotentialCircleClusters(const EventNormFlow::NormFlo
     return RawEventsOfCircleClusterPairs(pairs, nfPack);
 }
 
-EventCircleTracking::TimeVaryingEllipse::Ptr EventCircleTracking::FitTimeVaryingEllipse(
+EventCircleTracking::TimeVaryingCircle::Ptr EventCircleTracking::FitTimeVaryingCircle(
     const EventArray::Ptr& ary1, const EventArray::Ptr& ary2) {
     double st = std::numeric_limits<double>::max();
     double et = std::numeric_limits<double>::min();
@@ -199,25 +197,22 @@ EventCircleTracking::TimeVaryingEllipse::Ptr EventCircleTracking::FitTimeVarying
     const Eigen::Vector2d c = 0.5 * (c1 + c2);
     const double r = (0.5 * (c1 - c2)).norm();
 
-    auto ellipse = TimeVaryingEllipse::Create(st, et, {0.0, c(0)}, {0.0, c(1)}, {0.0, 0.0, r * r},
-                                              {0.0, 0.0, r * r});
+    auto circle = TimeVaryingCircle::Create(st, et, {0.0, c(0)}, {0.0, c(1)}, {0.0, 0.0, r * r});
 
     ceres::Problem problem;
 
-    auto AddResidualsToProblem = [&ellipse, &problem](const EventArray::Ptr& ary) {
+    auto AddResidualsToProblem = [&circle, &problem](const EventArray::Ptr& ary) {
         for (const auto& event : ary->GetEvents()) {
-            auto cf = TimeVaryingEllipseFittingFactor::Create(event, 1.0);
+            auto cf = TimeVaryingCircleFittingFactor::Create(event, 1.0);
             cf->AddParameterBlock(2);
             cf->AddParameterBlock(2);
-            cf->AddParameterBlock(3);
             cf->AddParameterBlock(3);
             cf->SetNumResiduals(1);
 
             std::vector<double*> params;
-            params.push_back(ellipse->cx.data());
-            params.push_back(ellipse->cy.data());
-            params.push_back(ellipse->rx2.data());
-            params.push_back(ellipse->ry2.data());
+            params.push_back(circle->cx.data());
+            params.push_back(circle->cy.data());
+            params.push_back(circle->r2.data());
 
             problem.AddResidualBlock(cf, nullptr, params);
         }
@@ -230,12 +225,10 @@ EventCircleTracking::TimeVaryingEllipse::Ptr EventCircleTracking::FitTimeVarying
     options.linear_solver_type = ceres::DENSE_QR;
     // options.minimizer_progress_to_stdout = true;
     ceres::Solver::Summary summary;
-    // std::cout << "ellipse (before): " << ellipse << std::endl;
     ceres::Solve(options, &problem, &summary);
-    // std::cout << "ellipse (after): " << ellipse << std::endl;
     // std::cin.get();
 
-    return ellipse;
+    return circle;
 }
 
 std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>>
@@ -257,15 +250,38 @@ EventCircleTracking::RawEventsOfCircleClusterPairs(
         clusters.sort([](const Event::Ptr& e1, const Event::Ptr& e2) {
             return e1->GetTimestamp() < e2->GetTimestamp();
         });
-        return EventArray::Create(clusters.back()->GetTimestamp(),
-                                  {clusters.cbegin(), clusters.cend()});
+        return clusters;
+    };
+    auto RemoveOldEvents = [](std::list<Event::Ptr>& clusters, double timestamp) {
+        auto it = clusters.begin();
+        while (it != clusters.end() && (*it)->GetTimestamp() < timestamp) {
+            ++it;
+        }
+        clusters.erase(clusters.begin(), it);
     };
     std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>> eventsOfCluster;
     eventsOfCluster.reserve(pairs.size());
     for (const auto& [cCluster, rCluster] : pairs) {
         auto cEventAry = RawEventsOfEachCircleClusterPairs(cCluster);
         auto rEventAry = RawEventsOfEachCircleClusterPairs(rCluster);
-        eventsOfCluster.push_back({cEventAry, rEventAry});
+
+        double st = std::max(cEventAry.front()->GetTimestamp(), rEventAry.front()->GetTimestamp());
+
+        RemoveOldEvents(cEventAry, st);
+        RemoveOldEvents(rEventAry, st);
+        // todo: fit circle? rather than ellipse???
+
+        if (cEventAry.empty() || rEventAry.empty()) {
+            continue;
+        }
+
+        auto cAry = EventArray::Create(cEventAry.back()->GetTimestamp(),
+                                       {cEventAry.cbegin(), cEventAry.cend()});
+
+        auto rAry = EventArray::Create(rEventAry.back()->GetTimestamp(),
+                                       {rEventAry.cbegin(), rEventAry.cend()});
+
+        eventsOfCluster.push_back({cAry, rAry});
     }
     return eventsOfCluster;
 }

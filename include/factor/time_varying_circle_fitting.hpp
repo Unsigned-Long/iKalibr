@@ -40,7 +40,7 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 
 namespace ns_ikalibr {
 
-struct TimeVaryingEllipseFittingFactor {
+struct TimeVaryingCircleFittingFactor {
 private:
     Eigen::Vector2d tVec;
     Eigen::Vector3d tVec2;
@@ -48,7 +48,7 @@ private:
     double weight;
 
 public:
-    TimeVaryingEllipseFittingFactor(const Event::Ptr &event, double weight)
+    TimeVaryingCircleFittingFactor(const Event::Ptr &event, double weight)
         : tVec(event->GetTimestamp(), 1.0),
           tVec2(event->GetTimestamp() * event->GetTimestamp(), event->GetTimestamp(), 1.0),
           ex(event->GetPos()(0)),
@@ -56,12 +56,12 @@ public:
           weight(weight) {}
 
     static auto Create(const Event::Ptr &event, double weight) {
-        return new ceres::DynamicAutoDiffCostFunction<TimeVaryingEllipseFittingFactor>(
-            new TimeVaryingEllipseFittingFactor(event, weight));
+        return new ceres::DynamicAutoDiffCostFunction<TimeVaryingCircleFittingFactor>(
+            new TimeVaryingCircleFittingFactor(event, weight));
     }
 
     static std::size_t TypeHashCode() {
-        return typeid(TimeVaryingEllipseFittingFactor).hash_code();
+        return typeid(TimeVaryingCircleFittingFactor).hash_code();
     }
 
 public:
@@ -73,18 +73,16 @@ public:
     bool operator()(T const *const *params, T *residuals) const {
         Eigen::Map<const Eigen::Vector2<T>> cxParam(params[0]);
         Eigen::Map<const Eigen::Vector2<T>> cyParam(params[1]);
-        Eigen::Map<const Eigen::Vector3<T>> rx2Param(params[2]);
-        Eigen::Map<const Eigen::Vector3<T>> ry2Param(params[3]);
+        Eigen::Map<const Eigen::Vector3<T>> r2Param(params[2]);
 
         T cx = cxParam.dot(tVec.cast<T>());
         T cy = cyParam.dot(tVec.cast<T>());
-        T rx2 = rx2Param.dot(tVec2.cast<T>());
-        T ry2 = ry2Param.dot(tVec2.cast<T>());
+        T r2 = r2Param.dot(tVec2.cast<T>());
 
         T vx = (static_cast<T>(ex) - cx) * (static_cast<T>(ex) - cx);
         T vy = (static_cast<T>(ey) - cy) * (static_cast<T>(ey) - cy);
 
-        residuals[0] = static_cast<T>(weight) * (vx * ry2 + vy * rx2 - rx2 * ry2);
+        residuals[0] = static_cast<T>(weight) * (vx + vy - r2);
 
         return true;
     }

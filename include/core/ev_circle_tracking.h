@@ -72,35 +72,31 @@ public:
                           const Eigen::Vector2d& dir);
     };
 
-    struct TimeVaryingEllipse {
-        using Ptr = std::shared_ptr<TimeVaryingEllipse>;
+    struct TimeVaryingCircle {
+        using Ptr = std::shared_ptr<TimeVaryingCircle>;
 
         double st, et;
         Eigen::Vector2d cx;
         Eigen::Vector2d cy;
-        Eigen::Vector3d rx2;
-        Eigen::Vector3d ry2;
+        Eigen::Vector3d r2;
 
-        TimeVaryingEllipse(double st,
+        TimeVaryingCircle(double st,
                            double et,
                            const Eigen::Vector2d& cx,
                            const Eigen::Vector2d& cy,
-                           const Eigen::Vector3d& rx2,
-                           const Eigen::Vector3d& ry2)
+                           const Eigen::Vector3d& r2)
             : st(st),
               et(et),
               cx(cx),
               cy(cy),
-              rx2(rx2),
-              ry2(ry2) {}
+              r2(r2) {}
 
         static Ptr Create(double st,
                           double et,
                           const Eigen::Vector2d& cx,
                           const Eigen::Vector2d& cy,
-                          const Eigen::Vector3d& rx2,
-                          const Eigen::Vector3d& ry2) {
-            return std::make_shared<TimeVaryingEllipse>(st, et, cx, cy, rx2, ry2);
+                          const Eigen::Vector3d& r2) {
+            return std::make_shared<TimeVaryingCircle>(st, et, cx, cy, r2);
         }
 
         Eigen::Vector2d PosAt(double t) const {
@@ -120,10 +116,9 @@ public:
             return std::vector<Eigen::Vector3d>{posList.cbegin(), posList.cend()};
         }
 
-        friend std::ostream& operator<<(std::ostream& os, const TimeVaryingEllipse& obj) {
+        friend std::ostream& operator<<(std::ostream& os, const TimeVaryingCircle& obj) {
             return os << "st: " << obj.st << " et: " << obj.et << " cx: " << obj.cx.transpose()
-                      << " cy: " << obj.cy.transpose() << " rx: " << obj.rx2.transpose()
-                      << " ry: " << obj.ry2.transpose();
+                      << " cy: " << obj.cy.transpose() << " rx: " << obj.r2.transpose();
         }
     };
 
@@ -149,7 +144,7 @@ protected:
         double CLUSTER_AREA_THD,
         double DIR_DIFF_DEG_THD);
 
-    static TimeVaryingEllipse::Ptr FitTimeVaryingEllipse(const EventArray::Ptr& ary1,
+    static TimeVaryingCircle::Ptr FitTimeVaryingCircle(const EventArray::Ptr& ary1,
                                                          const EventArray::Ptr& ary2);
 
 protected:
