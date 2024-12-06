@@ -68,6 +68,8 @@ using FeaturePtr = std::shared_ptr<Feature>;
 using FeatureVec = std::vector<FeaturePtr>;
 struct EventArray;
 using EventArrayPtr = std::shared_ptr<EventArray>;
+struct Event;
+using EventPtr = std::shared_ptr<Event>;
 
 class Viewer : public ns_viewer::MultiViewer {
 public:
@@ -169,13 +171,22 @@ public:
                          const std::vector<EventArrayPtr>::const_iterator &eIter,
                          float sTime,
                          const std::string &view,
-                         const std::pair<float, float> &ptScales = {0.01f, 2.0f});
+                         const std::pair<float, float> &ptScales = {0.01f, 2.0f},
+                         float ptSize = 1.0f);
 
     Viewer &AddEventData(const EventArrayPtr &ary,
                          float sTime,
                          const std::string &view,
                          const std::pair<float, float> &ptScales = {0.01f, 2.0f},
-                         const std::optional<ns_viewer::Colour> &color = {});
+                         const std::optional<ns_viewer::Colour> &color = {},
+                         float ptSize = 1.0f);
+
+    Viewer &AddEventData(const std::list<EventPtr> &ary,
+                         float sTime,
+                         const std::string &view,
+                         const std::pair<float, float> &ptScales = {0.01f, 2.0f},
+                         const std::optional<ns_viewer::Colour> &color = {},
+                         float ptSize = 1.0f);
 
 protected:
     ns_viewer::MultiViewerConfigor GenViewerConfigor();

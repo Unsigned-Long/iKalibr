@@ -40,6 +40,8 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_ikalibr {
 struct NormFlow;
 using NormFlowPtr = std::shared_ptr<NormFlow>;
+struct Viewer;
+using ViewerPtr = std::shared_ptr<Viewer>;
 
 class EventCircleTracking {
 public:
@@ -81,7 +83,8 @@ public:
         return std::make_shared<EventCircleTracking>(CLUSTER_AREA_THD, DIR_DIFF_DEG_THD);
     }
 
-    void Process(const EventNormFlow::NormFlowPack::Ptr& nfPack) const;
+    void Process(const EventNormFlow::NormFlowPack::Ptr& nfPack,
+                 const ViewerPtr& viewer = nullptr) const;
 
 protected:
     static std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>> ExtractPotentialCircleClusters(

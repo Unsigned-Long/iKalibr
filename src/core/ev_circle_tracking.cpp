@@ -31,6 +31,7 @@
 #include "factor/data_correspondence.h"
 #include <opencv2/highgui.hpp>
 #include <tiny-viewer/entity/entity.h>
+#include "viewer/viewer.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -60,9 +61,21 @@ EventCircleTracking::CircleClusterInfo::Ptr EventCircleTracking::CircleClusterIn
  * EventCircleTracking
  */
 
-void EventCircleTracking::Process(const EventNormFlow::NormFlowPack::Ptr& nfPack) const {
-    auto eventInEachCircleClusterPair = this->ExtractPotentialCircleClusters(
+void EventCircleTracking::Process(const EventNormFlow::NormFlowPack::Ptr& nfPack,
+                                  const Viewer::Ptr& viewer) const {
+    auto evsInEachCircleClusterPair = this->ExtractPotentialCircleClusters(
         nfPack, this->CLUSTER_AREA_THD, this->DIR_DIFF_DEG_THD);
+
+    if (viewer != nullptr) {
+        for (const auto& [evs1, evs2] : evsInEachCircleClusterPair) {
+            viewer->AddEventData(evs1, nfPack->timestamp, Viewer::VIEW_MAP, {0.01, 100}, {}, 2.0f);
+            viewer->AddEventData(evs2, nfPack->timestamp, Viewer::VIEW_MAP, {0.01, 100}, {}, 2.0f);
+        }
+        viewer->AddEventData(nfPack->ActiveEvents(-1.0), nfPack->timestamp, Viewer::VIEW_MAP,
+                             {0.01, 100}, ns_viewer::Colour::Black(), 1.0f);
+    }
+
+    // todo: find acricle center points...
 }
 
 std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>>

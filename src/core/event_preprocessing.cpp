@@ -194,7 +194,11 @@ std::list<Event::Ptr> EventNormFlow::NormFlowPack::ActiveEvents(double dt) const
         for (int ex = 0; ex < cols; ex++) {
             const auto &et = rawTimeSurfaceMap.at<double>(ey, ex);
             // whether this pixel is assigned
-            if (et < 1E-3 || timestamp - et > dt) {
+            if (et < 1E-3) {
+                continue;
+            }
+            // time range
+            if (dt > 0.0 && timestamp - et > dt) {
                 continue;
             }
             const auto &ep = polarityMap.at<uchar>(ey, ex);

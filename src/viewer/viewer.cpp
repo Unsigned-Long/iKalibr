@@ -511,7 +511,8 @@ Viewer &Viewer::AddEventData(const std::vector<EventArray::Ptr>::const_iterator 
                              const std::vector<EventArray::Ptr>::const_iterator &eIter,
                              float sTime,
                              const std::string &view,
-                             const std::pair<float, float> &ptScales) {
+                             const std::pair<float, float> &ptScales,
+                             float ptSize) {
     pcl::PointCloud<ColorPoint>::Ptr cloud(new ColorPointCloud);
     for (auto iter = sIter; iter != eIter; ++iter) {
         for (const auto &event : (*iter)->GetEvents()) {
@@ -530,7 +531,7 @@ Viewer &Viewer::AddEventData(const std::vector<EventArray::Ptr>::const_iterator 
             cloud->push_back(cp);
         }
     }
-    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, 1.0f)}, view);
+    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, ptSize)}, view);
     return *this;
 }
 
@@ -538,7 +539,8 @@ Viewer &Viewer::AddEventData(const EventArray::Ptr &ary,
                              float sTime,
                              const std::string &view,
                              const std::pair<float, float> &ptScales,
-                             const std::optional<ns_viewer::Colour> &color) {
+                             const std::optional<ns_viewer::Colour> &color,
+                             float ptSize) {
     if (ary == nullptr) {
         return *this;
     }
@@ -566,7 +568,20 @@ Viewer &Viewer::AddEventData(const EventArray::Ptr &ary,
         cp.a = 255;
         cloud->push_back(cp);
     }
-    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, 2.0f)}, view);
+    AddEntityLocal({ns_viewer::Cloud<ColorPoint>::Create(cloud, ptSize)}, view);
     return *this;
+}
+
+Viewer &Viewer::AddEventData(const std::list<EventPtr> &ary,
+                             float sTime,
+                             const std::string &view,
+                             const std::pair<float, float> &ptScales,
+                             const std::optional<ns_viewer::Colour> &color,
+                             float ptSize) {
+    if (ary.empty()) {
+        return *this;
+    }
+    auto eAry = EventArray::Create(ary.back()->GetTimestamp(), {ary.cbegin(), ary.cend()});
+    return AddEventData(eAry, sTime, view, ptScales, color, ptSize);
 }
 }  // namespace ns_ikalibr
