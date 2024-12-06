@@ -45,7 +45,6 @@ class EventCircleTracking {
 public:
     using Ptr = std::shared_ptr<EventCircleTracking>;
 
-    constexpr static int CLUSTER_AREA_THD = 10;
     constexpr static double DEG2RAD = M_PI / 180.0;
 
     enum class CircleClusterType : int { CHASE = 0, RUN = 1, OTHER = 2 };
@@ -69,14 +68,36 @@ public:
                           const Eigen::Vector2d& dir);
     };
 
+protected:
+    const double CLUSTER_AREA_THD;
+    const double DIR_DIFF_DEG_THD;
+
 public:
-    EventCircleTracking() = default;
+    EventCircleTracking(double CLUSTER_AREA_THD, double DIR_DIFF_DEG_THD)
+        : CLUSTER_AREA_THD(CLUSTER_AREA_THD),
+          DIR_DIFF_DEG_THD(DIR_DIFF_DEG_THD) {}
 
-    static Ptr Create() { return std::make_shared<EventCircleTracking>(); }
+    static Ptr Create(double CLUSTER_AREA_THD = 10.0, double DIR_DIFF_DEG_THD = 30.0) {
+        return std::make_shared<EventCircleTracking>(CLUSTER_AREA_THD, DIR_DIFF_DEG_THD);
+    }
 
-    void ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack);
+    void Process(const EventNormFlow::NormFlowPack::Ptr& nfPack) const;
 
 protected:
+    static std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>> ExtractPotentialCircleClusters(
+        const EventNormFlow::NormFlowPack::Ptr& nfPack,
+        double CLUSTER_AREA_THD,
+        double DIR_DIFF_DEG_THD);
+
+protected:
+    static std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>> RawEventsOfCircleClusterPairs(
+        const std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr>& pairs,
+        const EventNormFlow::NormFlowPack::Ptr& nfPack);
+
+    /**
+     * The functions 'SearchMatchesInRunChasePair', 'ReSearchMatchesCirclesOtherPair', and
+     * 'ReSearchMatchesOtherOtherPair' are used to search for potential circular matching clusters.
+     */
     static std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr> SearchMatchesInRunChasePair(
         const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
         double DIR_DIFF_COS_THD);
@@ -99,39 +120,14 @@ protected:
         const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,
         const CircleClusterInfo::Ptr& p1,
         const CircleClusterInfo::Ptr& p2);
-    ;
 
     static void RemovingAmbiguousMatches(
         std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr>& pairs);
 
-    template <typename Type1, typename Type2>
-    static void RemoveClusterTypes(std::vector<CircleClusterType>& pClusterType,
-                                   std::vector<Type1>& seq1,
-                                   std::vector<Type2>& seq2,
-                                   CircleClusterType typeToRemove) {
-        assert(pClusterType.size() == seq.size());
-        const auto size = pClusterType.size();
-
-        std::vector<CircleClusterType> newPClusterType;
-        newPClusterType.reserve(size);
-        std::vector<Type1> newSeq1;
-        newSeq1.reserve(size);
-        std::vector<Type2> newSeq2;
-        newSeq2.reserve(size);
-
-        for (size_t i = 0; i < pClusterType.size(); ++i) {
-            if (pClusterType[i] != typeToRemove) {
-                newPClusterType.push_back(pClusterType[i]);
-                newSeq1.push_back(seq1[i]);
-                newSeq2.push_back(seq2[i]);
-            }
-        }
-
-        pClusterType = std::move(newPClusterType);
-        seq1 = std::move(newSeq1);
-        seq2 = std::move(newSeq2);
-    }
-
+    /**
+     * The classification of the clusters is determined as either the 'chase' category, the 'run'
+     * category, or the 'other' category.
+     */
     static std::vector<CircleClusterType> IdentifyCategory(
         const std::vector<std::list<NormFlowPtr>>& clusters,
         const std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>>& cenDirs,
@@ -149,16 +145,23 @@ protected:
     static std::pair<Eigen::Vector2d, Eigen::Vector2d> ComputeCenterDir(
         const std::list<NormFlowPtr>& cluster, const EventNormFlow::NormFlowPack::Ptr& nfPack);
 
+    /**
+     * The following functions serve the purpose of 'ClusterNormFlowEvents'.
+     */
     static std::pair<std::vector<std::list<NormFlowPtr>>, std::vector<std::list<NormFlowPtr>>>
     ClusterNormFlowEvents(const EventNormFlow::NormFlowPack::Ptr& nfPack, double clusterAreaThd);
 
     static void InterruptionInTimeDomain(cv::Mat& pMat, const cv::Mat& tMat, double thd);
 
-    static void FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours, int areaThd);
+    static void FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours,
+                                        double areaThd);
 
     static std::vector<std::vector<cv::Point>> FindContours(const cv::Mat& binaryImg);
 
 protected:
+    /**
+     * The following functions are used for visualization.
+     */
     static void DrawCircleCluster(
         cv::Mat& mat,
         const std::map<CircleClusterType, std::vector<CircleClusterInfo::Ptr>>& clusters,

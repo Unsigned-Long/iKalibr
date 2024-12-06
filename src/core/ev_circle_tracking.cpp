@@ -56,13 +56,20 @@ EventCircleTracking::CircleClusterInfo::Ptr EventCircleTracking::CircleClusterIn
     const Eigen::Vector2d& dir) {
     return std::make_shared<CircleClusterInfo>(nf_cluster, polarity, center, dir);
 }
-
 /**
  * EventCircleTracking
  */
-void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack) {
-    auto [pNormFlowCluster, nNormFlowCluster] =
-        this->ClusterNormFlowEvents(nfPack, CLUSTER_AREA_THD);
+
+void EventCircleTracking::Process(const EventNormFlow::NormFlowPack::Ptr& nfPack) const {
+    auto eventInEachCircleClusterPair = this->ExtractPotentialCircleClusters(
+        nfPack, this->CLUSTER_AREA_THD, this->DIR_DIFF_DEG_THD);
+}
+
+std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>>
+EventCircleTracking::ExtractPotentialCircleClusters(const EventNormFlow::NormFlowPack::Ptr& nfPack,
+                                                    double CLUSTER_AREA_THD,
+                                                    double DIR_DIFF_DEG_THD) {
+    auto [pNormFlowCluster, nNormFlowCluster] = ClusterNormFlowEvents(nfPack, CLUSTER_AREA_THD);
     auto pCenDir = ComputeCenterDir(pNormFlowCluster, nfPack);
     auto nCenDir = ComputeCenterDir(nNormFlowCluster, nfPack);
 
@@ -93,7 +100,8 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
      * First, we search for potential matching pairs within the clusters that are already registered
      * as 'RUN' or 'CHASE' types.
      */
-    auto pairs = SearchMatchesInRunChasePair(clusters, std::cos(30.0 /*degree*/ * DEG2RAD));
+    const double DIR_DIFF_COS_THD = std::cos(DIR_DIFF_DEG_THD /*degree*/ * DEG2RAD);
+    auto pairs = SearchMatchesInRunChasePair(clusters, DIR_DIFF_COS_THD);
     RemovingAmbiguousMatches(pairs);
 
     /**
@@ -105,8 +113,7 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
     for (const auto& [c1, c2] : pairs) {
         alreadyMatched.insert(c1), alreadyMatched.insert(c2);
     }
-    auto newPairs = ReSearchMatchesCirclesOtherPair(clusters, alreadyMatched,
-                                                    std::cos(30.0 /*degree*/ * DEG2RAD));
+    auto newPairs = ReSearchMatchesCirclesOtherPair(clusters, alreadyMatched, DIR_DIFF_COS_THD);
     RemovingAmbiguousMatches(newPairs);
     pairs.insert(newPairs.begin(), newPairs.end());
 
@@ -117,8 +124,7 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
     for (const auto& [c1, c2] : newPairs) {
         alreadyMatched.insert(c1), alreadyMatched.insert(c2);
     }
-    auto newPairs2 = ReSearchMatchesOtherOtherPair(clusters, alreadyMatched,
-                                                   std::cos(30.0 /*degree*/ * DEG2RAD));
+    auto newPairs2 = ReSearchMatchesOtherOtherPair(clusters, alreadyMatched, DIR_DIFF_COS_THD);
     RemovingAmbiguousMatches(newPairs2);
     pairs.insert(newPairs2.begin(), newPairs2.end());
 
@@ -127,7 +133,47 @@ void EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr&
     cv::Mat mat3;
     cv::hconcat(mat0, mat1, mat3);
     cv::hconcat(mat3, mat2, mat3);
-    cv::imshow("Initial Cluster | Identification | Matching Results", mat3);
+    cv::imshow(
+        "ExtractPotentialCircleClusters: Initial Cluster | Identification | Matching Results",
+        mat3);
+
+    /**
+     * Next, for all the potential circular clusters that have been matched, we retrieve their
+     * corresponding original events.
+     */
+    return RawEventsOfCircleClusterPairs(pairs, nfPack);
+}
+
+std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>>
+EventCircleTracking::RawEventsOfCircleClusterPairs(
+    const std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr>& pairs,
+    const EventNormFlow::NormFlowPack::Ptr& nfPack) {
+    cv::Mat occupyMat(nfPack->Rows(), nfPack->Cols(), CV_8UC1, cv::Scalar(0));
+    auto RawEventsOfEachCircleClusterPairs = [&occupyMat,
+                                              &nfPack](const CircleClusterInfo::Ptr& ccs) {
+        std::list<Event::Ptr> clusters;
+        for (const auto& nf : ccs->nfCluster) {
+            for (const auto& [ex, ey, et] : nfPack->nfs.at(nf)) {
+                if (auto& o = occupyMat.at<uchar>(ey, ex); o == 0) {
+                    clusters.push_back(Event::Create(et, {ex, ey}, ccs->polarity));
+                    o = 255;
+                }
+            }
+        }
+        clusters.sort([](const Event::Ptr& e1, const Event::Ptr& e2) {
+            return e1->GetTimestamp() < e2->GetTimestamp();
+        });
+        return EventArray::Create(clusters.back()->GetTimestamp(),
+                                  {clusters.cbegin(), clusters.cend()});
+    };
+    std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>> eventsOfCluster;
+    eventsOfCluster.reserve(pairs.size());
+    for (const auto& [cCluster, rCluster] : pairs) {
+        auto cEventAry = RawEventsOfEachCircleClusterPairs(cCluster);
+        auto rEventAry = RawEventsOfEachCircleClusterPairs(rCluster);
+        eventsOfCluster.push_back({cEventAry, rEventAry});
+    }
+    return eventsOfCluster;
 }
 
 std::map<EventCircleTracking::CircleClusterInfo::Ptr, EventCircleTracking::CircleClusterInfo::Ptr>
@@ -624,7 +670,7 @@ void EventCircleTracking::InterruptionInTimeDomain(cv::Mat& pMat, const cv::Mat&
 }
 
 void EventCircleTracking::FilterContoursUsingArea(std::vector<std::vector<cv::Point>>& contours,
-                                                  int areaThd) {
+                                                  double areaThd) {
     contours.erase(std::remove_if(contours.begin(), contours.end(),
                                   [areaThd](const std::vector<cv::Point>& contour) {
                                       return cv::contourArea(contour) < areaThd;

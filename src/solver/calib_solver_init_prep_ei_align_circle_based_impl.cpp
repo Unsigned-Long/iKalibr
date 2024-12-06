@@ -88,7 +88,7 @@ void CalibSolver::InitPrepEventInertialAlignCircleBased() const {
                 continue;
             }
 
-            EventCircleTracking::Create()->ExtractCircles(res);
+            EventCircleTracking::Create()->Process(res);
 
             cv::imshow("Time Surface & Norm Flow", res->Visualization(TIME_SURFACE_DECAY_TIME));
             cv::waitKey(0);
