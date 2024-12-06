@@ -33,6 +33,8 @@
 #include "util/utils.h"
 #include "core/event_preprocessing.h"
 
+#include <ostream>
+
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
@@ -70,6 +72,61 @@ public:
                           const Eigen::Vector2d& dir);
     };
 
+    struct TimeVaryingEllipse {
+        using Ptr = std::shared_ptr<TimeVaryingEllipse>;
+
+        double st, et;
+        Eigen::Vector2d cx;
+        Eigen::Vector2d cy;
+        Eigen::Vector3d rx2;
+        Eigen::Vector3d ry2;
+
+        TimeVaryingEllipse(double st,
+                           double et,
+                           const Eigen::Vector2d& cx,
+                           const Eigen::Vector2d& cy,
+                           const Eigen::Vector3d& rx2,
+                           const Eigen::Vector3d& ry2)
+            : st(st),
+              et(et),
+              cx(cx),
+              cy(cy),
+              rx2(rx2),
+              ry2(ry2) {}
+
+        static Ptr Create(double st,
+                          double et,
+                          const Eigen::Vector2d& cx,
+                          const Eigen::Vector2d& cy,
+                          const Eigen::Vector3d& rx2,
+                          const Eigen::Vector3d& ry2) {
+            return std::make_shared<TimeVaryingEllipse>(st, et, cx, cy, rx2, ry2);
+        }
+
+        Eigen::Vector2d PosAt(double t) const {
+            Eigen::Vector2d tVec(t, 1.0);
+            return {cx.dot(tVec), cy.dot(tVec)};
+        }
+
+        std::vector<Eigen::Vector3d> PosVecAt(double dt) const {
+            std::list<Eigen::Vector3d> posList;
+            double t = st;
+            while (t < et) {
+                // t, x, y
+                Eigen::Vector2d p = PosAt(t);
+                posList.push_back({t, p(0), p(1)});
+                t += dt;
+            }
+            return std::vector<Eigen::Vector3d>{posList.cbegin(), posList.cend()};
+        }
+
+        friend std::ostream& operator<<(std::ostream& os, const TimeVaryingEllipse& obj) {
+            return os << "st: " << obj.st << " et: " << obj.et << " cx: " << obj.cx.transpose()
+                      << " cy: " << obj.cy.transpose() << " rx: " << obj.rx2.transpose()
+                      << " ry: " << obj.ry2.transpose();
+        }
+    };
+
 protected:
     const double CLUSTER_AREA_THD;
     const double DIR_DIFF_DEG_THD;
@@ -91,6 +148,9 @@ protected:
         const EventNormFlow::NormFlowPack::Ptr& nfPack,
         double CLUSTER_AREA_THD,
         double DIR_DIFF_DEG_THD);
+
+    static TimeVaryingEllipse::Ptr FitTimeVaryingEllipse(const EventArray::Ptr& ary1,
+                                                         const EventArray::Ptr& ary2);
 
 protected:
     static std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>> RawEventsOfCircleClusterPairs(

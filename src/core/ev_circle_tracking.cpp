@@ -32,6 +32,12 @@
 #include <opencv2/highgui.hpp>
 #include <tiny-viewer/entity/entity.h>
 #include "viewer/viewer.h"
+#include "factor/ellipse_fitting.hpp"
+
+#include <ostream>
+#include <ceres/problem.h>
+#include <ceres/solver.h>
+#include <tiny-viewer/entity/line.h>
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -66,16 +72,29 @@ void EventCircleTracking::Process(const EventNormFlow::NormFlowPack::Ptr& nfPack
     auto evsInEachCircleClusterPair = this->ExtractPotentialCircleClusters(
         nfPack, this->CLUSTER_AREA_THD, this->DIR_DIFF_DEG_THD);
 
+    // todo: find acricle center points...
+    std::vector<TimeVaryingEllipse::Ptr> ellipses;
+    ellipses.reserve(evsInEachCircleClusterPair.size());
+    for (const auto& [evs1, evs2] : evsInEachCircleClusterPair) {
+        ellipses.push_back(FitTimeVaryingEllipse(evs1, evs2));
+    }
+
     if (viewer != nullptr) {
+        // cluster results
         for (const auto& [evs1, evs2] : evsInEachCircleClusterPair) {
             viewer->AddEventData(evs1, nfPack->timestamp, Viewer::VIEW_MAP, {0.01, 100}, {}, 2.0f);
             viewer->AddEventData(evs2, nfPack->timestamp, Viewer::VIEW_MAP, {0.01, 100}, {}, 2.0f);
         }
         viewer->AddEventData(nfPack->ActiveEvents(-1.0), nfPack->timestamp, Viewer::VIEW_MAP,
                              {0.01, 100}, ns_viewer::Colour::Black(), 1.0f);
-    }
 
-    // todo: find acricle center points...
+        // time-varying ellipse fitting
+        for (const auto& ellipse : ellipses) {
+            viewer->AddSpatioTemporalTrace(ellipse->PosVecAt(1E-3), nfPack->timestamp,
+                                           Viewer::VIEW_MAP, 2.0f, ns_viewer::Colour::Green(),
+                                           {0.01, 100});
+        }
+    }
 }
 
 std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>>
@@ -155,6 +174,68 @@ EventCircleTracking::ExtractPotentialCircleClusters(const EventNormFlow::NormFlo
      * corresponding original events.
      */
     return RawEventsOfCircleClusterPairs(pairs, nfPack);
+}
+
+EventCircleTracking::TimeVaryingEllipse::Ptr EventCircleTracking::FitTimeVaryingEllipse(
+    const EventArray::Ptr& ary1, const EventArray::Ptr& ary2) {
+    double st = std::numeric_limits<double>::max();
+    double et = std::numeric_limits<double>::min();
+
+    auto ComputeCenter = [&st, &et](const EventArray::Ptr& ary) {
+        Eigen::Vector2d c(0.0, 0.0);
+        for (const auto& event : ary->GetEvents()) {
+            c += event->GetPos().cast<double>();
+            if (st > event->GetTimestamp()) {
+                st = event->GetTimestamp();
+            }
+            if (et < event->GetTimestamp()) {
+                et = event->GetTimestamp();
+            }
+        }
+        return c / static_cast<double>(ary->GetEvents().size());
+    };
+    Eigen::Vector2d c1 = ComputeCenter(ary1), c2 = ComputeCenter(ary2);
+
+    const Eigen::Vector2d c = 0.5 * (c1 + c2);
+    const double r = (0.5 * (c1 - c2)).norm();
+
+    auto ellipse = TimeVaryingEllipse::Create(st, et, {0.0, c(0)}, {0.0, c(1)}, {0.0, 0.0, r * r},
+                                              {0.0, 0.0, r * r});
+
+    ceres::Problem problem;
+
+    auto AddResidualsToProblem = [&ellipse, &problem](const EventArray::Ptr& ary) {
+        for (const auto& event : ary->GetEvents()) {
+            auto cf = TimeVaryingEllipseFittingFactor::Create(event, 1.0);
+            cf->AddParameterBlock(2);
+            cf->AddParameterBlock(2);
+            cf->AddParameterBlock(3);
+            cf->AddParameterBlock(3);
+            cf->SetNumResiduals(1);
+
+            std::vector<double*> params;
+            params.push_back(ellipse->cx.data());
+            params.push_back(ellipse->cy.data());
+            params.push_back(ellipse->rx2.data());
+            params.push_back(ellipse->ry2.data());
+
+            problem.AddResidualBlock(cf, nullptr, params);
+        }
+    };
+
+    AddResidualsToProblem(ary1);
+    AddResidualsToProblem(ary2);
+
+    ceres::Solver::Options options;
+    options.linear_solver_type = ceres::DENSE_QR;
+    // options.minimizer_progress_to_stdout = true;
+    ceres::Solver::Summary summary;
+    // std::cout << "ellipse (before): " << ellipse << std::endl;
+    ceres::Solve(options, &problem, &summary);
+    // std::cout << "ellipse (after): " << ellipse << std::endl;
+    // std::cin.get();
+
+    return ellipse;
 }
 
 std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>>
