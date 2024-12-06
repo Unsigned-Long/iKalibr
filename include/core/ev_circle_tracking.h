@@ -74,6 +74,7 @@ public:
 
     struct TimeVaryingCircle {
         using Ptr = std::shared_ptr<TimeVaryingCircle>;
+        using Circle = std::pair<Eigen::Vector2d, double>;
 
         double st, et;
         Eigen::Vector2d cx;
@@ -81,10 +82,10 @@ public:
         Eigen::Vector3d r2;
 
         TimeVaryingCircle(double st,
-                           double et,
-                           const Eigen::Vector2d& cx,
-                           const Eigen::Vector2d& cy,
-                           const Eigen::Vector3d& r2)
+                          double et,
+                          const Eigen::Vector2d& cx,
+                          const Eigen::Vector2d& cy,
+                          const Eigen::Vector3d& r2)
             : st(st),
               et(et),
               cx(cx),
@@ -116,9 +117,16 @@ public:
             return std::vector<Eigen::Vector3d>{posList.cbegin(), posList.cend()};
         }
 
+        double RadiusAt(double t) const {
+            Eigen::Vector3d tVec(t * t, t, 1.0);
+            return std::sqrt(r2.dot(tVec));
+        }
+
+        Circle CircleAt(double t) const { return {PosAt(t), RadiusAt(t)}; }
+
         friend std::ostream& operator<<(std::ostream& os, const TimeVaryingCircle& obj) {
             return os << "st: " << obj.st << " et: " << obj.et << " cx: " << obj.cx.transpose()
-                      << " cy: " << obj.cy.transpose() << " rx: " << obj.r2.transpose();
+                      << " cy: " << obj.cy.transpose() << " r2: " << obj.r2.transpose();
         }
     };
 
@@ -145,7 +153,7 @@ protected:
         double DIR_DIFF_DEG_THD);
 
     static TimeVaryingCircle::Ptr FitTimeVaryingCircle(const EventArray::Ptr& ary1,
-                                                         const EventArray::Ptr& ary2);
+                                                       const EventArray::Ptr& ary2);
 
 protected:
     static std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>> RawEventsOfCircleClusterPairs(

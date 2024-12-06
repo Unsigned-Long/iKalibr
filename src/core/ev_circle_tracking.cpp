@@ -70,13 +70,6 @@ void EventCircleTracking::Process(const EventNormFlow::NormFlowPack::Ptr& nfPack
     auto evsInEachCircleClusterPair = this->ExtractPotentialCircleClusters(
         nfPack, this->CLUSTER_AREA_THD, this->DIR_DIFF_DEG_THD);
 
-    // todo: find acricle center points...
-    std::vector<TimeVaryingCircle::Ptr> ellipses;
-    ellipses.reserve(evsInEachCircleClusterPair.size());
-    for (const auto& [evs1, evs2] : evsInEachCircleClusterPair) {
-        ellipses.push_back(FitTimeVaryingCircle(evs1, evs2));
-    }
-
     if (viewer != nullptr) {
         // cluster results
         for (const auto& [evs1, evs2] : evsInEachCircleClusterPair) {
@@ -85,14 +78,60 @@ void EventCircleTracking::Process(const EventNormFlow::NormFlowPack::Ptr& nfPack
         }
         viewer->AddEventData(nfPack->ActiveEvents(-1.0), nfPack->timestamp, Viewer::VIEW_MAP,
                              {0.01, 100}, ns_viewer::Colour::Black(), 1.0f);
+    }
 
+    std::vector<TimeVaryingCircle::Ptr> tvCircles;
+    tvCircles.reserve(evsInEachCircleClusterPair.size());
+    for (const auto& [evs1, evs2] : evsInEachCircleClusterPair) {
+        if (auto c = FitTimeVaryingCircle(evs1, evs2); c != nullptr) {
+            tvCircles.push_back(c);
+        }
+    }
+
+    // filter overlapped circles
+    std::vector<TimeVaryingCircle::Circle> circles;
+    circles.reserve(tvCircles.size());
+    for (const auto& c : tvCircles) {
+        circles.push_back(c->CircleAt(nfPack->timestamp));
+    }
+
+    std::list<std::size_t> indices;
+    for (int i = 0; i < static_cast<int>(tvCircles.size()); ++i) {
+        const auto& curCircle = circles.at(i);
+        for (int j = i + 1; j < static_cast<int>(tvCircles.size()); ++j) {
+            const auto& tarCircle = circles.at(j);
+            const double distCenter = (curCircle.first - tarCircle.first).norm();
+            if (distCenter < curCircle.second + tarCircle.second) {
+                // overlapped
+                indices.push_back(i);
+                break;
+            }
+        }
+    }
+    std::size_t backValidIdx = circles.size() - 1;
+    for (std::size_t index : indices) {
+        circles.at(index) = circles.at(backValidIdx);
+        tvCircles.at(index) = tvCircles.at(backValidIdx);
+        --backValidIdx;
+    }
+    circles.resize(backValidIdx + 1);
+    tvCircles.resize(backValidIdx + 1);
+
+    if (viewer != nullptr) {
         // time-varying ellipse fitting
-        for (const auto& ellipse : ellipses) {
+        for (const auto& ellipse : tvCircles) {
             viewer->AddSpatioTemporalTrace(ellipse->PosVecAt(1E-3), nfPack->timestamp,
                                            Viewer::VIEW_MAP, 2.0f, ns_viewer::Colour::Green(),
                                            {0.01, 100});
         }
     }
+
+    cv::Mat cMat = nfPack->tsImg.clone();
+    for (const auto& c : circles) {
+        cv::circle(cMat, cv::Point2d(c.first(0), c.first(1)), c.second, cv::Scalar(0, 255, 0), 1);
+        DrawKeypointOnCVMat(cMat, c.first, false, cv::Scalar(0, 255, 0));
+    }
+    cv::imshow("Extracted Circles", cMat);
 }
 
 std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>>
@@ -226,9 +265,12 @@ EventCircleTracking::TimeVaryingCircle::Ptr EventCircleTracking::FitTimeVaryingC
     // options.minimizer_progress_to_stdout = true;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
-    // std::cin.get();
 
-    return circle;
+    if (circle->RadiusAt(circle->et) < 1) {
+        return nullptr;
+    } else {
+        return circle;
+    }
 }
 
 std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>>
