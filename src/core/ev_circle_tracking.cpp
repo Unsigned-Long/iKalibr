@@ -33,6 +33,7 @@
 #include <tiny-viewer/entity/entity.h>
 #include "viewer/viewer.h"
 #include "factor/time_varying_circle_fitting.hpp"
+#include <ceres/loss_function.h>
 #include <ceres/problem.h>
 #include <ceres/solver.h>
 #include <tiny-viewer/entity/line.h>
@@ -65,16 +66,17 @@ EventCircleTracking::CircleClusterInfo::Ptr EventCircleTracking::CircleClusterIn
  * EventCircleTracking
  */
 
-void EventCircleTracking::Process(const EventNormFlow::NormFlowPack::Ptr& nfPack,
-                                  const Viewer::Ptr& viewer) const {
+std::pair<double, std::vector<EventCircleTracking::TimeVaryingCircle::Circle>>
+EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack,
+                                    const Viewer::Ptr& viewer) const {
     auto evsInEachCircleClusterPair = this->ExtractPotentialCircleClusters(
         nfPack, this->CLUSTER_AREA_THD, this->DIR_DIFF_DEG_THD);
 
     if (viewer != nullptr) {
         // cluster results
         for (const auto& [evs1, evs2] : evsInEachCircleClusterPair) {
-            viewer->AddEventData(evs1, nfPack->timestamp, Viewer::VIEW_MAP, {0.01, 100}, {}, 2.0f);
-            viewer->AddEventData(evs2, nfPack->timestamp, Viewer::VIEW_MAP, {0.01, 100}, {}, 2.0f);
+            viewer->AddEventData(evs1, nfPack->timestamp, Viewer::VIEW_MAP, {0.01, 100}, {}, 4.0f);
+            viewer->AddEventData(evs2, nfPack->timestamp, Viewer::VIEW_MAP, {0.01, 100}, {}, 4.0f);
         }
         viewer->AddEventData(nfPack->ActiveEvents(-1.0), nfPack->timestamp, Viewer::VIEW_MAP,
                              {0.01, 100}, ns_viewer::Colour::Black(), 1.0f);
@@ -83,7 +85,7 @@ void EventCircleTracking::Process(const EventNormFlow::NormFlowPack::Ptr& nfPack
     std::vector<TimeVaryingCircle::Ptr> tvCircles;
     tvCircles.reserve(evsInEachCircleClusterPair.size());
     for (const auto& [evs1, evs2] : evsInEachCircleClusterPair) {
-        if (auto c = FitTimeVaryingCircle(evs1, evs2); c != nullptr) {
+        if (auto c = FitTimeVaryingCircle(evs1, evs2, POINT_TO_CIRCLE_AVG_THD); c != nullptr) {
             tvCircles.push_back(c);
         }
     }
@@ -132,6 +134,13 @@ void EventCircleTracking::Process(const EventNormFlow::NormFlowPack::Ptr& nfPack
         DrawKeypointOnCVMat(cMat, c.first, false, cv::Scalar(0, 255, 0));
     }
     cv::imshow("Extracted Circles", cMat);
+
+    return {nfPack->timestamp, circles};
+}
+
+void EventCircleTracking::ExtractCirclesGrid(const EventNormFlow::NormFlowPack::Ptr& nfPack,
+                                             const ViewerPtr& viewer) const {
+    auto [timestamp, circles] = ExtractCircles(nfPack, viewer);
 }
 
 std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>>
@@ -214,7 +223,7 @@ EventCircleTracking::ExtractPotentialCircleClusters(const EventNormFlow::NormFlo
 }
 
 EventCircleTracking::TimeVaryingCircle::Ptr EventCircleTracking::FitTimeVaryingCircle(
-    const EventArray::Ptr& ary1, const EventArray::Ptr& ary2) {
+    const EventArray::Ptr& ary1, const EventArray::Ptr& ary2, double avgDistThd) {
     double st = std::numeric_limits<double>::max();
     double et = std::numeric_limits<double>::min();
 
@@ -240,7 +249,7 @@ EventCircleTracking::TimeVaryingCircle::Ptr EventCircleTracking::FitTimeVaryingC
 
     ceres::Problem problem;
 
-    auto AddResidualsToProblem = [&circle, &problem](const EventArray::Ptr& ary) {
+    auto AddResidualsToProblem = [&circle, &problem, &avgDistThd](const EventArray::Ptr& ary) {
         for (const auto& event : ary->GetEvents()) {
             auto cf = TimeVaryingCircleFittingFactor::Create(event, 1.0);
             cf->AddParameterBlock(2);
@@ -253,7 +262,7 @@ EventCircleTracking::TimeVaryingCircle::Ptr EventCircleTracking::FitTimeVaryingC
             params.push_back(circle->cy.data());
             params.push_back(circle->r2.data());
 
-            problem.AddResidualBlock(cf, nullptr, params);
+            problem.AddResidualBlock(cf, new ceres::HuberLoss(avgDistThd), params);
         }
     };
 
@@ -266,10 +275,24 @@ EventCircleTracking::TimeVaryingCircle::Ptr EventCircleTracking::FitTimeVaryingC
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
 
-    if (circle->RadiusAt(circle->et) < 1) {
+    if (auto radius = circle->RadiusAt(circle->et); radius < 1.0 /*pixel*/) {
         return nullptr;
     } else {
-        return circle;
+        // compute average point to circle distance
+        double avgDist = 0.0;
+        for (const auto& event : ary1->GetEvents()) {
+            avgDist += circle->PointToCircleDistance(event);
+        }
+        for (const auto& event : ary2->GetEvents()) {
+            avgDist += circle->PointToCircleDistance(event);
+        }
+        avgDist /= static_cast<double>(ary1->GetEvents().size() + ary2->GetEvents().size());
+        // std::cout << "avgDist: " << avgDist << std::endl;
+        if (avgDist > avgDistThd) {
+            return nullptr;
+        } else {
+            return circle;
+        }
     }
 }
 
@@ -851,14 +874,14 @@ void EventCircleTracking::DrawCircleClusterPair(
     const std::map<CircleClusterInfo::Ptr, CircleClusterInfo::Ptr>& pair,
     const EventNormFlow::NormFlowPack::Ptr& nfPack) {
     for (const auto& [chase, run] : pair) {
-        DrawCluster(mat, chase->nfCluster, nfPack);
-        DrawCluster(mat, run->nfCluster, nfPack);
+        DrawCluster(mat, chase->nfCluster, nfPack, ns_viewer::Colour{0.0f, 0.0f, 1.0f, 1.0f});
+        DrawCluster(mat, run->nfCluster, nfPack, ns_viewer::Colour{1.0f, 0.0f, 0.0f, 1.0f});
     }
     for (const auto& [chase, run] : pair) {
         DrawLineOnCVMat(mat, chase->center, run->center, cv::Scalar(255, 255, 255));
 
-        DrawKeypointOnCVMat(mat, run->center, false, cv::Scalar(255, 255, 255));
-        DrawKeypointOnCVMat(mat, chase->center, false, cv::Scalar(127, 127, 127));
+        DrawKeypointOnCVMat(mat, run->center, false, cv::Scalar(0, 0, 0));
+        DrawKeypointOnCVMat(mat, chase->center, false, cv::Scalar(0, 0, 0));
     }
 }
 
@@ -868,24 +891,24 @@ void EventCircleTracking::DrawCircleCluster(cv::Mat& mat,
                                             const EventNormFlow::NormFlowPack::Ptr& nfPack,
                                             double scale) {
     cv::Scalar color;
+    ns_viewer::Colour viewerColour;
     switch (type) {
         case CircleClusterType::CHASE:
-            color = cv::Scalar(127, 127, 127);
+            color = cv::Scalar(255, 255, 255);
+            viewerColour = {0.0f, 0.0f, 1.0f, 1.0f};
             break;
         case CircleClusterType::RUN:
             color = cv::Scalar(255, 255, 255);
+            viewerColour = {1.0f, 0.0f, 0.0f, 1.0f};
             break;
         case CircleClusterType::OTHER:
             color = cv::Scalar(0, 0, 0);
+            viewerColour = {1.0f, 1.0f, 1.0f, 1.0f};
             break;
     }
 
     for (const auto& c : clusters) {
-        if (type == CircleClusterType::OTHER) {
-            DrawCluster(mat, c->nfCluster, nfPack, ns_viewer::Colour(1.0f, 1.0f, 1.0f));
-        } else {
-            DrawCluster(mat, c->nfCluster, nfPack);
-        }
+        DrawCluster(mat, c->nfCluster, nfPack, viewerColour);
 
         DrawLineOnCVMat(mat, c->center, c->center + scale * c->dir, color);
 

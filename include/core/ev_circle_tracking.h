@@ -74,6 +74,7 @@ public:
 
     struct TimeVaryingCircle {
         using Ptr = std::shared_ptr<TimeVaryingCircle>;
+        // center, radius
         using Circle = std::pair<Eigen::Vector2d, double>;
 
         double st, et;
@@ -124,6 +125,11 @@ public:
 
         Circle CircleAt(double t) const { return {PosAt(t), RadiusAt(t)}; }
 
+        double PointToCircleDistance(const Event::Ptr& event) const {
+            auto c = CircleAt(event->GetTimestamp());
+            return std::abs(c.second - (event->GetPos().cast<double>() - c.first).norm());
+        }
+
         friend std::ostream& operator<<(std::ostream& os, const TimeVaryingCircle& obj) {
             return os << "st: " << obj.st << " et: " << obj.et << " cx: " << obj.cx.transpose()
                       << " cy: " << obj.cy.transpose() << " r2: " << obj.r2.transpose();
@@ -133,18 +139,28 @@ public:
 protected:
     const double CLUSTER_AREA_THD;
     const double DIR_DIFF_DEG_THD;
+    const double POINT_TO_CIRCLE_AVG_THD;
 
 public:
-    EventCircleTracking(double CLUSTER_AREA_THD, double DIR_DIFF_DEG_THD)
+    EventCircleTracking(double CLUSTER_AREA_THD,
+                        double DIR_DIFF_DEG_THD,
+                        double POINT_TO_CIRCLE_AVG_THD)
         : CLUSTER_AREA_THD(CLUSTER_AREA_THD),
-          DIR_DIFF_DEG_THD(DIR_DIFF_DEG_THD) {}
+          DIR_DIFF_DEG_THD(DIR_DIFF_DEG_THD),
+          POINT_TO_CIRCLE_AVG_THD(POINT_TO_CIRCLE_AVG_THD) {}
 
-    static Ptr Create(double CLUSTER_AREA_THD = 10.0, double DIR_DIFF_DEG_THD = 30.0) {
-        return std::make_shared<EventCircleTracking>(CLUSTER_AREA_THD, DIR_DIFF_DEG_THD);
+    static Ptr Create(double CLUSTER_AREA_THD = 10.0,
+                      double DIR_DIFF_DEG_THD = 30.0,
+                      double POINT_TO_CIRCLE_AVG_THD = 1.0) {
+        return std::make_shared<EventCircleTracking>(CLUSTER_AREA_THD, DIR_DIFF_DEG_THD,
+                                                     POINT_TO_CIRCLE_AVG_THD);
     }
 
-    void Process(const EventNormFlow::NormFlowPack::Ptr& nfPack,
-                 const ViewerPtr& viewer = nullptr) const;
+    std::pair<double, std::vector<TimeVaryingCircle::Circle>> ExtractCircles(
+        const EventNormFlow::NormFlowPack::Ptr& nfPack, const ViewerPtr& viewer = nullptr) const;
+
+    void ExtractCirclesGrid(const EventNormFlow::NormFlowPack::Ptr& nfPack,
+                            const ViewerPtr& viewer = nullptr) const;
 
 protected:
     static std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>> ExtractPotentialCircleClusters(
@@ -153,7 +169,8 @@ protected:
         double DIR_DIFF_DEG_THD);
 
     static TimeVaryingCircle::Ptr FitTimeVaryingCircle(const EventArray::Ptr& ary1,
-                                                       const EventArray::Ptr& ary2);
+                                                       const EventArray::Ptr& ary2,
+                                                       double avgDistThd);
 
 protected:
     static std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>> RawEventsOfCircleClusterPairs(
