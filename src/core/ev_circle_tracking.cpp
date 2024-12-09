@@ -36,7 +36,9 @@
 #include <ceres/loss_function.h>
 #include <ceres/problem.h>
 #include <ceres/solver.h>
+#include <opencv2/calib3d.hpp>
 #include <tiny-viewer/entity/line.h>
+#include <util/circlesgrid.h>
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
@@ -68,7 +70,7 @@ EventCircleTracking::CircleClusterInfo::Ptr EventCircleTracking::CircleClusterIn
 
 std::pair<double, std::vector<EventCircleTracking::TimeVaryingCircle::Circle>>
 EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPack,
-                                    const Viewer::Ptr& viewer) const {
+                                    const Viewer::Ptr& viewer) {
     auto evsInEachCircleClusterPair = this->ExtractPotentialCircleClusters(
         nfPack, this->CLUSTER_AREA_THD, this->DIR_DIFF_DEG_THD);
 
@@ -128,19 +130,66 @@ EventCircleTracking::ExtractCircles(const EventNormFlow::NormFlowPack::Ptr& nfPa
         }
     }
 
-    cv::Mat cMat = nfPack->tsImg.clone();
-    for (const auto& c : circles) {
-        cv::circle(cMat, cv::Point2d(c.first(0), c.first(1)), c.second, cv::Scalar(0, 255, 0), 1);
-        DrawKeypointOnCVMat(cMat, c.first, false, cv::Scalar(0, 255, 0));
+    if (visualization) {
+        imgExtractCircles = nfPack->tsImg.clone();
+        for (const auto& c : circles) {
+            cv::circle(imgExtractCircles, cv::Point2d(c.first(0), c.first(1)), c.second,
+                       cv::Scalar(0, 255, 0), 1);
+            DrawKeypointOnCVMat(imgExtractCircles, c.first, false, cv::Scalar(0, 255, 0));
+        }
     }
-    cv::imshow("Extracted Circles", cMat);
 
     return {nfPack->timestamp, circles};
 }
 
-void EventCircleTracking::ExtractCirclesGrid(const EventNormFlow::NormFlowPack::Ptr& nfPack,
-                                             const ViewerPtr& viewer) const {
+std::optional<std::vector<cv::Point2f>> EventCircleTracking::ExtractCirclesGrid(
+    const EventNormFlow::NormFlowPack::Ptr& nfPack,
+    const cv::Size& gridSize,
+    const ViewerPtr& viewer) {
     auto [timestamp, circles] = ExtractCircles(nfPack, viewer);
+
+    // convert to opencv mat (2d point array)
+    cv::Mat matPoints(circles.size(), 1, CV_32FC2);
+    for (size_t i = 0; i < circles.size(); ++i) {
+        matPoints.at<cv::Vec2f>(i, 0) = cv::Vec2f(circles.at(i).first(0), circles.at(i).first(1));
+    }
+
+    std::vector<cv::Point2f> centers;
+
+    auto res = FindCirclesGrid(
+        matPoints,  // grid view of input circles
+        gridSize,   // number of circles per row and column, patternSize = Size(row, colum)
+        centers,    // output array of detected centers
+        cv::CALIB_CB_ASYMMETRIC_GRID,  // various operation flags
+        nullptr,  // feature detector that finds blobs like dark circles on light background, If
+                  // blobDetector is NULL then image represents point array of candidates
+        ns_cv_helper::CirclesGridFinderParameters());
+
+    if (visualization) {
+        imgExtractCirclesGrid = nfPack->tsImg.clone();
+        cv::drawChessboardCorners(imgExtractCirclesGrid, gridSize, centers, res);
+    }
+
+    if (!res) {
+        return {};
+    } else {
+        return centers;
+    }
+}
+
+void EventCircleTracking::Visualization() const {
+    if (!this->visualization) {
+        return;
+    }
+    cv::Mat matExtraction;
+    cv::hconcat(imgClusterNormFlowEvents, imgIdentifyCategory, matExtraction);
+    cv::hconcat(matExtraction, imgSearchMatches, matExtraction);
+
+    cv::Mat matGrid;
+    cv::hconcat(imgExtractCircles, imgExtractCirclesGrid, matGrid);
+
+    cv::imshow("Event-Based Circle Extraction", matExtraction);
+    cv::imshow("Found Circle Grid", matGrid);
 }
 
 std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>>
@@ -151,9 +200,11 @@ EventCircleTracking::ExtractPotentialCircleClusters(const EventNormFlow::NormFlo
     auto pCenDir = ComputeCenterDir(pNormFlowCluster, nfPack);
     auto nCenDir = ComputeCenterDir(nNormFlowCluster, nfPack);
 
-    auto mat0 = nfPack->tsImg.clone();
-    DrawCluster(mat0, pNormFlowCluster, nfPack);
-    DrawCluster(mat0, nNormFlowCluster, nfPack);
+    if (visualization) {
+        imgClusterNormFlowEvents = nfPack->tsImg.clone();
+        DrawCluster(imgClusterNormFlowEvents, pNormFlowCluster, nfPack);
+        DrawCluster(imgClusterNormFlowEvents, nNormFlowCluster, nfPack);
+    }
 
     auto pClusterType = IdentifyCategory(pNormFlowCluster, pCenDir, nfPack);
     auto nClusterType = IdentifyCategory(nNormFlowCluster, nCenDir, nfPack);
@@ -170,9 +221,10 @@ EventCircleTracking::ExtractPotentialCircleClusters(const EventNormFlow::NormFlo
             nNormFlowCluster[i], false, cenDir.first, cenDir.second));
     }
 
-    auto mat1 = nfPack->tsImg.clone();
-    DrawCircleCluster(mat1, clusters, nfPack, 10);
-    // cv::imshow("Circle Cluster Results", mat1);
+    if (visualization) {
+        imgIdentifyCategory = nfPack->tsImg.clone();
+        DrawCircleCluster(imgIdentifyCategory, clusters, nfPack, 10);
+    }
 
     /**
      * First, we search for potential matching pairs within the clusters that are already registered
@@ -206,14 +258,10 @@ EventCircleTracking::ExtractPotentialCircleClusters(const EventNormFlow::NormFlo
     RemovingAmbiguousMatches(newPairs2);
     pairs.insert(newPairs2.begin(), newPairs2.end());
 
-    auto mat2 = nfPack->tsImg.clone();
-    DrawCircleClusterPair(mat2, pairs, nfPack);
-    cv::Mat mat3;
-    cv::hconcat(mat0, mat1, mat3);
-    cv::hconcat(mat3, mat2, mat3);
-    cv::imshow(
-        "ExtractPotentialCircleClusters: Initial Cluster | Identification | Matching Results",
-        mat3);
+    if (visualization) {
+        imgSearchMatches = nfPack->tsImg.clone();
+        DrawCircleClusterPair(imgSearchMatches, pairs, nfPack);
+    }
 
     /**
      * Next, for all the potential circular clusters that have been matched, we retrieve their

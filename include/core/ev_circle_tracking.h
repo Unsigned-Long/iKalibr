@@ -141,29 +141,44 @@ protected:
     const double DIR_DIFF_DEG_THD;
     const double POINT_TO_CIRCLE_AVG_THD;
 
+    // for visualization
+    bool visualization;
+    cv::Mat imgClusterNormFlowEvents;
+    cv::Mat imgIdentifyCategory;
+    cv::Mat imgSearchMatches;
+    cv::Mat imgExtractCircles;
+    cv::Mat imgExtractCirclesGrid;
+
 public:
-    EventCircleTracking(double CLUSTER_AREA_THD,
+    EventCircleTracking(bool visualization,
+                        double CLUSTER_AREA_THD,
                         double DIR_DIFF_DEG_THD,
                         double POINT_TO_CIRCLE_AVG_THD)
         : CLUSTER_AREA_THD(CLUSTER_AREA_THD),
           DIR_DIFF_DEG_THD(DIR_DIFF_DEG_THD),
-          POINT_TO_CIRCLE_AVG_THD(POINT_TO_CIRCLE_AVG_THD) {}
+          POINT_TO_CIRCLE_AVG_THD(POINT_TO_CIRCLE_AVG_THD),
+          visualization(visualization) {}
 
-    static Ptr Create(double CLUSTER_AREA_THD = 10.0,
+    static Ptr Create(bool visualization = false,
+                      double CLUSTER_AREA_THD = 10.0,
                       double DIR_DIFF_DEG_THD = 30.0,
                       double POINT_TO_CIRCLE_AVG_THD = 1.0) {
-        return std::make_shared<EventCircleTracking>(CLUSTER_AREA_THD, DIR_DIFF_DEG_THD,
-                                                     POINT_TO_CIRCLE_AVG_THD);
+        return std::make_shared<EventCircleTracking>(visualization, CLUSTER_AREA_THD,
+                                                     DIR_DIFF_DEG_THD, POINT_TO_CIRCLE_AVG_THD);
     }
 
     std::pair<double, std::vector<TimeVaryingCircle::Circle>> ExtractCircles(
-        const EventNormFlow::NormFlowPack::Ptr& nfPack, const ViewerPtr& viewer = nullptr) const;
+        const EventNormFlow::NormFlowPack::Ptr& nfPack, const ViewerPtr& viewer = nullptr);
 
-    void ExtractCirclesGrid(const EventNormFlow::NormFlowPack::Ptr& nfPack,
-                            const ViewerPtr& viewer = nullptr) const;
+    std::optional<std::vector<cv::Point2f>> ExtractCirclesGrid(
+        const EventNormFlow::NormFlowPack::Ptr& nfPack,
+        const cv::Size& gridSize,
+        const ViewerPtr& viewer = nullptr);
+
+    void Visualization() const;
 
 protected:
-    static std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>> ExtractPotentialCircleClusters(
+    std::vector<std::pair<EventArray::Ptr, EventArray::Ptr>> ExtractPotentialCircleClusters(
         const EventNormFlow::NormFlowPack::Ptr& nfPack,
         double CLUSTER_AREA_THD,
         double DIR_DIFF_DEG_THD);
