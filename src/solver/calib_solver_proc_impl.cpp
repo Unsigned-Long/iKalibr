@@ -77,7 +77,7 @@ void CalibSolver::Process() {
 
     // this->InitPrepEventInertialAlign();        // point-based optical flow event-inertial
     // this->InitPrepEventInertialAlignLineBased();  // line-based norm flow event-inertial
-    this->InitPrepEventInertialAlignCircleBased();  // circle-based norm flow event-inertial
+    // this->InitPrepEventInertialAlignCircleBased();  // circle-based norm flow event-inertial
 
     this->InitSensorInertialAlign();  // one-shot sensor-inertial alignment
 
