@@ -29,7 +29,7 @@
 
 For more details, please refer to our article :point_down::
 
-+ **S. Chen**, X. Li*, S. Li\*, Y. Zhou, and X. Yang, "iKalibr: Unified Targetless Spatiotemporal Calibration for Resilient Integrated Inertial Systems," in IEEE Transactions on Robotics (TRO), 2025. [[paper-tro]()] [[paper-arXiv](https://arxiv.org/abs/2407.11420)] [[video 1](https://www.bilibili.com/video/BV1Dm421G7FV)] [[video 2](https://www.bilibili.com/video/BV1MFUGYGEpU)]
++ **S. Chen**, X. Li*, S. Li\*, Y. Zhou, and X. Yang, "iKalibr: Unified Targetless Spatiotemporal Calibration for Resilient Integrated Inertial Systems," in IEEE Transactions on Robotics (TRO), 2025. [[paper-tro](https://ieeexplore.ieee.org/document/10848334)] [[paper-arXiv](https://arxiv.org/abs/2407.11420)] [[video 1](https://www.bilibili.com/video/BV1Dm421G7FV)] [[video 2](https://www.bilibili.com/video/BV1MFUGYGEpU)]
 + **S. Chen**, X. Li*, S. Li and Y. Zhou, "iKalibr-RGBD: Partially-Specialized Target-Free Visual-Inertial Spatiotemporal Calibration For RGBDs via Continuous-Time Velocity Estimation," in IEEE Robotics and Automation Letters (RA-L), 2024. [[paper-ral](https://ieeexplore.ieee.org/document/10759744)] [[paper-arXiv](http://arxiv.org/abs/2409.07116)]
 
 ---
