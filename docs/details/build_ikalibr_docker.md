@@ -34,17 +34,30 @@ docker pull ulong2/ie_kalibr_image:latest
 
 After pulling the image, build the Docker container. You can customize the container name by replacing `your_container_name` with your preferred name. For example:
 
-```
-docker run -it --name your_container_name ulong2/ie_kalibr_image:latest bash
+```bash
+# Allow local Docker connections to the X server.
+# This command grants local Docker containers permission to access your host machine's X11 display.
+xhost +local:docker
+
+# Run the Docker container
+docker run -it --device=/dev/dri:/dev/dri --env="XDG_RUNTIME_DIR=/tmp" --env="DISPLAY" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --volume="$HOME/.Xauthority:/root/.Xauthority:rw" --name your_container_name ulong2/ie_kalibr_image:latest
 ```
 
-This command will start the container with your custom name (`your_container_name`) and open a terminal window inside it.
+This command will start the container with your custom name (`your_container_name`) and open a terminal window inside it:
+
++ `--device=/dev/dri:/dev/dri`: Enables hardware acceleration via the Direct Rendering Interface (DRI).
++ `--env="DISPLAY"`: Passes the display environment variable to the container.
++ `--env="XDG_RUNTIME_DIR=/tmp"`: Ensures compatibility with some GUI apps using `xdg`.
++ `--volume="/tmp/.X11-unix:/tmp/.X11-unix:rw"`: Shares the X11 socket.
++ `--volume="$HOME/.Xauthority:/root/.Xauthority:rw"`: Shares X11 authentication credentials.
++ `--name`: Assigns a name to the running container.
++ `ulong2/ie_kalibr_image:latest`: Your Docker image.
 
 ### 4. Enter the Container and Pull the Latest Code
 
 Inside the container, navigate to the `/home/iKalibr/src/ikalibr` directory:
 
-```
+```bash
 cd /home/iKalibr/src/ikalibr
 ```
 
