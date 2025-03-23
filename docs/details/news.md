@@ -9,9 +9,20 @@
     <a href="https://github.com/Unsigned-Long"><strong>Author » Shuolong Chen</strong></a>
 </p>
 
-
-
 ---
+
+<p align="center">
+    <a><strong>Version 2.1.2 » a docker image of iKalibr is released</strong></a>
+</p>
+
+We are excited to announce the release of the **official iKalibr Docker image**! To make it easier for users to use the `iKalibr` project, we have built and published a Docker image that simplifies the setup process. With this Docker image, you can now easily run `iKalibr` in an isolated environment without worrying about dependency issues or complex configurations. For more details, please see [here](./build_ikalibr_docker.md).
+
+- Pre-configured environment with all necessary dependencies.
+- Hassle-free setup, with just a few commands to get started.
+- Flexibility to run on any platform supporting Docker.
+- Access to the latest version of `iKalibr`, easily kept up-to-date via Docker pull.
+
+
 
 <p align="center">
     <a><strong>Version 2.1.1 » refine code structure & add a tested installation pipeline on ubuntu 20.04</strong></a>

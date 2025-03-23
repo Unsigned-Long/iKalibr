@@ -8,15 +8,10 @@
 <p align="center">
     <a href="https://github.com/Unsigned-Long"><strong>Author » Shuolong Chen</strong></a>
 </p>
-<p align="center"><i>"The naming of <strong>iKalibr</strong> is inspired by <a href="https://github.com/ethz-asl/kalibr.git">Kalibr</a>, but not an extension of it. Wonder <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/why_ikalibr.md">why</a>?"</i></p>
+<p align="center"><i>"The naming of <strong>iKalibr</strong> is inspired by <a href="https://github.com/ethz-asl/kalibr.git">Kalibr</a>, but not an extension of it. Wonder <a href="./docs/details/why_ikalibr.md">why</a>?"</i></p>
 <p align="center">
-    :tada: <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/news.md"><i><strong>News »</strong> A tested installation pipeline on ubuntu 20.04!</i></a>
+    :tada: <a href="./docs/details/news.md"><i><strong>News »</strong> A docker image of iKalibr is released!</i></a>
 </p>
-
-
-
-
-
 
 ---
 
@@ -54,34 +49,56 @@ For more details, please refer to our article :point_down::
 ---
 
 <p align="left">
-    <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/build_ikalibr.md"><strong>Tutorial: Prepare iKalibr Environment for Calibration »</strong></a>
+    <a href="./docs/details/build_ikalibr.md"><strong>Tutorial: Prepare iKalibr Environment (Option 1) »</strong></a>
 </p> 
+
 
 
 + install available operation systems and required third libraries.
 + clone `iKalibr` and its submodules on github, compile submodules.
 + compile `iKalibr` (this would require some time).
 
+
+
 <p align="left">
-    <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/use_ikalibr.md"><strong>Tutorial: General Calibration Procedure in iKalibr »</strong></a>
+    <a href="./docs/details/build_ikalibr_docker.md"><strong>Tutorial: Prepare iKalibr Environment Using Docker (Option 2) »</strong></a>
 </p> 
+
+
+
++ install docker and pull the docker image.
++ create a corresponding container using the image.
++ update (pull) iKalibr repo and recompile it if needed. 
+
+
+
+<p align="left">
+    <a href="./docs/details/use_ikalibr.md"><strong>Tutorial: General Calibration Procedure in iKalibr »</strong></a>
+</p> 
+
 
 
 + collect sensor data dynamically, sufficiently excited motion is needed.
 + write adaptable configure file (a template file has been provided).
 + run `iKalibr` based on the configure file.
 
+
+
 <p align="left">
-    <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/tools.md"><strong>Additional Helpful Tools in iKalibr »</strong></a>
+    <a href="./docs/details/tools.md"><strong>Additional Helpful Tools in iKalibr »</strong></a>
 </p> 
+
 
 
 + rosbag assembly before solving, such as raw inertial csv file or images to rosbag, merge or split rosbag.
 + data format transformation after solving, some visualization scripts.
 
+
+
 <p align="left">
-    <a href="https://github.com/Unsigned-Long/iKalibr/blob/master/docs/details/dataset.md"><strong>Dataset Utilized in iKalibr for Evaluation »</strong></a>
+    <a href="./docs/details/dataset.md"><strong>Dataset Utilized in iKalibr for Evaluation »</strong></a>
 </p> 
+
 
 
 

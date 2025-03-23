@@ -11,29 +11,13 @@
 
 ---
 
-**Attention, attention!** If you are using `Ubuntu 20.04`, please directly jump to [**A Tested Install Pipeline On Ubuntu 20.04**](#A-Tested-Install-Pipeline-On-Ubuntu-20-04) section (at the bottom of this file), where you will find the tested environment dependencies and versions of third-party libraries. If you are using a different version of `Ubuntu`, you can also prepare `iKalibr` environment in a similar way, but you may need to further adapt the library versions.
+**Attention, attention!** If you are using `Ubuntu 20.04`, please directly jump to **<u>A Tested Install Pipeline On Ubuntu 20.04</u>** section (at the bottom of this file), where you will find the tested environment dependencies and versions of third-party libraries. If you are using a different version of `Ubuntu`, you can also prepare `iKalibr` environment in a similar way, but you may need to further adapt the library versions.
 
 <p align="left">
     <a><strong>Install Required Third Libraries »</strong></a>
 </p> 
 
-The following libraries need to be installed to support `iKalibr`. If you have already installed some of them, just skip corresponding installation. Some libraries may have some details that need to be paid attention to.
-
-+ install `ROS1` (Ubuntu **20.04** is suggested, Ubuntu **18.04** (ros melodic) is also available), requirements: **ROS1** & **C++17** support.
-
-+ install `Ceres`: see the `GitHub` Profile of **[Ceres](https://github.com/ceres-solver/ceres-solver.git)** library, clone it, compile it, and install it. Make sure that the version of `Ceres` contains the `Manifold` module and `Cuda` support. **`Ceres` version equals to 2.2.0.**
-
-+ install `Sophus`: see the `GitHub` Profile of **[Sophus](https://github.com/strasdat/Sophus.git)** library, clone it, compile it, and install it. Set the cmake option `SOPHUS_USE_BASIC_LOGGING` as `ON` when compile `Sophus`!
-
-+ install `magic-enum`: see the `GitHub` Profile of **[magic-enum](https://github.com/Neargye/magic_enum.git)** library, clone it, compile it, and install it.
-
-+ install `Pangolin`: see the `GitHub` Profile of **[Pangolin](https://github.com/stevenlovegrove/Pangolin.git)** library, clone it, compile it, and install it.
-
-+ install `spdlog`: see the `GitHub` Profile of **[spdlog](https://github.com/gabime/spdlog.git)** library, clone it, compile it, and install it.
-
-+ install `cereal`, `yaml-cpp`, and `colmap`. If possible, installing `colmap` from the [source](https://github.com/colmap/colmap.git) is recommend.
-
-+ install required ros packages.
+The libraries listed in **<u>A Tested Install Pipeline On Ubuntu 20.04</u>** need to be installed to support `iKalibr`. If you have already installed some of them, just skip corresponding installation. Some libraries may have some details that need to be paid attention to.
 
 
 **Key point** (you can't skip this part): 
@@ -102,38 +86,74 @@ sudo apt install ros-noetic-desktop-full
 echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 
-# cmake (3.27)
-wget https://github.com/Kitware/CMake/releases/download/v3.27.0/cmake-3.27.0.tar.gz && \
-    tar -zxvf cmake-3.27.0.tar.gz && \
-    cd cmake-3.27.0 && \
+# cmake (3.30.1)
+wget https://github.com/Kitware/CMake/releases/download/v3.30.1/cmake-3.30.1.tar.gz && \
+    tar -zxvf cmake-3.30.1.tar.gz && \
+    cd cmake-3.30.1 && \
     ./bootstrap && \
     make -j$(nproc) && \
     make install && \
     cd .. && \
-    rm -rf cmake-3.27.0 cmake-3.27.0.tar.gz
+    rm -rf cmake-3.30.1 cmake-3.30.1.tar.gz
 
-# eigen (use default one in ubuntu 20.04)
+# eigen (3.4, for glomap lib)
+wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
+tar -zxvf eigen-3.4.0.tar.gz
+cd eigen-3.4.0
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+sudo make install
 
 # ceres (2.2.0)
 git clone --branch 2.2.0 --single-branch --recurse-submodules https://github.com/ceres-solver/ceres-solver
-# then cmake, make, and install
+cd ceres-solver
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+sudo make install
+# tips: to find glog lib correctly in colmap compiling, please refine the 'FindGlog.cmake', i.e., 
+# modilfy file'/usr/local/lib/cmake/Ceres/FindGlog.cmake', line 348 with (add 'if' and 'endif'):
+# -----------------------------------------------------------------------
+# if(NOT TARGET glog::glog)
+#   add_library(glog::glog INTERFACE IMPORTED)
+#   target_include_directories(glog::glog INTERFACE ${GLOG_INCLUDE_DIRS})
+#   target_link_libraries(glog::glog INTERFACE ${GLOG_LIBRARY})
+# endif()
+# -----------------------------------------------------------------------
 
 # Sophus (1.22.10)
 git clone --branch 1.22.10 --single-branch  https://github.com/strasdat/Sophus.git
+cd Sophus
+mkdir build && cd build
 cmake .. -DSOPHUS_USE_BASIC_LOGGING=ON
-# then make and install
+make -j$(nproc)
+sudo make install
 
 # magic_enum (v0.9.6)
 git clone --branch v0.9.6 --single-branch https://github.com/Neargye/magic_enum.git
-# then cmake, make, and install
+cd magic_enum
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+sudo make install
 
 # pangolin (v0.8)
 git clone --branch v0.8 --single-branch --recursive https://github.com/stevenlovegrove/Pangolin.git
-# then cmake, make, and install
+cd Pangolin
+./scripts/install_prerequisites.sh recommended
+mkdir build && cd build
+cmake .. -GNinja
+ninja
+sudo ninja install
 
 # spdlog (the newest, use internal fmt)
 git clone https://github.com/gabime/spdlog.git
-# then cmake, make, and install
+cd spdlog
+mkdir build && cd build
+cmake ..
+cmake --build .
+sudo make install
 
 # install cereal and yaml-cpp
 sudo apt-get install libcereal-dev
@@ -144,9 +164,19 @@ sudo apt-get install ros-noetic-cv-bridge
 sudo apt-get install ros-noetic-velodyne
 
 # install colmap and glomap from source, if you want to calibrate your optical cameras using mapping-based visual-inertial calibration (for mapping-free visual-inertial calibration, colmap and glomap are not required)
-https://github.com/colmap/glomap.git
 https://github.com/colmap/colmap.git
-# then cmake, make, and install
+cd colmap
+mkdir build && cd build
+cmake .. -GNinja
+ninja
+sudo ninja install
+
+https://github.com/colmap/glomap.git
+cd glomap
+mkdir build && cd build
+cmake .. -GNinja
+ninja
+sudo ninja install
 
 # clone iKalibr
 mkdir -p ~/iKalibr/src
