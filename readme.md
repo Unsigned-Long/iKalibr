@@ -68,7 +68,7 @@ For more details, please refer to our article :point_down::
 
 + install docker and pull the docker image.
 + create a corresponding container using the image.
-+ update (pull) iKalibr repo and recompile it if needed. 
++ update (pull) `iKalibr` repo and recompile it if needed. 
 
 
 
