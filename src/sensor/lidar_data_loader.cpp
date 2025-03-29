@@ -36,7 +36,6 @@
 // Created by csl on 10/4/22.
 //
 
-
 #include "sensor/lidar_data_loader.h"
 #include "ikalibr/LivoxCustomMsg.h"
 #include "sensor_msgs/PointCloud2.h"
@@ -77,7 +76,7 @@ LiDARDataLoader::Ptr LiDARDataLoader::GetLoader(const std::string &lidarModelStr
         case LidarModelType::LIVOX_CUSTOM:
             dataLoader = LivoxLiDAR::Create(lidarModel);
             break;
-	case LidarModelType::RSLIDAR_POINTS: // 新增对 rslidar 的支持
+        case LidarModelType::RSLIDAR_POINTS:
             dataLoader = RSLIDAR_POINTS::Create(lidarModel);
             break;
         default:
@@ -503,16 +502,15 @@ LiDARFrame::Ptr LivoxLiDAR::UnpackScan(const rosbag::MessageInstance &msgInstanc
 // RSLIDAR_POINTS
 // ----------
 
-RSLIDAR_POINTS::RSLIDAR_POINTS(LidarModelType lidarModel) 
+RSLIDAR_POINTS::RSLIDAR_POINTS(LidarModelType lidarModel)
     : LiDARDataLoader(lidarModel) {}
 
 RSLIDAR_POINTS::Ptr RSLIDAR_POINTS::Create(LidarModelType lidarModel) {
     return std::make_shared<RSLIDAR_POINTS>(lidarModel);
 }
 
-                                          
 LiDARFrame::Ptr RSLIDAR_POINTS::UnpackScan(const rosbag::MessageInstance &msgInstance) {
-    sensor_msgs::PointCloud2::ConstPtr lidarMsg = 
+    sensor_msgs::PointCloud2::ConstPtr lidarMsg =
         msgInstance.instantiate<sensor_msgs::PointCloud2>();
     CheckMessage<sensor_msgs::PointCloud2>(lidarMsg);
 
@@ -522,14 +520,14 @@ LiDARFrame::Ptr RSLIDAR_POINTS::UnpackScan(const rosbag::MessageInstance &msgIns
     if (lidarMsg->header.stamp.isZero()) {
         SPDLOG_WARN("RSLIDAR_POINTS scan with zero timestamp.");
     }
-//    double timebase = lidarMsg->header.stamp.toSec();
+    double timebase = lidarMsg->header.stamp.toSec();
 
     IKalibrPointCloud::Ptr cloud(new IKalibrPointCloud());
     cloud->is_dense = false;
     cloud->resize(pcIn.size());
 
     size_t validCount = 0;
-    for (const auto& src : pcIn) {
+    for (const auto &src : pcIn) {
         if (!pcl::isFinite(src)) {
             continue;
         }
@@ -540,10 +538,10 @@ LiDARFrame::Ptr RSLIDAR_POINTS::UnpackScan(const rosbag::MessageInstance &msgIns
         }
 
         IKalibrPoint point;
-        point.x = src.x;    
-        point.y = src.y; 
+        point.x = src.x;
+        point.y = src.y;
         point.z = src.z;
-        point.timestamp = src.timestamp; 
+        point.timestamp = src.timestamp;
         cloud->points[validCount++] = point;
     }
     cloud->resize(validCount);

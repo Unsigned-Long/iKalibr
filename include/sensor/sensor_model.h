@@ -116,7 +116,7 @@ struct LidarModel {
         PANDAR_XT_POINTS,
 
         LIVOX_CUSTOM,
-        
+
         RSLIDAR_POINTS,
     };
 

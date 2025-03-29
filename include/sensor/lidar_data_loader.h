@@ -42,10 +42,10 @@
 #include "sensor/sensor_model.h"
 #include <pcl/point_types.h>
 #include <ros/ros.h>
-
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
+
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
@@ -70,6 +70,7 @@ public:
     [[nodiscard]] LidarModelType GetLiDARModel() const;
 
     virtual ~LiDARDataLoader() = default;
+
 protected:
     template <class MsgType>
     void CheckMessage(typename MsgType::ConstPtr msg) {
@@ -211,10 +212,10 @@ public:
     LiDARFrame::Ptr UnpackScan(const rosbag::MessageInstance &msgInstance) override;
 };
 
-//RSLIDAR
 class RSLIDAR_POINTS : public LiDARDataLoader {
 public:
     using Ptr = std::shared_ptr<RSLIDAR_POINTS>;
+
 public:
     explicit RSLIDAR_POINTS(LidarModelType lidarModel);
     static Ptr Create(LidarModelType lidarModel);
