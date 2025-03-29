@@ -153,6 +153,9 @@ using ColorPointCloud = pcl::PointCloud<ColorPoint>;
 using PandarPoint = PointXYZITR;
 using PandarPointCloud = pcl::PointCloud<PandarPoint>;
 
+using RsPointXYZIRT = PointXYZITR;
+using RsPointCloud = pcl::PointCloud<RsPointXYZIRT>;
+
 using IKalibrPoint = PointXYZT;
 using IKalibrPointCloud = pcl::PointCloud<IKalibrPoint>;
 

@@ -71,6 +71,7 @@ Configor:
     #   2.          Ouster LiDARs: OUSTER_POINTS
     #   3. Hesai Pandar XT LiDARs: PANDAR_XT_POINTS
     #   4.           Livox LiDARs: LIVOX_CUSTOM (the official 'xfer_format'=1, mid-360 and avia is recommend)
+    #   5.       Robosense LiDARs: RSLIDAR_POINTS (tested on RS-Helios-16P)
     LiDARTopics:
       # if no LiDAR is integrated in your sensor suite, just comment out the following key items
       - key: "/lidar0/scan"
