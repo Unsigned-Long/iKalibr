@@ -60,3 +60,12 @@ SpatialTemporalPriori:
     r0c0: 0.0
     r1c0: 0.0
     r2c0: -9.8
+  INTRI_WEIGHTS:
+  # these weights specify how much should the optimized intrinsics stick to their priors given as
+  # camera or IMU configs in the ikalibr config file.
+  # - key: "/camera1"
+  #   value: 1000
+  # - key: "/camera2"
+  #   value: 1
+  # - key: "/imu1"
+  #   value: 10000
