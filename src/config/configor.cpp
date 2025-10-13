@@ -121,6 +121,7 @@ const double Configor::Prior::LossForReprojFactor = 1.0;
 const double Configor::Prior::LossForOpticalFlowFactor = 30.0;
 
 bool Configor::Prior::OptTemporalParams = {};
+bool Configor::Prior::OptImuNonlinearity = false;
 
 bool Configor::Preference::UseCudaInSolving = {};
 OutputOption Configor::Preference::Outputs = OutputOption::NONE;

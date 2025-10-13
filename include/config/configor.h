@@ -257,6 +257,7 @@ public:
         static double GravityNorm;
         static constexpr int SplineOrder = 4;
         static bool OptTemporalParams;
+        static bool OptImuNonlinearity;
         static double TimeOffsetPadding;
         static double ReadoutTimePadding;
         static double MapDownSample;
@@ -319,6 +320,7 @@ public:
             ar(CEREAL_NVP(SpatTempPrioriPath), CEREAL_NVP(GravityNorm),
                CEREAL_NVP(OptTemporalParams), CEREAL_NVP(TimeOffsetPadding),
                CEREAL_NVP(ReadoutTimePadding), CEREAL_NVP(MapDownSample),
+               CEREAL_NVP(OptImuNonlinearity),
                cereal::make_nvp("KnotTimeDist", knotTimeDist),
                cereal::make_nvp("NDTLiDAROdometer", ndtLiDAROdometer),
                cereal::make_nvp("LiDARDataAssociate", lidarDataAssociate));
