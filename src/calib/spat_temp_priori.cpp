@@ -68,6 +68,16 @@ const std::map<std::string, double>& SpatialTemporalPriori::GetReadout() const {
     return RS_READOUT;
 }
 
+std::optional<Eigen::Vector3d> SpatialTemporalPriori::GetGravity() const {
+    if (GRAVITY == Eigen::Vector3d::Zero())
+        return {};
+    return GRAVITY;
+}
+
+const std::map<std::string, double>& SpatialTemporalPriori::GetMinVisualScale() const {
+    return MIN_VISUAL_SCALE;
+}
+
 bool SpatialTemporalPriori::HasSO3ToBr(const std::string& topic) const {
     return hasSO3ToBr.find(topic) != hasSO3ToBr.end();
 }
@@ -238,6 +248,23 @@ void SpatialTemporalPriori::CheckValidityWithConfigor() const {
                          readout, sensor, RT_PADDING);
         }
     }
+
+    if (GRAVITY != Eigen::Vector3d::Zero()) {
+        if (std::abs(GRAVITY.norm() - Configor::Prior::GravityNorm) > 1e-3) {
+            throw Status(Status::ERROR, "the given prior gravity vector [{}, {}, {}] does not have "
+                         "norm equal to Prior::GravityNorm ({})! The vector's norm is: {}.",
+                         GRAVITY.x(), GRAVITY.y(), GRAVITY.z(), Configor::Prior::GravityNorm,
+                         GRAVITY.norm());
+        }
+    }
+
+    for (const auto& [cam, _] : MIN_VISUAL_SCALE) {
+        if (optCamModelType.count(cam) == 0) {
+            throw Status(Status::ERROR, "MIN_VISUAL_SCALE defined for topic '{}' which is not an "
+                         "optical camera topic!", cam);
+        }
+    }
+
     const auto& refImu = Configor::DataStream::ReferIMU;
 
     for (const auto& [fromTo, _] : SO3_Sen1ToSen2) {
@@ -393,6 +420,14 @@ void SpatialTemporalPriori::AddSpatTempPrioriConstraint(Estimator& estimator,
         *data = readout;
         if (estimator.HasParameterBlock(data)) {
             estimator.SetParameterBlockConstant(data);
+        }
+    }
+    const auto gravityPrior = this->GetGravity();
+    if (gravityPrior) {
+        auto gravity = &parMagr.GRAVITY;
+        *gravity = *gravityPrior;
+        if (estimator.HasParameterBlock(gravity->data())) {
+            estimator.SetParameterBlockConstant(gravity->data());
         }
     }
     spdlog::info("add spatial and temp priori constraint finished");

@@ -62,6 +62,8 @@ public:
     std::map<FromTo, double> TO_Sen1ToSen2;
     // readout time of rs cameras
     std::map<std::string, double> RS_READOUT;
+    Eigen::Vector3d GRAVITY;
+    std::map<std::string, double> MIN_VISUAL_SCALE;
 
 public:
     SpatialTemporalPriori() = default;
@@ -75,6 +77,10 @@ public:
     [[nodiscard]] const std::map<FromTo, double> &GetTimeOffset() const;
 
     [[nodiscard]] const std::map<std::string, double> &GetReadout() const;
+
+    [[nodiscard]] std::optional<Eigen::Vector3d> GetGravity() const;
+
+    [[nodiscard]] const std::map<std::string, double> &GetMinVisualScale() const;
 
     [[nodiscard]] bool HasSO3ToBr(const std::string& topic) const;
 
@@ -116,7 +122,7 @@ public:
     template <class Archive>
     void serialize(Archive &ar) {
         ar(CEREAL_NVP(SO3_Sen1ToSen2), CEREAL_NVP(POS_Sen1InSen2), CEREAL_NVP(TO_Sen1ToSen2),
-           CEREAL_NVP(RS_READOUT));
+           CEREAL_NVP(RS_READOUT), CEREAL_NVP(GRAVITY), CEREAL_NVP(MIN_VISUAL_SCALE));
     }
 
     // save the parameters to file using cereal library

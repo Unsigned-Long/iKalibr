@@ -219,6 +219,11 @@ void CalibSolver::InitSensorInertialAlign() const {
         spdlog::info("add visual-inertial alignment factors for '{}' and '{}', align step: {}",
                      camTopic, Configor::DataStream::ReferIMU, ALIGN_STEP);
 
+        std::optional<double> minScale;
+        if (_priori->GetMinVisualScale().count(camTopic) > 0) {
+            minScale = _priori->GetMinVisualScale().at(camTopic);
+        }
+
         for (int i = 0; i < static_cast<int>(constructedFrames.size()) - ALIGN_STEP; ++i) {
             const auto &sPose = constructedFrames.at(i);
             const auto &ePose = constructedFrames.at(i + ALIGN_STEP);
@@ -245,6 +250,10 @@ void CalibSolver::InitSensorInertialAlign() const {
                 &scale,                               // the visual scale (to be estimated)
                 camOptOption,                         // the optimize option
                 weight);                              // the weigh
+
+            if (minScale) {
+                estimator->SetParameterLowerBound(&scale, 0, *minScale);
+            }
         }
     }
 
