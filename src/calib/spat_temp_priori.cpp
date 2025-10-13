@@ -68,6 +68,71 @@ const std::map<std::string, double>& SpatialTemporalPriori::GetReadout() const {
     return RS_READOUT;
 }
 
+bool SpatialTemporalPriori::HasSO3ToBr(const std::string& topic) const {
+    return hasSO3ToBr.find(topic) != hasSO3ToBr.end();
+}
+
+std::optional<Sophus::SO3d> SpatialTemporalPriori::GetSO3ToBr(const std::string& topic) const {
+    if (!HasSO3ToBr(topic))
+        return {};
+
+    const auto& refImu = Configor::DataStream::ReferIMU;
+
+    for (const auto& [fromTo, so3] : this->SO3_Sen1ToSen2) {
+        const auto& [from, to] = fromTo;
+        if (to == refImu && from == topic) {
+            return so3;
+        } else if (from == refImu && to == topic) {
+            return so3.inverse();
+        }
+    }
+    return {};
+}
+
+bool SpatialTemporalPriori::HasPosInBr(const std::string& topic) const {
+    return hasPosToBr.find(topic) != hasPosToBr.end();
+}
+
+std::optional<Eigen::Vector3d> SpatialTemporalPriori::GetPosInBr(const std::string& topic) const {
+    if (!HasPosInBr(topic))
+        return {};
+
+    const auto& refImu = Configor::DataStream::ReferIMU;
+
+    for (const auto& [fromTo, pos] : this->POS_Sen1InSen2) {
+        const auto& [from, to] = fromTo;
+        if (to == refImu && from == topic) {
+            return pos;
+        } else if (from == refImu && to == topic) {
+            // we know the so3 exists because of the HasPosToBr() check above
+            const auto so3 = GetSO3ToBr(to);
+            return (*so3) * (-pos);
+        }
+    }
+    return {};
+}
+
+bool SpatialTemporalPriori::HasTOToBr(const std::string& topic) const {
+    return hasTOToBr.find(topic) != hasTOToBr.end();
+}
+
+std::optional<double> SpatialTemporalPriori::GetTOToBr(const std::string& topic) const {
+    if (!HasTOToBr(topic))
+        return {};
+
+    const auto& refImu = Configor::DataStream::ReferIMU;
+
+    for (const auto& [fromTo, offset] : this->TO_Sen1ToSen2) {
+        const auto& [from, to] = fromTo;
+        if (to == refImu && from == topic) {
+            return offset;
+        } else if (from == refImu && to == topic) {
+            return -offset;
+        }
+    }
+    return {};
+}
+
 void SpatialTemporalPriori::CheckValidityWithConfigor() const {
     // check map if its ambiguous
     if (auto [res, p] = IsMapAmbiguous(this->SO3_Sen1ToSen2); res) {
@@ -172,6 +237,31 @@ void SpatialTemporalPriori::CheckValidityWithConfigor() const {
                          "{:.3f}]), set a larger padding for readout time!",
                          readout, sensor, RT_PADDING);
         }
+    }
+    const auto& refImu = Configor::DataStream::ReferIMU;
+
+    for (const auto& [fromTo, _] : SO3_Sen1ToSen2) {
+        const auto& [from, to] = fromTo;
+        if (from == refImu)
+            hasSO3ToBr.insert(to);
+        else if (to == refImu)
+            hasSO3ToBr.insert(from);
+    }
+
+    for (const auto& [fromTo, _] : POS_Sen1InSen2) {
+        const auto& [from, to] = fromTo;
+        if (from == refImu)
+            hasPosToBr.insert(to);
+        else if (to == refImu && hasSO3ToBr.find(from) != hasSO3ToBr.end())
+            hasPosToBr.insert(from);
+    }
+
+    for (const auto& [fromTo, _] : TO_Sen1ToSen2) {
+        const auto& [from, to] = fromTo;
+        if (from == refImu)
+            hasTOToBr.insert(to);
+        else if (to == refImu)
+            hasTOToBr.insert(from);
     }
 }
 

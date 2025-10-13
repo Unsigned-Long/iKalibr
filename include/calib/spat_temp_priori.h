@@ -76,6 +76,18 @@ public:
 
     [[nodiscard]] const std::map<std::string, double> &GetReadout() const;
 
+    [[nodiscard]] bool HasSO3ToBr(const std::string& topic) const;
+
+    [[nodiscard]] std::optional<Sophus::SO3d> GetSO3ToBr(const std::string& topic) const;
+
+    [[nodiscard]] bool HasPosInBr(const std::string& topic) const;
+
+    [[nodiscard]] std::optional<Eigen::Vector3d> GetPosInBr(const std::string& topic) const;
+
+    [[nodiscard]] bool HasTOToBr(const std::string& topic) const;
+
+    [[nodiscard]] std::optional<double> GetTOToBr(const std::string& topic) const;
+
     void CheckValidityWithConfigor() const;
 
     void AddSpatTempPrioriConstraint(Estimator &estimator, CalibParamManager &parMagr) const;
@@ -93,6 +105,11 @@ protected:
         }
         return {false, {}};
     }
+
+private:
+    mutable std::set<std::string> hasSO3ToBr;
+    mutable std::set<std::string> hasPosToBr;
+    mutable std::set<std::string> hasTOToBr;
 
 public:
     // Serialization

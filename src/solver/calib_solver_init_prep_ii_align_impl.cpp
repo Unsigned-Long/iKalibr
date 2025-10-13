@@ -32,6 +32,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include "calib/calib_param_manager.h"
+#include "calib/spat_temp_priori.h"
 #include "solver/calib_solver.h"
 
 namespace {
@@ -41,7 +43,19 @@ bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 namespace ns_ikalibr {
 
 void CalibSolver::InitPrepInertialInertialAlign() {
-    // There is no need to prepare for inertial-inertial alignment
+    for (const auto& [topic, _] : Configor::DataStream::IMUTopics) {
+        if (const auto so3 = _priori->GetSO3ToBr(topic)) {
+            _parMagr->EXTRI.SO3_BiToBr.at(topic) = *so3;
+            spdlog::info("extrinsic rotation read from priori information for IMU '{}'", topic);
+        }
+    }
+
+    for (const auto& [topic, _] : Configor::DataStream::IMUTopics) {
+        if (const auto offset = _priori->GetTOToBr(topic)) {
+            _parMagr->TEMPORAL.TO_BiToBr.at(topic) = *offset;
+            spdlog::info("time offset read from priori information for IMU '{}'", topic);
+        }
+    }
 }
 
 }  // namespace ns_ikalibr
