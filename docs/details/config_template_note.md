@@ -165,6 +165,8 @@ Configor:
     # if sensor are hardware-synchronized, you could choose to fix temporal parameters
     # by setting this field to 'false'
     OptTemporalParams: true
+    # if true, the last batch optimization will also optimize IMU nonlinearities
+    OptImuNonlinearity: false
     # the range where the time offsets would be optimized.
     # make sure this range contains the ground truth of time offsets
     # If you're not sure, make this field large, but this could lead to longer optimization time
