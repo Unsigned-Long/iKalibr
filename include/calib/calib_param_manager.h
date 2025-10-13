@@ -249,6 +249,9 @@ public:
     // S2Manifold
     Eigen::Vector3d GRAVITY;
 
+    // true for every knot that has been loaded from priori information
+    std::map<std::string, std::vector<bool>> splinesPrioriKnots;
+
 public:
     // the constructor
     explicit CalibParamManager(const std::vector<std::string> &imuTopics = {},

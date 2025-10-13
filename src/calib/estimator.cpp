@@ -106,6 +106,7 @@ void Estimator::AddRdKnotsData(std::vector<double *> &paramBlockVec,
                                const Estimator::SplineBundleType::RdSplineType &spline,
                                const Estimator::SplineMetaType &splineMeta,
                                bool setToConst) {
+    const auto& prioriKnots = parMagr->splinesPrioriKnots.at(Configor::Preference::SCALE_SPLINE);
     // for each segment
     for (const auto &seg : splineMeta.segments) {
         // the factor 'seg.dt * 0.5' is the treatment for numerical accuracy
@@ -119,7 +120,12 @@ void Estimator::AddRdKnotsData(std::vector<double *> &paramBlockVec,
 
             paramBlockVec.push_back(data);
             // set this param block to be constant
-            if (setToConst) {
+            bool setKnotToConst = setToConst;
+            if (!setToConst && !Configor::Prior::OptSplines) {
+                if (i < prioriKnots.size())
+                    setKnotToConst = prioriKnots.at(i);
+            }
+            if (setKnotToConst) {
                 this->SetParameterBlockConstant(data);
             }
         }
@@ -130,6 +136,7 @@ void Estimator::AddSo3KnotsData(std::vector<double *> &paramBlockVec,
                                 const Estimator::SplineBundleType::So3SplineType &spline,
                                 const Estimator::SplineMetaType &splineMeta,
                                 bool setToConst) {
+    const auto& prioriKnots = parMagr->splinesPrioriKnots.at(Configor::Preference::SO3_SPLINE);
     // for each segment
     for (const auto &seg : splineMeta.segments) {
         // the factor 'seg.dt * 0.5' is the treatment for numerical accuracy
@@ -143,7 +150,12 @@ void Estimator::AddSo3KnotsData(std::vector<double *> &paramBlockVec,
 
             paramBlockVec.push_back(data);
             // set this param block to be constant
-            if (setToConst) {
+            bool setKnotToConst = setToConst;
+            if (!setToConst && !Configor::Prior::OptSplines) {
+                if (i < prioriKnots.size())
+                    setKnotToConst = prioriKnots.at(i);
+            }
+            if (setKnotToConst) {
                 this->SetParameterBlockConstant(data);
             }
         }

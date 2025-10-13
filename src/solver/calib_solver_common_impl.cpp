@@ -110,6 +110,10 @@ CalibSolver::CalibSolver(CalibDataManager::Ptr calibDataManager,
     _splines = CreateSplineBundle(
         _dataMagr->GetCalibStartTimestamp(), _dataMagr->GetCalibEndTimestamp(),
         Configor::Prior::KnotTimeDist::SO3Spline, Configor::Prior::KnotTimeDist::ScaleSpline);
+    _parMagr->splinesPrioriKnots[Configor::Preference::SO3_SPLINE].resize(
+        _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE).GetKnots().size(), false);
+    _parMagr->splinesPrioriKnots[Configor::Preference::SCALE_SPLINE].resize(
+        _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE).GetKnots().size(), false);
 
     // create viewer
     _viewer = Viewer::Create(_parMagr, _splines);
@@ -133,6 +137,12 @@ CalibSolver::CalibSolver(CalibDataManager::Ptr calibDataManager,
         spdlog::info("priori about spatial and temporal parameters are given: '{}'",
                      Configor::Prior::SpatTempPrioriPath);
     }
+
+    // spline bundle priori
+    if (std::filesystem::exists(Configor::Prior::SplinesPrioriPath)) {
+        LoadSplineBundlePriori(Configor::Prior::SplinesPrioriPath);
+        spdlog::info("priori about splines are given: '{}'", Configor::Prior::SplinesPrioriPath);
+    }
 }
 
 CalibSolver::Ptr CalibSolver::Create(const CalibDataManager::Ptr &calibDataManager,
@@ -149,6 +159,10 @@ CalibSolver::~CalibSolver() {
     while (_viewer->IsActive()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+}
+
+double CalibSolver::GetRawStartTimestamp() const {
+    return _dataMagr->GetRawStartTimestamp();
 }
 
 std::optional<Sophus::SE3d> CalibSolver::CurBrToW(double timeByBr) const {
@@ -275,6 +289,57 @@ CalibSolver::SplineBundleType::Ptr CalibSolver::CreateSplineBundle(double st,
         "dt: '{:.5f}'",
         st, et, so3Dt, scaleDt);
     return SplineBundleType::Create({so3SplineInfo, scaleSplineInfo});
+}
+
+void CalibSolver::LoadSplineBundlePriori(const std::string &splinesPrioriPath) {
+    // Load the format saved by CalibSolverIO::SaveBSplines()
+    auto prioriBundle = SplineBundleType::Create({});
+    std::ifstream file(splinesPrioriPath);
+    auto ar = GetInputArchiveVariant(file, Configor::Preference::OutputDataFormat);
+    double rawStartTime;
+    SerializeByInputArchiveVariant(ar, Configor::Preference::OutputDataFormat,
+                                   cereal::make_nvp("splines", *prioriBundle),
+                                   cereal::make_nvp("start_time", rawStartTime));
+
+    try {
+        auto& spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+        const auto& prioriSpline = prioriBundle->GetSo3Spline(Configor::Preference::SO3_SPLINE);
+        auto& prioriKnots = _parMagr->splinesPrioriKnots.at(Configor::Preference::SO3_SPLINE);
+        size_t numPrioriKnots {0u};
+        for (size_t i = 0; i < spline.GetKnots().size(); ++i) {
+            const double t = spline.MinTime() + static_cast<double>(i) * spline.GetTimeInterval();
+            const double prioriT = t + _dataMagr->GetRawStartTimestamp() - rawStartTime;
+            if (prioriSpline.TimeStampInRange(prioriT)) {
+                const auto [tmp, prioriI] = prioriSpline.ComputeTIndex(prioriT);
+                spline.GetKnot(i) = prioriSpline.GetKnot(prioriI);
+                prioriKnots[i] = true;
+                numPrioriKnots++;
+            }
+        }
+        spdlog::info("priori about SO3 spline are given: '{}' ({} knots)",
+                     splinesPrioriPath, numPrioriKnots);
+    } catch (const std::out_of_range&) {
+    }
+
+    try {
+        auto& spline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+        const auto& prioriSpline = prioriBundle->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+        auto& prioriKnots = _parMagr->splinesPrioriKnots.at(Configor::Preference::SCALE_SPLINE);
+        size_t numPrioriKnots {0u};
+        for (size_t i = 0; i < spline.GetKnots().size(); ++i) {
+            const double t = spline.MinTime() + static_cast<double>(i) * spline.GetTimeInterval();
+            const double prioriT = t + _dataMagr->GetRawStartTimestamp() - rawStartTime;
+            if (prioriSpline.TimeStampInRange(prioriT)) {
+                const auto [tmp, prioriI] = prioriSpline.ComputeTIndex(prioriT);
+                spline.GetKnot(i) = prioriSpline.GetKnot(prioriI);
+                prioriKnots[i] = true;
+                numPrioriKnots++;
+            }
+        }
+        spdlog::info("priori about scale spline are given: '{}' ({} knots)",
+                     splinesPrioriPath, numPrioriKnots);
+    } catch (const std::out_of_range&) {
+    }
 }
 
 void CalibSolver::AlignStatesToGravity() const {
@@ -503,6 +568,10 @@ ns_veta::Veta::Ptr CalibSolver::TryLoadSfMData(const std::string &topic,
 
     const auto &nameToOurIdx = info.GetImagesNameToIdx();
     for (const auto &[IdFromColmap, image] : images) {
+	if (nameToOurIdx.find(image.name_) == nameToOurIdx.end()) {
+	    spdlog::warn("Image {} from images.txt not found in info.yaml.", image.name_);
+	    continue;
+	}
         const auto &viewId = nameToOurIdx.at(image.name_);
         const auto &poseId = viewId;
 

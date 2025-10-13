@@ -254,9 +254,11 @@ public:
 
     static struct Prior {
         static std::string SpatTempPrioriPath;
+        static std::string SplinesPrioriPath;
         static double GravityNorm;
         static constexpr int SplineOrder = 4;
         static bool OptTemporalParams;
+        static bool OptSplines;
         static bool OptImuNonlinearity;
         static double TimeOffsetPadding;
         static double ReadoutTimePadding;
@@ -320,7 +322,8 @@ public:
             ar(CEREAL_NVP(SpatTempPrioriPath), CEREAL_NVP(GravityNorm),
                CEREAL_NVP(OptTemporalParams), CEREAL_NVP(TimeOffsetPadding),
                CEREAL_NVP(ReadoutTimePadding), CEREAL_NVP(MapDownSample),
-               CEREAL_NVP(OptImuNonlinearity),
+               CEREAL_NVP(OptImuNonlinearity), CEREAL_NVP(SplinesPrioriPath),
+               CEREAL_NVP(OptSplines),
                cereal::make_nvp("KnotTimeDist", knotTimeDist),
                cereal::make_nvp("NDTLiDAROdometer", ndtLiDAROdometer),
                cereal::make_nvp("LiDARDataAssociate", lidarDataAssociate));
