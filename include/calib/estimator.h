@@ -485,6 +485,17 @@ public:
                                       double *TO_Sen2ToRef,
                                       double weight);
 
+    void AddPriorEqualityConstraint(const double *prior, double *address, double weight);
+    void AddPriorEqualityConstraint(const Eigen::Vector3d &prior,
+                                    Eigen::Vector3d &address,
+                                    double weight);
+    void AddPriorEqualityConstraint(const Eigen::Vector6d &prior,
+                                    Eigen::Vector6d &address,
+                                    double weight);
+    void AddPriorEqualityConstraint(const Sophus::SO3d &prior,
+                                    Sophus::SO3d &address,
+                                    double weight);
+
     void PrintUninvolvedKnots() const;
 
     void AddVisualVelocityDepthFactor(Eigen::Vector3d *LIN_VEL_CmToWInCm,

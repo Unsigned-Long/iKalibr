@@ -265,6 +265,18 @@ void SpatialTemporalPriori::CheckValidityWithConfigor() const {
         }
     }
 
+    for (const auto& [topic, weight] : INTRI_WEIGHTS) {
+        if (optCamModelType.count(topic) == 0 &&
+            Configor::DataStream::EventTopics.count(topic) == 0 &&
+            Configor::DataStream::IMUTopics.count(topic) == 0) {
+            throw Status(Status::ERROR, "INTRI_WEIGHTS defined for topic '{}' which is neither IMU "
+                         "nor camera topic!", topic);
+        }
+        if (weight < 0) {
+            throw Status(Status::ERROR, "INTRI_WEIGHTS defined for topic '{}' is negative!");
+        }
+    }
+
     const auto& refImu = Configor::DataStream::ReferIMU;
 
     for (const auto& [fromTo, _] : SO3_Sen1ToSen2) {
@@ -428,6 +440,72 @@ void SpatialTemporalPriori::AddSpatTempPrioriConstraint(Estimator& estimator,
         *gravity = *gravityPrior;
         if (estimator.HasParameterBlock(gravity->data())) {
             estimator.SetParameterBlockConstant(gravity->data());
+        }
+    }
+    for (const auto& [topic, weight] : this->INTRI_WEIGHTS) {
+        if (parMagr.INTRI.IMU.count(topic) > 0) {
+            const auto& intri = parMagr.INTRI.IMU.at(topic);
+            const auto& prioriIntri = parMagr.INTRI.PrioriIMU.at(topic);
+            if (std::isinf(weight)) {
+                // set params constant
+                if (estimator.HasParameterBlock(intri->ACCE.BIAS.data())) {
+                    estimator.SetParameterBlockConstant(intri->ACCE.BIAS.data());
+                }
+                if (estimator.HasParameterBlock(intri->ACCE.MAP_COEFF.data())) {
+                    estimator.SetParameterBlockConstant(intri->ACCE.MAP_COEFF.data());
+                }
+                if (estimator.HasParameterBlock(intri->GYRO.BIAS.data())) {
+                    estimator.SetParameterBlockConstant(intri->GYRO.BIAS.data());
+                }
+                if (estimator.HasParameterBlock(intri->GYRO.MAP_COEFF.data())) {
+                    estimator.SetParameterBlockConstant(intri->GYRO.MAP_COEFF.data());
+                }
+                if (estimator.HasParameterBlock(intri->SO3_AtoG.data())) {
+                    estimator.SetParameterBlockConstant(intri->SO3_AtoG.data());
+                }
+            } else if (std::isfinite(weight)) {
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->ACCE.BIAS, intri->ACCE.BIAS, weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->ACCE.MAP_COEFF, intri->ACCE.MAP_COEFF, weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->GYRO.BIAS, intri->GYRO.BIAS, weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->GYRO.MAP_COEFF, intri->GYRO.MAP_COEFF, weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->SO3_AtoG, intri->SO3_AtoG, weight);
+            }
+        }
+        if (parMagr.INTRI.Camera.count(topic) > 0 || parMagr.INTRI.RGBD.count(topic) > 0) {
+            const auto isRGBD = parMagr.INTRI.RGBD.count(topic) > 0;
+            const auto& intri = isRGBD ?
+                parMagr.INTRI.RGBD.at(topic)->intri : parMagr.INTRI.Camera.at(topic);
+            const auto& prioriIntri = isRGBD ?
+                parMagr.INTRI.PrioriRGBD.at(topic)->intri : parMagr.INTRI.PrioriCamera.at(topic);
+            if (std::isinf(weight)) {
+                // set params constant
+                if (estimator.HasParameterBlock(intri->FXAddress())) {
+                    estimator.SetParameterBlockConstant(intri->FXAddress());
+                }
+                if (estimator.HasParameterBlock(intri->FYAddress())) {
+                    estimator.SetParameterBlockConstant(intri->FYAddress());
+                }
+                if (estimator.HasParameterBlock(intri->CXAddress())) {
+                    estimator.SetParameterBlockConstant(intri->CXAddress());
+                }
+                if (estimator.HasParameterBlock(intri->CYAddress())) {
+                    estimator.SetParameterBlockConstant(intri->CYAddress());
+                }
+            } else if (std::isfinite(weight)) {
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->FXAddress(), intri->FXAddress(), weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->FYAddress(), intri->FYAddress(), weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->CXAddress(), intri->CXAddress(), weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->CYAddress(), intri->CYAddress(), weight);
+            }
         }
     }
     spdlog::info("add spatial and temp priori constraint finished");

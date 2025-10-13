@@ -64,6 +64,7 @@ public:
     std::map<std::string, double> RS_READOUT;
     Eigen::Vector3d GRAVITY;
     std::map<std::string, double> MIN_VISUAL_SCALE;
+    std::map<std::string, double> INTRI_WEIGHTS;
 
 public:
     SpatialTemporalPriori() = default;
