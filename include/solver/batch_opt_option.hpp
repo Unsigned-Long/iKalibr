@@ -137,6 +137,13 @@ public:
             if (Configor::IsEventIntegrated()) {
                 options = MergeOptions(options, AryToVecWithAppend(MultiEventIMU));
             }
+            // Optimize IMU nonlinearity in the last batch
+            if (!options.empty() && Configor::Prior::OptImuNonlinearity) {
+                auto& opt = options.back();
+                opt |= Opt::OPT_GYRO_MAP_COEFF;
+                opt |= Opt::OPT_ACCE_MAP_COEFF;
+                opt |= Opt::OPT_SO3_AtoG;
+            }
         }
         if (options.empty()) {
             throw Status(Status::CRITICAL, "unknown error happened! (unknown sensor suite)");

@@ -80,8 +80,16 @@ Configor:
     GravityNorm: 9.8
     # priori about spatiotemporal parameters, given by corresponding config file path
     SpatTempPrioriPath: ""
+    # if nonempty, this should point to a knots.yaml file saved by a previous run of ikalibr
+    # splines will be loaded and initialized from these priors and their knots with priors
+    # will not be optimized (unless OptSplines is true)
+    SplinesPrioriPath: ""
     # if sensor are hardware-synchronized, you could choose to fix temporal parameters by setting this field to 'false'
     OptTemporalParams: true
+    # if true, the last batch optimization will also optimize IMU nonlinearities
+    OptImuNonlinearity: false
+    # if true, even spline knots with priori information will be optimized
+    OptSplines: true
     # the range where the time offsets would be optimized.
     # make sure this range contains the ground truth of time offsets
     # If you're not sure, make this field large, but this could lead to longer optimization time

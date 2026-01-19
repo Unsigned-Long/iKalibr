@@ -89,6 +89,7 @@ const std::string Configor::DataStream::PkgPath = ros::package::getPath("ikalibr
 const std::string Configor::DataStream::DebugPath = PkgPath + "/debug/";
 
 std::string Configor::Prior::SpatTempPrioriPath = {};
+std::string Configor::Prior::SplinesPrioriPath = {};
 double Configor::Prior::GravityNorm = {};
 double Configor::Prior::TimeOffsetPadding = {};
 double Configor::Prior::ReadoutTimePadding = {};
@@ -121,6 +122,8 @@ const double Configor::Prior::LossForReprojFactor = 1.0;
 const double Configor::Prior::LossForOpticalFlowFactor = 30.0;
 
 bool Configor::Prior::OptTemporalParams = {};
+bool Configor::Prior::OptSplines = true;
+bool Configor::Prior::OptImuNonlinearity = false;
 
 bool Configor::Preference::UseCudaInSolving = {};
 OutputOption Configor::Preference::Outputs = OutputOption::NONE;

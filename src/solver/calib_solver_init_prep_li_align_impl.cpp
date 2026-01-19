@@ -35,6 +35,7 @@
 #include "calib/calib_data_manager.h"
 #include "calib/calib_param_manager.h"
 #include "calib/estimator.h"
+#include "calib/spat_temp_priori.h"
 #include "core/lidar_odometer.h"
 #include "core/rotation_estimator.h"
 #include "core/scan_undistortion.h"
@@ -55,6 +56,21 @@ void CalibSolver::InitPrepLiDARInertialAlign() const {
     }
     const auto &so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto &scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+
+    for (const auto& [topic, _] : Configor::DataStream::LiDARTopics) {
+        if (const auto so3 = _priori->GetSO3ToBr(topic)) {
+            _parMagr->EXTRI.SO3_LkToBr.at(topic) = *so3;
+            spdlog::info("extrinsic rotation read from priori information for lidar '{}'", topic);
+        }
+    }
+
+    for (const auto& [topic, _] : Configor::DataStream::LiDARTopics) {
+        if (const auto offset = _priori->GetTOToBr(topic)) {
+            _parMagr->TEMPORAL.TO_LkToBr.at(topic) = *offset;
+            spdlog::info("time offset read from priori information for lidar '{}'", topic);
+        }
+    }
+
     /**
      * we throw the head and tail data as the rotations from the fitted SO3 Spline in that range are
      * poor
@@ -70,6 +86,11 @@ void CalibSolver::InitPrepLiDARInertialAlign() const {
      */
     spdlog::info("LiDARs are integrated, initializing extrinsic rotations of LiDARs...");
     for (const auto &[topic, data] : _dataMagr->GetLiDARMeasurements()) {
+        const auto hasSO3 = _priori->HasSO3ToBr(topic);
+        const auto hasTO = _priori->HasTOToBr(topic);
+        if (hasSO3 && (!Configor::Prior::OptTemporalParams || hasTO))
+            continue;
+
         spdlog::info("performing ndt odometer for '{}' for extrinsic rotation initialization...",
                      topic);
 

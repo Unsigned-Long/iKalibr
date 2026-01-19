@@ -35,6 +35,7 @@
 #include "calib/calib_data_manager.h"
 #include "calib/calib_param_manager.h"
 #include "calib/estimator.h"
+#include "calib/spat_temp_priori.h"
 #include "core/lidar_odometer.h"
 #include "solver/calib_solver.h"
 #include "util/utils_tpl.hpp"
@@ -102,6 +103,14 @@ void CalibSolver::InitSensorInertialAlign() const {
         const auto &poseSeq = odometer->GetOdomPoseVec();
         double TO_LkToBr = _parMagr->TEMPORAL.TO_LkToBr.at(lidarTopic);
 
+        auto lidarOptOption = optOption;
+        if (const auto pos = _priori->GetPosInBr(lidarTopic)) {
+            _parMagr->EXTRI.POS_LkInBr.at(lidarTopic) = *pos;
+            spdlog::info("extrinsic translation read from priori information for lidar '{}'",
+                lidarTopic);
+            lidarOptOption &= ~OptOption::OPT_POS_LkInBr;
+        }
+
         // create linear velocity sequence
         linVelSeqLk[lidarTopic] =
             std::vector<Eigen::Vector3d>(poseSeq.size(), Eigen::Vector3d::Zero());
@@ -136,7 +145,7 @@ void CalibSolver::InitSensorInertialAlign() const {
                 odometer->GetMapTime(),                 // the map time
                 &curLidarLinVelSeq.at(i),               // the start velocity (to be estimated)
                 &curLidarLinVelSeq.at(i + ALIGN_STEP),  // the end velocity (to be estimated)
-                optOption,                              // the optimize option
+                lidarOptOption,                         // the optimize option
                 weight);                                // the weigh
         }
     }
@@ -185,6 +194,14 @@ void CalibSolver::InitSensorInertialAlign() const {
                                            frame->GetTimestamp());
         }
 
+        auto camOptOption = optOption;
+        if (const auto pos = _priori->GetPosInBr(camTopic)) {
+            _parMagr->EXTRI.POS_CmInBr.at(camTopic) = *pos;
+            spdlog::info("extrinsic translation read from priori information for camera '{}'",
+                camTopic);
+            camOptOption &= ~OptOption::OPT_POS_CmInBr;
+        }
+
         // create linear velocity sequence
         linVelSeqCm[camTopic] =
             std::vector<Eigen::Vector3d>(constructedFrames.size(), Eigen::Vector3d::Zero());
@@ -201,6 +218,11 @@ void CalibSolver::InitSensorInertialAlign() const {
 
         spdlog::info("add visual-inertial alignment factors for '{}' and '{}', align step: {}",
                      camTopic, Configor::DataStream::ReferIMU, ALIGN_STEP);
+
+        std::optional<double> minScale;
+        if (_priori->GetMinVisualScale().count(camTopic) > 0) {
+            minScale = _priori->GetMinVisualScale().at(camTopic);
+        }
 
         for (int i = 0; i < static_cast<int>(constructedFrames.size()) - ALIGN_STEP; ++i) {
             const auto &sPose = constructedFrames.at(i);
@@ -226,8 +248,12 @@ void CalibSolver::InitSensorInertialAlign() const {
                 &curCamLinVelSeq.at(i),               // the start velocity (to be estimated)
                 &curCamLinVelSeq.at(i + ALIGN_STEP),  // the end velocity (to be estimated)
                 &scale,                               // the visual scale (to be estimated)
-                optOption,                            // the optimize option
+                camOptOption,                         // the optimize option
                 weight);                              // the weigh
+
+            if (minScale) {
+                estimator->SetParameterLowerBound(&scale, 0, *minScale);
+            }
         }
     }
 
@@ -236,6 +262,15 @@ void CalibSolver::InitSensorInertialAlign() const {
     std::vector<Eigen::Vector3d> linVelSeqBr(std::floor((et - st) / dt), Eigen::Vector3d::Zero());
     if (Configor::DataStream::IMUTopics.size() >= 2) {
         for (const auto &[topic, frames] : _dataMagr->GetIMUMeasurements()) {
+            auto imuOptOption = optOption;
+            const auto pos = _priori->GetPosInBr(topic);
+            if (topic != Configor::DataStream::ReferIMU && pos) {
+                _parMagr->EXTRI.POS_BiInBr.at(topic) = *pos;
+                spdlog::info("extrinsic translation read from priori information for IMU '{}'",
+                    topic);
+                imuOptOption &= ~OptOption::OPT_POS_BiInBr;
+            }
+
             spdlog::info("add inertial alignment factors for '{}'...", topic);
             int count = 0;
             for (int i = 0; i < static_cast<int>(linVelSeqBr.size()) - 1; ++i) {
@@ -244,13 +279,13 @@ void CalibSolver::InitSensorInertialAlign() const {
                 Eigen::Vector3d *sVel = &linVelSeqBr.at(sIdx), *eVel = &linVelSeqBr.at(eIdx);
 
                 estimator->AddInertialAlignment(
-                    frames,     // imu frames
-                    topic,      // the ros topic of this imu
-                    sTimeByBr,  // the start time stamped by the reference imu
-                    eTimeByBr,  // the end time stamped by the reference imu
-                    sVel,       // the start velocity (to be estimated)
-                    eVel,       // the end velocity (to be estimated)
-                    optOption,  // the optimize option
+                    frames,        // imu frames
+                    topic,         // the ros topic of this imu
+                    sTimeByBr,     // the start time stamped by the reference imu
+                    eTimeByBr,     // the end time stamped by the reference imu
+                    sVel,          // the start velocity (to be estimated)
+                    eVel,          // the end velocity (to be estimated)
+                    imuOptOption,  // the optimize option
                     Configor::DataStream::IMUTopics.at(topic).AcceWeight);
                 ++count;
             }
@@ -265,6 +300,14 @@ void CalibSolver::InitSensorInertialAlign() const {
         double TO_RjToBr = _parMagr->TEMPORAL.TO_RjToBr.at(radarTopic);
 
         const auto &refIMUFrames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+
+        auto radarOptOption = optOption;
+        if (const auto pos = _priori->GetPosInBr(radarTopic)) {
+            _parMagr->EXTRI.POS_RjInBr.at(radarTopic) = *pos;
+            spdlog::info("extrinsic translation read from priori information for radar '{}'",
+                radarTopic);
+            radarOptOption &= ~OptOption::OPT_POS_RjInBr;
+        }
 
         const int ALIGN_STEP =
             std::max(1, int(DESIRED_TIME_INTERVAL * _dataMagr->GetRadarAvgFrequency(radarTopic)));
@@ -308,7 +351,7 @@ void CalibSolver::InitSensorInertialAlign() const {
                 radarTopic,                      // the ros topic of this radar
                 sArray,                          // the start target array
                 eArray,                          // the end target array
-                optOption,                       // the optimization option
+                radarOptOption,                  // the optimization option
                 weight);                         // the weight
             ++count;
         }
@@ -322,6 +365,14 @@ void CalibSolver::InitSensorInertialAlign() const {
         double TO_DnToBr = _parMagr->TEMPORAL.TO_DnToBr.at(rgbdTopic);
 
         const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+
+        auto rgbdOptOption = optOption;
+        if (const auto pos = _priori->GetPosInBr(rgbdTopic)) {
+            _parMagr->EXTRI.POS_DnInBr.at(rgbdTopic) = *pos;
+            spdlog::info("extrinsic translation read from priori information for rgbd camera '{}'",
+                rgbdTopic);
+            rgbdOptOption &= ~OptOption::OPT_POS_DnInBr;
+        }
 
         const int ALIGN_STEP =
             std::max(1, int(DESIRED_TIME_INTERVAL * _dataMagr->GetRGBDAvgFrequency(rgbdTopic)));
@@ -351,7 +402,7 @@ void CalibSolver::InitSensorInertialAlign() const {
                 rgbdTopic,                         // the ros topic of this rgbd camera
                 bodyFrameVels.at(i),               // the start velocity
                 bodyFrameVels.at(i + ALIGN_STEP),  // the end velocity
-                optOption,                         // the optimization option
+                rgbdOptOption,                     // the optimization option
                 weight);                           // the weight
             ++count;
         }
@@ -365,6 +416,14 @@ void CalibSolver::InitSensorInertialAlign() const {
         double weight = Configor::DataStream::CameraTopics.at(topic).Weight;
         double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(topic);
         const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+
+        auto camOptOption = optOption;
+        if (const auto pos = _priori->GetPosInBr(topic)) {
+            _parMagr->EXTRI.POS_CmInBr.at(topic) = *pos;
+            spdlog::info("extrinsic translation read from priori information for camera '{}'",
+                topic);
+            camOptOption &= ~OptOption::OPT_POS_CmInBr;
+        }
 
         const int ALIGN_STEP =
             std::max(1, int(DESIRED_TIME_INTERVAL * _dataMagr->GetCameraAvgFrequency(topic)));
@@ -401,7 +460,7 @@ void CalibSolver::InitSensorInertialAlign() const {
                 &curVelScales.at(i),               // the scale of start velocity to be estimated
                 velDirs.at(i + ALIGN_STEP),        // the direction of the end velocity
                 &curVelScales.at(i + ALIGN_STEP),  // the scale of end velocity to be estimated
-                optOption,                         // the optimization option
+                camOptOption,                      // the optimization option
                 weight);                           // the weight
             ++count;
         }
@@ -415,6 +474,14 @@ void CalibSolver::InitSensorInertialAlign() const {
         double weight = Configor::DataStream::EventTopics.at(topic).Weight;
         double TO_EsToBr = _parMagr->TEMPORAL.TO_EsToBr.at(topic);
         const auto &frames = _dataMagr->GetIMUMeasurements(Configor::DataStream::ReferIMU);
+
+        auto eventOptOption = optOption;
+        if (const auto pos = _priori->GetPosInBr(topic)) {
+            _parMagr->EXTRI.POS_EsInBr.at(topic) = *pos;
+            spdlog::info("extrinsic translation read from priori information for event camera '{}'",
+                topic);
+            eventOptOption &= ~OptOption::OPT_POS_EsInBr;
+        }
 
         double freq =
             static_cast<double>(velDirs.size()) / (velDirs.back().first - velDirs.front().first);
@@ -450,7 +517,7 @@ void CalibSolver::InitSensorInertialAlign() const {
                 &curVelScales.at(i),               // the scale of start velocity to be estimated
                 velDirs.at(i + ALIGN_STEP),        // the direction of the end velocity
                 &curVelScales.at(i + ALIGN_STEP),  // the scale of end velocity to be estimated
-                optOption,                         // the optimization option
+                eventOptOption,                    // the optimization option
                 weight);                           // the weight
             ++count;
         }

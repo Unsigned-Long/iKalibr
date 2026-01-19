@@ -158,8 +158,10 @@ void CalibSolverIO::SaveBSplines(int hz) const {
         auto filename = saveDir + "/knots" + Configor::GetFormatExtension();
         std::ofstream file(filename);
         auto ar = GetOutputArchiveVariant(file, Configor::Preference::OutputDataFormat);
+        const double st = _solver->GetRawStartTimestamp();
         SerializeByOutputArchiveVariant(ar, Configor::Preference::OutputDataFormat,
-                                        cereal::make_nvp("splines", *_solver->_splines));
+                                        cereal::make_nvp("splines", *_solver->_splines),
+                                        cereal::make_nvp("start_time", st));
     }
     spdlog::info("saving splines finished!");
 }

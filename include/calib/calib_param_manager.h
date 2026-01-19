@@ -213,6 +213,10 @@ public:
         std::map<std::string, ns_veta::PinholeIntrinsic::Ptr> Camera;
         std::map<std::string, RGBDIntrinsics::Ptr> RGBD;
 
+        std::map<std::string, IMUIntrinsics::Ptr> PrioriIMU;
+        std::map<std::string, ns_veta::PinholeIntrinsic::Ptr> PrioriCamera;
+        std::map<std::string, RGBDIntrinsics::Ptr> PrioriRGBD;
+
         static ns_veta::PinholeIntrinsic::Ptr LoadCameraIntri(
             const std::string &filename,
             CerealArchiveType::Enum archiveType = CerealArchiveType::Enum::YAML);
@@ -244,6 +248,9 @@ public:
 
     // S2Manifold
     Eigen::Vector3d GRAVITY;
+
+    // true for every knot that has been loaded from priori information
+    std::map<std::string, std::vector<bool>> splinesPrioriKnots;
 
 public:
     // the constructor

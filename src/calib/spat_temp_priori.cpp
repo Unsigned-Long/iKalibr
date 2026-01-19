@@ -68,6 +68,81 @@ const std::map<std::string, double>& SpatialTemporalPriori::GetReadout() const {
     return RS_READOUT;
 }
 
+std::optional<Eigen::Vector3d> SpatialTemporalPriori::GetGravity() const {
+    if (GRAVITY == Eigen::Vector3d::Zero())
+        return {};
+    return GRAVITY;
+}
+
+const std::map<std::string, double>& SpatialTemporalPriori::GetMinVisualScale() const {
+    return MIN_VISUAL_SCALE;
+}
+
+bool SpatialTemporalPriori::HasSO3ToBr(const std::string& topic) const {
+    return hasSO3ToBr.find(topic) != hasSO3ToBr.end();
+}
+
+std::optional<Sophus::SO3d> SpatialTemporalPriori::GetSO3ToBr(const std::string& topic) const {
+    if (!HasSO3ToBr(topic))
+        return {};
+
+    const auto& refImu = Configor::DataStream::ReferIMU;
+
+    for (const auto& [fromTo, so3] : this->SO3_Sen1ToSen2) {
+        const auto& [from, to] = fromTo;
+        if (to == refImu && from == topic) {
+            return so3;
+        } else if (from == refImu && to == topic) {
+            return so3.inverse();
+        }
+    }
+    return {};
+}
+
+bool SpatialTemporalPriori::HasPosInBr(const std::string& topic) const {
+    return hasPosToBr.find(topic) != hasPosToBr.end();
+}
+
+std::optional<Eigen::Vector3d> SpatialTemporalPriori::GetPosInBr(const std::string& topic) const {
+    if (!HasPosInBr(topic))
+        return {};
+
+    const auto& refImu = Configor::DataStream::ReferIMU;
+
+    for (const auto& [fromTo, pos] : this->POS_Sen1InSen2) {
+        const auto& [from, to] = fromTo;
+        if (to == refImu && from == topic) {
+            return pos;
+        } else if (from == refImu && to == topic) {
+            // we know the so3 exists because of the HasPosToBr() check above
+            const auto so3 = GetSO3ToBr(to);
+            return (*so3) * (-pos);
+        }
+    }
+    return {};
+}
+
+bool SpatialTemporalPriori::HasTOToBr(const std::string& topic) const {
+    return hasTOToBr.find(topic) != hasTOToBr.end();
+}
+
+std::optional<double> SpatialTemporalPriori::GetTOToBr(const std::string& topic) const {
+    if (!HasTOToBr(topic))
+        return {};
+
+    const auto& refImu = Configor::DataStream::ReferIMU;
+
+    for (const auto& [fromTo, offset] : this->TO_Sen1ToSen2) {
+        const auto& [from, to] = fromTo;
+        if (to == refImu && from == topic) {
+            return offset;
+        } else if (from == refImu && to == topic) {
+            return -offset;
+        }
+    }
+    return {};
+}
+
 void SpatialTemporalPriori::CheckValidityWithConfigor() const {
     // check map if its ambiguous
     if (auto [res, p] = IsMapAmbiguous(this->SO3_Sen1ToSen2); res) {
@@ -173,6 +248,60 @@ void SpatialTemporalPriori::CheckValidityWithConfigor() const {
                          readout, sensor, RT_PADDING);
         }
     }
+
+    if (GRAVITY != Eigen::Vector3d::Zero()) {
+        if (std::abs(GRAVITY.norm() - Configor::Prior::GravityNorm) > 1e-3) {
+            throw Status(Status::ERROR, "the given prior gravity vector [{}, {}, {}] does not have "
+                         "norm equal to Prior::GravityNorm ({})! The vector's norm is: {}.",
+                         GRAVITY.x(), GRAVITY.y(), GRAVITY.z(), Configor::Prior::GravityNorm,
+                         GRAVITY.norm());
+        }
+    }
+
+    for (const auto& [cam, _] : MIN_VISUAL_SCALE) {
+        if (optCamModelType.count(cam) == 0) {
+            throw Status(Status::ERROR, "MIN_VISUAL_SCALE defined for topic '{}' which is not an "
+                         "optical camera topic!", cam);
+        }
+    }
+
+    for (const auto& [topic, weight] : INTRI_WEIGHTS) {
+        if (optCamModelType.count(topic) == 0 &&
+            Configor::DataStream::EventTopics.count(topic) == 0 &&
+            Configor::DataStream::IMUTopics.count(topic) == 0) {
+            throw Status(Status::ERROR, "INTRI_WEIGHTS defined for topic '{}' which is neither IMU "
+                         "nor camera topic!", topic);
+        }
+        if (weight < 0) {
+            throw Status(Status::ERROR, "INTRI_WEIGHTS defined for topic '{}' is negative!");
+        }
+    }
+
+    const auto& refImu = Configor::DataStream::ReferIMU;
+
+    for (const auto& [fromTo, _] : SO3_Sen1ToSen2) {
+        const auto& [from, to] = fromTo;
+        if (from == refImu)
+            hasSO3ToBr.insert(to);
+        else if (to == refImu)
+            hasSO3ToBr.insert(from);
+    }
+
+    for (const auto& [fromTo, _] : POS_Sen1InSen2) {
+        const auto& [from, to] = fromTo;
+        if (from == refImu)
+            hasPosToBr.insert(to);
+        else if (to == refImu && hasSO3ToBr.find(from) != hasSO3ToBr.end())
+            hasPosToBr.insert(from);
+    }
+
+    for (const auto& [fromTo, _] : TO_Sen1ToSen2) {
+        const auto& [from, to] = fromTo;
+        if (from == refImu)
+            hasTOToBr.insert(to);
+        else if (to == refImu)
+            hasTOToBr.insert(from);
+    }
 }
 
 void SpatialTemporalPriori::AddSpatTempPrioriConstraint(Estimator& estimator,
@@ -255,6 +384,10 @@ void SpatialTemporalPriori::AddSpatTempPrioriConstraint(Estimator& estimator,
             // only one of the param block has been added to problem, we then add the constraint,
             // to make sure a unique least-squares solution
             estimator.AddPriorExtriSO3Constraint(Sen1ToSen2, rot1, rot2, PrioriWeight);
+            if (sen1 == RefIMU && estimator.HasParameterBlock(rot1->data())) {
+                *rot1 = Sophus::SO3d();
+                estimator.SetParameterBlockConstant(rot1->data());
+            }
         }
     }
     for (const auto& [sensorPair, Sen1InSen2] : this->POS_Sen1InSen2) {
@@ -270,6 +403,10 @@ void SpatialTemporalPriori::AddSpatTempPrioriConstraint(Estimator& estimator,
         } else if (estimator.HasParameterBlock(pos1->data()) ||
                    estimator.HasParameterBlock(pos2->data())) {
             estimator.AddPriorExtriPOSConstraint(Sen1InSen2, pos1, rot2, pos2, PrioriWeight);
+            if (sen1 == RefIMU && estimator.HasParameterBlock(pos1->data())) {
+                *pos1 = Eigen::Vector3d::Zero();
+                estimator.SetParameterBlockConstant(pos1->data());
+            }
         }
     }
     for (const auto& [sensorPair, Sen1ToSen2] : this->TO_Sen1ToSen2) {
@@ -283,6 +420,10 @@ void SpatialTemporalPriori::AddSpatTempPrioriConstraint(Estimator& estimator,
             }
         } else if (estimator.HasParameterBlock(to1) || estimator.HasParameterBlock(to2)) {
             estimator.AddPriorTimeOffsetConstraint(Sen1ToSen2, to1, to2, PrioriWeight);
+            if (sen1 == RefIMU && estimator.HasParameterBlock(to1)) {
+                *to1 = 0.0;
+                estimator.SetParameterBlockConstant(to1);
+            }
         }
     }
     // readout times (we set them as constraints in optimization)
@@ -291,6 +432,80 @@ void SpatialTemporalPriori::AddSpatTempPrioriConstraint(Estimator& estimator,
         *data = readout;
         if (estimator.HasParameterBlock(data)) {
             estimator.SetParameterBlockConstant(data);
+        }
+    }
+    const auto gravityPrior = this->GetGravity();
+    if (gravityPrior) {
+        auto gravity = &parMagr.GRAVITY;
+        *gravity = *gravityPrior;
+        if (estimator.HasParameterBlock(gravity->data())) {
+            estimator.SetParameterBlockConstant(gravity->data());
+        }
+    }
+    for (const auto& [topic, weight] : this->INTRI_WEIGHTS) {
+        if (parMagr.INTRI.IMU.count(topic) > 0) {
+            const auto& intri = parMagr.INTRI.IMU.at(topic);
+            const auto& prioriIntri = parMagr.INTRI.PrioriIMU.at(topic);
+            if (std::isinf(weight)) {
+                // set params constant
+                if (estimator.HasParameterBlock(intri->ACCE.BIAS.data())) {
+                    estimator.SetParameterBlockConstant(intri->ACCE.BIAS.data());
+                }
+                if (estimator.HasParameterBlock(intri->ACCE.MAP_COEFF.data())) {
+                    estimator.SetParameterBlockConstant(intri->ACCE.MAP_COEFF.data());
+                }
+                if (estimator.HasParameterBlock(intri->GYRO.BIAS.data())) {
+                    estimator.SetParameterBlockConstant(intri->GYRO.BIAS.data());
+                }
+                if (estimator.HasParameterBlock(intri->GYRO.MAP_COEFF.data())) {
+                    estimator.SetParameterBlockConstant(intri->GYRO.MAP_COEFF.data());
+                }
+                if (estimator.HasParameterBlock(intri->SO3_AtoG.data())) {
+                    estimator.SetParameterBlockConstant(intri->SO3_AtoG.data());
+                }
+            } else if (std::isfinite(weight)) {
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->ACCE.BIAS, intri->ACCE.BIAS, weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->ACCE.MAP_COEFF, intri->ACCE.MAP_COEFF, weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->GYRO.BIAS, intri->GYRO.BIAS, weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->GYRO.MAP_COEFF, intri->GYRO.MAP_COEFF, weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->SO3_AtoG, intri->SO3_AtoG, weight);
+            }
+        }
+        if (parMagr.INTRI.Camera.count(topic) > 0 || parMagr.INTRI.RGBD.count(topic) > 0) {
+            const auto isRGBD = parMagr.INTRI.RGBD.count(topic) > 0;
+            const auto& intri = isRGBD ?
+                parMagr.INTRI.RGBD.at(topic)->intri : parMagr.INTRI.Camera.at(topic);
+            const auto& prioriIntri = isRGBD ?
+                parMagr.INTRI.PrioriRGBD.at(topic)->intri : parMagr.INTRI.PrioriCamera.at(topic);
+            if (std::isinf(weight)) {
+                // set params constant
+                if (estimator.HasParameterBlock(intri->FXAddress())) {
+                    estimator.SetParameterBlockConstant(intri->FXAddress());
+                }
+                if (estimator.HasParameterBlock(intri->FYAddress())) {
+                    estimator.SetParameterBlockConstant(intri->FYAddress());
+                }
+                if (estimator.HasParameterBlock(intri->CXAddress())) {
+                    estimator.SetParameterBlockConstant(intri->CXAddress());
+                }
+                if (estimator.HasParameterBlock(intri->CYAddress())) {
+                    estimator.SetParameterBlockConstant(intri->CYAddress());
+                }
+            } else if (std::isfinite(weight)) {
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->FXAddress(), intri->FXAddress(), weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->FYAddress(), intri->FYAddress(), weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->CXAddress(), intri->CXAddress(), weight);
+                estimator.AddPriorEqualityConstraint(
+                    prioriIntri->CYAddress(), intri->CYAddress(), weight);
+            }
         }
     }
     spdlog::info("add spatial and temp priori constraint finished");

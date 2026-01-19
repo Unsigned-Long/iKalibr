@@ -158,6 +158,22 @@ CalibParamManager::Ptr CalibParamManager::InitParamsFromConfigor() {
         }
     }
 
+    for (const auto& [topic, intri] : parMarg->INTRI.IMU) {
+        parMarg->INTRI.PrioriIMU[topic] = IMUIntrinsics::Create();
+        *parMarg->INTRI.PrioriIMU[topic] = *parMarg->INTRI.IMU[topic];
+    }
+    for (const auto& [topic, intri] : parMarg->INTRI.Camera) {
+        parMarg->INTRI.PrioriCamera[topic] = ns_veta::PinholeIntrinsic::Create(0, 0, 0, 0, 0, 0);
+        *parMarg->INTRI.PrioriCamera[topic] = *parMarg->INTRI.Camera[topic];
+    }
+    for (const auto& [topic, intri] : parMarg->INTRI.RGBD) {
+        parMarg->INTRI.PrioriRGBD[topic] = RGBDIntrinsics::Create(
+            ns_veta::PinholeIntrinsic::Create(0, 0, 0, 0, 0, 0), 0, 0);
+        *parMarg->INTRI.PrioriRGBD[topic]->intri = *parMarg->INTRI.RGBD[topic]->intri;
+        parMarg->INTRI.PrioriRGBD[topic]->alpha = parMarg->INTRI.RGBD[topic]->alpha;
+        parMarg->INTRI.PrioriRGBD[topic]->beta = parMarg->INTRI.RGBD[topic]->beta;
+    }
+
     // align to the negative 'z' axis
     parMarg->GRAVITY = Eigen::Vector3d(0.0, 0.0, -Configor::Prior::GravityNorm);
 

@@ -32,30 +32,72 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "calib/calib_param_manager.h"
-#include "calib/spat_temp_priori.h"
-#include "solver/calib_solver.h"
+#ifndef IKALIBR_PRIOR_EQUALITY_FACTOR_HPP
+#define IKALIBR_PRIOR_EQUALITY_FACTOR_HPP
+
+#include "ctraj/utils/eigen_utils.hpp"
+#include "ctraj/utils/sophus_utils.hpp"
+#include "ceres/dynamic_autodiff_cost_function.h"
+#include "util/utils.h"
 
 namespace {
 bool IKALIBR_UNIQUE_NAME(_2_) = ns_ikalibr::_1_(__FILE__);
 }
 
 namespace ns_ikalibr {
+template<int PriorSize>
+struct PriorEqualityFactor {
+private:
+    const double* _prior;
+    double _weight;
 
-void CalibSolver::InitPrepInertialInertialAlign() {
-    for (const auto& [topic, _] : Configor::DataStream::IMUTopics) {
-        if (const auto so3 = _priori->GetSO3ToBr(topic)) {
-            _parMagr->EXTRI.SO3_BiToBr.at(topic) = *so3;
-            spdlog::info("extrinsic rotation read from priori information for IMU '{}'", topic);
-        }
+public:
+    explicit PriorEqualityFactor(const double *prior, double weight)
+        : _prior(prior),
+          _weight(weight) {}
+
+    static auto Create(const double *prior, double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<PriorEqualityFactor>(
+            new PriorEqualityFactor<1>(prior, weight));
     }
 
-    for (const auto& [topic, _] : Configor::DataStream::IMUTopics) {
-        if (const auto offset = _priori->GetTOToBr(topic)) {
-            _parMagr->TEMPORAL.TO_BiToBr.at(topic) = *offset;
-            spdlog::info("time offset read from priori information for IMU '{}'", topic);
-        }
+    static auto Create(const Eigen::Vector3d &prior, double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<PriorEqualityFactor>(
+            new PriorEqualityFactor<3>(prior.data(), weight));
     }
-}
 
+    static auto Create(const Eigen::Vector6d &prior, double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<PriorEqualityFactor>(
+            new PriorEqualityFactor<6>(prior.data(), weight));
+    }
+
+    static auto Create(const Sophus::SO3d &prior, double weight) {
+        return new ceres::DynamicAutoDiffCostFunction<PriorEqualityFactor>(
+            new PriorEqualityFactor<4>(prior.data(), weight));
+    }
+
+    static std::size_t TypeHashCode() { return typeid(PriorEqualityFactor).hash_code(); }
+
+public:
+    /**
+     * param blocks:
+     * [ Prior | ... ]
+     */
+    template <class T>
+    bool operator()(T const *const *sKnots, T *sResiduals) const {
+        const T* const actual = sKnots[0];
+
+        Eigen::Map<Eigen::Vector<T, PriorSize>> residuals(sResiduals);
+        for (size_t i = 0; i < PriorSize; ++i) {
+            residuals(i) = T(_weight) * (_prior[i] - actual[i]);
+        }
+
+        return true;
+    }
+
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
 }  // namespace ns_ikalibr
+
+#endif  // IKALIBR_PRIOR_EQUALITY_FACTOR_HPP

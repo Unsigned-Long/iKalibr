@@ -232,6 +232,12 @@ public:
      */
     virtual ~CalibSolver();
 
+    /**
+     * get the raw timestamp of the beginning of the used data
+     * @return the timestamp
+     */
+    double GetRawStartTimestamp() const;
+
 protected:
     /**
      * transform an input veta using given transformation information, if scale is provide,
@@ -243,6 +249,12 @@ protected:
     static void PerformTransformForVeta(const ns_veta::VetaPtr &veta,
                                         const ns_veta::Posed &curToNew,
                                         double scale);
+
+    /**
+     * Load spline bundle priori data.
+     * @param splinesPrioriPath path to the file saved by CalibSolverIO::SaveBSplines()
+     */
+    void LoadSplineBundlePriori(const std::string& splinesPrioriPath);
 
     /**
      * align vectors to a new coordinate frame where gravity pointing to negative z-axis.

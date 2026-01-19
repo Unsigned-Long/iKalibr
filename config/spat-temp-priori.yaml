@@ -48,3 +48,24 @@ SpatialTemporalPriori:
   # readout time of another rs camera
   # - key: /sensor2/topic
   #   value: 0.02
+  MIN_VISUAL_SCALE:
+  # if set for a camera sensor, this is the lower bound for the estimated visual scale.
+  # if not set, the minimum visual scale is 0.001
+  #- key: "/sensor1/topic"
+  #  value: 0.9
+  GRAVITY:
+  # the direction of the gravity vector in the reference IMU when it is in its default,
+  # gravity-aligned position. The magnitude of the vector should correspond to the magnitude
+  # set in ikalibr config. This is just an initialization value and it will be further optimized.
+    r0c0: 0.0
+    r1c0: 0.0
+    r2c0: -9.8
+  INTRI_WEIGHTS:
+  # these weights specify how much should the optimized intrinsics stick to their priors given as
+  # camera or IMU configs in the ikalibr config file.
+  # - key: "/camera1"
+  #   value: 1000
+  # - key: "/camera2"
+  #   value: 1
+  # - key: "/imu1"
+  #   value: 10000

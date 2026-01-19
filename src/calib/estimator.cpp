@@ -42,6 +42,7 @@
 #include "factor/linear_knots_factor.hpp"
 #include "factor/prior_extri_pos_factor.hpp"
 #include "factor/prior_extri_so3_factor.hpp"
+#include "factor/prior_equality_factor.hpp"
 #include "factor/prior_time_offset_factor.hpp"
 #include "factor/radar_inertial_align_factor.hpp"
 #include "factor/radar_inertial_rot_align_factor.hpp"
@@ -105,6 +106,7 @@ void Estimator::AddRdKnotsData(std::vector<double *> &paramBlockVec,
                                const Estimator::SplineBundleType::RdSplineType &spline,
                                const Estimator::SplineMetaType &splineMeta,
                                bool setToConst) {
+    const auto& prioriKnots = parMagr->splinesPrioriKnots.at(Configor::Preference::SCALE_SPLINE);
     // for each segment
     for (const auto &seg : splineMeta.segments) {
         // the factor 'seg.dt * 0.5' is the treatment for numerical accuracy
@@ -118,7 +120,12 @@ void Estimator::AddRdKnotsData(std::vector<double *> &paramBlockVec,
 
             paramBlockVec.push_back(data);
             // set this param block to be constant
-            if (setToConst) {
+            bool setKnotToConst = setToConst;
+            if (!setToConst && !Configor::Prior::OptSplines) {
+                if (i < prioriKnots.size())
+                    setKnotToConst = prioriKnots.at(i);
+            }
+            if (setKnotToConst) {
                 this->SetParameterBlockConstant(data);
             }
         }
@@ -129,6 +136,7 @@ void Estimator::AddSo3KnotsData(std::vector<double *> &paramBlockVec,
                                 const Estimator::SplineBundleType::So3SplineType &spline,
                                 const Estimator::SplineMetaType &splineMeta,
                                 bool setToConst) {
+    const auto& prioriKnots = parMagr->splinesPrioriKnots.at(Configor::Preference::SO3_SPLINE);
     // for each segment
     for (const auto &seg : splineMeta.segments) {
         // the factor 'seg.dt * 0.5' is the treatment for numerical accuracy
@@ -142,7 +150,12 @@ void Estimator::AddSo3KnotsData(std::vector<double *> &paramBlockVec,
 
             paramBlockVec.push_back(data);
             // set this param block to be constant
-            if (setToConst) {
+            bool setKnotToConst = setToConst;
+            if (!setToConst && !Configor::Prior::OptSplines) {
+                if (i < prioriKnots.size())
+                    setKnotToConst = prioriKnots.at(i);
+            }
+            if (setKnotToConst) {
                 this->SetParameterBlockConstant(data);
             }
         }
@@ -1817,6 +1830,88 @@ void Estimator::AddPriorTimeOffsetConstraint(const double &TO_Sen1ToSen2,
     paramBlockVec.push_back(TO_Sen1ToRef);
     // TO_Sen2ToRef
     paramBlockVec.push_back(TO_Sen2ToRef);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+}
+
+void Estimator::AddPriorEqualityConstraint(const double *prior, double *address, double weight) {
+    // create a cost function
+    auto costFunc = PriorEqualityFactor<1>::Create(prior, weight);
+
+    // prior
+    costFunc->AddParameterBlock(1);
+
+    // set Residuals
+    costFunc->SetNumResiduals(1);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    paramBlockVec.push_back(address);
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+}
+
+void Estimator::AddPriorEqualityConstraint(const Eigen::Vector3d &prior,
+                                           Eigen::Vector3d &address,
+                                           double weight) {
+    // create a cost function
+    auto costFunc = PriorEqualityFactor<3>::Create(prior, weight);
+
+    // prior
+    costFunc->AddParameterBlock(3);
+
+    // set Residuals
+    costFunc->SetNumResiduals(3);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    paramBlockVec.push_back(address.data());
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+}
+
+void Estimator::AddPriorEqualityConstraint(const Eigen::Vector6d &prior,
+                                           Eigen::Vector6d &address,
+                                           double weight) {
+    // create a cost function
+    auto costFunc = PriorEqualityFactor<6>::Create(prior, weight);
+
+    // prior
+    costFunc->AddParameterBlock(6);
+
+    // set Residuals
+    costFunc->SetNumResiduals(6);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    paramBlockVec.push_back(address.data());
+
+    // pass to problem
+    this->AddResidualBlock(costFunc, nullptr, paramBlockVec);
+}
+
+void Estimator::AddPriorEqualityConstraint(const Sophus::SO3d &prior,
+                                           Sophus::SO3d &address,
+                                           double weight) {
+    // create a cost function
+    auto costFunc = PriorEqualityFactor<4>::Create(prior, weight);
+
+    // prior
+    costFunc->AddParameterBlock(4);
+
+    // set Residuals
+    costFunc->SetNumResiduals(4);
+
+    // organize the param block vector
+    std::vector<double *> paramBlockVec;
+
+    paramBlockVec.push_back(address.data());
 
     // pass to problem
     this->AddResidualBlock(costFunc, nullptr, paramBlockVec);

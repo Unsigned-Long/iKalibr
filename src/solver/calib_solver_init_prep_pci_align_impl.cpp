@@ -35,6 +35,7 @@
 #include "calib/calib_data_manager.h"
 #include "calib/calib_param_manager.h"
 #include "calib/estimator.h"
+#include "calib/spat_temp_priori.h"
 #include "core/rotation_estimator.h"
 #include "core/vision_only_sfm.h"
 #include "opencv2/highgui.hpp"
@@ -53,6 +54,21 @@ void CalibSolver::InitPrepPosCameraInertialAlign() const {
     }
     const auto& so3Spline = _splines->GetSo3Spline(Configor::Preference::SO3_SPLINE);
     const auto& scaleSpline = _splines->GetRdSpline(Configor::Preference::SCALE_SPLINE);
+
+    for (const auto& [topic, _] : Configor::DataStream::PosCameraTopics()) {
+        if (const auto so3 = _priori->GetSO3ToBr(topic)) {
+            _parMagr->EXTRI.SO3_CmToBr.at(topic) = *so3;
+            spdlog::info("extrinsic rotation read from priori information for camera '{}'", topic);
+        }
+    }
+
+    for (const auto& [topic, _] : Configor::DataStream::PosCameraTopics()) {
+        if (const auto offset = _priori->GetTOToBr(topic)) {
+            _parMagr->TEMPORAL.TO_CmToBr.at(topic) = *offset;
+            spdlog::info("time offset read from priori information for camera '{}'", topic);
+        }
+    }
+
     /**
      * we throw the head and tail data as the rotations from the fitted SO3 Spline in that range are
      * poor
@@ -74,6 +90,11 @@ void CalibSolver::InitPrepPosCameraInertialAlign() const {
     // the min distance between two features (to ensure features are distributed uniformly)
     constexpr int minDist = 25;
     for (const auto& [topic, _] : Configor::DataStream::PosCameraTopics()) {
+        const auto hasSO3 = _priori->HasSO3ToBr(topic);
+        const auto hasTO = _priori->HasTOToBr(topic);
+        if (hasSO3 && (!Configor::Prior::OptTemporalParams || hasTO))
+            continue;
+
         const auto& frameVec = _dataMagr->GetCameraMeasurements(topic);
         spdlog::info(
             "perform rotation-only visual odometer to recover extrinsic rotations for '{}'...",
@@ -96,6 +117,8 @@ void CalibSolver::InitPrepPosCameraInertialAlign() const {
                 spdlog::warn(
                     "tracking failed when grab the '{}' image frame!!! try to reinitialize", i);
             }
+            if (hasSO3)
+                continue;
 
             // we do not want to try to recover the extrinsic rotation too frequent
             if ((odometer->GetRotations().size() < 50) ||
@@ -115,13 +138,15 @@ void CalibSolver::InitPrepPosCameraInertialAlign() const {
                 break;
             }
         }
-        if (!rotEstimator->SolveStatus()) {
-            throw Status(Status::ERROR,
-                         "initialize rotation 'SO3_CmToBr' failed, this may be related to "
-                         "insufficiently excited motion or bad images.");
-        } else {
-            spdlog::info("extrinsic rotation of '{}' is recovered using '{:06}' frames", topic,
-                         odometer->GetRotations().size());
+        if (!hasSO3) {
+            if (!rotEstimator->SolveStatus()) {
+                throw Status(Status::ERROR,
+                             "initialize rotation 'SO3_CmToBr' failed, this may be related to "
+                             "insufficiently excited motion or bad images.");
+            } else {
+                spdlog::info("extrinsic rotation of '{}' is recovered using '{:06}' frames", topic,
+                             odometer->GetRotations().size());
+            }
         }
         _viewer->UpdateSensorViewer();
 
@@ -141,6 +166,9 @@ void CalibSolver::InitPrepPosCameraInertialAlign() const {
 
         // perform time offset estimation and extrinsic rotation refinement
         for (const auto& [topic, _] : Configor::DataStream::PosCameraTopics()) {
+            if (_priori->HasTOToBr(topic))
+                continue;
+
             const auto& rotations = rotOnlyOdom.at(topic)->GetRotations();
             // this field should be zero here
             double TO_CmToBr = _parMagr->TEMPORAL.TO_CmToBr.at(topic);
